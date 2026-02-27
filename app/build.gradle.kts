@@ -74,12 +74,6 @@ android {
     }
 
     signingConfigs {
-        create("persistentDebug") {
-            storeFile = file("persistent-debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
-        }
         create("release") {
             storeFile = file("keystore/release.keystore")
             storePassword = System.getenv("STORE_PASSWORD")
@@ -108,11 +102,7 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             isDebuggable = true
-            signingConfig = if (System.getenv("GITHUB_EVENT_NAME") == "pull_request") {
-                signingConfigs.getByName("debug")
-            } else {
-                signingConfigs.getByName("persistentDebug")
-            }
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
