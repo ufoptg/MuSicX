@@ -80,12 +80,8 @@ android {
             keyAlias = System.getenv("KEY_ALIAS")
             keyPassword = System.getenv("KEY_PASSWORD")
         }
-        getByName("debug") {
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
-            storePassword = "android"
-            storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
-        }
+        // debug signing config intentionally left as Gradle default
+        // Gradle will auto-generate ~/.android/debug.keystore if missing
     }
 
     buildTypes {
@@ -102,7 +98,8 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             isDebuggable = true
-            signingConfig = signingConfigs.getByName("debug")
+            // No signingConfig set = Gradle uses its built-in default debug keystore
+            // which it auto-generates. No file needed.
         }
     }
 
