@@ -946,4 +946,11 @@
     <string name="switch_to_list_view">Switch to list view</string>
     <string name="switch_to_grid_view">Switch to grid view</string>
     <string name="more_options">More options</string>
+
+    <!-- Loudness Level -->
+    <string name="loudness_level">Loudness level</string>
+    <string name="loudness_level_aggressive">Aggressive (-7dB)</string>
+    <string name="loudness_level_loud">Loud (-11dB)</string>
+    <string name="loudness_level_balanced">Balanced (-14dB)</string>
+    <string name="loudness_level_quiet">Quiet (-19dB)</string>
 </resources>
