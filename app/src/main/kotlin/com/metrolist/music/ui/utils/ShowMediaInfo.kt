@@ -134,6 +134,8 @@ fun ShowMediaInfo(videoId: String) {
                         R.drawable.content_copy
                     )
 
+                    val measuredLufs: Double? = currentFormat?.perceptualLoudnessDb ?: currentFormat?.loudnessDb?.let { it + LoudnessLevel.AGGRESSIVE.targetLufs }
+
                     val extendedList = if (currentFormat != null) {
                         listOf(
                             stringResource(R.string.views) to info?.viewCount?.let(::numberFormatter).orEmpty(),
@@ -144,7 +146,7 @@ fun ShowMediaInfo(videoId: String) {
                             stringResource(R.string.codecs) to currentFormat?.codecs,
                             stringResource(R.string.bitrate) to currentFormat?.bitrate?.let { "${it / 1000} Kbps" },
                             stringResource(R.string.sample_rate) to currentFormat?.sampleRate?.let { "$it Hz" },
-                            stringResource(R.string.loudness) to currentFormat?.perceptualLoudnessDb?.let { "${it - targetLufs} dB" },
+                            stringResource(R.string.loudness) to measuredLufs?.let { "${it - targetLufs} dB" },
                             stringResource(R.string.loudness_level) to when (loudnessLevel) {
                                 LoudnessLevel.AGGRESSIVE -> stringResource(R.string.loudness_level_aggressive)
                                 LoudnessLevel.LOUD -> stringResource(R.string.loudness_level_loud)
