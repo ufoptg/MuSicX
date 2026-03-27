@@ -388,7 +388,7 @@ class MusicService :
     private var normalizationEnabledCached: Boolean = false
 
     @Volatile
-    private var loudnessLevelCached: LoudnessLevel = LoudnessLevel.AGGRESSIVE
+    private var loudnessLevelCached: LoudnessLevel = LoudnessLevel.BALANCED
 
     private var cachedNormalizationGainMb: Int? = null
     private var cachedNormalizationEnabled: Boolean = false
@@ -801,7 +801,7 @@ class MusicService :
                 .map { it[AudioNormalizationKey] ?: true }
                 .distinctUntilChanged(),
             dataStore.data
-                .map { prefs -> prefs[LoudnessLevelKey].toEnum(LoudnessLevel.AGGRESSIVE) }
+                .map { prefs -> prefs[LoudnessLevelKey].toEnum(LoudnessLevel.BALANCED) }
                 .distinctUntilChanged(),
         ) { format, normalizeAudio, loudnessLevel ->
             Triple(format, normalizeAudio, loudnessLevel)
@@ -1914,7 +1914,7 @@ class MusicService :
 
     private fun seedLoudnessCacheFromPrefs() {
         normalizationEnabledCached = dataStore.get(AudioNormalizationKey, true)
-        loudnessLevelCached = dataStore[LoudnessLevelKey].toEnum(LoudnessLevel.AGGRESSIVE)
+        loudnessLevelCached = dataStore[LoudnessLevelKey].toEnum(LoudnessLevel.BALANCED)
 
         Timber.tag(TAG).d(
             "Seeded loudness cache: normalization=$normalizationEnabledCached, level=$loudnessLevelCached"
@@ -1993,7 +1993,7 @@ class MusicService :
                         .tag(TAG)
                         .d("Format loudnessDb: ${format?.loudnessDb}, perceptualLoudnessDb: ${format?.perceptualLoudnessDb}")
 
-                    // Use loudnessDb if available, otherwise fall back to perceptualLoudnessDb
+                    // Use perceptualLoudnessDb if available, otherwise fall back to loudnessDb + offset
                     val measuredLufs: Double? = format?.perceptualLoudnessDb ?: format?.loudnessDb?.let { it + LoudnessLevel.AGGRESSIVE.targetLufs }
 
                     withContext(Dispatchers.Main) {

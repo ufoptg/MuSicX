@@ -73,7 +73,7 @@ fun ShowMediaInfo(videoId: String) {
 
     val loudnessLevel by rememberEnumPreference(
         LoudnessLevelKey,
-        defaultValue = LoudnessLevel.AGGRESSIVE
+        defaultValue = LoudnessLevel.BALANCED
     )
 
     val targetLufs: Float = loudnessLevel.targetLufs
@@ -146,7 +146,7 @@ fun ShowMediaInfo(videoId: String) {
                             stringResource(R.string.codecs) to currentFormat?.codecs,
                             stringResource(R.string.bitrate) to currentFormat?.bitrate?.let { "${it / 1000} Kbps" },
                             stringResource(R.string.sample_rate) to currentFormat?.sampleRate?.let { "$it Hz" },
-                            stringResource(R.string.loudness) to measuredLufs?.let { "${it - targetLufs} dB" },
+                            stringResource(R.string.loudness) to measuredLufs?.let { "${(it - targetLufs).toFloat()}dB" },
                             stringResource(R.string.loudness_level) to when (loudnessLevel) {
                                 LoudnessLevel.AGGRESSIVE -> stringResource(R.string.loudness_level_aggressive)
                                 LoudnessLevel.LOUD -> stringResource(R.string.loudness_level_loud)
