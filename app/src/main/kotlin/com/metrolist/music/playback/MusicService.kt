@@ -2044,7 +2044,7 @@ class MusicService :
         }
     }
 
-    private fun releaseLoudnessEnhancer() {
+    private fun releaseLoudnessEnhancer(clearNormalizationCache: Boolean = true) {
         try {
             loudnessEnhancer?.release()
             Timber.tag(TAG).d("LoudnessEnhancer released")
@@ -2052,8 +2052,10 @@ class MusicService :
             reportException(e)
             Timber.tag(TAG).e(e, "Error releasing LoudnessEnhancer: ${e.message}")
         } finally {
-            cachedNormalizationGainMb = null
-            cachedNormalizationEnabled = false
+            if (clearNormalizationCache) {
+                cachedNormalizationGainMb = null
+                cachedNormalizationEnabled = false
+            }
             loudnessEnhancer = null
         }
     }
@@ -2076,9 +2078,9 @@ class MusicService :
         }
 
         if (isAudioEffectSessionOpened && openedAudioEffectSessionId > 0) {
-            closeAudioEffectSession(openedAudioEffectSessionId)
+            closeAudioEffectSession(sessionIdOverride = openedAudioEffectSessionId, clearNormalizationCache = false)
         } else {
-            releaseLoudnessEnhancer()
+            releaseLoudnessEnhancer(clearNormalizationCache = false)
         }
 
         isAudioEffectSessionOpened = true
@@ -2103,7 +2105,7 @@ class MusicService :
         )
     }
 
-    private fun closeAudioEffectSession(sessionIdOverride: Int? = null) {
+    private fun closeAudioEffectSession(sessionIdOverride: Int? = null, clearNormalizationCache: Boolean = true) {
         val sessionIdToClose = sessionIdOverride ?: openedAudioEffectSessionId
 
         if (! isAudioEffectSessionOpened && (sessionIdToClose == C.AUDIO_SESSION_ID_UNSET || sessionIdToClose <= 0)) {
@@ -2112,7 +2114,7 @@ class MusicService :
 
         isAudioEffectSessionOpened = false
         openedAudioEffectSessionId = C.AUDIO_SESSION_ID_UNSET
-        releaseLoudnessEnhancer()
+        releaseLoudnessEnhancer(clearNormalizationCache = clearNormalizationCache)
 
         if (sessionIdToClose != C.AUDIO_SESSION_ID_UNSET && sessionIdToClose > 0) {
             sendBroadcast(
