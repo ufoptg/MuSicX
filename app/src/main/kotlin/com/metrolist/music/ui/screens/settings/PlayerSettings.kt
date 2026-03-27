@@ -87,6 +87,7 @@ import com.metrolist.music.ui.component.decodeDayTimes
 import com.metrolist.music.ui.component.encodeDayTimes
 import com.metrolist.music.constants.SleepTimerFadeOutKey
 import com.metrolist.music.constants.SleepTimerStopAfterCurrentSongKey
+import com.metrolist.music.ui.utils.getLoudnessLevelLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -251,14 +252,7 @@ fun PlayerSettings(
             title = stringResource(R.string.loudness_level),
             current = loudnessLevel,
             values = LoudnessLevel.values().toList(),
-            valueText = {
-                when (it) {
-                    LoudnessLevel.AGGRESSIVE -> stringResource(R.string.loudness_level_aggressive)
-                    LoudnessLevel.LOUD -> stringResource(R.string.loudness_level_loud)
-                    LoudnessLevel.BALANCED -> stringResource(R.string.loudness_level_balanced)
-                    LoudnessLevel.QUIET -> stringResource(R.string.loudness_level_quiet)
-                }
-            }
+            valueText = { getLoudnessLevelLabel(it) }
         )
     }
 
@@ -474,14 +468,7 @@ fun PlayerSettings(
                         icon = painterResource(R.drawable.volume_up),
                         title = { Text(stringResource(R.string.loudness_level)) },
                         description = {
-                            Text(
-                                when (loudnessLevel) {
-                                    LoudnessLevel.AGGRESSIVE -> stringResource(R.string.loudness_level_aggressive)
-                                    LoudnessLevel.LOUD -> stringResource(R.string.loudness_level_loud)
-                                    LoudnessLevel.BALANCED -> stringResource(R.string.loudness_level_balanced)
-                                    LoudnessLevel.QUIET -> stringResource(R.string.loudness_level_quiet)
-                                }
-                            )
+                            Text(getLoudnessLevelLabel(loudnessLevel))
                         },
                         onClick = { showLoudnessLevelDialog = true }
                     ))
