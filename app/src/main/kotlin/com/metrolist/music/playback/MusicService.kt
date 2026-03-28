@@ -2007,36 +2007,35 @@ class MusicService :
                         if (!isActive || requestGeneration != loudnessSetupGeneration) return@withContext
                         if (player.audioSessionId != audioSessionId || player.currentMediaItem?.mediaId != currentMediaId) return@withContext
 
-                        if (measuredLufs != null) {
-                            val loudnessDb = measuredLufs.let { it - targetLufs }
-                            val targetGain = (-loudnessDb * 100.0).toInt()
-                            val clampedGain = targetGain.coerceIn(MIN_GAIN_MB, MAX_GAIN_MB)
+                        when {
+                            measuredLufs != null -> {
+                                val loudnessDb = measuredLufs - targetLufs
+                                val targetGain = (-loudnessDb * 100.0).toInt()
+                                val clampedGain = targetGain.coerceIn(MIN_GAIN_MB, MAX_GAIN_MB)
 
-                            Timber.tag(TAG)
-                                .d("Normalization Target LUFS: $targetLufs, Measured LUFS: $measuredLufs, Calculated gain: $targetGain mB, Clamped gain: $clampedGain mB")
+                                Timber.tag(TAG)
+                                    .d("Normalization Target LUFS: $targetLufs, Measured LUFS: $measuredLufs, Calculated gain: $targetGain mB, Clamped gain: $clampedGain mB")
 
-                            Timber.tag(TAG)
-                                .d("Calculated raw normalization gain: $targetGain mB (from loudness: $loudnessDb)")
+                                Timber.tag(TAG)
+                                    .d("Calculated raw normalization gain: $targetGain mB (from loudness: $loudnessDb)")
 
-                            try {
                                 cachedNormalizationGainMb = clampedGain
                                 cachedNormalizationEnabled = true
-
                                 loudnessEnhancer?.setTargetGain(clampedGain)
                                 loudnessEnhancer?.enabled = true
-                                Timber.tag(TAG).i("LoudnessEnhancer gain applied: $clampedGain mB")
-                            } catch (e: Exception) {
-                                Timber.tag(TAG).e(e, "Failed to apply loudness enhancement")
-                                reportException(e)
-                                releaseLoudnessEnhancer()
                             }
-                        } else {
-                            cachedNormalizationGainMb = null
-                            cachedNormalizationEnabled = false
-                            loudnessEnhancer?.enabled = false
-                            Timber
-                                .tag(TAG)
-                                .w("Normalization enabled but no loudness data available - no normalization applied")
+
+                            format == null -> {
+                                // Row not available yet for new track: keep carry-over gain to avoid a jump.
+                                Timber.tag(TAG).d("Loudness row not ready yet; keeping cached normalization state")
+                            }
+
+                            else -> {
+                                cachedNormalizationGainMb = null
+                                cachedNormalizationEnabled = false
+                                loudnessEnhancer?.enabled = false
+                                Timber.tag(TAG).w("No loudness data available for track - normalization disabled")
+                            }
                         }
                     }
                 } else {
