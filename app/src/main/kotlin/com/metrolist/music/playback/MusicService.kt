@@ -2133,6 +2133,10 @@ class MusicService :
         loudnessSetupJob?.cancel()
         loudnessSetupJob = null
 
+        if (loudnessEnhancer != null) {
+            releaseLoudnessEnhancer(clearNormalizationCache = clearNormalizationCache)
+        }
+
         if (! isAudioEffectSessionOpened && (sessionIdToClose == C.AUDIO_SESSION_ID_UNSET || sessionIdToClose <= 0)) {
             return
         }
@@ -4094,6 +4098,8 @@ class MusicService :
             timber.log.Timber.e(e, "Failed to swap player in MediaSession")
         }
 
+        val previousAudioSessionId = fadingPlayer?.audioSessionId ?: C.AUDIO_SESSION_ID_UNSET
+
         openAudioEffectSession()
 
         crossfadeJob =
@@ -4132,13 +4138,14 @@ class MusicService :
                 try {
                     fadingPlayer?.volume = 0f
                     player.volume = startVolume
-                    cleanupCrossfade()
                 } catch (e: Exception) {
                 }
+
+                cleanupCrossfade(fadingPlayerSessionId = previousAudioSessionId)
             }
     }
 
-    private fun cleanupCrossfade() {
+    private fun cleanupCrossfade(fadingPlayerSessionId: Int = C.AUDIO_SESSION_ID_UNSET) {
         fadingPlayer?.stop()
         fadingPlayer?.clearMediaItems()
         fadingPlayer?.release()
@@ -4146,6 +4153,10 @@ class MusicService :
         isCrossfading = false
         applyEffectiveVolume()
         sleepTimer.notifySongTransition()
+
+        if (fadingPlayerSessionId != C.AUDIO_SESSION_ID_UNSET && fadingPlayerSessionId > 0) {
+            closeAudioEffectSession(sessionIdOverride = fadingPlayerSessionId, clearNormalizationCache = true)
+        }
     }
 
     companion object {
