@@ -288,19 +288,38 @@ constructor(
 
                     MusicService.YOUTUBE_PLAYLIST -> {
                         try {
-                            YouTube.home().getOrNull()?.sections
-                                ?.flatMap { it.items }
-                                ?.filterIsInstance<PlaylistItem>()
-                                ?.take(10)
-                                ?.map { playlist ->
-                                    browsableMediaItem(
-                                        "${MusicService.YOUTUBE_PLAYLIST}/${playlist.id}",
-                                        playlist.title,
-                                        playlist.author?.name,
-                                        playlist.thumbnail?.toUri(),
-                                        MediaMetadata.MEDIA_TYPE_PLAYLIST,
-                                    )
-                                } ?: emptyList()
+                            val allSections = mutableListOf<com.metrolist.innertube.pages.HomePage.Section>()
+                            var continuation: String? = null
+                            val maxPages = 4
+
+                            // Fetch home page with continuations to find mix sections
+                            for (page in 0 until maxPages) {
+                                val result = YouTube.home(continuation).getOrNull() ?: break
+                                allSections.addAll(result.sections)
+                                continuation = result.continuation
+                                if (continuation == null) break
+                            }
+
+                            // Only show playlists from these specific sections
+                            val allowedKeywords = listOf("mixed for you", "featured", "arabic favorites")
+                            val mixSections = allowedKeywords.flatMap { keyword ->
+                                allSections.filter { it.title.contains(keyword, ignoreCase = true) }
+                            }
+
+                            val playlists = mixSections
+                                .flatMap { it.items }
+                                .filterIsInstance<PlaylistItem>()
+                                .distinctBy { it.id }
+
+                            playlists.map { playlist ->
+                                browsableMediaItem(
+                                    "${MusicService.YOUTUBE_PLAYLIST}/${playlist.id}",
+                                    playlist.title,
+                                    playlist.author?.name,
+                                    playlist.thumbnail?.toUri(),
+                                    MediaMetadata.MEDIA_TYPE_PLAYLIST,
+                                )
+                            }
                         } catch (e: Exception) {
                             reportException(e)
                             emptyList()
