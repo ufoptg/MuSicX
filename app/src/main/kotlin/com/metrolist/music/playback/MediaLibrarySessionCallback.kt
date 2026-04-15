@@ -66,6 +66,8 @@ import com.metrolist.music.constants.AndroidAutoYouTubePlaylistsKey
 import com.metrolist.music.ui.screens.settings.AndroidAutoSection
 import com.metrolist.music.ui.screens.settings.deserializeSections
 import com.metrolist.music.ui.screens.settings.serializeSections
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withContext
 
 class MediaLibrarySessionCallback
 @Inject
@@ -76,10 +78,10 @@ constructor(
 ) : MediaLibrarySession.Callback {
     private val scope = CoroutineScope(Dispatchers.Main) + Job()
     lateinit var service: MusicService
-    var toggleLike: () -> Unit = {}
-    var toggleStartRadio: () -> Unit = {}
-    var toggleLibrary: () -> Unit = {}
-    var addToTargetPlaylist: () -> Unit = {}
+    var toggleLike: suspend () -> Unit = {}
+    var toggleStartRadio: suspend () -> Unit = {}
+    var toggleLibrary: suspend () -> Unit = {}
+    var addToTargetPlaylist: suspend () -> Unit = {}
 
     fun release() {
         scope.cancel()
@@ -109,19 +111,47 @@ constructor(
         controller: MediaSession.ControllerInfo,
         customCommand: SessionCommand,
         args: Bundle,
-    ): ListenableFuture<SessionResult> {
-        when (customCommand.customAction) {
-            MediaSessionConstants.ACTION_TOGGLE_LIKE -> toggleLike()
-            MediaSessionConstants.ACTION_TOGGLE_START_RADIO -> toggleStartRadio()
-            MediaSessionConstants.ACTION_TOGGLE_LIBRARY -> toggleLibrary()
-            MediaSessionConstants.ACTION_TOGGLE_SHUFFLE -> session.player.shuffleModeEnabled =
-                !session.player.shuffleModeEnabled
+    ): ListenableFuture<SessionResult> =
+        scope.future {
+            try {
+                when (customCommand.customAction) {
+                    MediaSessionConstants.ACTION_TOGGLE_LIKE -> toggleLike()
+                    MediaSessionConstants.ACTION_TOGGLE_START_RADIO -> toggleStartRadio()
+                    MediaSessionConstants.ACTION_TOGGLE_LIBRARY -> toggleLibrary()
+                    MediaSessionConstants.ACTION_TOGGLE_SHUFFLE ->
+                        withContext(Dispatchers.Main.immediate) {
+                            session.player.shuffleModeEnabled = !session.player.shuffleModeEnabled
+                        }
 
-            MediaSessionConstants.ACTION_TOGGLE_REPEAT_MODE -> session.player.toggleRepeatMode()
-            MediaSessionConstants.ACTION_ADD_TO_TARGET_PLAYLIST -> addToTargetPlaylist()
+                    MediaSessionConstants.ACTION_TOGGLE_REPEAT_MODE ->
+                        withContext(Dispatchers.Main.immediate) {
+                            session.player.toggleRepeatMode()
+                        }
+
+                    MediaSessionConstants.ACTION_ADD_TO_TARGET_PLAYLIST -> addToTargetPlaylist()
+                    else -> {
+                        return@future SessionResult(
+                            SessionError(
+                                SessionError.ERROR_BAD_VALUE,
+                                "Unsupported command: ${customCommand.customAction}",
+                            ),
+                        )
+                    }
+                }
+
+                SessionResult(SessionResult.RESULT_SUCCESS)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                reportException(e)
+                SessionResult(
+                    SessionError(
+                        SessionError.ERROR_UNKNOWN,
+                        e.message ?: "Failed to execute command",
+                    ),
+                )
+            }
         }
-        return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
-    }
 
     @Deprecated("Deprecated in MediaLibrarySession.Callback")
     override fun onPlaybackResumption(
