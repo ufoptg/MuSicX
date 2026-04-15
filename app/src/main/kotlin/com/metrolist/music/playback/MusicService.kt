@@ -809,10 +809,22 @@ class MusicService :
             }
         }
 
-        currentSong.debounce(1000).collect(scope) { song ->
-            updateNotification()
-            updateWidgetUI(player.isPlaying)
-        }
+        currentSong
+            .distinctUntilChangedBy { song ->
+                song?.let {
+                    listOf(
+                        it.song.id,
+                        it.song.liked,
+                        it.song.inLibrary,
+                        it.song.title,
+                        it.song.thumbnailUrl,
+                        it.artists.joinToString("|") { artist -> artist.name },
+                    )
+                }
+            }.collect(scope) {
+                updateNotification()
+                updateWidgetUI(player.isPlaying)
+            }
 
         combine(
             currentMediaMetadata.distinctUntilChangedBy { it?.id },
@@ -2012,7 +2024,7 @@ class MusicService :
 
     fun toggleLike() {
         scope.launch {
-            val songToToggle = currentSong.first()
+            val songToToggle = currentSong.value ?: currentSong.first()
             songToToggle?.let { librarySong ->
                 val songEntity = librarySong.song
 
@@ -2022,29 +2034,40 @@ class MusicService :
                     return@let
                 }
 
-                val song = songEntity.toggleLike()
-                database.query {
-                    update(song)
-                    syncUtils.likeSong(song)
+                val likedAt = if (!songEntity.liked) LocalDateTime.now() else null
+                val song =
+                    songEntity.copy(
+                        liked = !songEntity.liked,
+                        likedDate = likedAt,
+                        inLibrary = if (likedAt != null) songEntity.inLibrary ?: likedAt else songEntity.inLibrary,
+                    )
 
-                    // Check if auto-download on like is enabled and the song is now liked
-                    if (dataStore.get(AutoDownloadOnLikeKey, false) && song.liked) {
-                        // Trigger download for the liked song
-                        val downloadRequest =
-                            androidx.media3.exoplayer.offline.DownloadRequest
-                                .Builder(song.id, song.id.toUri())
-                                .setCustomCacheKey(song.id)
-                                .setData(song.title.toByteArray())
-                                .build()
-                        androidx.media3.exoplayer.offline.DownloadService.sendAddDownload(
-                            this@MusicService,
-                            ExoDownloadService::class.java,
-                            downloadRequest,
-                            false,
-                        )
-                    }
+                withContext(Dispatchers.IO) {
+                    database.update(song)
                 }
+
+                syncUtils.likeSong(song)
+
+                // Check if auto-download on like is enabled and the song is now liked
+                if (song.liked && withContext(Dispatchers.IO) { dataStore.get(AutoDownloadOnLikeKey, false) }) {
+                    // Trigger download for the liked song
+                    val downloadRequest =
+                        androidx.media3.exoplayer.offline.DownloadRequest
+                            .Builder(song.id, song.id.toUri())
+                            .setCustomCacheKey(song.id)
+                            .setData(song.title.toByteArray())
+                            .build()
+                    androidx.media3.exoplayer.offline.DownloadService.sendAddDownload(
+                        this@MusicService,
+                        ExoDownloadService::class.java,
+                        downloadRequest,
+                        false,
+                    )
+                }
+
                 currentMediaMetadata.value = player.currentMetadata
+                updateNotification()
+                updateWidgetUI(player.isPlaying)
             }
         }
     }
