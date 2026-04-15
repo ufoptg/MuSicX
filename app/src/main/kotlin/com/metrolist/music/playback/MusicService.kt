@@ -211,6 +211,7 @@ import kotlinx.coroutines.CancellationException
 import kotlin.coroutines.coroutineContext
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -233,6 +234,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import timber.log.Timber
@@ -435,6 +438,10 @@ class MusicService :
     private var retryJob: Job? = null
     private var retryCount = 0
     private var silenceSkipJob: Job? = null
+    private val likeToggleMutex = Mutex()
+    private val libraryToggleMutex = Mutex()
+    private val addToTargetPlaylistMutex = Mutex()
+    private val startRadioMutex = Mutex()
 
     // Cached preferences to avoid runBlocking DataStore reads in hot paths
     @Volatile
@@ -634,10 +641,10 @@ class MusicService :
 
         mediaLibrarySessionCallback.apply {
             service = this@MusicService
-            toggleLike = ::toggleLike
-            toggleStartRadio = ::toggleStartRadio
-            toggleLibrary = ::toggleLibrary
-            addToTargetPlaylist = ::addToTargetPlaylist
+            toggleLike = ::toggleLikeInternal
+            toggleStartRadio = ::toggleStartRadioInternal
+            toggleLibrary = ::toggleLibraryInternal
+            addToTargetPlaylist = ::addToTargetPlaylistInternal
         }
         mediaSession =
             MediaLibrarySession
@@ -1674,18 +1681,31 @@ class MusicService :
     }
 
     fun startRadioSeamlessly() {
-        // Safety Check: Ensure Player is initilized
-        if (!playerInitialized.value) {
-            Timber.tag(TAG).w("startRadioSeamlessly called before player initialization")
-            return
-        }
-
-        val currentMediaMetadata = player.currentMetadata ?: return
-
-        val currentIndex = player.currentMediaItemIndex
-        val currentMediaId = currentMediaMetadata.id
-
         scope.launch(SilentHandler) {
+            try {
+                toggleStartRadioInternal()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Failed to start radio seamlessly")
+                reportException(e)
+            }
+        }
+    }
+
+    private suspend fun toggleStartRadioInternal() {
+        startRadioMutex.withLock {
+            // Safety Check: Ensure Player is initialized
+            if (!playerInitialized.value) {
+                Timber.tag(TAG).w("startRadioSeamlessly called before player initialization")
+                return
+            }
+
+            val currentMediaMetadata = player.currentMetadata ?: return
+
+            val currentIndex = player.currentMediaItemIndex
+            val currentMediaId = currentMediaMetadata.id
+
             // Use simple videoId to let YouTube personalize recommendations
             val radioQueue =
                 YouTubeQueue(
@@ -1694,6 +1714,7 @@ class MusicService :
                             videoId = currentMediaId,
                         ),
                 )
+            var hasAppliedRadioItems = false
 
             try {
                 val initialStatus =
@@ -1722,6 +1743,7 @@ class MusicService :
                     }
 
                     player.addMediaItems(currentIndex + 1, radioItems)
+                    hasAppliedRadioItems = true
                     if (player.shuffleModeEnabled) {
                         val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
                         applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
@@ -1755,6 +1777,7 @@ class MusicService :
                                     player.removeMediaItems(currentIndex + 1, itemCount)
                                 }
                                 player.addMediaItems(currentIndex + 1, radioItems)
+                                hasAppliedRadioItems = true
                                 if (player.shuffleModeEnabled) {
                                     applyShuffleOrder(
                                         player.currentMediaItemIndex,
@@ -1766,8 +1789,12 @@ class MusicService :
                         }
                     }
                 } catch (_: Exception) {
-                    // Silent fail
+                    // No-op, will surface as command failure below.
                 }
+            }
+
+            if (!hasAppliedRadioItems) {
+                throw IllegalStateException("No radio recommendations available for current track")
             }
         }
     }
@@ -2003,79 +2030,139 @@ class MusicService :
 
     fun toggleLibrary() {
         scope.launch {
-            val songToToggle = currentSong.first()
-            songToToggle?.let {
-                val isInLibrary = it.song.inLibrary != null
-                val token = if (isInLibrary) it.song.libraryRemoveToken else it.song.libraryAddToken
+            try {
+                toggleLibraryInternal()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Failed to toggle library")
+                reportException(e)
+            }
+        }
+    }
 
-                // Call YouTube API with feedback token if available
-                token?.let { feedbackToken ->
-                    YouTube.feedback(listOf(feedbackToken))
-                }
+    private suspend fun toggleLibraryInternal() {
+        val songToToggle = currentSong.value ?: currentSong.first() ?: return
+        libraryToggleMutex.withLock {
+            val songEntity =
+                withContext(Dispatchers.IO) {
+                    database.song(songToToggle.song.id).first()?.song
+                } ?: songToToggle.song
 
-                // Update local database
-                database.query {
-                    update(it.song.toggleLibrary())
+            val isInLibrary = songEntity.inLibrary != null
+            val token = if (isInLibrary) songEntity.libraryRemoveToken else songEntity.libraryAddToken
+            val now = LocalDateTime.now()
+
+            val updatedSong =
+                songEntity.copy(
+                    liked = if (!isInLibrary) songEntity.liked else false,
+                    inLibrary = if (!isInLibrary) now else null,
+                    likedDate = if (!isInLibrary) songEntity.likedDate else null,
+                )
+
+            // Optimistic local update first for immediate UI feedback.
+            withContext(Dispatchers.IO) {
+                database.update(updatedSong)
+            }
+
+            currentMediaMetadata.value = player.currentMetadata
+            updateNotification()
+            updateWidgetUI(player.isPlaying)
+
+            withContext(Dispatchers.IO) {
+                if (token != null) {
+                    YouTube.feedback(listOf(token))
+                } else {
+                    YouTube.toggleSongLibrary(songEntity.id, !isInLibrary)
                 }
-                currentMediaMetadata.value = player.currentMetadata
             }
         }
     }
 
     fun toggleLike() {
         scope.launch {
-            val songToToggle = currentSong.value ?: currentSong.first()
-            songToToggle?.let { librarySong ->
-                val songEntity = librarySong.song
-
-                // For podcast episodes, toggle save for later instead of like
-                if (songEntity.isEpisode) {
-                    toggleEpisodeSaveForLater(songEntity)
-                    return@let
-                }
-
-                val likedAt = if (!songEntity.liked) LocalDateTime.now() else null
-                val song =
-                    songEntity.copy(
-                        liked = !songEntity.liked,
-                        likedDate = likedAt,
-                        inLibrary = if (likedAt != null) songEntity.inLibrary ?: likedAt else songEntity.inLibrary,
-                    )
-
-                withContext(Dispatchers.IO) {
-                    database.update(song)
-                }
-
-                syncUtils.likeSong(song)
-
-                // Check if auto-download on like is enabled and the song is now liked
-                if (song.liked && withContext(Dispatchers.IO) { dataStore.get(AutoDownloadOnLikeKey, false) }) {
-                    // Trigger download for the liked song
-                    val downloadRequest =
-                        androidx.media3.exoplayer.offline.DownloadRequest
-                            .Builder(song.id, song.id.toUri())
-                            .setCustomCacheKey(song.id)
-                            .setData(song.title.toByteArray())
-                            .build()
-                    androidx.media3.exoplayer.offline.DownloadService.sendAddDownload(
-                        this@MusicService,
-                        ExoDownloadService::class.java,
-                        downloadRequest,
-                        false,
-                    )
-                }
-
-                currentMediaMetadata.value = player.currentMetadata
-                updateNotification()
-                updateWidgetUI(player.isPlaying)
+            try {
+                toggleLikeInternal()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Failed to toggle like")
+                reportException(e)
             }
+        }
+    }
+
+    private suspend fun toggleLikeInternal() {
+        val songToToggle = currentSong.value ?: currentSong.first() ?: return
+        likeToggleMutex.withLock {
+            val songEntity =
+                withContext(Dispatchers.IO) {
+                    database.song(songToToggle.song.id).first()?.song
+                } ?: songToToggle.song
+
+            // For podcast episodes, toggle save for later instead of like.
+            if (songEntity.isEpisode) {
+                toggleEpisodeSaveForLater(songEntity)
+                return@withLock
+            }
+
+            val likedAt = if (!songEntity.liked) LocalDateTime.now() else null
+            val song =
+                songEntity.copy(
+                    liked = !songEntity.liked,
+                    likedDate = likedAt,
+                    inLibrary = if (likedAt != null) songEntity.inLibrary ?: likedAt else songEntity.inLibrary,
+                )
+
+            withContext(Dispatchers.IO) {
+                database.update(song)
+            }
+
+            syncUtils.likeSong(song)
+
+            // Check if auto-download on like is enabled and the song is now liked
+            if (song.liked && withContext(Dispatchers.IO) { dataStore.get(AutoDownloadOnLikeKey, false) }) {
+                // Trigger download for the liked song
+                val downloadRequest =
+                    androidx.media3.exoplayer.offline.DownloadRequest
+                        .Builder(song.id, song.id.toUri())
+                        .setCustomCacheKey(song.id)
+                        .setData(song.title.toByteArray())
+                        .build()
+                androidx.media3.exoplayer.offline.DownloadService.sendAddDownload(
+                    this@MusicService,
+                    ExoDownloadService::class.java,
+                    downloadRequest,
+                    false,
+                )
+            }
+
+            currentMediaMetadata.value = player.currentMetadata
+            updateNotification()
+            updateWidgetUI(player.isPlaying)
         }
     }
 
     fun addToTargetPlaylist() {
         scope.launch {
-            val currentSong = currentSong.first() ?: return@launch
-            val targetPlaylistId = dataStore.get(AndroidAutoTargetPlaylistKey, MediaSessionConstants.TARGET_PLAYLIST_AUTO)
+            try {
+                addToTargetPlaylistInternal()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Failed to add current song to target playlist")
+                reportException(e)
+            }
+        }
+    }
+
+    private suspend fun addToTargetPlaylistInternal() {
+        addToTargetPlaylistMutex.withLock {
+            val currentSongItem = currentSong.value ?: currentSong.first() ?: return
+            val targetPlaylistId =
+                withContext(Dispatchers.IO) {
+                    dataStore.get(AndroidAutoTargetPlaylistKey, MediaSessionConstants.TARGET_PLAYLIST_AUTO)
+                }
 
             if (targetPlaylistId == MediaSessionConstants.TARGET_PLAYLIST_AUTO) {
                 Handler(Looper.getMainLooper()).post {
@@ -2086,12 +2173,15 @@ class MusicService :
                             Toast.LENGTH_SHORT,
                         ).show()
                 }
-                return@launch
+                return
             }
 
-            val targetPlaylist = database.playlist(targetPlaylistId).first()
-            if (targetPlaylist != null) {
-                database.addSongsToPlaylist(targetPlaylist, listOf(currentSong.id to null), prepend = true)
+            withContext(Dispatchers.IO) {
+                val targetPlaylist = database.playlist(targetPlaylistId).first() ?: return@withContext
+                val exists = database.checkInPlaylist(targetPlaylist.id, currentSongItem.id) > 0
+                if (!exists) {
+                    database.addSongsToPlaylist(targetPlaylist, listOf(currentSongItem.id to null), prepend = true)
+                }
             }
         }
     }
@@ -2118,7 +2208,9 @@ class MusicService :
     }
 
     fun toggleStartRadio() {
-        startRadioSeamlessly()
+        scope.launch(SilentHandler) {
+            toggleStartRadioInternal()
+        }
     }
 
     private fun seedLoudnessCacheFromPrefs() {
