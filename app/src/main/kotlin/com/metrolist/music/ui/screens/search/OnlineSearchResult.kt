@@ -159,6 +159,7 @@ fun OnlineSearchResult(
 
     BackHandler(enabled = isSearchFocused) {
         isSearchFocused = false
+        keyboardController?.hide()
         focusManager.clearFocus()
     }
 
@@ -178,10 +179,13 @@ fun OnlineSearchResult(
     }
 
     val onSearch: (String) -> Unit =
-        remember {
+        remember(focusManager, keyboardController, pauseSearchHistory, decodedQuery) {
             { searchQuery ->
                 if (searchQuery.isNotEmpty()) {
                     isSearchFocused = false
+                    // Explicitly hide keyboard before clearing focus — needed on Android 8
+                    // where clearFocus() alone does not reliably dismiss the IME.
+                    keyboardController?.hide()
                     focusManager.clearFocus()
 
                     navController.navigate("search/${URLEncoder.encode(searchQuery, "UTF-8")}") {
@@ -561,6 +565,7 @@ fun OnlineSearchResult(
                     onSearch = onSearch,
                     onDismiss = {
                         isSearchFocused = false
+                        keyboardController?.hide()
                         focusManager.clearFocus()
                     },
                     pureBlack = pureBlack,
