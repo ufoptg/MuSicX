@@ -1490,9 +1490,9 @@ class MusicService :
         val isEpisode = (song?.isEpisode == true) || (metadata?.isEpisode == true)
         val isFavorite =
             if (isEpisode) {
-                (song?.inLibrary ?: metadata?.inLibrary) != null
+                if (song != null) song.inLibrary != null else metadata?.inLibrary != null
             } else {
-                (song?.liked == true) || (metadata?.liked == true)
+                if (song != null) song.liked else metadata?.liked == true
             }
 
         mediaSession?.setCustomLayout(
@@ -1796,7 +1796,8 @@ class MusicService :
                             }
                         }
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     // No-op, will surface as command failure below.
                 }
             }
@@ -2050,22 +2051,22 @@ class MusicService :
     }
 
     private suspend fun toggleLibraryInternal() {
-        val songToToggle = currentSong.value ?: currentSong.first() ?: return
         libraryToggleMutex.withLock {
-            val songEntity =
+            val songToToggle = currentSong.value ?: currentSong.first() ?: return@withLock
+            val previousSong =
                 withContext(Dispatchers.IO) {
                     database.song(songToToggle.song.id).first()?.song
                 } ?: songToToggle.song
 
-            val isInLibrary = songEntity.inLibrary != null
-            val token = if (isInLibrary) songEntity.libraryRemoveToken else songEntity.libraryAddToken
+            val isInLibrary = previousSong.inLibrary != null
+            val token = if (isInLibrary) previousSong.libraryRemoveToken else previousSong.libraryAddToken
             val now = LocalDateTime.now()
 
             val updatedSong =
-                songEntity.copy(
-                    liked = if (!isInLibrary) songEntity.liked else false,
+                previousSong.copy(
+                    liked = if (!isInLibrary) previousSong.liked else false,
                     inLibrary = if (!isInLibrary) now else null,
-                    likedDate = if (!isInLibrary) songEntity.likedDate else null,
+                    likedDate = if (!isInLibrary) previousSong.likedDate else null,
                 )
 
             // Optimistic local update first for immediate UI feedback.
@@ -2073,18 +2074,42 @@ class MusicService :
                 database.update(updatedSong)
             }
 
-            currentMediaMetadata.value = player.currentMetadata
-            updateNotification()
-            updateWidgetUI(player.isPlaying)
-
-            withContext(Dispatchers.IO) {
-                if (token != null) {
-                    YouTube.feedback(listOf(token))
-                } else {
-                    YouTube.toggleSongLibrary(songEntity.id, !isInLibrary)
+            try {
+                withContext(Dispatchers.IO) {
+                    if (token != null) {
+                        YouTube.feedback(listOf(token))
+                    } else {
+                        YouTube.toggleSongLibrary(previousSong.id, !isInLibrary)
+                    }
                 }
-            }
-        }
+
+                val refreshedSong =
+                    withContext(Dispatchers.IO) {
+                        database.song(updatedSong.id).first()?.song
+                    } ?: updatedSong
+
+                mergeSongStateIntoCurrentMetadata(refreshedSong)
+                updateNotification()
+                updateWidgetUI(player.isPlaying)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+
+                val rolledBackSong =
+                    withContext(Dispatchers.IO) {
+                        runCatching { database.update(previousSong) }
+                            .onFailure { rollbackError ->
+                                Timber.tag(TAG)
+                                    .e(rollbackError, "Failed to rollback library toggle for ${previousSong.id}")
+                            }
+
+                        database.song(previousSong.id).first()?.song ?: previousSong
+                    }
+
+                mergeSongStateIntoCurrentMetadata(rolledBackSong)
+                updateNotification()
+                updateWidgetUI(player.isPlaying)
+                throw e
+            }        }
     }
 
     fun toggleLike() {
@@ -2101,8 +2126,8 @@ class MusicService :
     }
 
     private suspend fun toggleLikeInternal() {
-        val songToToggle = currentSong.value ?: currentSong.first() ?: return
         likeToggleMutex.withLock {
+            val songToToggle = currentSong.value ?: currentSong.first() ?: return@withLock
             val songEntity =
                 withContext(Dispatchers.IO) {
                     database.song(songToToggle.song.id).first()?.song
@@ -2120,7 +2145,7 @@ class MusicService :
             }
 
             val likedAt = if (!songEntity.liked) LocalDateTime.now() else null
-            val song =
+            val updatedSong =
                 songEntity.copy(
                     liked = !songEntity.liked,
                     likedDate = likedAt,
@@ -2128,19 +2153,24 @@ class MusicService :
                 )
 
             withContext(Dispatchers.IO) {
-                database.update(song)
+                database.update(updatedSong)
             }
 
-            syncUtils.likeSong(song)
+            val refreshedSong =
+                withContext(Dispatchers.IO) {
+                    database.song(updatedSong.id).first()?.song
+                } ?: updatedSong
+
+            syncUtils.likeSong(refreshedSong)
 
             // Check if auto-download on like is enabled and the song is now liked
-            if (song.liked && withContext(Dispatchers.IO) { dataStore.get(AutoDownloadOnLikeKey, false) }) {
+            if (refreshedSong.liked && withContext(Dispatchers.IO) { dataStore.get(AutoDownloadOnLikeKey, false) }) {
                 // Trigger download for the liked song
                 val downloadRequest =
                     androidx.media3.exoplayer.offline.DownloadRequest
-                        .Builder(song.id, song.id.toUri())
-                        .setCustomCacheKey(song.id)
-                        .setData(song.title.toByteArray())
+                        .Builder(refreshedSong.id, refreshedSong.id.toUri())
+                        .setCustomCacheKey(refreshedSong.id)
+                        .setData(refreshedSong.title.toByteArray())
                         .build()
                 androidx.media3.exoplayer.offline.DownloadService.sendAddDownload(
                     this@MusicService,
@@ -2150,9 +2180,22 @@ class MusicService :
                 )
             }
 
-            currentMediaMetadata.value = player.currentMetadata
+            mergeSongStateIntoCurrentMetadata(refreshedSong)
             updateNotification()
             updateWidgetUI(player.isPlaying)
+        }
+    }
+
+    private fun mergeSongStateIntoCurrentMetadata(songEntity: com.metrolist.music.db.entities.SongEntity) {
+        val baseMetadata = player.currentMetadata ?: currentMediaMetadata.value
+        if (baseMetadata?.id == songEntity.id) {
+            currentMediaMetadata.value =
+                baseMetadata.copy(
+                    liked = songEntity.liked,
+                    likedDate = songEntity.likedDate,
+                    inLibrary = songEntity.inLibrary,
+                    isEpisode = songEntity.isEpisode,
+                )
         }
     }
 
@@ -2215,13 +2258,16 @@ class MusicService :
             )
         }
 
-        // Update in-memory metadata immediately so notification state updates without delay.
+        // Update in-memory metadata immediately so notification state updates without delay,
+        // but only if we're still on the same track the user toggled.
         val baseMetadata = currentMediaMetadata.value ?: player.currentMetadata
-        currentMediaMetadata.value =
-            baseMetadata?.copy(
-                inLibrary = updatedInLibrary,
-                isEpisode = true,
-            )
+        if (baseMetadata?.id == songEntity.id) {
+            currentMediaMetadata.value =
+                baseMetadata.copy(
+                    inLibrary = updatedInLibrary,
+                    isEpisode = true,
+                )
+        }
 
         updateNotification()
         updateWidgetUI(player.isPlaying)
