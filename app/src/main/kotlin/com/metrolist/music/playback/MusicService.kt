@@ -2263,38 +2263,63 @@ class MusicService :
     }
 
     private suspend fun toggleEpisodeSaveForLater(songEntity: com.metrolist.music.db.entities.SongEntity) {
-        val isCurrentlySaved = songEntity.inLibrary != null
+        val previousSong =
+            withContext(Dispatchers.IO) {
+                database.song(songEntity.id).first()?.song
+            } ?: songEntity
+
+        val isCurrentlySaved = previousSong.inLibrary != null
         val shouldBeSaved = !isCurrentlySaved
         val updatedInLibrary = if (isCurrentlySaved) null else java.time.LocalDateTime.now()
+        val updatedSong =
+            previousSong.copy(
+                inLibrary = updatedInLibrary,
+                isEpisode = true,
+            )
 
         // Update database first (optimistic update)
         // Also ensure isEpisode = true so it appears in saved episodes list
-        database.query {
-            update(
-                songEntity.copy(
-                    inLibrary = updatedInLibrary,
-                    isEpisode = true,
-                ),
-            )
+        withContext(Dispatchers.IO) {
+            database.update(updatedSong)
         }
 
         // Update in-memory metadata immediately so notification state updates without delay,
         // but only if we're still on the same track the user toggled.
-        val baseMetadata = currentMediaMetadata.value ?: player.currentMetadata
-        if (baseMetadata?.id == songEntity.id) {
-            currentMediaMetadata.value =
-                baseMetadata.copy(
-                    inLibrary = updatedInLibrary,
-                    isEpisode = true,
-                )
-        }
+        mergeSongStateIntoCurrentMetadata(updatedSong)
 
         updateNotification()
         updateWidgetUI(player.isPlaying)
 
-        // Sync with YouTube (handles login check internally)
-        val setVideoId = if (isCurrentlySaved) database.getSetVideoId(songEntity.id)?.setVideoId else null
-        syncUtils.saveEpisode(songEntity.id, shouldBeSaved, setVideoId)
+        try {
+            // Sync with YouTube (handles login check internally)
+            val setVideoId =
+                if (isCurrentlySaved) {
+                    withContext(Dispatchers.IO) {
+                        database.getSetVideoId(previousSong.id)?.setVideoId
+                    }
+                } else {
+                    null
+                }
+            syncUtils.saveEpisode(previousSong.id, shouldBeSaved, setVideoId)
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+
+            val rolledBackSong =
+                withContext(Dispatchers.IO) {
+                    runCatching { database.update(previousSong) }
+                        .onFailure { rollbackError ->
+                            Timber.tag(TAG)
+                                .e(rollbackError, "Failed to rollback episode save toggle for ${previousSong.id}")
+                        }
+
+                    database.song(previousSong.id).first()?.song ?: previousSong
+                }
+
+            mergeSongStateIntoCurrentMetadata(rolledBackSong)
+            updateNotification()
+            updateWidgetUI(player.isPlaying)
+            throw e
+        }
     }
 
     fun toggleStartRadio() {
