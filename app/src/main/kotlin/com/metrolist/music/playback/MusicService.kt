@@ -1485,21 +1485,29 @@ class MusicService :
     }
 
     private fun updateNotification() {
+        val song = currentSong.value?.song
+        val metadata = currentMediaMetadata.value ?: player.currentMetadata
+        val isEpisode = (song?.isEpisode == true) || (metadata?.isEpisode == true)
+        val isFavorite =
+            if (isEpisode) {
+                (song?.inLibrary ?: metadata?.inLibrary) != null
+            } else {
+                (song?.liked == true) || (metadata?.liked == true)
+            }
+
         mediaSession?.setCustomLayout(
             listOf(
                 CommandButton
                     .Builder()
                     .setDisplayName(
                         getString(
-                            if (currentSong.value?.song?.liked ==
-                                true
-                            ) {
+                            if (isFavorite) {
                                 R.string.action_remove_like
                             } else {
                                 R.string.action_like
                             },
                         ),
-                    ).setIconResId(if (currentSong.value?.song?.liked == true) R.drawable.ic_heart else R.drawable.ic_heart_outline)
+                    ).setIconResId(if (isFavorite) R.drawable.ic_heart else R.drawable.ic_heart_outline)
                     .setSessionCommand(CommandToggleLike)
                     .setEnabled(currentSong.value != null)
                     .build(),
@@ -2100,9 +2108,14 @@ class MusicService :
                     database.song(songToToggle.song.id).first()?.song
                 } ?: songToToggle.song
 
+            val isEpisode =
+                songEntity.isEpisode ||
+                    (currentMediaMetadata.value?.isEpisode == true) ||
+                    (player.currentMetadata?.isEpisode == true)
+
             // For podcast episodes, toggle save for later instead of like.
-            if (songEntity.isEpisode) {
-                toggleEpisodeSaveForLater(songEntity)
+            if (isEpisode) {
+                toggleEpisodeSaveForLater(songEntity.copy(isEpisode = true))
                 return@withLock
             }
 
@@ -2189,18 +2202,29 @@ class MusicService :
     private suspend fun toggleEpisodeSaveForLater(songEntity: com.metrolist.music.db.entities.SongEntity) {
         val isCurrentlySaved = songEntity.inLibrary != null
         val shouldBeSaved = !isCurrentlySaved
+        val updatedInLibrary = if (isCurrentlySaved) null else java.time.LocalDateTime.now()
 
         // Update database first (optimistic update)
         // Also ensure isEpisode = true so it appears in saved episodes list
         database.query {
             update(
                 songEntity.copy(
-                    inLibrary = if (isCurrentlySaved) null else java.time.LocalDateTime.now(),
+                    inLibrary = updatedInLibrary,
                     isEpisode = true,
                 ),
             )
         }
-        currentMediaMetadata.value = player.currentMetadata
+
+        // Update in-memory metadata immediately so notification state updates without delay.
+        val baseMetadata = currentMediaMetadata.value ?: player.currentMetadata
+        currentMediaMetadata.value =
+            baseMetadata?.copy(
+                inLibrary = updatedInLibrary,
+                isEpisode = true,
+            )
+
+        updateNotification()
+        updateWidgetUI(player.isPlaying)
 
         // Sync with YouTube (handles login check internally)
         val setVideoId = if (isCurrentlySaved) database.getSetVideoId(songEntity.id)?.setVideoId else null
