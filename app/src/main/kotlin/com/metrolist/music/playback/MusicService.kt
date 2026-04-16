@@ -2156,33 +2156,53 @@ class MusicService :
                 database.update(updatedSong)
             }
 
-            val refreshedSong =
-                withContext(Dispatchers.IO) {
-                    database.song(updatedSong.id).first()?.song
-                } ?: updatedSong
+            try {
+                val refreshedSong =
+                    withContext(Dispatchers.IO) {
+                        database.song(updatedSong.id).first()?.song
+                    } ?: updatedSong
 
-            syncUtils.likeSong(refreshedSong)
+                syncUtils.likeSong(refreshedSong)
 
-            // Check if auto-download on like is enabled and the song is now liked
-            if (refreshedSong.liked && withContext(Dispatchers.IO) { dataStore.get(AutoDownloadOnLikeKey, false) }) {
-                // Trigger download for the liked song
-                val downloadRequest =
-                    androidx.media3.exoplayer.offline.DownloadRequest
-                        .Builder(refreshedSong.id, refreshedSong.id.toUri())
-                        .setCustomCacheKey(refreshedSong.id)
-                        .setData(refreshedSong.title.toByteArray())
-                        .build()
-                androidx.media3.exoplayer.offline.DownloadService.sendAddDownload(
-                    this@MusicService,
-                    ExoDownloadService::class.java,
-                    downloadRequest,
-                    false,
-                )
+                // Check if auto-download on like is enabled and the song is now liked
+                if (refreshedSong.liked && withContext(Dispatchers.IO) { dataStore.get(AutoDownloadOnLikeKey, false) }) {
+                    // Trigger download for the liked song
+                    val downloadRequest =
+                        androidx.media3.exoplayer.offline.DownloadRequest
+                            .Builder(refreshedSong.id, refreshedSong.id.toUri())
+                            .setCustomCacheKey(refreshedSong.id)
+                            .setData(refreshedSong.title.toByteArray())
+                            .build()
+                    androidx.media3.exoplayer.offline.DownloadService.sendAddDownload(
+                        this@MusicService,
+                        ExoDownloadService::class.java,
+                        downloadRequest,
+                        false,
+                    )
+                }
+
+                mergeSongStateIntoCurrentMetadata(refreshedSong)
+                updateNotification()
+                updateWidgetUI(player.isPlaying)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+
+                val rolledBackSong =
+                    withContext(Dispatchers.IO) {
+                        runCatching { database.update(songEntity) }
+                            .onFailure { rollbackError ->
+                                Timber.tag(TAG)
+                                    .e(rollbackError, "Failed to rollback like toggle for ${songEntity.id}")
+                            }
+
+                        database.song(songEntity.id).first()?.song ?: songEntity
+                    }
+
+                mergeSongStateIntoCurrentMetadata(rolledBackSong)
+                updateNotification()
+                updateWidgetUI(player.isPlaying)
+                throw e
             }
-
-            mergeSongStateIntoCurrentMetadata(refreshedSong)
-            updateNotification()
-            updateWidgetUI(player.isPlaying)
         }
     }
 
