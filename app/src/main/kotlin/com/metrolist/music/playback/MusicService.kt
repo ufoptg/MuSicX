@@ -249,6 +249,9 @@ import java.util.Collections
 private const val INSTANT_SILENCE_SKIP_STEP_MS = 15_000L
 private const val INSTANT_SILENCE_SKIP_SETTLE_MS = 350L
 
+private class NoRadioRecommendationsException :
+    IllegalStateException("No radio recommendations available for current track")
+
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @androidx.annotation.OptIn(UnstableApi::class)
 @AndroidEntryPoint
@@ -1639,51 +1642,58 @@ class MusicService :
             player.playWhenReady = playWhenReady
         }
         scope.launch(SilentHandler) {
-            val initialStatus =
-                withContext(Dispatchers.IO) {
-                    queue
-                        .getInitialStatus()
-                        .filterExplicit(dataStore.get(HideExplicitKey, false))
-                        .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
+            try {
+                val initialStatus =
+                    withContext(Dispatchers.IO) {
+                        queue
+                            .getInitialStatus()
+                            .filterExplicit(dataStore.get(HideExplicitKey, false))
+                            .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
+                    }
+                if (queue.preloadItem != null && player.playbackState == STATE_IDLE) return@launch
+                if (initialStatus.title != null) {
+                    queueTitle = initialStatus.title
                 }
-            if (queue.preloadItem != null && player.playbackState == STATE_IDLE) return@launch
-            if (initialStatus.title != null) {
-                queueTitle = initialStatus.title
-            }
-            if (initialStatus.items.isEmpty()) return@launch
-            // Track original queue size for shuffle playlist first feature
-            originalQueueSize = initialStatus.items.size
-            if (queue.preloadItem != null) {
-                player.addMediaItems(
-                    0,
-                    initialStatus.items.subList(0, initialStatus.mediaItemIndex),
-                )
-                player.addMediaItems(
-                    initialStatus.items.subList(
-                        initialStatus.mediaItemIndex + 1,
-                        initialStatus.items.size,
-                    ),
-                )
-            } else {
-                player.setMediaItems(
-                    initialStatus.items,
-                    if (initialStatus.mediaItemIndex >
-                        0
-                    ) {
-                        initialStatus.mediaItemIndex
-                    } else {
-                        0
-                    },
-                    initialStatus.position,
-                )
-                player.prepare()
-                player.playWhenReady = playWhenReady
-            }
+                if (initialStatus.items.isEmpty()) return@launch
+                // Track original queue size for shuffle playlist first feature
+                originalQueueSize = initialStatus.items.size
+                if (queue.preloadItem != null) {
+                    player.addMediaItems(
+                        0,
+                        initialStatus.items.subList(0, initialStatus.mediaItemIndex),
+                    )
+                    player.addMediaItems(
+                        initialStatus.items.subList(
+                            initialStatus.mediaItemIndex + 1,
+                            initialStatus.items.size,
+                        ),
+                    )
+                } else {
+                    player.setMediaItems(
+                        initialStatus.items,
+                        if (initialStatus.mediaItemIndex >
+                            0
+                        ) {
+                            initialStatus.mediaItemIndex
+                        } else {
+                            0
+                        },
+                        initialStatus.position,
+                    )
+                    player.prepare()
+                    player.playWhenReady = playWhenReady
+                }
 
-            // Rebuild shuffle order if shuffle is enabled
-            if (player.shuffleModeEnabled) {
-                val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
-                applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
+                // Rebuild shuffle order if shuffle is enabled
+                if (player.shuffleModeEnabled) {
+                    val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
+                    applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Failed to load queue")
+                reportException(e)
             }
         }
     }
@@ -1699,13 +1709,8 @@ class MusicService :
             toggleStartRadioInternal()
         } catch (e: CancellationException) {
             throw e
-        } catch (e: IllegalStateException) {
-            if (e.message == NO_RADIO_RECOMMENDATIONS_MESSAGE) {
-                Timber.tag(TAG).d(e, "Start radio: no recommendations available")
-            } else {
-                Timber.tag(TAG).e(e, errorMessage)
-                reportException(e)
-            }
+        } catch (e: NoRadioRecommendationsException) {
+            Timber.tag(TAG).d(e, "Start radio: no recommendations available")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, errorMessage)
             reportException(e)
@@ -1814,7 +1819,7 @@ class MusicService :
             }
 
             if (!hasAppliedRadioItems) {
-                throw IllegalStateException(NO_RADIO_RECOMMENDATIONS_MESSAGE)
+                throw NoRadioRecommendationsException()
             }
         }
     }
@@ -1825,6 +1830,12 @@ class MusicService :
                 .album(albumId)
                 .onSuccess {
                     getAutomix(it.album.playlistId)
+                }.onFailure {
+                    if (it is CancellationException) {
+                        throw it
+                    }
+                    Timber.tag(TAG).e(it, "Failed to load album for automix: $albumId")
+                    reportException(it)
                 }
         }
     }
@@ -1835,66 +1846,107 @@ class MusicService :
         ) {
             scope.launch(SilentHandler) {
                 try {
-                    // Try primary method
-                    YouTube
-                        .next(WatchEndpoint(playlistId = playlistId))
-                        .onSuccess { firstResult ->
+                    var lastFailure: Throwable? = null
+
+                    fun recordFailure(error: Throwable) {
+                        if (error is CancellationException) {
+                            throw error
+                        }
+                        lastFailure = error
+                    }
+
+                    // Try primary method.
+                    val firstResult =
+                        YouTube
+                            .next(WatchEndpoint(playlistId = playlistId))
+                            .onFailure(::recordFailure)
+                            .getOrNull()
+
+                    if (firstResult != null) {
+                        val secondResult =
                             YouTube
                                 .next(WatchEndpoint(playlistId = firstResult.endpoint.playlistId))
-                                .onSuccess { secondResult ->
-                                    automixItems.value =
-                                        secondResult.items.map { song ->
-                                            song.toMediaItem()
-                                        }
-                                }.onFailure {
-                                    // Fallback: use first result items
-                                    if (firstResult.items.isNotEmpty()) {
-                                        automixItems.value =
-                                            firstResult.items.map { song ->
-                                                song.toMediaItem()
-                                            }
-                                    }
-                                }
-                        }.onFailure {
-                            // Fallback: try with radio format
-                            val currentSong = player.currentMetadata
-                            if (currentSong != null) {
-                                // Use simple videoId for better personalized recommendations
+                                .onFailure(::recordFailure)
+                                .getOrNull()
+
+                        val secondItems =
+                            secondResult
+                                ?.items
+                                ?.map { song ->
+                                    song.toMediaItem()
+                                }.orEmpty()
+                        if (secondItems.isNotEmpty()) {
+                            automixItems.value = secondItems
+                            return@launch
+                        }
+
+                        // Fallback: use first result items.
+                        val firstItems =
+                            firstResult.items.map { song ->
+                                song.toMediaItem()
+                            }
+                        if (firstItems.isNotEmpty()) {
+                            automixItems.value = firstItems
+                            return@launch
+                        }
+                    }
+
+                    // Fallback: try with radio format.
+                    val currentSong = player.currentMetadata
+                    if (currentSong != null) {
+                        val radioResult =
+                            YouTube
+                                .next(
+                                    WatchEndpoint(
+                                        videoId = currentSong.id,
+                                    ),
+                                ).onFailure(::recordFailure)
+                                .getOrNull()
+
+                        val radioItems =
+                            radioResult
+                                ?.items
+                                ?.filter { it.id != currentSong.id }
+                                ?.map { it.toMediaItem() }
+                                .orEmpty()
+                        if (radioItems.isNotEmpty()) {
+                            automixItems.value = radioItems
+                            return@launch
+                        }
+
+                        // Final fallback: try related endpoint.
+                        val relatedEndpoint =
+                            YouTube
+                                .next(WatchEndpoint(videoId = currentSong.id))
+                                .onFailure(::recordFailure)
+                                .getOrNull()
+                                ?.relatedEndpoint
+                        if (relatedEndpoint != null) {
+                            val relatedItems =
                                 YouTube
-                                    .next(
-                                        WatchEndpoint(
-                                            videoId = currentSong.id,
-                                        ),
-                                    ).onSuccess { radioResult ->
-                                        val filteredItems =
-                                            radioResult.items
-                                                .filter { it.id != currentSong.id }
-                                                .map { it.toMediaItem() }
-                                        if (filteredItems.isNotEmpty()) {
-                                            automixItems.value = filteredItems
-                                        }
-                                    }.onFailure {
-                                        // Final fallback: try related endpoint
-                                        YouTube
-                                            .next(WatchEndpoint(videoId = currentSong.id))
-                                            .getOrNull()
-                                            ?.relatedEndpoint
-                                            ?.let { relatedEndpoint ->
-                                                YouTube.related(relatedEndpoint).onSuccess { relatedPage ->
-                                                    val relatedItems =
-                                                        relatedPage.songs
-                                                            .filter { it.id != currentSong.id }
-                                                            .map { it.toMediaItem() }
-                                                    if (relatedItems.isNotEmpty()) {
-                                                        automixItems.value = relatedItems
-                                                    }
-                                                }
-                                            }
-                                    }
+                                    .related(relatedEndpoint)
+                                    .onFailure(::recordFailure)
+                                    .getOrNull()
+                                    ?.songs
+                                    ?.filter { it.id != currentSong.id }
+                                    ?.map { it.toMediaItem() }
+                                    .orEmpty()
+                            if (relatedItems.isNotEmpty()) {
+                                automixItems.value = relatedItems
+                                return@launch
                             }
                         }
-                } catch (_: Exception) {
-                    // Silent fail
+                    }
+
+                    // Report only real failures. Empty recommendation sets remain a benign no-op.
+                    if (lastFailure != null) {
+                        throw lastFailure
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Timber.tag(TAG).e(e, "Failed to load automix for playlist: $playlistId")
+                    reportException(e)
                 }
             }
         }
@@ -2593,18 +2645,25 @@ class MusicService :
             !(cachedDisableLoadMoreWhenRepeatAll && player.repeatMode == REPEAT_MODE_ALL)
         ) {
             scope.launch(SilentHandler) {
-                val mediaItems =
-                    withContext(Dispatchers.IO) {
-                        currentQueue
-                            .nextPage()
-                            .filterExplicit(cachedHideExplicit)
-                            .filterVideoSongs(cachedHideVideoSongs)
+                try {
+                    val mediaItems =
+                        withContext(Dispatchers.IO) {
+                            currentQueue
+                                .nextPage()
+                                .filterExplicit(cachedHideExplicit)
+                                .filterVideoSongs(cachedHideVideoSongs)
+                        }
+                    if (player.playbackState != STATE_IDLE && mediaItems.isNotEmpty()) {
+                        player.addMediaItems(mediaItems)
+                        if (player.shuffleModeEnabled) {
+                            applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, cachedShufflePlaylistFirst)
+                        }
                     }
-                if (player.playbackState != STATE_IDLE && mediaItems.isNotEmpty()) {
-                    player.addMediaItems(mediaItems)
-                    if (player.shuffleModeEnabled) {
-                        applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, cachedShufflePlaylistFirst)
-                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Timber.tag(TAG).e(e, "Failed to auto load more songs")
+                    reportException(e)
                 }
             }
         }
@@ -4766,7 +4825,6 @@ class MusicService :
         private const val MIN_GAIN_MB = -1500 // Minimum gain in millibels (-15 dB)
 
         private const val TAG = "MusicService"
-        private const val NO_RADIO_RECOMMENDATIONS_MESSAGE = "No radio recommendations available for current track"
         private const val PRIVATE_STREAM_MARKER = "_metrolist_private"
 
         @Volatile
