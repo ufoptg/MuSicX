@@ -1694,6 +1694,13 @@ class MusicService :
                 toggleStartRadioInternal()
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: IllegalStateException) {
+                if (e.message == "No radio recommendations available for current track") {
+                    Timber.tag(TAG).d(e, "Start radio: no recommendations available")
+                } else {
+                    Timber.tag(TAG).e(e, "Failed to start radio seamlessly")
+                    reportException(e)
+                }
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Failed to start radio seamlessly")
                 reportException(e)
