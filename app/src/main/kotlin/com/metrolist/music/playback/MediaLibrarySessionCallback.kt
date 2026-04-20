@@ -293,7 +293,9 @@ constructor(
                             val maxPages = 4
 
                             for (page in 0 until maxPages) {
-                                val result = YouTube.home(continuation).getOrNull() ?: break
+                                val result = YouTube.home(continuation)
+                                    .onFailure { reportException(it) }
+                                    .getOrNull() ?: break
                                 allSections.addAll(result.sections)
                                 continuation = result.continuation
                                 if (continuation == null) break
