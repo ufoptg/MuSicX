@@ -292,7 +292,6 @@ constructor(
                             var continuation: String? = null
                             val maxPages = 4
 
-                            // Fetch home page with continuations to find mix sections
                             for (page in 0 until maxPages) {
                                 val result = YouTube.home(continuation).getOrNull() ?: break
                                 allSections.addAll(result.sections)
@@ -300,15 +299,16 @@ constructor(
                                 if (continuation == null) break
                             }
 
-                            // Only show playlists from these specific sections
-                            val allowedKeywords = listOf("mixed for you", "featured", "arabic favorites")
-                            val mixSections = allowedKeywords.flatMap { keyword ->
-                                allSections.filter { it.title.contains(keyword, ignoreCase = true) }
-                            }
+                            // Drop playlists already saved to the local library,
+                            // which are exposed under MusicService.PLAYLIST.
+                            val savedBrowseIds = database.playlistsByCreateDateAsc()
+                                .first()
+                                .mapNotNullTo(mutableSetOf()) { it.playlist.browseId }
 
-                            val playlists = mixSections
+                            val playlists = allSections
                                 .flatMap { it.items }
                                 .filterIsInstance<PlaylistItem>()
+                                .filterNot { it.id in savedBrowseIds }
                                 .distinctBy { it.id }
 
                             playlists.map { playlist ->
