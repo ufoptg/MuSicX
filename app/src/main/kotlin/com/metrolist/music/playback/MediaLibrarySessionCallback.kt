@@ -287,44 +287,48 @@ constructor(
                     }
 
                     MusicService.YOUTUBE_PLAYLIST -> {
-                        try {
-                            val allSections = mutableListOf<com.metrolist.innertube.pages.HomePage.Section>()
-                            var continuation: String? = null
-                            val maxPages = 4
-
-                            for (page in 0 until maxPages) {
-                                val result = YouTube.home(continuation)
-                                    .onFailure { reportException(it) }
-                                    .getOrNull() ?: break
-                                allSections.addAll(result.sections)
-                                continuation = result.continuation
-                                if (continuation == null) break
-                            }
-
-                            // Drop playlists already saved to the local library,
-                            // which are exposed under MusicService.PLAYLIST.
-                            val savedBrowseIds = database.playlistsByCreateDateAsc()
-                                .first()
-                                .mapNotNullTo(mutableSetOf()) { it.playlist.browseId }
-
-                            val playlists = allSections
-                                .flatMap { it.items }
-                                .filterIsInstance<PlaylistItem>()
-                                .filterNot { it.id in savedBrowseIds }
-                                .distinctBy { it.id }
-
-                            playlists.map { playlist ->
-                                browsableMediaItem(
-                                    "${MusicService.YOUTUBE_PLAYLIST}/${playlist.id}",
-                                    playlist.title,
-                                    playlist.author?.name,
-                                    playlist.thumbnail?.toUri(),
-                                    MediaMetadata.MEDIA_TYPE_PLAYLIST,
-                                )
-                            }
-                        } catch (e: Exception) {
-                            reportException(e)
+                        if (!context.dataStore.get(AndroidAutoYouTubePlaylistsKey, false)) {
                             emptyList()
+                        } else {
+                            try {
+                                val allSections = mutableListOf<com.metrolist.innertube.pages.HomePage.Section>()
+                                var continuation: String? = null
+                                val maxPages = 4
+
+                                for (page in 0 until maxPages) {
+                                    val result = YouTube.home(continuation)
+                                        .onFailure { reportException(it) }
+                                        .getOrNull() ?: break
+                                    allSections.addAll(result.sections)
+                                    continuation = result.continuation
+                                    if (continuation == null) break
+                                }
+
+                                // Drop playlists already saved to the local library,
+                                // which are exposed under MusicService.PLAYLIST.
+                                val savedBrowseIds = database.playlistsByCreateDateAsc()
+                                    .first()
+                                    .mapNotNullTo(mutableSetOf()) { it.playlist.browseId }
+
+                                val playlists = allSections
+                                    .flatMap { it.items }
+                                    .filterIsInstance<PlaylistItem>()
+                                    .filterNot { it.id in savedBrowseIds }
+                                    .distinctBy { it.id }
+
+                                playlists.map { playlist ->
+                                    browsableMediaItem(
+                                        "${MusicService.YOUTUBE_PLAYLIST}/${playlist.id}",
+                                        playlist.title,
+                                        playlist.author?.name,
+                                        playlist.thumbnail?.toUri(),
+                                        MediaMetadata.MEDIA_TYPE_PLAYLIST,
+                                    )
+                                }
+                            } catch (e: Exception) {
+                                reportException(e)
+                                emptyList()
+                            }
                         }
                     }
 
