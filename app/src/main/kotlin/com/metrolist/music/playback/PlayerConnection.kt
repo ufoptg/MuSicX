@@ -6,6 +6,7 @@
 package com.metrolist.music.playback
 
 import android.content.Context
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -295,19 +296,38 @@ class PlayerConnection(
     }
 
     /**
-     * Removes all MediaItems that precede the currently playing item (indices 0 until
-     * currentMediaItemIndex), leaving the current song at index 0.
-     * No-op when currentMediaItemIndex is 0 or the player has no items.
-     * Blocked for Listen Together guests.
+     * Removes all MediaItems that precede the currently playing item in playback order,
+     * leaving the current song at index 0 with all upcoming songs intact.
+     * Handles both normal and shuffle modes correctly.
+     * No-op when there are no items before the current song. Blocked for Listen Together guests.
      */
     fun clearPlayedSongs() {
         if (shouldBlockPlaybackChanges?.invoke() == true) {
             Timber.tag(TAG).d("clearPlayedSongs blocked - Listen Together guest")
             return
         }
-        val index = player.currentMediaItemIndex
-        if (index <= 0) return
-        player.removeMediaItems(0, index)
+        if (player.shuffleModeEnabled) {
+            // In shuffle mode, currentMediaItemIndex is the timeline index, not the shuffle order
+            // position. Walk backwards through the shuffle order to collect all timeline indices
+            // that precede the current item in playback order, then remove them.
+            val timeline = player.currentTimeline
+            if (timeline.isEmpty) return
+            val currentIndex = player.currentMediaItemIndex
+            val indicesToRemove = mutableListOf<Int>()
+            var idx = timeline.getPreviousWindowIndex(currentIndex, Player.REPEAT_MODE_OFF, true)
+            while (idx != C.INDEX_UNSET) {
+                indicesToRemove.add(idx)
+                idx = timeline.getPreviousWindowIndex(idx, Player.REPEAT_MODE_OFF, true)
+            }
+            if (indicesToRemove.isEmpty()) return
+            // Remove in descending order so earlier removals don't shift later indices
+            indicesToRemove.sortDescending()
+            indicesToRemove.forEach { player.removeMediaItem(it) }
+        } else {
+            val index = player.currentMediaItemIndex
+            if (index <= 0) return
+            player.removeMediaItems(0, index)
+        }
     }
 
     fun toggleLike() {
