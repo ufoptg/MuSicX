@@ -294,6 +294,22 @@ class PlayerConnection(
         }
     }
 
+    /**
+     * Removes all MediaItems that precede the currently playing item (indices 0 until
+     * currentMediaItemIndex), leaving the current song at index 0.
+     * No-op when currentMediaItemIndex is 0 or the player has no items.
+     * Blocked for Listen Together guests.
+     */
+    fun clearPlayedSongs() {
+        if (shouldBlockPlaybackChanges?.invoke() == true) {
+            Timber.tag(TAG).d("clearPlayedSongs blocked - Listen Together guest")
+            return
+        }
+        val index = player.currentMediaItemIndex
+        if (index <= 0) return
+        player.removeMediaItems(0, index)
+    }
+
     fun toggleLike() {
         try {
             service.toggleLike()

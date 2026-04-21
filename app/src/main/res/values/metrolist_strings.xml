@@ -946,4 +946,8 @@
     <string name="switch_to_list_view">Switch to list view</string>
     <string name="switch_to_grid_view">Switch to grid view</string>
     <string name="more_options">More options</string>
+
+    <!-- Queue actions -->
+    <string name="clear_played_songs">Clear played songs</string>
+    <string name="clear_played_songs_done">Played songs cleared</string>
 </resources>

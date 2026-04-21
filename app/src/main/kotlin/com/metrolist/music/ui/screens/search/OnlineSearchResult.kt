@@ -138,6 +138,10 @@ fun OnlineSearchResult(
     var lastHandledCount by rememberSaveable { mutableIntStateOf(0) }
     var isSearchFocused by remember { mutableStateOf(false) }
     val keyboardController = LocalSoftwareKeyboardController.current
+    // Used to temporarily suppress focus-change callbacks while we're dismissing,
+    // preventing the onFocusChanged modifier from immediately re-showing the overlay
+    // on Android 8 where focus events fire after keyboard hide with a delay.
+    var suppressFocusChange by remember { mutableStateOf(false) }
 
     LaunchedEffect(scrollToTopCount) {
         if (scrollToTopCount > lastHandledCount) {
@@ -158,6 +162,7 @@ fun OnlineSearchResult(
     val hideVideoSongs by rememberPreference(HideVideoSongsKey, defaultValue = false)
 
     BackHandler(enabled = isSearchFocused) {
+        suppressFocusChange = true
         isSearchFocused = false
         keyboardController?.hide()
         focusManager.clearFocus()
@@ -182,6 +187,7 @@ fun OnlineSearchResult(
         remember(focusManager, keyboardController, pauseSearchHistory, decodedQuery) {
             { searchQuery ->
                 if (searchQuery.isNotEmpty()) {
+                    suppressFocusChange = true
                     isSearchFocused = false
                     // Explicitly hide keyboard before clearing focus — needed on Android 8
                     // where clearFocus() alone does not reliably dismiss the IME.
@@ -444,7 +450,7 @@ fun OnlineSearchResult(
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .focusRequester(focusRequester)
                     .onFocusChanged { focusState ->
-                        if (focusState.isFocused) {
+                        if (focusState.isFocused && !suppressFocusChange) {
                             isSearchFocused = true
                         }
                     },
@@ -564,6 +570,7 @@ fun OnlineSearchResult(
                     navController = navController,
                     onSearch = onSearch,
                     onDismiss = {
+                        suppressFocusChange = true
                         isSearchFocused = false
                         keyboardController?.hide()
                         focusManager.clearFocus()

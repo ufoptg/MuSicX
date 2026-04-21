@@ -163,6 +163,12 @@ android {
         checkDependencies = false
     }
 
+    testOptions {
+        unitTests.all {
+            it.useJUnitPlatform()
+        }
+    }
+
     androidResources {
         generateLocaleConfig = true
     }
@@ -286,4 +292,7 @@ dependencies {
     coreLibraryDesugaring(libs.desugaring)
 
     implementation(libs.timber)
+
+    testImplementation("io.kotest:kotest-runner-junit5:5.9.1")
+    testImplementation("io.kotest:kotest-property:5.9.1")
 }

@@ -178,6 +178,7 @@ fun Queue(
     val repeatMode by playerConnection.repeatMode.collectAsStateWithLifecycle()
 
     val currentWindowIndex by playerConnection.currentWindowIndex.collectAsStateWithLifecycle()
+    val currentMediaItemIndex by playerConnection.currentMediaItemIndex.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
     val currentFormat by playerConnection.currentFormat.collectAsStateWithLifecycle(initialValue = null)
@@ -1071,6 +1072,26 @@ fun Queue(
                     exit = fadeOut() + slideOutVertically { it },
                 ) {
                     Row {
+                        AnimatedVisibility(visible = currentMediaItemIndex > 0) {
+                            IconButton(
+                                enabled = !isListenTogetherGuest,
+                                onClick = {
+                                    playerConnection.clearPlayedSongs()
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            message = context.getString(R.string.clear_played_songs_done),
+                                            duration = SnackbarDuration.Short,
+                                        )
+                                    }
+                                },
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.clear_all),
+                                    contentDescription = stringResource(R.string.clear_played_songs),
+                                    modifier = Modifier.alpha(if (!isListenTogetherGuest) 1f else 0.3f),
+                                )
+                            }
+                        }
                         IconButton(
                             onClick = { locked = !locked },
                             modifier = Modifier.padding(horizontal = 6.dp),
