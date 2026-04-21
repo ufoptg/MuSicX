@@ -31,6 +31,7 @@ import com.metrolist.music.di.ApplicationScope
 import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.extensions.toInetSocketAddress
 import com.metrolist.music.utils.CrashHandler
+import com.metrolist.music.utils.RoomInnertubeCache
 import com.metrolist.music.utils.cipher.CipherDeobfuscator
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.reportException
@@ -61,6 +62,9 @@ class App :
     @ApplicationScope
     lateinit var applicationScope: CoroutineScope
 
+    @Inject
+    lateinit var database: MusicDatabase
+
     override fun onCreate() {
         super.onCreate()
 
@@ -81,6 +85,14 @@ class App :
         CipherDeobfuscator.initialize(this)
 
         Timber.plant(Timber.DebugTree())
+
+        // Initialize InnerTube cache
+        YouTube.cache = RoomInnertubeCache(database)
+
+        // Cleanup old cache entries (older than 7 days) to prevent DB bloat
+        applicationScope.launch(Dispatchers.IO) {
+            database.innertubeCacheDao.clearOld(System.currentTimeMillis() - 86400000L * 7)
+        }
 
         // تهيئة إعدادات التطبيق عند الإقلاع
         applicationScope.launch {
@@ -264,7 +276,7 @@ class App :
                 memoryCache {
                     MemoryCache
                         .Builder()
-                        .maxSizePercent(context, 0.25)
+                        .maxSizePercent(context, 0.35)
                         .build()
                 }
                 if (cacheSize == 0) {

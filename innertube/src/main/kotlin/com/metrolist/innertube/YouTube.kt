@@ -89,6 +89,8 @@ object YouTube {
     private val innerTube = InnerTube()
     private const val ENABLE_NEWPIPE_STREAM_INFO_EXTRACTOR = false
 
+    var cache: InnertubeCache? = null
+
     var locale: YouTubeLocale
         get() = innerTube.locale
         set(value) {
@@ -126,6 +128,51 @@ object YouTube {
             innerTube.useLoginForBrowse = value
         }
 
+    /**
+     * Helper to wrap API calls with persistent disk caching.
+     * @param key unique identifier for the request
+     * @param fromCache if true, attempts to return data from disk immediately (fast/offline)
+     */
+    private suspend inline fun <reified T> runCatchingWithCache(
+        key: String?,
+        fromCache: Boolean = false,
+        crossinline block: suspend () -> T,
+    ): Result<T> =
+        runCatching {
+            if (key != null) {
+                cache?.get(key)?.let { cachedJson ->
+                    try {
+                        val cached = Json.decodeFromString<T>(cachedJson)
+                        if (fromCache) return@runCatching cached
+                        // If not fromCache, we still return cached if it's very recent? 
+                        // Actually, let's keep it simple: if fromCache is true, return cached.
+                        // If false, fetch fresh.
+                    } catch (e: Exception) {
+                        Timber.tag("YouTubeCache").w(e, "Failed to decode cached data for key: $key")
+                    }
+                }
+            }
+            
+            if (fromCache && key != null) {
+                // If we specifically asked for cache and it's not there, we should probably fail or return null
+                // But Result doesn't support null easily without being Result<T?>
+                throw NoSuchElementException("Cache miss for key: $key")
+            }
+
+            val result = block()
+
+            if (key != null && cache != null) {
+                try {
+                    val json = Json.encodeToString(result)
+                    cache?.insert(key, json)
+                } catch (e: Exception) {
+                    Timber.tag("YouTubeCache").w(e, "Failed to cache data for key: $key")
+                }
+            }
+
+            result
+        }
+
     suspend fun searchSuggestions(query: String): Result<SearchSuggestions> =
         runCatching {
             val response = innerTube.getSearchSuggestions(WEB_REMIX, query).body<GetSearchSuggestionsResponse>()
@@ -154,8 +201,11 @@ object YouTube {
             )
         }
 
-    suspend fun searchSummary(query: String): Result<SearchSummaryPage> =
-        runCatching {
+    suspend fun searchSummary(
+        query: String,
+        fromCache: Boolean = false,
+    ): Result<SearchSummaryPage> =
+        runCatchingWithCache(if (fromCache) "search_summary_$query" else null, fromCache) {
             val response = innerTube.search(WEB_REMIX, query).body<SearchResponse>()
             val allSummaries = mutableListOf<SearchSummary>()
 
@@ -359,8 +409,9 @@ object YouTube {
     suspend fun album(
         browseId: String,
         withSongs: Boolean = true,
+        fromCache: Boolean = false,
     ): Result<AlbumPage> =
-        runCatching {
+        runCatchingWithCache(if (fromCache) "album_$browseId" else null, fromCache) {
             val response = innerTube.browse(WEB_REMIX, browseId).body<BrowseResponse>()
             if (browseId.contains("FEmusic_library_privately_owned_release_detail")) {
                 val playlistId =
@@ -586,8 +637,11 @@ object YouTube {
             songs
         }
 
-    suspend fun artist(browseId: String): Result<ArtistPage> =
-        runCatching {
+    suspend fun artist(
+        browseId: String,
+        fromCache: Boolean = false,
+    ): Result<ArtistPage> =
+        runCatchingWithCache(if (fromCache) "artist_$browseId" else null, fromCache) {
             val response = innerTube.browse(WEB_REMIX, browseId).body<BrowseResponse>()
 
             fun mapRuns(runs: List<Run>?): List<Run>? =
@@ -1418,8 +1472,9 @@ object YouTube {
     suspend fun home(
         continuation: String? = null,
         params: String? = null,
+        fromCache: Boolean = false,
     ): Result<HomePage> =
-        runCatching {
+        runCatchingWithCache(if (continuation == null) "home_$params" else null, fromCache) {
             Timber.d("home() called with continuation=$continuation, params=$params")
             if (continuation != null) {
                 return@runCatching homeContinuation(continuation).getOrThrow()
@@ -1486,8 +1541,8 @@ object YouTube {
             )
         }
 
-    suspend fun explore(): Result<ExplorePage> =
-        runCatching {
+    suspend fun explore(fromCache: Boolean = false): Result<ExplorePage> =
+        runCatchingWithCache(if (fromCache) "explore" else null, fromCache) {
             val response = innerTube.browse(WEB_REMIX, browseId = "FEmusic_explore").body<BrowseResponse>()
             ExplorePage(
                 newReleaseAlbums =

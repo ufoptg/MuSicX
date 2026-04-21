@@ -21,12 +21,14 @@ import androidx.room.migration.AutoMigrationSpec
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
+import com.metrolist.music.db.daos.InnertubeCacheDao
 import com.metrolist.music.db.daos.SpeedDialDao
 import com.metrolist.music.db.entities.AlbumArtistMap
 import com.metrolist.music.db.entities.AlbumEntity
 import com.metrolist.music.db.entities.ArtistEntity
 import com.metrolist.music.db.entities.Event
 import com.metrolist.music.db.entities.FormatEntity
+import com.metrolist.music.db.entities.InnertubeCacheEntity
 import com.metrolist.music.db.entities.LyricsEntity
 import com.metrolist.music.db.entities.PlayCountEntity
 import com.metrolist.music.db.entities.PlaylistEntity
@@ -58,6 +60,9 @@ class MusicDatabase(
 ) : DatabaseDao by delegate.dao {
     val speedDialDao: SpeedDialDao
         get() = delegate.speedDialDao
+
+    val innertubeCacheDao: InnertubeCacheDao
+        get() = delegate.innertubeCacheDao
 
     val openHelper: SupportSQLiteOpenHelper
         get() = delegate.openHelper
@@ -112,13 +117,14 @@ class MusicDatabase(
         RecognitionHistory::class,
         SpeedDialItem::class,
         PodcastEntity::class,
+        InnertubeCacheEntity::class,
     ],
     views = [
         SortedSongArtistMap::class,
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 36,
+    version = 37,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -155,12 +161,14 @@ class MusicDatabase(
         AutoMigration(from = 33, to = 34),
         AutoMigration(from = 34, to = 35),
         AutoMigration(from = 35, to = 36, spec = Migration35To36::class),
+        AutoMigration(from = 36, to = 37),
     ],
 )
 @TypeConverters(Converters::class)
 abstract class InternalDatabase : RoomDatabase() {
     abstract val dao: DatabaseDao
     abstract val speedDialDao: SpeedDialDao
+    abstract val innertubeCacheDao: InnertubeCacheDao
 
     companion object {
         const val DB_NAME = "song.db"
@@ -189,10 +197,19 @@ abstract class InternalDatabase : RoomDatabase() {
                                 override fun onOpen(db: SupportSQLiteDatabase) {
                                     super.onOpen(db)
                                     try {
+                                        // Performance PRAGMAs: 
+                                        // busy_timeout: prevents DB locks during concurrent writes
+                                        // cache_size: increases memory cache for faster reads (-64000 = 64MB)
+                                        // synchronous: NORMAL is faster than FULL while maintaining safety in WAL mode
+                                        // journal_size_limit: prevents the WAL file from growing indefinitely
+                                        // mmap_size: uses memory mapping for faster I/O if supported by the OS
                                         db.query("PRAGMA busy_timeout = 60000").close()
-                                        db.query("PRAGMA cache_size = -16000").close()
+                                        db.query("PRAGMA cache_size = -64000").close()
                                         db.query("PRAGMA wal_autocheckpoint = 1000").close()
                                         db.query("PRAGMA synchronous = NORMAL").close()
+                                        db.query("PRAGMA journal_size_limit = 10485760").close() // 10MB
+                                        db.query("PRAGMA temp_store = MEMORY").close()
+                                        db.query("PRAGMA mmap_size = 268435456").close() // 256MB
                                     } catch (e: Exception) {
                                         Timber.tag("MusicDatabase").e(e, "Failed to set PRAGMA settings")
                                     }

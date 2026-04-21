@@ -387,10 +387,8 @@ fun SongListItem(
         if (showInLibraryIcon && song.song.inLibrary != null) {
             Icon.Library()
         }
-        if (showDownloadIcon) {
-            val download by LocalDownloadUtil.current.getDownload(song.id)
-                .collectAsStateWithLifecycle(initialValue = null)
-            Icon.Download(download?.state)
+        if (showDownloadIcon && song.song.isDownloaded) {
+            Icon.Download(Download.STATE_COMPLETED)
         }
     },
     isSelected: Boolean = false,
@@ -453,9 +451,8 @@ fun SongGridItem(
         if (showInLibraryIcon && song.song.inLibrary != null) {
             Icon.Library()
         }
-        if (showDownloadIcon) {
-            val download by LocalDownloadUtil.current.getDownload(song.id).collectAsStateWithLifecycle(initialValue = null)
-            Icon.Download(download?.state)
+        if (showDownloadIcon && song.song.isDownloaded) {
+            Icon.Download(Download.STATE_COMPLETED)
         }
     },
     isActive: Boolean = false,
@@ -582,38 +579,12 @@ fun AlbumListItem(
     modifier: Modifier = Modifier,
     showLikedIcon: Boolean = true,
     badges: @Composable RowScope.() -> Unit = {
-        val downloadUtil = LocalDownloadUtil.current
-        val database = LocalDatabase.current
-
-        val songs by produceState<List<Song>>(initialValue = emptyList(), album.id) {
-            withContext(Dispatchers.IO) {
-                value = database.albumSongs(album.id).first()
-            }
-        }
-
-        val allDownloads by downloadUtil.downloads.collectAsStateWithLifecycle()
-
-        val downloadState by remember(songs, allDownloads) {
-            androidx.compose.runtime.mutableIntStateOf(
-                if (songs.isEmpty()) {
-                    Download.STATE_STOPPED
-                } else {
-                    when {
-                        songs.all { allDownloads[it.id]?.state == STATE_COMPLETED } -> STATE_COMPLETED
-                        songs.any { allDownloads[it.id]?.state in listOf(STATE_QUEUED, STATE_DOWNLOADING) } -> STATE_DOWNLOADING
-                        else -> Download.STATE_STOPPED
-                    }
-                }
-            )
-        }
-
         if (showLikedIcon && album.album.bookmarkedAt != null) {
             Icon.Favorite()
         }
         if (album.album.explicit) {
             Icon.Explicit()
         }
-        Icon.Download(downloadState)
     },
     isActive: Boolean = false,
     isPlaying: Boolean = false,

@@ -446,6 +446,32 @@ class HomeViewModel @Inject constructor(
         val hideYoutubeShorts = context.dataStore.get(HideYoutubeShortsKey, false)
         val fromTimeStamp = System.currentTimeMillis() - 86400000L * 7 * 2
 
+        // Phase 0: Load from cache for instant UI
+        // We load from disk first so the user sees content immediately, 
+        // then Phase 1 will refresh it from the network in the background.
+        coroutineScope {
+            launch(Dispatchers.IO) {
+                YouTube.home(fromCache = true).onSuccess { page ->
+                    homePage.value = page.copy(
+                        sections = page.sections.mapNotNull { section ->
+                            val filtered = section.items
+                                .filterExplicit(hideExplicit)
+                                .filterVideoSongs(hideVideoSongs)
+                                .filterYoutubeShorts(hideYoutubeShorts)
+                            if (filtered.isEmpty()) null else section.copy(items = filtered)
+                        }
+                    )
+                }
+            }
+            launch(Dispatchers.IO) {
+                YouTube.explore(fromCache = true).onSuccess { page ->
+                    explorePage.value = page.copy(
+                        newReleaseAlbums = page.newReleaseAlbums.filterExplicit(hideExplicit)
+                    )
+                }
+            }
+        }
+
         // Phase 1: Load essential sections in parallel — local DB (fast) + YouTube home page.
         // isLoading is set to false as soon as all Phase 1 tasks complete so the UI appears quickly.
         coroutineScope {

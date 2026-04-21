@@ -87,7 +87,7 @@ interface DatabaseDao {
     fun songsByCreateDateAsc(): Flow<List<Song>>
 
     @Transaction
-    @Query("SELECT * FROM song WHERE inLibrary IS NOT NULL ORDER BY title")
+    @Query("SELECT * FROM song WHERE inLibrary IS NOT NULL ORDER BY title COLLATE NOCASE")
     fun songsByNameAsc(): Flow<List<Song>>
 
     @Transaction
@@ -100,34 +100,24 @@ interface DatabaseDao {
         descending: Boolean,
     ) = when (sortType) {
         SongSortType.CREATE_DATE -> songsByCreateDateAsc()
-        SongSortType.NAME ->
-            songsByNameAsc().map { songs ->
-                val collator = Collator.getInstance(Locale.getDefault())
-                collator.strength = Collator.PRIMARY
-                songs.sortedWith(compareBy(collator) { it.song.title })
-            }
-
-        SongSortType.ARTIST ->
-            songsByRowIdAsc().map { songs ->
-                val collator = Collator.getInstance(Locale.getDefault())
-                collator.strength = Collator.PRIMARY
-                songs
-                    .sortedWith(
-                        compareBy(collator) { song ->
-                            song.orderedArtists.joinToString("") { it.name }
-                        },
-                    ).groupBy { it.album?.title }
-                    .flatMap { (_, songsByAlbum) ->
-                        songsByAlbum.sortedBy { album ->
-                            album.orderedArtists.joinToString(
-                                "",
-                            ) { it.name }
-                        }
-                    }
-            }
-
+        SongSortType.NAME -> songsByNameAsc()
+        SongSortType.ARTIST -> songsByArtistAsc()
         SongSortType.PLAY_TIME -> songsByPlayTimeAsc()
     }.map { it.reversed(descending) }
+
+    @Transaction
+    @Query(
+        """
+        SELECT song.*
+        FROM song
+        LEFT JOIN song_artist_map sam ON song.id = sam.songId
+        LEFT JOIN artist ON sam.artistId = artist.id
+        WHERE song.inLibrary IS NOT NULL
+        GROUP BY song.id
+        ORDER BY artist.name COLLATE NOCASE, song.title COLLATE NOCASE
+        """
+    )
+    fun songsByArtistAsc(): Flow<List<Song>>
 
     @Transaction
     @Query("SELECT * FROM song WHERE liked ORDER BY rowId")
@@ -138,44 +128,34 @@ interface DatabaseDao {
     fun likedSongsByCreateDateAsc(): Flow<List<Song>>
 
     @Transaction
-    @Query("SELECT * FROM song WHERE liked ORDER BY title")
+    @Query("SELECT * FROM song WHERE liked ORDER BY title COLLATE NOCASE")
     fun likedSongsByNameAsc(): Flow<List<Song>>
 
     @Transaction
     @Query("SELECT * FROM song WHERE liked ORDER BY totalPlayTime")
     fun likedSongsByPlayTimeAsc(): Flow<List<Song>>
 
+    @Transaction
+    @Query(
+        """
+        SELECT song.*
+        FROM song
+        LEFT JOIN song_artist_map sam ON song.id = sam.songId
+        LEFT JOIN artist ON sam.artistId = artist.id
+        WHERE song.liked
+        GROUP BY song.id
+        ORDER BY artist.name COLLATE NOCASE, song.title COLLATE NOCASE
+        """
+    )
+    fun likedSongsByArtistAsc(): Flow<List<Song>>
+
     fun likedSongs(
         sortType: SongSortType,
         descending: Boolean,
     ) = when (sortType) {
         SongSortType.CREATE_DATE -> likedSongsByCreateDateAsc()
-        SongSortType.NAME ->
-            likedSongsByNameAsc().map { songs ->
-                val collator = Collator.getInstance(Locale.getDefault())
-                collator.strength = Collator.PRIMARY
-                songs.sortedWith(compareBy(collator) { it.song.title })
-            }
-
-        SongSortType.ARTIST ->
-            likedSongsByRowIdAsc().map { songs ->
-                val collator = Collator.getInstance(Locale.getDefault())
-                collator.strength = Collator.PRIMARY
-                songs
-                    .sortedWith(
-                        compareBy(collator) { song ->
-                            song.orderedArtists.joinToString("") { it.name }
-                        },
-                    ).groupBy { it.album?.title }
-                    .flatMap { (_, songsByAlbum) ->
-                        songsByAlbum.sortedBy { album ->
-                            album.orderedArtists.joinToString(
-                                "",
-                            ) { it.name }
-                        }
-                    }
-            }
-
+        SongSortType.NAME -> likedSongsByNameAsc()
+        SongSortType.ARTIST -> likedSongsByArtistAsc()
         SongSortType.PLAY_TIME -> likedSongsByPlayTimeAsc()
     }.map { it.reversed(descending) }
 
@@ -211,7 +191,7 @@ interface DatabaseDao {
 
     @Transaction
     @Query(
-        "SELECT song.* FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE artistId = :artistId AND inLibrary IS NOT NULL ORDER BY title",
+        "SELECT song.* FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE artistId = :artistId AND inLibrary IS NOT NULL ORDER BY title COLLATE NOCASE",
     )
     fun artistSongsByNameAsc(artistId: String): Flow<List<Song>>
 
@@ -231,12 +211,7 @@ interface DatabaseDao {
     ): Flow<List<Song>> {
         val songsFlow = when (sortType) {
             ArtistSongSortType.CREATE_DATE -> artistSongsByCreateDateAsc(artistId)
-            ArtistSongSortType.NAME ->
-                artistSongsByNameAsc(artistId).map { artistSongs ->
-                    val collator = Collator.getInstance(Locale.getDefault())
-                    collator.strength = Collator.PRIMARY
-                    artistSongs.sortedWith(compareBy(collator) { it.song.title })
-                }
+            ArtistSongSortType.NAME -> artistSongsByNameAsc(artistId)
 
             ArtistSongSortType.PLAY_TIME -> {
                 if (fromTimeStamp != null && toTimeStamp != null) {
@@ -719,7 +694,7 @@ interface DatabaseDao {
 
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
-    @Query("SELECT *, (SELECT COUNT(1) FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE artistId = artist.id AND song.inLibrary IS NOT NULL) AS songCount FROM artist WHERE songCount > 0 ORDER BY name")
+    @Query("SELECT *, (SELECT COUNT(1) FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE artistId = artist.id AND song.inLibrary IS NOT NULL) AS songCount FROM artist WHERE songCount > 0 ORDER BY name COLLATE NOCASE")
     fun artistsByNameAsc(): Flow<List<Artist>>
 
     @Transaction
@@ -757,7 +732,7 @@ interface DatabaseDao {
 
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
-    @Query("SELECT *, (SELECT COUNT(1) FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE artistId = artist.id AND song.inLibrary IS NOT NULL) AS songCount FROM artist WHERE bookmarkedAt IS NOT NULL ORDER BY name")
+    @Query("SELECT *, (SELECT COUNT(1) FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE artistId = artist.id AND song.inLibrary IS NOT NULL) AS songCount FROM artist WHERE bookmarkedAt IS NOT NULL ORDER BY name COLLATE NOCASE")
     fun artistsBookmarkedByNameAsc(): Flow<List<Artist>>
 
     @Transaction

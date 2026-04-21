@@ -277,7 +277,7 @@ fun LibrarySongsScreen(
         }
     }
 
-    val filteredSongs =
+    val filteredSongs = remember(songs, hideExplicit, normalizedQuery) {
         (if (hideExplicit) {
             songs.filter { !it.song.explicit }
         } else {
@@ -286,6 +286,7 @@ fun LibrarySongsScreen(
             val artistNames = song.artists.map { it.name }.toTypedArray()
             matchesNormalizedQuery(normalizedQuery, song.song.title, song.album?.title, *artistNames)
         }
+    }
 
     // Upload progress dialog
     if (showUploadDialog) {
