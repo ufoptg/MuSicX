@@ -181,7 +181,6 @@ import com.metrolist.music.playback.queues.Queue
 import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.playback.queues.filterExplicit
 import com.metrolist.music.playback.queues.filterVideoSongs
-import com.metrolist.music.R
 import com.metrolist.music.constants.LoudnessLevel
 import com.metrolist.music.constants.LoudnessLevelKey
 import com.metrolist.music.utils.CoilBitmapLoader
@@ -229,9 +228,7 @@ import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.time.LocalDateTime
 import javax.inject.Inject
-import kotlin.coroutines.coroutineContext
 import kotlin.random.Random
-import kotlin.time.Duration.Companion.seconds
 
 private const val INSTANT_SILENCE_SKIP_STEP_MS = 15_000L
 private const val INSTANT_SILENCE_SKIP_SETTLE_MS = 350L
@@ -2133,18 +2130,22 @@ class MusicService :
         loudnessSetupJob?.cancel()
         loudnessSetupJob = null
 
-        if (loudnessEnhancer != null) {
-            releaseLoudnessEnhancer(clearNormalizationCache = clearNormalizationCache)
+        // Guard: only release/reset state if closing the currently active session
+        val isClosingCurrentSession =
+            isAudioEffectSessionOpened &&
+                    openedAudioEffectSessionId != C.AUDIO_SESSION_ID_UNSET &&
+                    sessionIdToClose == openedAudioEffectSessionId
+
+        if (isClosingCurrentSession) {
+            if (loudnessEnhancer != null) {
+                releaseLoudnessEnhancer(clearNormalizationCache = clearNormalizationCache)
+            }
+
+            isAudioEffectSessionOpened = false
+            openedAudioEffectSessionId = C.AUDIO_SESSION_ID_UNSET
         }
 
-        if (! isAudioEffectSessionOpened && (sessionIdToClose == C.AUDIO_SESSION_ID_UNSET || sessionIdToClose <= 0)) {
-            return
-        }
-
-        isAudioEffectSessionOpened = false
-        openedAudioEffectSessionId = C.AUDIO_SESSION_ID_UNSET
-        releaseLoudnessEnhancer(clearNormalizationCache = clearNormalizationCache)
-
+        // Broadcast close for the requested session (even if stale)
         if (sessionIdToClose != C.AUDIO_SESSION_ID_UNSET && sessionIdToClose > 0) {
             sendBroadcast(
                 Intent(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION).apply {
