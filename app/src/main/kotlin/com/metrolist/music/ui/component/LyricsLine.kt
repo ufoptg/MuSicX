@@ -643,7 +643,7 @@ private fun WordLevelLyrics(
                     lineTotalPushes[lineIdx] += charBounds.width * (charScaleX - 1f)
                 }
 
-                // Main drawing loop — iterate over cluster indices so each visual
+                // Main drawing loop : iterate over cluster indices so each visual
                 // glyph (including multi-codepoint Devanagari clusters) is one unit.
                 for (i in 0 until clusterCount) {
                     val cpOffset = clusterCodePointOffsets[i]
