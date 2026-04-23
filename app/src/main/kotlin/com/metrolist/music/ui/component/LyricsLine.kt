@@ -497,7 +497,7 @@ private fun WordLevelLyrics(
         }
         
         // Each layout corresponds to one grapheme cluster (the visual unit),
-        // not one codepoint — fixes Devanagari/Bengali matra fragmentation.
+        // not one codepoint : fixes Devanagari/Bengali matra fragmentation.
         val letterLayouts = remember(mainText, lyricStyle) {
             graphemeClusters.map { cluster -> textMeasurer.measure(cluster, lyricStyle) }
         }
