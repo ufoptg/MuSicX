@@ -950,4 +950,5 @@
     <string name="enter_hex_color">Enter HEX color code</string>
     <string name="invalid_hex_color">Invalid HEX color code</string>
     <string name="hex_code_hint">e.g. #FF5733</string>
+    <string name="error_age_restricted">This app does not support playing age-restricted songs. We are working on fixing this issue.</string>
 </resources>

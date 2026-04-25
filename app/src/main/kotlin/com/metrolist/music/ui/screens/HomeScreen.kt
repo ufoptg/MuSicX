@@ -2362,7 +2362,7 @@ fun HomeScreen(
                                                                             }
                                                                         }
 
-                                                                        // TODO: this will trigger an error in future kotlin releases, make sure it doesnt
+                                                                        else -> {}
 
                                                                         // is AlbumItem -> {
                                                                         //    navController.navigate("album/${song.id}")
