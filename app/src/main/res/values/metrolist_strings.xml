@@ -946,4 +946,8 @@
     <string name="switch_to_list_view">Switch to list view</string>
     <string name="switch_to_grid_view">Switch to grid view</string>
     <string name="more_options">More options</string>
+    <string name="palette_custom">Custom</string>
+    <string name="enter_hex_color">Enter HEX color code</string>
+    <string name="invalid_hex_color">Invalid HEX color code</string>
+    <string name="hex_code_hint">e.g. #FF5733</string>
 </resources>

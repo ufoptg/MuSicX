@@ -80,6 +80,12 @@ import com.metrolist.music.constants.PureBlackMiniPlayerKey
 import com.metrolist.music.constants.SelectedThemeColorKey
 import com.metrolist.music.ui.theme.DefaultThemeColor
 import com.metrolist.music.ui.theme.MetrolistTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 
@@ -109,6 +115,7 @@ val PaletteColors = listOf(
     ThemePalette(R.string.palette_brown, Color(0xFF6D4C41)),
     ThemePalette(R.string.palette_grey, Color(0xFF757575)),
     ThemePalette(R.string.palette_blue_grey, Color(0xFF546E7A)),
+    ThemePalette(R.string.palette_custom, Color.Unspecified), // Sentinel for Custom color
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -179,6 +186,66 @@ fun ThemeScreen(
             }
         }
     )
+
+    var showCustomColorDialog by remember { mutableStateOf(false) }
+    if (showCustomColorDialog) {
+        var hexValue by remember { 
+            val currentHex = String.format("#%06X", (0xFFFFFF and selectedThemeColorInt))
+            mutableStateOf(currentHex) 
+        }
+        val isHexValid = remember(hexValue) {
+            val hex = hexValue.removePrefix("#")
+            hex.length == 6 && hex.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }
+        }
+
+        DefaultDialog(
+            onDismiss = { showCustomColorDialog = false },
+            buttons = {
+                TextButton(onClick = { showCustomColorDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+                TextButton(
+                    enabled = isHexValid,
+                    onClick = {
+                        val color = Color(android.graphics.Color.parseColor(if (hexValue.startsWith("#")) hexValue else "#$hexValue"))
+                        handleColorSelection(color)
+                        showCustomColorDialog = false
+                    }
+                ) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            }
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.enter_hex_color),
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                OutlinedTextField(
+                    value = hexValue,
+                    onValueChange = { 
+                        if (it.length <= 7) hexValue = if (it.startsWith("#")) it else "#$it" 
+                    },
+                    placeholder = { Text(stringResource(R.string.hex_code_hint)) },
+                    isError = !isHexValid && hexValue.isNotEmpty(),
+                    supportingText = if (!isHexValid && hexValue.isNotEmpty()) {
+                        { Text(stringResource(R.string.invalid_hex_color)) }
+                    } else null,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                    )
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -392,18 +459,24 @@ fun ThemeControls(
                 ) {
                     items(PaletteColors) { palette ->
                         val isDynamicPalette = palette.seedColor == Color.Transparent
-                        val isSelected = if (isDynamicPalette) {
-                            selectedThemeColor == DefaultThemeColor
-                        } else {
-                            selectedThemeColor == palette.seedColor
+                        val isSelected = when {
+                            isDynamicPalette -> selectedThemeColor == DefaultThemeColor
+                            palette.seedColor == Color.Unspecified -> {
+                                selectedThemeColor != DefaultThemeColor && PaletteColors.none { it.seedColor == selectedThemeColor }
+                            }
+                            else -> selectedThemeColor == palette.seedColor
                         }
                         
                         PaletteItem(
                             palette = palette,
                             isSelected = isSelected,
                             onClick = { 
-                                val colorToSave = if (isDynamicPalette) DefaultThemeColor else palette.seedColor
-                                onSelectedThemeColorChange(colorToSave) 
+                                if (palette.seedColor == Color.Unspecified) {
+                                    showCustomColorDialog = true
+                                } else {
+                                    val colorToSave = if (isDynamicPalette) DefaultThemeColor else palette.seedColor
+                                    onSelectedThemeColorChange(colorToSave) 
+                                }
                             }
                         )
                     }
@@ -629,6 +702,21 @@ fun PaletteItem(
             ) {
                 Icon(
                     painter = painterResource(R.drawable.palette),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        } else if (palette.seedColor == Color.Unspecified) {
+            // Draw Custom icon
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.edit),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(24.dp)
