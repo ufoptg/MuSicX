@@ -50,7 +50,7 @@ object BackgroundPlaylistAddManager {
         scope.launch {
             currentJob?.cancelAndJoin()
             _state.value = PlaylistAddProgressState(
-                playlistName = playlist.name,
+                playlistName = playlist.title,
                 total = songIds.size,
                 isRunning = true,
                 isVisible = true,
