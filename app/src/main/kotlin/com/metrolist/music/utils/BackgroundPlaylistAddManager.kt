@@ -147,6 +147,10 @@ object BackgroundPlaylistAddManager {
             throw e
         } catch (e: Exception) {
             Timber.e(e, "Failed to add songs to playlist")
+            _state.update {
+                val unprocessed = (it.total - it.completed - it.failed).coerceAtLeast(0)
+                it.copy(failed = it.failed + unprocessed)
+            }
         } finally {
             _state.update { currentState ->
                 val completedSuccessfully = currentState.failed == 0
