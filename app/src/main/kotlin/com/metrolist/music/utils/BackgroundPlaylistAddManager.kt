@@ -82,13 +82,18 @@ object BackgroundPlaylistAddManager {
         playlist: Playlist,
         songIds: List<String>,
     ) {
+        var completedSuccessfully = false
         try {
-            if (songIds.isEmpty()) return
+            if (songIds.isEmpty()) {
+                completedSuccessfully = true
+                return
+            }
 
             database.addSongsToPlaylist(playlist, songIds.map { it to null }, prepend = true)
             val browseId = playlist.playlist.browseId
             if (browseId == null) {
                 _state.value = _state.value.copy(completed = songIds.size)
+                completedSuccessfully = true
                 return
             }
 
@@ -102,12 +107,17 @@ object BackgroundPlaylistAddManager {
                 }
                 _state.value = _state.value.copy(completed = _state.value.completed + 1)
             }
+            completedSuccessfully = true
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Timber.e(e, "Failed to add songs to playlist")
         } finally {
-            _state.value = _state.value.copy(isRunning = false, isCancelling = false)
+            _state.value = _state.value.copy(
+                isRunning = false,
+                isCancelling = false,
+                isVisible = if (completedSuccessfully) false else _state.value.isVisible,
+            )
         }
     }
 }
