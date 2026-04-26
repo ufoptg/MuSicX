@@ -16,6 +16,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +25,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
+/**
+ * Tracks the current state of the background playlist add flow.
+ */
 data class PlaylistAddProgressState(
     val playlistName: String = "",
     val total: Int = 0,
@@ -35,13 +40,23 @@ data class PlaylistAddProgressState(
         get() = if (total == 0) 0f else completed.toFloat() / total
 }
 
+/**
+ * Runs playlist add requests in the background and exposes progress state to the UI.
+ */
 object BackgroundPlaylistAddManager {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val jobMutex = Mutex()
     private val _state = MutableStateFlow(PlaylistAddProgressState())
     private var currentJob: Job? = null
 
+    /**
+     * Shared progress state for the current playlist add operation.
+     */
     val state: StateFlow<PlaylistAddProgressState> = _state.asStateFlow()
 
+    /**
+     * Starts adding the provided songs to the given playlist in the background.
+     */
     fun start(
         database: MusicDatabase,
         syncUtils: SyncUtils,
@@ -49,28 +64,39 @@ object BackgroundPlaylistAddManager {
         songIds: List<String>,
     ) {
         scope.launch {
-            currentJob?.cancelAndJoin()
-            _state.value = PlaylistAddProgressState(
-                playlistName = playlist.title,
-                total = songIds.size,
-                isRunning = true,
-                isVisible = true,
-            )
-            currentJob = launch {
-                runAdd(database, syncUtils, playlist, songIds)
+            jobMutex.withLock {
+                currentJob?.cancelAndJoin()
+                _state.value = PlaylistAddProgressState(
+                    playlistName = playlist.title,
+                    total = songIds.size,
+                    isRunning = true,
+                    isVisible = true,
+                )
+                currentJob = scope.launch {
+                    runAdd(database, syncUtils, playlist, songIds)
+                }
             }
         }
     }
 
+    /**
+     * Hides the progress dialog without cancelling the running operation.
+     */
     fun hide() {
         _state.value = _state.value.copy(isVisible = false)
     }
 
+    /**
+     * Cancels the active playlist add operation.
+     */
     fun cancel() {
         _state.value = _state.value.copy(isCancelling = true)
         currentJob?.cancel()
     }
 
+    /**
+     * Clears the dialog state after the operation has finished.
+     */
     fun dismissFinished() {
         if (!_state.value.isRunning) {
             _state.value = PlaylistAddProgressState()
