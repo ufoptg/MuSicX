@@ -19,6 +19,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -101,11 +102,11 @@ object BackgroundPlaylistAddManager {
                 currentCoroutineContext().ensureActive()
                 syncUtils.registerPendingAdd(browseId, songId)
                 try {
-                    YouTube.addToPlaylist(browseId, songId)
+                    YouTube.addToPlaylist(browseId, songId).getOrThrow()
+                    _state.update { it.copy(completed = it.completed + 1) }
                 } finally {
                     syncUtils.unregisterPendingAdd(browseId, songId)
                 }
-                _state.value = _state.value.copy(completed = _state.value.completed + 1)
             }
             completedSuccessfully = true
         } catch (e: CancellationException) {
