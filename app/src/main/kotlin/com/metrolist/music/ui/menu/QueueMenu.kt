@@ -121,9 +121,6 @@ fun QueueMenu(
             database.withTransaction {
                 insert(mediaMetadata)
             }
-            coroutineScope.launch(Dispatchers.IO) {
-                playlist.playlist.browseId?.let { YouTube.addToPlaylist(it, mediaMetadata.id) }
-            }
             listOf(mediaMetadata.id)
         },
         onGetSongIds = { listOf(mediaMetadata.id) },

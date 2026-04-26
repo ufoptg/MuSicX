@@ -69,6 +69,10 @@
 
     <string name="lyrics">Lyrics</string>
     <string name="close">Close</string>
+    <string name="hide">Hide</string>
+    <string name="stop">Stop</string>
+    <string name="adding_songs_to_playlist">Adding songs to playlist</string>
+    <string name="add_playlist_progress">%1$d of %2$d songs added to %3$s</string>
     <string name="hide_player_thumbnail">Hide player thumbnail</string>
     <string name="hide_player_thumbnail_desc">Replace the album artwork with the app logo in the player</string>
     <string name="crop_album_art">Crop album art</string>

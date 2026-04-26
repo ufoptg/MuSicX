@@ -60,12 +60,14 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconToggleButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.FlowRow
@@ -75,6 +77,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material3.FilterChipDefaults
 import com.metrolist.music.LocalSyncUtils
+import com.metrolist.music.utils.BackgroundPlaylistAddManager
 
 @Composable
 fun AddToPlaylistDialog(
@@ -122,18 +125,8 @@ fun AddToPlaylistDialog(
         mutableStateOf<Set<String>>(emptySet())
     }
 
-    suspend fun addSongsAndSync(targetPlaylist: Playlist, ids: List<String>) {
-        database.addSongsToPlaylist(targetPlaylist, ids.map { it to null }, prepend = true)
-        targetPlaylist.playlist.browseId?.let { plist ->
-            ids.forEach { songId ->
-                syncUtils.registerPendingAdd(plist, songId)
-                try {
-                    YouTube.addToPlaylist(plist, songId)
-                } finally {
-                    syncUtils.unregisterPendingAdd(plist, songId)
-                }
-            }
-        }
+    fun addSongsInBackground(targetPlaylist: Playlist, ids: List<String>) {
+        BackgroundPlaylistAddManager.start(database, syncUtils, targetPlaylist, ids)
     }
 
     LaunchedEffect(isVisible, playlists.isEmpty()) {
@@ -310,7 +303,7 @@ fun AddToPlaylistDialog(
                                 showDuplicateDialog = true
                             } else {
                                 onDismiss()
-                                addSongsAndSync(playlist, songIds!!)
+                                addSongsInBackground(playlist, songIds!!)
                             }
                         }
                     }
@@ -337,7 +330,7 @@ fun AddToPlaylistDialog(
                             showDuplicateDialog = false
                             onDismiss()
                             coroutineScope.launch(Dispatchers.IO) {
-                                addSongsAndSync(
+                                addSongsInBackground(
                                     selectedPlaylist!!,
                                     songIds!!.filter { !duplicates.contains(it) }
                                 )
@@ -352,7 +345,7 @@ fun AddToPlaylistDialog(
                             showDuplicateDialog = false
                             onDismiss()
                             coroutineScope.launch(Dispatchers.IO) {
-                                addSongsAndSync(selectedPlaylist!!, songIds!!)
+                                addSongsInBackground(selectedPlaylist!!, songIds!!)
                             }
                         }
                     ) {
@@ -382,4 +375,58 @@ fun AddToPlaylistDialog(
                 )
             }
         }
+
+    PlaylistAddProgressDialog()
+}
+
+@Composable
+private fun PlaylistAddProgressDialog() {
+    val state by BackgroundPlaylistAddManager.state.collectAsStateWithLifecycle()
+    if (!state.isVisible) return
+
+    DefaultDialog(
+        title = { Text(stringResource(R.string.adding_songs_to_playlist)) },
+        buttons = {
+            if (state.isRunning) {
+                TextButton(
+                    onClick = BackgroundPlaylistAddManager::cancel,
+                    enabled = !state.isCancelling,
+                ) {
+                    Text(stringResource(R.string.stop))
+                }
+                TextButton(onClick = BackgroundPlaylistAddManager::hide) {
+                    Text(stringResource(R.string.hide))
+                }
+            } else {
+                TextButton(onClick = BackgroundPlaylistAddManager::dismissFinished) {
+                    Text(stringResource(R.string.close))
+                }
+            }
+        },
+        onDismiss = {
+            if (state.isRunning) {
+                BackgroundPlaylistAddManager.hide()
+            } else {
+                BackgroundPlaylistAddManager.dismissFinished()
+            }
+        }
+    ) {
+        Column {
+            Text(
+                text = stringResource(
+                    R.string.add_playlist_progress,
+                    state.completed,
+                    state.total,
+                    state.playlistName,
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            LinearProgressIndicator(
+                progress = { state.progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+            )
+        }
+    }
 }
