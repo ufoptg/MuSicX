@@ -32,12 +32,13 @@ data class PlaylistAddProgressState(
     val playlistName: String = "",
     val total: Int = 0,
     val completed: Int = 0,
+    val failed: Int = 0,
     val isRunning: Boolean = false,
     val isVisible: Boolean = false,
     val isCancelling: Boolean = false,
 ) {
     val progress: Float
-        get() = if (total == 0) 0f else completed.toFloat() / total
+        get() = if (total == 0) 0f else (completed + failed).toFloat() / total
 }
 
 /**
@@ -109,10 +110,9 @@ object BackgroundPlaylistAddManager {
         playlist: Playlist,
         songIds: List<String>,
     ) {
-        var completedSuccessfully = false
         try {
             if (songIds.isEmpty()) {
-                completedSuccessfully = true
+                _state.value = _state.value.copy(isVisible = false)
                 return
             }
 
@@ -120,7 +120,7 @@ object BackgroundPlaylistAddManager {
             val browseId = playlist.playlist.browseId
             if (browseId == null) {
                 _state.value = _state.value.copy(completed = songIds.size)
-                completedSuccessfully = true
+                _state.value = _state.value.copy(isVisible = false)
                 return
             }
 
@@ -128,22 +128,28 @@ object BackgroundPlaylistAddManager {
                 currentCoroutineContext().ensureActive()
                 syncUtils.registerPendingAdd(browseId, songId)
                 try {
-                    YouTube.addToPlaylist(browseId, songId).getOrThrow()
-                    _state.update { it.copy(completed = it.completed + 1) }
+                    val result = YouTube.addToPlaylist(browseId, songId)
+                    if (result.isSuccess) {
+                        _state.update { it.copy(completed = it.completed + 1) }
+                    } else {
+                        _state.update { it.copy(failed = it.failed + 1) }
+                        Timber.e(result.exceptionOrNull(), "Failed to add song %s to playlist", songId)
+                    }
                 } finally {
                     syncUtils.unregisterPendingAdd(browseId, songId)
                 }
             }
-            completedSuccessfully = true
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Timber.e(e, "Failed to add songs to playlist")
         } finally {
+            val currentState = _state.value
+            val completedSuccessfully = currentState.failed == 0
             _state.value = _state.value.copy(
                 isRunning = false,
                 isCancelling = false,
-                isVisible = if (completedSuccessfully) false else _state.value.isVisible,
+                isVisible = if (completedSuccessfully) false else currentState.isVisible,
             )
         }
     }

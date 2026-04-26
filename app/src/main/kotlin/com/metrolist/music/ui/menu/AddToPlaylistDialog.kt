@@ -413,12 +413,22 @@ private fun PlaylistAddProgressDialog() {
     ) {
         Column {
             Text(
-                text = stringResource(
-                    R.string.add_playlist_progress,
-                    state.completed,
-                    state.total,
-                    state.playlistName,
-                ),
+                text = if (state.failed > 0) {
+                    stringResource(
+                        R.string.add_playlist_progress_with_failures,
+                        state.completed,
+                        state.total,
+                        state.failed,
+                        state.playlistName,
+                    )
+                } else {
+                    stringResource(
+                        R.string.add_playlist_progress,
+                        state.completed,
+                        state.total,
+                        state.playlistName,
+                    )
+                },
                 style = MaterialTheme.typography.bodyMedium,
             )
             LinearProgressIndicator(
