@@ -54,7 +54,7 @@ fun PlaybackError(
             error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS
     
     val errorMessage = if (isAgeRestricted) {
-        "This app does not support playing age-restricted songs. We are working on fixing this issue."
+        stringResource(R.string.error_age_restricted)
     } else {
         rawErrorMessage
     }
