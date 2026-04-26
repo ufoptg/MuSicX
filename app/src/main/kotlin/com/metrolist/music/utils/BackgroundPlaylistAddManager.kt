@@ -84,14 +84,14 @@ object BackgroundPlaylistAddManager {
      * Hides the progress dialog without cancelling the running operation.
      */
     fun hide() {
-        _state.value = _state.value.copy(isVisible = false)
+        _state.update { it.copy(isVisible = false) }
     }
 
     /**
      * Cancels the active playlist add operation.
      */
     fun cancel() {
-        _state.value = _state.value.copy(isCancelling = true)
+        _state.update { it.copy(isCancelling = true) }
         currentJob?.cancel()
     }
 
@@ -100,7 +100,7 @@ object BackgroundPlaylistAddManager {
      */
     fun dismissFinished() {
         if (!_state.value.isRunning) {
-            _state.value = PlaylistAddProgressState()
+            _state.update { PlaylistAddProgressState() }
         }
     }
 
@@ -112,15 +112,19 @@ object BackgroundPlaylistAddManager {
     ) {
         try {
             if (songIds.isEmpty()) {
-                _state.value = _state.value.copy(isVisible = false)
+                _state.update { it.copy(isVisible = false) }
                 return
             }
 
             database.addSongsToPlaylist(playlist, songIds.map { it to null }, prepend = true)
             val browseId = playlist.playlist.browseId
             if (browseId == null) {
-                _state.value = _state.value.copy(completed = songIds.size)
-                _state.value = _state.value.copy(isVisible = false)
+                _state.update {
+                    it.copy(
+                        completed = songIds.size,
+                        isVisible = false,
+                    )
+                }
                 return
             }
 
@@ -144,13 +148,14 @@ object BackgroundPlaylistAddManager {
         } catch (e: Exception) {
             Timber.e(e, "Failed to add songs to playlist")
         } finally {
-            val currentState = _state.value
-            val completedSuccessfully = currentState.failed == 0
-            _state.value = _state.value.copy(
-                isRunning = false,
-                isCancelling = false,
-                isVisible = if (completedSuccessfully) false else currentState.isVisible,
-            )
+            _state.update { currentState ->
+                val completedSuccessfully = currentState.failed == 0
+                currentState.copy(
+                    isRunning = false,
+                    isCancelling = false,
+                    isVisible = if (completedSuccessfully) false else currentState.isVisible,
+                )
+            }
         }
     }
 }
