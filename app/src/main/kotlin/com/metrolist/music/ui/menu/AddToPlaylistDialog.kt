@@ -81,6 +81,7 @@ fun AddToPlaylistDialog(
     isVisible: Boolean,
     allowSyncing: Boolean = true,
     initialTextFieldValue: String? = null,
+    multiSelectParams: String? = null,
     onGetSong: suspend (Playlist) -> List<String>, // list of song ids. Songs should be inserted to database in this function.
     onGetSongIds: (suspend () -> List<String>)? = null,
     onDismiss: () -> Unit,
@@ -123,15 +124,34 @@ fun AddToPlaylistDialog(
     }
 
     suspend fun addSongsAndSync(targetPlaylist: Playlist, ids: List<String>) {
-        database.addSongsToPlaylist(targetPlaylist, ids.map { it to null }, prepend = true)
-        targetPlaylist.playlist.browseId?.let { plist ->
-            ids.forEach { songId ->
-                syncUtils.registerPendingAdd(plist, songId)
-                try {
-                    YouTube.addToPlaylist(plist, songId)
-                } finally {
-                    syncUtils.unregisterPendingAdd(plist, songId)
-                }
+        val localIds = ids.distinct()
+        database.addSongsToPlaylist(targetPlaylist, localIds.map { it to null }, prepend = true)
+        val browseId = targetPlaylist.playlist.browseId ?: return
+        val remoteIds =
+            if (localIds.size > 1) {
+                YouTube.getMultiSelectCommand(localIds, multiSelectParams)
+                    .getOrNull()
+                    ?.multiSelectCommand
+                    ?.addToPlaylistEndpoint
+                    ?.videoIds
+                    .orEmpty()
+                    .ifEmpty { localIds }
+            } else {
+                localIds
+            }
+
+        remoteIds.forEach { songId ->
+            syncUtils.registerPendingAdd(browseId, songId)
+        }
+        try {
+            if (remoteIds.size == 1) {
+                YouTube.addToPlaylist(browseId, remoteIds.first())
+            } else {
+                YouTube.addToPlaylist(browseId, remoteIds)
+            }
+        } finally {
+            remoteIds.forEach { songId ->
+                syncUtils.unregisterPendingAdd(browseId, songId)
             }
         }
     }
@@ -291,26 +311,29 @@ fun AddToPlaylistDialog(
                     animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
                     label = "playlistBg"
                 )
-                PlaylistListItem(
-                    playlist = playlist,
-                    modifier = Modifier
+                    PlaylistListItem(
+                        playlist = playlist,
+                        modifier = Modifier
                     .padding(horizontal = 8.dp, vertical = 2.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(rowBg)
                     .clickable {
                         selectedPlaylist = playlist
                         coroutineScope.launch(Dispatchers.IO) {
-                            if (songIds == null) {
-                                songIds = onGetSong(playlist)
-                            } else {
-                                onGetSong(playlist)
-                            }
-                            duplicates = database.playlistDuplicates(playlist.id, songIds!!)
+                            val resolvedSongIds =
+                                if (songIds.isNullOrEmpty()) {
+                                    onGetSong(playlist).also { resolved ->
+                                        songIds = resolved
+                                    }
+                                } else {
+                                    songIds!!
+                                }
+                            duplicates = database.playlistDuplicates(playlist.id, resolvedSongIds)
                             if (duplicates.isNotEmpty()) {
                                 showDuplicateDialog = true
                             } else {
                                 onDismiss()
-                                addSongsAndSync(playlist, songIds!!)
+                                addSongsAndSync(playlist, resolvedSongIds)
                             }
                         }
                     }

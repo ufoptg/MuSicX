@@ -36,7 +36,9 @@ import com.metrolist.innertube.models.response.BrowseResponse
 import com.metrolist.innertube.models.response.CreatePlaylistResponse
 import com.metrolist.innertube.models.response.EditPlaylistResponse
 import com.metrolist.innertube.models.response.FeedbackResponse
+import com.metrolist.innertube.models.response.GetMultiSelectCommandResponse
 import com.metrolist.innertube.models.response.GetQueueResponse
+import com.metrolist.innertube.models.response.GetMultiSelectCommandResponse
 import com.metrolist.innertube.models.response.GetSearchSuggestionsResponse
 import com.metrolist.innertube.models.response.GetTranscriptResponse
 import com.metrolist.innertube.models.response.ImageUploadResponse
@@ -2587,6 +2589,21 @@ object YouTube {
         videoId: String,
     ) = runCatching {
         innerTube.addToPlaylist(WEB_REMIX, playlistId, videoId)
+    }
+
+    suspend fun addToPlaylist(
+        playlistId: String,
+        videoIds: List<String>,
+    ) = runCatching {
+        innerTube.addToPlaylist(WEB_REMIX, playlistId, videoIds)
+    }
+
+    suspend fun getMultiSelectCommand(
+        selectedItems: List<String>,
+        multiSelectParams: String? = null,
+    ) = runCatching {
+        val response = innerTube.getMultiSelectCommand(WEB_REMIX, selectedItems, multiSelectParams).body<GetMultiSelectCommandResponse>()
+        response
     }
 
     suspend fun addPlaylistToPlaylist(

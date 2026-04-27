@@ -126,12 +126,12 @@ fun YouTubePlaylistMenu(
 
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
-        onGetSong = { targetPlaylist ->
+        onGetSong = {
             val allSongs =
                 songs
                     .ifEmpty {
                         YouTube
-                            .playlist(targetPlaylist.id)
+                            .playlist(playlist.id)
                             .completed()
                             .getOrNull()
                             ?.songs
@@ -141,11 +141,6 @@ fun YouTubePlaylistMenu(
                     }
             database.withTransaction {
                 allSongs.forEach(::insert)
-            }
-            coroutineScope.launch(Dispatchers.IO) {
-                targetPlaylist.playlist.browseId?.let { playlistId ->
-                    YouTube.addPlaylistToPlaylist(playlistId, targetPlaylist.id)
-                }
             }
             allSongs.map { it.id }
         },
