@@ -144,6 +144,10 @@ fun YouTubePlaylistMenu(
             }
             allSongs.map { it.id }
         },
+        onSyncToRemotePlaylist = sync@{ targetPlaylist, _ ->
+            val targetBrowseId = targetPlaylist.playlist.browseId ?: return@sync Result.success(Unit)
+            YouTube.addPlaylistToPlaylist(targetBrowseId, playlist.id).map { Unit }
+        },
         onGetSongIds = {
             songs.map { it.id }
         },

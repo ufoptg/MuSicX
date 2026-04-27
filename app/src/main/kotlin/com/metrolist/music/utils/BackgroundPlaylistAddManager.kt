@@ -27,6 +27,14 @@ import timber.log.Timber
 
 /**
  * Tracks the current state of the background playlist add flow.
+ *
+ * @property playlistName Name of the playlist currently being updated.
+ * @property total Total number of songs requested for the add operation.
+ * @property completed Number of songs that were added successfully.
+ * @property failed Number of songs that failed to add.
+ * @property isRunning Whether the background add job is still running.
+ * @property isVisible Whether the progress dialog should be shown.
+ * @property isCancelling Whether cancellation has been requested.
  */
 data class PlaylistAddProgressState(
     val playlistName: String = "",
@@ -37,6 +45,9 @@ data class PlaylistAddProgressState(
     val isVisible: Boolean = false,
     val isCancelling: Boolean = false,
 ) {
+    /**
+     * Current completion ratio for the add operation.
+     */
     val progress: Float
         get() = if (total == 0) 0f else (completed + failed).toFloat() / total
 }
@@ -63,6 +74,7 @@ object BackgroundPlaylistAddManager {
         syncUtils: SyncUtils,
         playlist: Playlist,
         songIds: List<String>,
+        syncToRemotePlaylist: (suspend (Playlist, List<String>) -> Result<Unit>)? = null,
     ) {
         scope.launch {
             jobMutex.withLock {
@@ -74,7 +86,7 @@ object BackgroundPlaylistAddManager {
                     isVisible = true,
                 )
                 currentJob = scope.launch {
-                    runAdd(database, syncUtils, playlist, songIds)
+                    runAdd(database, syncUtils, playlist, songIds, syncToRemotePlaylist)
                 }
             }
         }
@@ -109,6 +121,7 @@ object BackgroundPlaylistAddManager {
         syncUtils: SyncUtils,
         playlist: Playlist,
         songIds: List<String>,
+        syncToRemotePlaylist: (suspend (Playlist, List<String>) -> Result<Unit>)?,
     ) {
         try {
             if (songIds.isEmpty()) {
@@ -124,6 +137,22 @@ object BackgroundPlaylistAddManager {
                         completed = songIds.size,
                         isVisible = false,
                     )
+                }
+                return
+            }
+
+            if (syncToRemotePlaylist != null) {
+                val result = syncToRemotePlaylist(playlist, songIds)
+                if (result.isSuccess) {
+                    _state.update {
+                        it.copy(
+                            completed = songIds.size,
+                            isVisible = false,
+                        )
+                    }
+                } else {
+                    _state.update { it.copy(failed = songIds.size) }
+                    Timber.e(result.exceptionOrNull(), "Failed to add source playlist to playlist")
                 }
                 return
             }

@@ -177,6 +177,11 @@ fun AlbumMenu(
         onGetSong = {
             songs.map { it.id }
         },
+        onSyncToRemotePlaylist = sync@{ playlist, _ ->
+            val targetBrowseId = playlist.playlist.browseId ?: return@sync Result.success(Unit)
+            val sourcePlaylistId = album.album.playlistId ?: return@sync Result.success(Unit)
+            YouTube.addPlaylistToPlaylist(targetBrowseId, sourcePlaylistId).map { Unit }
+        },
         onGetSongIds = { songs.map { it.id } },
         onDismiss = {
             showChoosePlaylistDialog = false

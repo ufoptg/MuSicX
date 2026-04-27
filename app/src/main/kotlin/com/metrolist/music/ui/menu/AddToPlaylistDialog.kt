@@ -85,6 +85,7 @@ fun AddToPlaylistDialog(
     allowSyncing: Boolean = true,
     initialTextFieldValue: String? = null,
     onGetSong: suspend (Playlist) -> List<String>, // list of song ids. Songs should be inserted to database in this function.
+    onSyncToRemotePlaylist: (suspend (Playlist, List<String>) -> Result<Unit>)? = null,
     onGetSongIds: (suspend () -> List<String>)? = null,
     onDismiss: () -> Unit,
     viewModel: PlaylistsViewModel = hiltViewModel()
@@ -126,7 +127,13 @@ fun AddToPlaylistDialog(
     }
 
     fun addSongsInBackground(targetPlaylist: Playlist, ids: List<String>) {
-        BackgroundPlaylistAddManager.start(database, syncUtils, targetPlaylist, ids)
+        BackgroundPlaylistAddManager.start(
+            database = database,
+            syncUtils = syncUtils,
+            playlist = targetPlaylist,
+            songIds = ids,
+            syncToRemotePlaylist = onSyncToRemotePlaylist,
+        )
     }
 
     LaunchedEffect(isVisible, playlists.isEmpty()) {
