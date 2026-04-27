@@ -128,7 +128,7 @@ fun AddToPlaylistDialog(
         database.addSongsToPlaylist(targetPlaylist, localIds.map { it to null }, prepend = true)
         val browseId = targetPlaylist.playlist.browseId ?: return
         val remoteIds =
-            if (localIds.size > 1) {
+            if (localIds.size > 1 && multiSelectParams != null) {
                 YouTube.getMultiSelectCommand(localIds, multiSelectParams)
                     .getOrNull()
                     ?.multiSelectCommand
