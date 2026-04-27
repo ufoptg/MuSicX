@@ -424,6 +424,7 @@ private fun WordLevelLyrics(
         val charInWordMap = IntArray(clusterCount) { 0 }
         val wordLenMap = IntArray(clusterCount) { 1 }
         var currentPos = 0
+        var clCursor = 0
         effectiveWords.forEachIndexed { wordIdx, word ->
             val rawWordText = word.text.let {
                 if (isBackground) {
@@ -436,13 +437,16 @@ private fun WordLevelLyrics(
             val indexInMain = mainText.indexOf(rawWordText, currentPos)
             if (indexInMain != -1) {
                 val wordEndInMain = indexInMain + rawWordText.length
-                // Collect all cluster indices whose String offset falls within
-                // this word's String range.
+                // Advance clCursor to the first cluster at or after indexInMain
+                while (clCursor < clusterCount && clusterCharOffsets[clCursor] < indexInMain) {
+                    clCursor++
+                }
+                val firstClIdx = clCursor
+                // Collect all clusters in the word range [indexInMain, wordEndInMain)
                 val wordClusterIndices = mutableListOf<Int>()
-                clusterCharOffsets.forEachIndexed { clIdx, charOff ->
-                    if (charOff >= indexInMain && charOff < wordEndInMain) {
-                        wordClusterIndices.add(clIdx)
-                    }
+                while (clCursor < clusterCount && clusterCharOffsets[clCursor] < wordEndInMain) {
+                    wordClusterIndices.add(clCursor)
+                    clCursor++
                 }
                 val wordClusterLen = wordClusterIndices.size
                 wordClusterIndices.forEachIndexed { posInWord, clIdx ->
@@ -450,14 +454,14 @@ private fun WordLevelLyrics(
                     charInWordMap[clIdx] = posInWord
                     wordLenMap[clIdx] = wordClusterLen
                 }
-                // Assign trailing space cluster (if any) to this word.
-                if (wordEndInMain < mainText.length && mainText[wordEndInMain] == ' ') {
-                    val spaceClIdx = clusterCharOffsets.indexOfFirst { it == wordEndInMain }
-                    if (spaceClIdx != -1) {
-                        wordIdxMap[spaceClIdx] = wordIdx
-                        charInWordMap[spaceClIdx] = wordClusterLen
-                        wordLenMap[spaceClIdx] = wordClusterLen + 1
-                    }
+                // Check the cluster at clCursor for a trailing space
+                if (clCursor < clusterCount && clusterCharOffsets[clCursor] == wordEndInMain && 
+                    wordEndInMain < mainText.length && mainText[wordEndInMain] == ' ') {
+                    val spaceClIdx = clCursor
+                    wordIdxMap[spaceClIdx] = wordIdx
+                    charInWordMap[spaceClIdx] = wordClusterLen
+                    wordLenMap[spaceClIdx] = wordClusterLen + 1
+                    clCursor++
                 }
                 currentPos = wordEndInMain
             }
@@ -497,7 +501,7 @@ private fun WordLevelLyrics(
         }
         
         // Each layout corresponds to one grapheme cluster (the visual unit),
-        // not one codepoint - fixes Devanagari/Bengali matra fragmentation.
+        // not one codepoint-fixes Devanagari/Bengali matra fragmentation.
         val letterLayouts = remember(mainText, lyricStyle) {
             graphemeClusters.map { cluster -> textMeasurer.measure(cluster, lyricStyle) }
         }
@@ -539,8 +543,8 @@ private fun WordLevelLyrics(
 
                         for (i in 0 until clusterCount) {
                             if (wordIdxMap[i] == wIdx) {
-                                val cpOffset = clusterCharOffsets[i]
-                                val bounds = layoutResult.getBoundingBox(cpOffset)
+                                val charOffset = clusterCharOffsets[i]
+                                val bounds = layoutResult.getBoundingBox(charOffset)
                                 left = minOf(left, bounds.left)
                                 right = maxOf(right, bounds.right)
                                 top = minOf(top, bounds.top)
