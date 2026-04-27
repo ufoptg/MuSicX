@@ -30,7 +30,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.utils.parseCookieString
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.R
@@ -50,7 +49,6 @@ import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.viewmodels.PlaylistsViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import androidx.compose.foundation.background
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.Color
@@ -74,7 +72,6 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material3.FilterChip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material3.FilterChipDefaults
-import com.metrolist.music.LocalSyncUtils
 
 @Composable
 fun AddToPlaylistDialog(
@@ -121,39 +118,6 @@ fun AddToPlaylistDialog(
     }
     var playlistsContainingSong by remember {
         mutableStateOf<Set<String>>(emptySet())
-    }
-
-    suspend fun addSongsAndSync(targetPlaylist: Playlist, ids: List<String>) {
-        val localIds = ids.distinct()
-        database.addSongsToPlaylist(targetPlaylist, localIds.map { it to null }, prepend = true)
-        val browseId = targetPlaylist.playlist.browseId ?: return
-        val remoteIds =
-            if (localIds.size > 1 && multiSelectParams != null) {
-                YouTube.getMultiSelectCommand(localIds, multiSelectParams)
-                    .getOrNull()
-                    ?.multiSelectCommand
-                    ?.addToPlaylistEndpoint
-                    ?.videoIds
-                    .orEmpty()
-                    .ifEmpty { localIds }
-            } else {
-                localIds
-            }
-
-        remoteIds.forEach { songId ->
-            syncUtils.registerPendingAdd(browseId, songId)
-        }
-        try {
-            if (remoteIds.size == 1) {
-                YouTube.addToPlaylist(browseId, remoteIds.first())
-            } else {
-                YouTube.addToPlaylist(browseId, remoteIds)
-            }
-        } finally {
-            remoteIds.forEach { songId ->
-                syncUtils.unregisterPendingAdd(browseId, songId)
-            }
-        }
     }
 
     LaunchedEffect(isVisible, playlists.isEmpty()) {
@@ -333,7 +297,7 @@ fun AddToPlaylistDialog(
                                 showDuplicateDialog = true
                             } else {
                                 onDismiss()
-                                addSongsAndSync(playlist, resolvedSongIds)
+                                viewModel.addSongsAndSync(playlist, resolvedSongIds, multiSelectParams)
                             }
                         }
                     }
@@ -359,12 +323,11 @@ fun AddToPlaylistDialog(
                         onClick = {
                             showDuplicateDialog = false
                             onDismiss()
-                            coroutineScope.launch(Dispatchers.IO) {
-                                addSongsAndSync(
-                                    selectedPlaylist!!,
-                                    songIds!!.filter { !duplicates.contains(it) }
-                                )
-                            }
+                            viewModel.addSongsAndSync(
+                                selectedPlaylist!!,
+                                songIds!!.filter { !duplicates.contains(it) },
+                                multiSelectParams,
+                            )
                         }
                     ) {
                         Text(stringResource(R.string.skip_duplicates))
@@ -374,9 +337,7 @@ fun AddToPlaylistDialog(
                         onClick = {
                             showDuplicateDialog = false
                             onDismiss()
-                            coroutineScope.launch(Dispatchers.IO) {
-                                addSongsAndSync(selectedPlaylist!!, songIds!!)
-                            }
+                            viewModel.addSongsAndSync(selectedPlaylist!!, songIds!!, multiSelectParams)
                         }
                     ) {
                         Text(stringResource(R.string.add_anyway))
