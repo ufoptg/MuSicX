@@ -310,17 +310,21 @@ object Paxsenix {
         }
 
         val lrc = buildString {
+            // Agent headers
+            appendLine("[agent:v1:person:]")
+            appendLine("[agent:v2:person:]")
+
             response.content.forEach { line ->
                 val timeMs = line.timestamp
                 val minutes = timeMs / 1000 / 60
                 val seconds = (timeMs / 1000) % 60
                 val centiseconds = (timeMs % 1000) / 10
 
-                val agent = when {
-                    line.background -> "{bg}"
-                    line.oppositeTurn -> "{agent:v2}"
-                    else -> "{agent:v1}"
+                val agentAlias = when {
+                    line.oppositeTurn -> "v2"
+                    else -> "v1"
                 }
+                val agent = if (line.background) "{bg}" else "{agent:$agentAlias}"
 
                 val lineText = line.text.joinToString(" ") { it.text }
 
@@ -399,8 +403,9 @@ object Paxsenix {
      */
     private fun convertTTMLToAppFormat(ttml: String): String {
         return try {
-            val parsedLines = TTMLParser.parseTTML(ttml)
-            TTMLParser.toLRC(parsedLines)
+            val agents = mutableMapOf<String, TTMLParser.TTMLAgent>()
+            val parsedLines = TTMLParser.parseTTML(ttml, agents)
+            TTMLParser.toLRC(parsedLines, agents)
         } catch (e: Exception) {
             Timber.e(e, "TTML conversion failed: ${e.message}")
             ""

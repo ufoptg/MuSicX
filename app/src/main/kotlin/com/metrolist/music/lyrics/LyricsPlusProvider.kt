@@ -270,11 +270,12 @@ object LyricsPlusProvider : LyricsProvider {
             }
         } ?: return null
 
-        val parsedLines = runCatching { TTMLParser.parseTTML(ttml) }
+        val agentsMap = mutableMapOf<String, TTMLParser.TTMLAgent>()
+        val parsedLines = runCatching { TTMLParser.parseTTML(ttml, agentsMap) }
             .onFailure { Timber.tag("LyricsPlus").w(it, "Failed parsing binimum TTML") }
             .getOrNull()
             ?.takeIf { it.isNotEmpty() } ?: return null
-        val lrc = runCatching { TTMLParser.toLRC(parsedLines).trim() }
+        val lrc = runCatching { TTMLParser.toLRC(parsedLines, agentsMap).trim() }
             .getOrNull()
             ?.takeIf { it.isNotBlank() }
             ?: return null
@@ -296,6 +297,11 @@ object LyricsPlusProvider : LyricsProvider {
      */
     private fun convertToLrc(response: LyricsPlusResponse?): String? {
         val lyrics = response?.lyrics?.takeIf { it.isNotEmpty() } ?: return null
+
+        if (response.type.equals("None", ignoreCase = true)) {
+            return lyrics.joinToString("\n") { it.text.trim() }.ifBlank { null }
+        }
+
         val isWordSync = response.type.equals("Word", ignoreCase = true)
 
         // Agent mapping
@@ -305,19 +311,17 @@ object LyricsPlusProvider : LyricsProvider {
         lyrics.forEach { line ->
             val raw = line.element?.singer?.lowercase() ?: return@forEach
             if (raw !in agentMap) {
-                agentMap[raw] = when {
-                    raw == "v1" || raw == "v2" || raw == "v1000" -> raw
-                    else -> {
-                        val taken = agentMap.values.toSet()
-                        listOf("v1", "v2").firstOrNull { it !in taken } ?: "v1"
-                    }
-                }
+                agentMap[raw] = raw
             }
         }
-        val isMultiAgent = agentMap.size > 1 ||
-            (agentMap.size == 1 && !agentMap.containsKey("v1"))
-
         val sb = StringBuilder(lyrics.size * 128)
+
+        // Agent metadata header
+        response.metadata?.agents?.forEach { (_, info) ->
+            val alias = info.alias?.takeIf { it.isNotBlank() } ?: return@forEach
+            sb.append("[agent:$alias:${info.type ?: "person"}:${info.name ?: ""}]\n")
+        }
+
         var lastWasBg = false
 
         for (line in lyrics) {
@@ -337,8 +341,8 @@ object LyricsPlusProvider : LyricsProvider {
             if (mainText.isNotBlank()) {
                 lastWasBg = false
                 val agentId  = agentMap[line.element?.singer?.lowercase()]
-                val agentTag = if (isMultiAgent && agentId != null) "{agent:$agentId}" else ""
-                sb.appendLrcLine(line.time, agentTag, mainText)
+                val agentTag = if (!agentId.isNullOrBlank()) "{agent:$agentId}" else ""
+                sb.appendLrcLine(line.time, line.duration, agentTag, mainText)
                 if (isWordSync && mainWords.isNotEmpty()) sb.appendWordBlock(mainWords)
             }
 
@@ -352,7 +356,12 @@ object LyricsPlusProvider : LyricsProvider {
                 if (bgText.isNotBlank()) {
                     val bgTime = bgToEmit.minOf { it.time }
                     val bgTag  = if (lastWasBg) "" else "{bg}"
-                    sb.appendLrcLine(bgTime, bgTag, bgText)
+                    val bgDuration = bgToEmit
+                        .maxOf { it.time + it.duration }
+                        .minus(bgTime)
+                        .takeIf { it > 0 }
+                        ?: line.duration
+                    sb.appendLrcLine(bgTime, bgDuration, bgTag, bgText)
                     lastWasBg = true
                     if (isWordSync) sb.appendWordBlock(bgToEmit)
                 }
@@ -367,10 +376,13 @@ object LyricsPlusProvider : LyricsProvider {
         words.joinToString("") { it.text }.trim()
 
     /** Appends `[mm:ss.cc]<tag>text\n` */
-    private fun StringBuilder.appendLrcLine(timeMs: Long, tag: String, text: String) {
+    private fun StringBuilder.appendLrcLine(timeMs: Long, durationMs: Long, tag: String, text: String) {
         append(formatLrcTime(timeMs))
         append(tag)
         append(text)
+        if (durationMs > 0) {
+            append(formatLrcTime(timeMs + durationMs))
+        }
         append('\n')
     }
 
