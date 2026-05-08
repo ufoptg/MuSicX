@@ -1718,16 +1718,17 @@ class MusicService :
             }
         }
 
-        // For "Play Next", we insert immediately after the current song
-        // This prepends to the manual queue while maintaining manualQueueCount integrity
+        // Calculate insertion point: current song + existing manual queue items
+        // This ensures FIFO order and coherence between playNext and addToQueue
         val currentIndex = player.currentMediaItemIndex
-        val insertIndex = currentIndex + 1
+        val insertIndex = currentIndex + manualQueueCount + 1
         
         player.addMediaItems(insertIndex, items)
         
-        // Update manual queue count to include these new items
-        // This fixes the incoherence reported in PR reviews and avoids LIFO overwrites
+        // Update manual queue count and added queue size
+        // This makes items visible to the priority logic and fixes LIFO issues
         manualQueueCount += items.size
+        addedQueueSize += items.size
 
         if (player.shuffleModeEnabled) {
             val totalItems = player.mediaItemCount
@@ -1752,7 +1753,7 @@ class MusicService :
             player.setShuffleOrder(DefaultShuffleOrder(finalOrder, random.nextLong()))
         }
         player.prepare()
-    }   
+    }  
     fun addToQueue(items: List<MediaItem>) {
         // Remove duplicates if enabled
         if (dataStore.get(PreventDuplicateTracksInQueueKey, false)) {
@@ -1819,7 +1820,8 @@ class MusicService :
             player.setShuffleOrder(DefaultShuffleOrder(finalOrder, random.nextLong()))
         }
         player.prepare()
-    }    fun toggleLibrary() {
+    }   
+    fun toggleLibrary() {
         scope.launch {
             val songToToggle = currentSong.first()
             songToToggle?.let {
