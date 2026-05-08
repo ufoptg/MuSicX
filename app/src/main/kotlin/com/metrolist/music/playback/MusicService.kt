@@ -409,6 +409,8 @@ class MusicService :
 
     // Tracks the original queue size to distinguish original items from auto-added ones
     private var originalQueueSize: Int = 0
+    private var addedQueueSize: Int = 0
+    private var manualQueueCount: Int = 0
 
     private var consecutivePlaybackErr = 0
     private var retryJob: Job? = null
@@ -1422,6 +1424,8 @@ class MusicService :
         }
         // Reset original queue size when starting a new queue
         originalQueueSize = 0
+        addedQueueSize = 0
+        manualQueueCount = 0
         if (queue.preloadItem != null) {
             player.setMediaItem(queue.preloadItem!!.toMediaItem())
             player.prepare()
@@ -1798,10 +1802,59 @@ class MusicService :
             }
         }
 
-        player.addMediaItems(items)
+        // Check if repeat mode is active
+        val repeatMode = player.repeatMode
+        val isRepeatActive = repeatMode != REPEAT_MODE_OFF
+
+        // Calculate where items will be inserted (FIFO logic)
+        // Insert after current song + already present manual queue items
+        val currentIndex = player.currentMediaItemIndex
+        val insertIndex = if (isRepeatActive) {
+            currentIndex + manualQueueCount + 1
+        } else {
+            player.mediaItemCount
+        }
+
+        // Insert items based on repeat mode
+        if (isRepeatActive) {
+            // Insert immediately after the current item when repeat is active
+            player.addMediaItems(insertIndex, items)
+        } else {
+            // Add to end of queue when repeat is not active
+            player.addMediaItems(items)
+        }
+
+        // Update manual queue count (FIFO order)
+        manualQueueCount += items.size
+        addedQueueSize += items.size
+
+        // shuffle management
         if (player.shuffleModeEnabled) {
-            val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
-            applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
+            val totalItems = player.mediaItemCount
+            val random = java.util.Random()
+
+            // Create a valid permutation of ALL indices
+            val allIndices = (0 until totalItems).toMutableList()
+
+            // Remove indices that must have FIXED position:
+            // [Passed] + [Current] + [Manual Queue]
+            val fixedPathCount = currentIndex + manualQueueCount + 1
+            val fixedIndices = (0 until fixedPathCount).toList()
+
+            val flexibleIndices = (fixedPathCount until totalItems).toMutableList()
+            flexibleIndices.shuffle(random)
+
+            val finalShuffleOrder = IntArray(totalItems)
+            // Put first indices in linear order (Absolute priority)
+            for (i in 0 until fixedPathCount) {
+                finalShuffleOrder[i] = i
+            }
+            // Rest of playlist is shuffled after the queue
+            for (i in flexibleIndices.indices) {
+                finalShuffleOrder[fixedPathCount + i] = flexibleIndices[i]
+            }
+
+            player.setShuffleOrder(DefaultShuffleOrder(finalShuffleOrder, random.nextLong()))
         }
         player.prepare()
     }
@@ -2229,6 +2282,11 @@ class MusicService :
             }
         }
         previousMediaItemIndex = player.currentMediaItemIndex
+
+        // Decrement manual queue count when transitioning to next song
+        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO || reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) {
+            if (manualQueueCount > 0) manualQueueCount--
+        }
 
         lastPlaybackSpeed = -1.0f // force update song
 
