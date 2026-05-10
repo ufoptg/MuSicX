@@ -1503,13 +1503,22 @@ class MusicService :
                     .Builder()
                     .setDisplayName(
                         getString(
-                            if (isFavorite) {
-                                R.string.action_remove_like
+                            if (isEpisode) {
+                                if (isFavorite) {
+                                    R.string.remove_episode_from_saved
+                                } else {
+                                    R.string.save_episode_for_later
+                                }
                             } else {
-                                R.string.action_like
-                            },
-                        ),
-                    ).setIconResId(if (isFavorite) R.drawable.ic_heart else R.drawable.ic_heart_outline)
+                                if (isFavorite) {
+                                    R.string.action_remove_like
+                                } else {
+                                    R.string.action_like
+                                }
+                            }
+                        )
+                    )
+                    .setIconResId(if (isFavorite) R.drawable.ic_heart else R.drawable.ic_heart_outline)
                     .setSessionCommand(CommandToggleLike)
                     .setEnabled(currentSong.value != null)
                     .build(),
