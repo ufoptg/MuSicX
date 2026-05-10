@@ -1784,19 +1784,34 @@ class MusicService :
                     }
                     currentQueue = radioQueue
                 }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
+            } catch (originalException: Exception) {
+                if (originalException is CancellationException) throw originalException
+                
                 // Fallback: try with related endpoint
                 try {
                     val nextResult =
                         withContext(Dispatchers.IO) {
-                            YouTube.next(WatchEndpoint(videoId = currentMediaId)).getOrNull()
+                            YouTube
+                                .next(WatchEndpoint(videoId = currentMediaId))
+                                .onFailure { failure ->
+                                    if (failure is CancellationException) {
+                                        throw failure
+                                    }
+                                }.getOrNull()
                         }
+                        
                     nextResult?.relatedEndpoint?.let { relatedEndpoint ->
                         val relatedPage =
                             withContext(Dispatchers.IO) {
-                                YouTube.related(relatedEndpoint).getOrNull()
+                                YouTube
+                                    .related(relatedEndpoint)
+                                    .onFailure { failure ->
+                                        if (failure is CancellationException) {
+                                            throw failure
+                                        }
+                                    }.getOrNull()
                             }
+
                         relatedPage?.songs?.let { songs ->
                             val radioItems =
                                 songs
@@ -1823,9 +1838,14 @@ class MusicService :
                             }
                         }
                     }
-                } catch (e: Exception) {
-                    if (e is CancellationException) throw e
-                    // No-op, will surface as command failure below.
+                } catch (fallbackException: Exception) {
+                    if (fallbackException is CancellationException) throw fallbackException
+                }
+
+                // If the fallback didn't succeed in finding and applying items, 
+                // rethrow the original exception so network/API errors surface.
+                if (!hasAppliedRadioItems) {
+                    throw originalException
                 }
             }
 
@@ -2126,7 +2146,7 @@ class MusicService :
 
     private suspend fun toggleLibraryInternal() {
         libraryToggleMutex.withLock {
-            val songToToggle = currentSong.filterNotNull().first()
+            val songToToggle = currentSong.value ?: return@withLock
             val previousSong =
                 withContext(Dispatchers.IO) {
                     database.song(songToToggle.song.id).first()?.song
@@ -2163,8 +2183,9 @@ class MusicService :
                     } ?: updatedSong
 
                 mergeSongStateIntoCurrentMetadata(refreshedSong)
+                val isFavorite = if (refreshedSong.isEpisode) refreshedSong.inLibrary != null else refreshedSong.liked
                 updateNotification()
-                updateWidgetUI(player.isPlaying)
+                updateWidgetUI(player.isPlaying, isFavorite)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
 
@@ -2180,8 +2201,9 @@ class MusicService :
                     }
 
                 mergeSongStateIntoCurrentMetadata(rolledBackSong)
+                val rolledBackFavorite = if (rolledBackSong.isEpisode) rolledBackSong.inLibrary != null else rolledBackSong.liked
                 updateNotification()
-                updateWidgetUI(player.isPlaying)
+                updateWidgetUI(player.isPlaying, rolledBackFavorite)
                 throw e
             }        }
     }
@@ -2201,7 +2223,7 @@ class MusicService :
 
     private suspend fun toggleLikeInternal() {
         likeToggleMutex.withLock {
-            val songToToggle = currentSong.filterNotNull().first()
+            val songToToggle = currentSong.value ?: return@withLock
             val songEntity =
                 withContext(Dispatchers.IO) {
                     database.song(songToToggle.song.id).first()?.song
@@ -2256,8 +2278,9 @@ class MusicService :
                 }
 
                 mergeSongStateIntoCurrentMetadata(refreshedSong)
+                val isFavorite = if (refreshedSong.isEpisode) refreshedSong.inLibrary != null else refreshedSong.liked
                 updateNotification()
-                updateWidgetUI(player.isPlaying)
+                updateWidgetUI(player.isPlaying, isFavorite)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
 
@@ -2273,8 +2296,9 @@ class MusicService :
                     }
 
                 mergeSongStateIntoCurrentMetadata(rolledBackSong)
+                val rolledBackFavorite = if (rolledBackSong.isEpisode) rolledBackSong.inLibrary != null else rolledBackSong.liked
                 updateNotification()
-                updateWidgetUI(player.isPlaying)
+                updateWidgetUI(player.isPlaying, rolledBackFavorite)
                 throw e
             }
         }
@@ -2308,7 +2332,7 @@ class MusicService :
 
     private suspend fun addToTargetPlaylistInternal() {
         addToTargetPlaylistMutex.withLock {
-            val currentSongItem = currentSong.filterNotNull().first()
+            val currentSongItem = currentSong.value ?: return@withLock
             val targetPlaylistId =
                 withContext(Dispatchers.IO) {
                     dataStore.get(AndroidAutoTargetPlaylistKey, MediaSessionConstants.TARGET_PLAYLIST_AUTO)
@@ -2336,7 +2360,7 @@ class MusicService :
         }
     }
 
-    private suspend fun toggleEpisodeSaveForLater(songEntity: com.metrolist.music.db.entities.SongEntity) {
+private suspend fun toggleEpisodeSaveForLater(songEntity: com.metrolist.music.db.entities.SongEntity) {
         val previousSong =
             withContext(Dispatchers.IO) {
                 database.song(songEntity.id).first()?.song
@@ -2361,8 +2385,11 @@ class MusicService :
         // but only if we're still on the same track the user toggled.
         mergeSongStateIntoCurrentMetadata(updatedSong)
 
+        // Derive the corrected favorite state depending on whether it's an episode
+        val isFavorite = if (updatedSong.isEpisode) updatedSong.inLibrary != null else updatedSong.liked
+
         updateNotification()
-        updateWidgetUI(player.isPlaying)
+        updateWidgetUI(player.isPlaying, isFavorite)
 
         try {
             // Sync with YouTube (handles login check internally)
@@ -2390,8 +2417,12 @@ class MusicService :
                 }
 
             mergeSongStateIntoCurrentMetadata(rolledBackSong)
+            
+            // Re-derive the favorite state for the rollback
+            val rolledBackFavorite = if (rolledBackSong.isEpisode) rolledBackSong.inLibrary != null else rolledBackSong.liked
+            
             updateNotification()
-            updateWidgetUI(player.isPlaying)
+            updateWidgetUI(player.isPlaying, rolledBackFavorite)
             throw e
         }
     }
@@ -4517,19 +4548,20 @@ class MusicService :
     /**
      * Updates all app widgets with current playback state
      */
-    private fun updateWidgetUI(isPlaying: Boolean) {
+    private fun updateWidgetUI(isPlaying: Boolean, explicitFavorite: Boolean? = null) {
         scope.launch {
             try {
                 val songData = currentSong.value
                 val song = songData?.song
                 val songTitle = song?.title ?: getString(R.string.no_song_playing)
                  val artistName = songData?.artists?.joinToArtistString(getArtistSeparator(this@MusicService)) { it.name } ?: getString(R.string.tap_to_open)
-                val isLiked =
-                    if (song?.isEpisode == true) {
-                        song.inLibrary != null
-                    } else {
-                        song?.liked == true
-                    }
+                
+                // Use explicit favorite state if provided, otherwise derive it properly based on episode type
+                val isLiked = explicitFavorite ?: if (song?.isEpisode == true) {
+                    song.inLibrary != null
+                } else {
+                    song?.liked == true
+                }
 
                 widgetManager.updateWidgets(
                     title = songTitle,
