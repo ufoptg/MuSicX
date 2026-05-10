@@ -4522,7 +4522,12 @@ class MusicService :
                 val song = songData?.song
                 val songTitle = song?.title ?: getString(R.string.no_song_playing)
                  val artistName = songData?.artists?.joinToArtistString(getArtistSeparator(this@MusicService)) { it.name } ?: getString(R.string.tap_to_open)
-                val isLiked = songData?.song?.liked == true
+                val isLiked =
+                    if (song?.isEpisode == true) {
+                        song.inLibrary != null
+                    } else {
+                        song?.liked == true
+                    }
 
                 widgetManager.updateWidgets(
                     title = songTitle,
