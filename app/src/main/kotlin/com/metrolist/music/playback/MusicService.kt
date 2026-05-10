@@ -1589,15 +1589,16 @@ class MusicService :
             if (song == null) {
                 insert(mediaMetadata.copy(duration = duration))
             } else {
-                var updatedSong = song.song
-                if (song.song.duration == -1) {
+                val songWrap = song!!
+                var updatedSong = songWrap.song
+                if (songWrap.song.duration == -1) {
                     updatedSong = updatedSong.copy(duration = duration)
                 }
                 // Update isVideo flag if it's different from the current value
-                if (song.song.isVideo != mediaMetadata.isVideoSong) {
+                if (songWrap.song.isVideo != mediaMetadata.isVideoSong) {
                     updatedSong = updatedSong.copy(isVideo = mediaMetadata.isVideoSong)
                 }
-                if (updatedSong != song.song) {
+                if (updatedSong != songWrap.song) {
                     update(updatedSong)
                 }
             }
