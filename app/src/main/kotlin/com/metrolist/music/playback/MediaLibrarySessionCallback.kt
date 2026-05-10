@@ -143,6 +143,14 @@ constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                if (e is IllegalStateException && e.message == "No radio recommendations available for current track") {
+                    return@future SessionResult(
+                        SessionError(
+                            SessionError.ERROR_BAD_VALUE,
+                            e.message ?: "No radio recommendations available",
+                        ),
+                    )
+                }
                 reportException(e)
                 SessionResult(
                     SessionError(

@@ -225,6 +225,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -1781,9 +1782,8 @@ class MusicService :
                         val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
                         applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
                     }
+                    currentQueue = radioQueue
                 }
-
-                currentQueue = radioQueue
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 // Fallback: try with related endpoint
@@ -1819,6 +1819,7 @@ class MusicService :
                                         cachedShufflePlaylistFirst,
                                     )
                                 }
+                                currentQueue = radioQueue
                             }
                         }
                     }
@@ -2125,7 +2126,7 @@ class MusicService :
 
     private suspend fun toggleLibraryInternal() {
         libraryToggleMutex.withLock {
-            val songToToggle = currentSong.value ?: currentSong.first() ?: return@withLock
+            val songToToggle = currentSong.filterNotNull().first()
             val previousSong =
                 withContext(Dispatchers.IO) {
                     database.song(songToToggle.song.id).first()?.song
@@ -2200,7 +2201,7 @@ class MusicService :
 
     private suspend fun toggleLikeInternal() {
         likeToggleMutex.withLock {
-            val songToToggle = currentSong.value ?: currentSong.first() ?: return@withLock
+            val songToToggle = currentSong.filterNotNull().first()
             val songEntity =
                 withContext(Dispatchers.IO) {
                     database.song(songToToggle.song.id).first()?.song
@@ -2307,7 +2308,7 @@ class MusicService :
 
     private suspend fun addToTargetPlaylistInternal() {
         addToTargetPlaylistMutex.withLock {
-            val currentSongItem = currentSong.value ?: currentSong.first() ?: return
+            val currentSongItem = currentSong.filterNotNull().first()
             val targetPlaylistId =
                 withContext(Dispatchers.IO) {
                     dataStore.get(AndroidAutoTargetPlaylistKey, MediaSessionConstants.TARGET_PLAYLIST_AUTO)
