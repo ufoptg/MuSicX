@@ -1,5 +1,6 @@
 package com.metrolist.innertube.pages
 
+import com.metrolist.innertube.models.Artist
 import com.metrolist.innertube.models.Menu
 import com.metrolist.innertube.models.MusicResponsiveListItemRenderer.FlexColumn
 import com.metrolist.innertube.models.Run
@@ -163,5 +164,17 @@ object PageHelper {
             }
             else -> if (iconType == type) defaultToken else toggledToken
         }
+    }
+
+    fun extractArtists(runs: List<Run>?): List<Artist> {
+        if (runs == null) return emptyList()
+        return runs
+            .filter { it.text != " • " }
+            .map { run ->
+                Artist(
+                    name = run.text,
+                    id = run.navigationEndpoint?.browseEndpoint?.browseId
+                )
+            }
     }
 }

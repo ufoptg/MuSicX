@@ -123,12 +123,7 @@ data class LibraryPage(
                     SongItem(
                         id = videoId,
                         title = renderer.title.runs?.firstOrNull()?.text ?: return null,
-                        artists = subtitleRuns?.firstOrNull()?.mapNotNull {
-                            Artist(
-                                name = it.text,
-                                id = it.navigationEndpoint?.browseEndpoint?.browseId
-                            )
-                        } ?: emptyList(),
+                        artists = PageHelper.extractArtists(subtitleRuns?.firstOrNull()),
                         album = subtitleRuns?.getOrNull(1)?.firstOrNull()?.let {
                             Album(
                                 name = it.text,

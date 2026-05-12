@@ -1,12 +1,9 @@
 package com.metrolist.innertube.pages
 
 import com.metrolist.innertube.models.Album
-import com.metrolist.innertube.models.Artist
 import com.metrolist.innertube.models.MusicResponsiveListItemRenderer
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
-import com.metrolist.innertube.models.oddElements
-import com.metrolist.innertube.models.splitBySeparator
 import com.metrolist.innertube.utils.parseTime
 
 data class PlaylistPage(
@@ -16,17 +13,14 @@ data class PlaylistPage(
     val continuation: String?,
 ) {
     companion object {
-        fun fromMusicResponsiveListItemRenderer(renderer: MusicResponsiveListItemRenderer): SongItem? {
-            // Extract library tokens using the new method that properly handles multiple toggle items
-            val libraryTokens = PageHelper.extractLibraryTokensFromMenuItems(renderer.menu?.menuRenderer?.items)
+         fun fromMusicResponsiveListItemRenderer(renderer: MusicResponsiveListItemRenderer): SongItem? {
+             val libraryTokens = PageHelper.extractLibraryTokensFromMenuItems(renderer.menu?.menuRenderer?.items)
 
-            // Split the secondary line by bullet separator to separate artists from other metadata (like views)
-            val secondaryLineRuns = renderer.flexColumns
-                .getOrNull(1)
-                ?.musicResponsiveListItemFlexColumnRenderer
-                ?.text
-                ?.runs
-                ?.splitBySeparator()
+             val secondaryLineRuns = renderer.flexColumns
+                 .getOrNull(1)
+                 ?.musicResponsiveListItemFlexColumnRenderer
+                 ?.text
+                 ?.runs
 
             return SongItem(
                 id = renderer.videoId ?: return null,
