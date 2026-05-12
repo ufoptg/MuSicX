@@ -193,10 +193,18 @@ data class HomePage(
                         val artistRuns = subtitleRuns.filter { 
                             it.navigationEndpoint?.browseEndpoint?.browseId?.startsWith("MPREb_") != true 
                         }
+                        val title = renderer.title.runs?.firstOrNull()?.text ?: return null
+                        val videoId = renderer.navigationEndpoint.watchEndpoint?.videoId ?: return null
+                        val artists = PageHelper.extractArtists(artistRuns)
+                        
+                        if (artists.isEmpty() && artistRuns.isNotEmpty()) {
+                            Timber.w("HomePage.fromMusicTwoRowItemRenderer: Song '$title' (id=$videoId) - ARTIST RUNS EXIST (${artistRuns.size}) but extractArtists returned EMPTY")
+                        }
+                        
                         SongItem(
-                            id = renderer.navigationEndpoint.watchEndpoint?.videoId ?: return null,
-                            title = renderer.title.runs?.firstOrNull()?.text ?: return null,
-                            artists = PageHelper.extractArtists(artistRuns),
+                            id = videoId,
+                            title = title,
+                            artists = artists,
                             album = subtitleRuns.firstOrNull { 
                                 it.navigationEndpoint?.browseEndpoint?.browseId?.startsWith("MPREb_") == true 
                             }?.let {

@@ -4,6 +4,7 @@ import com.metrolist.innertube.models.Artist
 import com.metrolist.innertube.models.Menu
 import com.metrolist.innertube.models.MusicResponsiveListItemRenderer.FlexColumn
 import com.metrolist.innertube.models.Run
+import timber.log.Timber
 
 object PageHelper {
     // Icon types for library management (YouTube changed these in Feb 2026)
@@ -167,14 +168,35 @@ object PageHelper {
     }
 
     fun extractArtists(runs: List<Run>?): List<Artist> {
-        if (runs == null) return emptyList()
-        return runs
-            .filter { it.text != " • " }
-            .map { run ->
-                Artist(
-                    name = run.text,
-                    id = run.navigationEndpoint?.browseEndpoint?.browseId
-                )
+        if (runs == null) {
+            Timber.d("extractArtists: runs is null")
+            return emptyList()
+        }
+        
+        Timber.d("extractArtists: input runs count=${runs.size}")
+        runs.forEachIndexed { idx, run ->
+            Timber.v("  run[$idx]: text='${run.text}', hasEndpoint=${run.navigationEndpoint != null}, browseId=${run.navigationEndpoint?.browseEndpoint?.browseId}")
+        }
+        
+        val filtered = runs.filter { it.text != " • " }
+        Timber.d("extractArtists: after separator filter count=${filtered.size}")
+        
+        val result = filtered.map { run ->
+            Artist(
+                name = run.text,
+                id = run.navigationEndpoint?.browseEndpoint?.browseId
+            )
+        }
+        
+        if (result.isEmpty()) {
+            Timber.w("extractArtists: EMPTY RESULT from ${runs.size} runs")
+        } else {
+            Timber.d("extractArtists: result count=${result.size}")
+            result.forEach { artist ->
+                Timber.v("  artist: name='${artist.name}', id=${artist.id}")
             }
+        }
+        
+        return result
     }
 }

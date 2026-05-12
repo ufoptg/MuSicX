@@ -2067,6 +2067,10 @@ object YouTube {
                     val title = titleRun.text.takeIf { it.isNotBlank() } ?: return null
 
                     val artists = PageHelper.extractArtists(secondColumn.runs)
+                    
+                    if (artists.isEmpty()) {
+                        Timber.w("convertMusicResponsiveListItemRenderer: Song '$title' (id=${renderer.playlistItemData.videoId}) has EMPTY artists list")
+                    }
 
                     val thirdColumn =
                         renderer.flexColumns
@@ -2104,25 +2108,30 @@ object YouTube {
         }
     }
 
-    private fun convertMusicTwoRowItem(renderer: MusicTwoRowItemRenderer): YTItem? {
-        return try {
-            when {
-                renderer.isSong -> {
-                    val subtitle = renderer.subtitle?.runs ?: return null
-                    SongItem(
-                        id = renderer.navigationEndpoint.watchEndpoint?.videoId ?: return null,
-                        title =
-                            renderer.title.runs
-                                ?.firstOrNull()
-                                ?.text ?: return null,
-                        artists = PageHelper.extractArtists(subtitle),
-                        thumbnail = renderer.thumbnailRenderer.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
-                        musicVideoType = renderer.musicVideoType,
-                        explicit =
-                            renderer.subtitleBadges?.any {
-                                it.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE"
-                            } == true,
-                    )
+     private fun convertMusicTwoRowItem(renderer: MusicTwoRowItemRenderer): YTItem? {
+         return try {
+             when {
+                 renderer.isSong -> {
+                     val subtitle = renderer.subtitle?.runs ?: return null
+                     val title = renderer.title.runs?.firstOrNull()?.text ?: return null
+                     val artists = PageHelper.extractArtists(subtitle)
+                     val videoId = renderer.navigationEndpoint.watchEndpoint?.videoId ?: return null
+                     
+                     if (artists.isEmpty()) {
+                         Timber.w("convertMusicTwoRowItem: Song '$title' (id=$videoId) has EMPTY artists list from ${subtitle.size} subtitle runs")
+                     }
+                     
+                     SongItem(
+                         id = videoId,
+                         title = title,
+                         artists = artists,
+                         thumbnail = renderer.thumbnailRenderer.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
+                         musicVideoType = renderer.musicVideoType,
+                         explicit =
+                             renderer.subtitleBadges?.any {
+                                 it.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE"
+                             } == true,
+                     )
                 }
 
                 renderer.isAlbum -> {
