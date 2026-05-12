@@ -703,17 +703,12 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    override fun onCleared() {
+        super.onCleared()
+        wrappedManager.dispose()
+    }
+
     init {
-        // Load home data
-        viewModelScope.launch(Dispatchers.IO) {
-            context.dataStore.data
-                .map { it[InnerTubeCookieKey] }
-                .distinctUntilChanged()
-                .first()
-
-            load()
-        }
-
         // Run sync in separate coroutine with cooldown to avoid blocking UI
         viewModelScope.launch(Dispatchers.IO) {
             syncUtils.tryAutoSync()
@@ -743,20 +738,15 @@ class HomeViewModel @Inject constructor(
             context.dataStore.data
                 .map { it[InnerTubeCookieKey] }
                 .collect { cookie ->
-                    // Avoid processing if already processing
                     if (isProcessingAccountData) return@collect
 
-                    // Always process cookie changes, even if same value (for logout/login scenarios)
                     lastProcessedCookie = cookie
                     isProcessingAccountData = true
 
                     try {
                         if (cookie != null && cookie.isNotEmpty()) {
-
-                            // Update YouTube.cookie manually to ensure it's set
                             YouTube.cookie = cookie
 
-                            // Fetch new account data
                             YouTube.accountInfo().onSuccess { info ->
                                 accountName.value = info.name
                                 accountImageUrl.value = info.thumbnailUrl
@@ -784,6 +774,21 @@ class HomeViewModel @Inject constructor(
                         loadAccountPlaylists()
                     }
                 }
+        }
+    }
+
+    private var isHomeDataLoaded = false
+
+    fun loadHomeData() {
+        if (isHomeDataLoaded) return
+        isHomeDataLoaded = true
+        viewModelScope.launch(Dispatchers.IO) {
+            context.dataStore.data
+                .map { it[InnerTubeCookieKey] }
+                .distinctUntilChanged()
+                .first()
+
+            load()
         }
     }
 }
