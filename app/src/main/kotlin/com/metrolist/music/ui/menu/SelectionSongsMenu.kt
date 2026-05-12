@@ -691,6 +691,7 @@ fun SelectionMediaMetadataMenu(
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
         onGetSong = {
+            // Safe: AddToPlaylistDialog wraps this lambda in withContext(Dispatchers.IO)
             songSelection.map { song ->
                 database.insert(song)
                 song.id

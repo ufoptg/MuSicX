@@ -781,14 +781,23 @@ class HomeViewModel @Inject constructor(
 
     fun loadHomeData() {
         if (isHomeDataLoaded) return
-        isHomeDataLoaded = true
         viewModelScope.launch(Dispatchers.IO) {
-            context.dataStore.data
-                .map { it[InnerTubeCookieKey] }
-                .distinctUntilChanged()
-                .first()
+            try {
+                val cookie = context.dataStore.data
+                    .map { it[InnerTubeCookieKey] }
+                    .distinctUntilChanged()
+                    .first()
 
-            load()
+                if (!cookie.isNullOrEmpty()) {
+                    YouTube.cookie = cookie
+                }
+
+                isHomeDataLoaded = true
+                load()
+            } catch (e: Exception) {
+                isHomeDataLoaded = false
+                Timber.e(e, "Failed to load home data")
+            }
         }
     }
 }

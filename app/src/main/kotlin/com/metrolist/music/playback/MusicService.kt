@@ -229,6 +229,7 @@ import java.io.ObjectOutputStream
 import java.time.LocalDateTime
 import javax.inject.Inject
 import kotlin.random.Random
+import java.util.Collections
 
 private const val INSTANT_SILENCE_SKIP_STEP_MS = 15_000L
 private const val INSTANT_SILENCE_SKIP_SETTLE_MS = 350L
@@ -432,11 +433,13 @@ class MusicService :
     private var cachedAutoLoadMore = true
 
     // URL cache for stream URLs - class-level so it can be invalidated on errors
-    private val songUrlCache = object : LinkedHashMap<String, Pair<String, Long>>(0, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<String, Long>>): Boolean {
-            return size > 500
+    private val songUrlCache = Collections.synchronizedMap(
+        object : LinkedHashMap<String, Pair<String, Long>>(0, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<String, Long>>): Boolean {
+                return size > 500
+            }
         }
-    }
+    )
 
     // Flag to bypass cache when quality changes - forces fresh stream fetch
     private val bypassCacheForQualityChange = mutableSetOf<String>()

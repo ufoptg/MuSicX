@@ -441,6 +441,12 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        lifecycleScope.launch(Dispatchers.IO) {
+            dataStore.edit { settings ->
+                settings[LastSeenVersionKey] = BuildConfig.VERSION_NAME
+            }
+        }
+
         setContent {
             MetrolistApp(
                 latestVersionName = latestVersionName,
@@ -674,7 +680,11 @@ class MainActivity : ComponentActivity() {
                 val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
                 val (defaultOpenTabInt) = rememberPreference(DefaultOpenTabKey, defaultValue = NavigationTab.HOME.name)
                 val defaultOpenTab = remember(defaultOpenTabInt) {
-                    NavigationTab.valueOf(defaultOpenTabInt)
+                    try {
+                        NavigationTab.valueOf(defaultOpenTabInt)
+                    } catch (_: IllegalArgumentException) {
+                        NavigationTab.HOME
+                    }
                 }
                 val tabOpenedFromShortcut =
                     remember {
