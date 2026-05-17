@@ -13,6 +13,11 @@ import kotlinx.serialization.json.Json
 import timber.log.Timber
 
 @Serializable
+private data class ExternalAssetRequest(
+    val urls: List<String>,
+)
+
+@Serializable
 private data class ExternalAssetResponse(
     @SerialName("url")
     val url: String? = null,
@@ -30,27 +35,29 @@ suspend fun fetchExternalAsset(
 ): String? {
     if (imageUrl.startsWith("mp:")) return imageUrl
     val api = "https://discord.com/api/v10/applications/$applicationId/external-assets"
-    Timber.tag("ExtAssets").d("Uploading external asset: $imageUrl")
+    val imageId = imageUrl.takeLast(20)
+    Timber.tag("ExtAssets").d("Uploading external asset: ...$imageId")
     return runCatching {
+        val body = Json.encodeToString(ExternalAssetRequest(urls = listOf(imageUrl)))
         val response = client.post(api) {
             header("Authorization", token)
             header("User-Agent", userAgent)
             if (superPropertiesBase64 != null) header("X-Super-Properties", superPropertiesBase64)
             contentType(ContentType.Application.Json)
-            setBody("""{"urls":["$imageUrl"]}""")
+            setBody(body)
         }
         val text = response.body<String>()
         val json = Json { ignoreUnknownKeys = true }
         val list = json.decodeFromString<List<ExternalAssetResponse>>(text)
         val result = list.firstOrNull()?.externalAssetPath?.let { "mp:$it" }
         if (result != null) {
-            Timber.tag("ExtAssets").i("Asset uploaded: $imageUrl -> $result")
+            Timber.tag("ExtAssets").i("Asset uploaded: ...$imageId -> $result")
         } else {
-            Timber.tag("ExtAssets").w("Asset upload returned no path: $text")
+            Timber.tag("ExtAssets").w("Asset upload returned no path for ...$imageId")
         }
         result
     }.getOrElse {
-        Timber.tag("ExtAssets").e(it, "Asset upload failed for: $imageUrl")
+        Timber.tag("ExtAssets").e(it, "Asset upload failed for: ...$imageId")
         null
     }
 }

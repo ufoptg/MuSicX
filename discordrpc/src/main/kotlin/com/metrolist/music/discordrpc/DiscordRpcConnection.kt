@@ -121,11 +121,13 @@ class DiscordRpcConnection(
         Timber.tag(tag).i("close() called")
         clearActivity()
         gateway.close()
+        httpClient.close()
     }
 
     fun closeDirect() {
         Timber.tag(tag).i("closeDirect() called")
         gateway.close()
+        httpClient.close()
     }
 
     private suspend fun resolveImage(image: String): String? {
@@ -169,7 +171,7 @@ class DiscordRpcConnection(
             Timber.tag(TAG).i("Fetching user info from Discord API...")
             val client = HttpClient()
             try {
-                val response = client.get("https://discord.com/api/v9/users/@me") {
+                val response = client.get("https://discord.com/api/v10/users/@me") {
                     header("Authorization", token)
                     header("User-Agent", userAgent)
                     if (superPropertiesBase64 != null) {
@@ -185,7 +187,7 @@ class DiscordRpcConnection(
                 val avatar = if (avatarHash.isNotEmpty() && avatarHash != "null") {
                     "https://cdn.discordapp.com/avatars/$id/$avatarHash.png"
                 } else null
-                Timber.tag(TAG).i("User info fetched: id=$id username=$username")
+                Timber.tag(TAG).i("User info fetched successfully")
                 UserInfo(id, username, name, avatar)
             } finally {
                 client.close()

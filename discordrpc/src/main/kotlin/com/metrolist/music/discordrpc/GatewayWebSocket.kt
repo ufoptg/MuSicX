@@ -64,6 +64,8 @@ class GatewayWebSocket(
     private var reconnectionJob: Job? = null
     private var currentReconnectDelay = INITIAL_RECONNECT_DELAY
     private var intentionalClose = false
+    private var lastHeartbeatAckReceivedAt = 0L
+    private var heartbeatWatchdogJob: Job? = null
 
     fun isSessionEstablished(): Boolean = sessionEstablished
 
@@ -118,7 +120,7 @@ class GatewayWebSocket(
                             val payload = json.decodeFromString<Payload>(text)
                             handlePayload(payload)
                         } catch (e: Exception) {
-                            Timber.tag(tag).w(e, "Failed to decode payload: ${text.take(200)}")
+                            Timber.tag(tag).w(e, "Failed to decode payload (${text.length} bytes)")
                         }
                     }
                     else -> {
@@ -162,6 +164,7 @@ class GatewayWebSocket(
                 handleHello(payload)
             }
             OpCode.HEARTBEAT_ACK -> {
+                lastHeartbeatAckReceivedAt = System.currentTimeMillis()
                 Timber.tag(tag).v("<- HEARTBEAT_ACK")
             }
             else -> {
@@ -180,10 +183,11 @@ class GatewayWebSocket(
         delay(jitter)
         sendHeartbeat()
         startHeartbeatLoop()
+        startHeartbeatWatchdog()
 
         if (sessionId != null && sequence > 0) {
             Timber.tag(tag).i("Resuming session: sessionId=$sessionId seq=$sequence")
-            sendResume()
+            sendResume(sessionId!!)
         } else {
             Timber.tag(tag).i("Sending Identify (fresh session)")
             sendIdentify()
@@ -197,7 +201,7 @@ class GatewayWebSocket(
                 sessionId = ready.sessionId
                 resumeUrl = ready.resumeGatewayUrl?.let { "$it/?v=10&encoding=json" }
                 sessionEstablished = true
-                Timber.tag(tag).i("READY received: sessionId=$sessionId resumeUrl=$resumeUrl")
+                Timber.tag(tag).i("READY received")
             }
             "RESUMED" -> {
                 sessionEstablished = true
@@ -215,10 +219,11 @@ class GatewayWebSocket(
 
     private suspend fun handleInvalidSession(payload: Payload) {
         val canResume = payload.d?.let { json.decodeFromJsonElement<Boolean>(it) } ?: false
+        val sid = sessionId
         delay(1500)
-        if (canResume && sessionId != null) {
+        if (canResume && sid != null) {
             Timber.tag(tag).i("INVALID_SESSION: can resume, sending Resume")
-            sendResume()
+            sendResume(sid)
         } else {
             Timber.tag(tag).i("INVALID_SESSION: cannot resume, sending fresh Identify")
             sessionId = null
@@ -231,6 +236,7 @@ class GatewayWebSocket(
 
     private suspend fun handleDisconnect() {
         heartbeatJob?.cancel()
+        heartbeatWatchdogJob?.cancel()
         connected = false
         sessionEstablished = false
         val reason = session?.closeReason?.await()
@@ -285,11 +291,11 @@ class GatewayWebSocket(
         )
     }
 
-    private suspend fun sendResume() {
-        Timber.tag(tag).i("-> RESUME: sessionId=$sessionId seq=$sequence")
+    private suspend fun sendResume(sid: String) {
+        Timber.tag(tag).i("-> RESUME: sessionId=$sid seq=$sequence")
         send(
             op = OpCode.RESUME,
-            d = Resume(token = token, sessionId = sessionId, seq = sequence),
+            d = Resume(token = token, sessionId = sid, seq = sequence),
         )
     }
 
@@ -303,11 +309,27 @@ class GatewayWebSocket(
         heartbeatJob?.cancel()
         heartbeatJob = launch {
             Timber.tag(tag).d("Heartbeat loop started (interval=${heartbeatInterval}ms)")
+            lastHeartbeatAckReceivedAt = System.currentTimeMillis()
             while (isActive) {
                 delay(heartbeatInterval)
                 sendHeartbeat()
             }
             Timber.tag(tag).d("Heartbeat loop ended")
+        }
+    }
+
+    private fun startHeartbeatWatchdog() {
+        heartbeatWatchdogJob?.cancel()
+        heartbeatWatchdogJob = launch {
+            val threshold = (heartbeatInterval * 2).coerceAtLeast(10_000L)
+            while (isActive) {
+                delay(threshold)
+                val elapsed = System.currentTimeMillis() - lastHeartbeatAckReceivedAt
+                if (elapsed >= threshold && connected) {
+                    Timber.tag(tag).w("Heartbeat ACK not received for ${elapsed}ms — forcing reconnect")
+                    handleReconnect()
+                }
+            }
         }
     }
 
@@ -370,12 +392,11 @@ class GatewayWebSocket(
         intentionalClose = true
         reconnectionJob?.cancel()
         heartbeatJob?.cancel()
-        session?.let {
-            kotlinx.coroutines.runBlocking {
-                try {
-                    it.close()
-                } catch (_: Exception) { }
-            }
+        heartbeatWatchdogJob?.cancel()
+        kotlinx.coroutines.runBlocking {
+            try {
+                session?.close()
+            } catch (_: Exception) { }
         }
         connected = false
         sessionEstablished = false
