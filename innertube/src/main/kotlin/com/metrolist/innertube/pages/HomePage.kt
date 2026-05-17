@@ -195,10 +195,10 @@ data class HomePage(
                         }
                         val title = renderer.title.runs?.firstOrNull()?.text ?: return null
                         val videoId = renderer.navigationEndpoint.watchEndpoint?.videoId ?: return null
-                        val artists = PageHelper.extractArtists(artistRuns)
-                        
-                        if (artists.isEmpty() && artistRuns.isNotEmpty()) {
-                            Timber.w("HomePage.fromMusicTwoRowItemRenderer: Song '$title' (id=$videoId) - ARTIST RUNS EXIST (${artistRuns.size}) but extractArtists returned EMPTY")
+                        val artists = PageHelper.extractArtists(artistRuns).ifEmpty {
+                            subtitleRuns.firstOrNull()?.let { run ->
+                                listOf(Artist(name = run.text, id = null))
+                            } ?: emptyList()
                         }
                         
                         SongItem(
