@@ -178,7 +178,10 @@ object PageHelper {
             Timber.v("  run[$idx]: text='${run.text}', hasEndpoint=${run.navigationEndpoint != null}, browseId=${run.navigationEndpoint?.browseEndpoint?.browseId}")
         }
         
-        val filtered = runs.filter { it.text != " • " }
+        val filtered = runs.filter { run ->
+            run.text.trim().isNotBlank() && run.text != " • " &&
+                run.navigationEndpoint?.browseEndpoint?.browseId != null
+        }
         Timber.d("extractArtists: after separator filter count=${filtered.size}")
         
         val result = filtered.map { run ->

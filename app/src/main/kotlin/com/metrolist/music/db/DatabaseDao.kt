@@ -1629,7 +1629,7 @@ interface DatabaseDao {
                 ArtistEntity(
                     id = artistId,
                     name = artist.name,
-                    channelId = null,
+                    channelId = artist.id,
                 )
             )
 
