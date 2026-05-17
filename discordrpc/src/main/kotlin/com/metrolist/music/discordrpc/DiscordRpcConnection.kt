@@ -64,15 +64,15 @@ class DiscordRpcConnection(
         }
 
         val resolvedLargeImage = largeImage?.let {
-            Timber.tag(tag).d("Resolving large image: $it")
+            Timber.tag(tag).v("Resolving large image: $it")
             resolveImage(it).also { result ->
-                Timber.tag(tag).d("Large image resolved: $result")
+                Timber.tag(tag).v("Large image resolved: $result")
             }
         }
         val resolvedSmallImage = smallImage?.let {
-            Timber.tag(tag).d("Resolving small image: $it")
+            Timber.tag(tag).v("Resolving small image: $it")
             resolveImage(it).also { result ->
-                Timber.tag(tag).d("Small image resolved: $result")
+                Timber.tag(tag).v("Small image resolved: $result")
             }
         }
 
@@ -171,7 +171,7 @@ class DiscordRpcConnection(
             Timber.tag(TAG).i("Fetching user info from Discord API...")
             val client = HttpClient()
             try {
-                val response = client.get("https://discord.com/api/v10/users/@me") {
+                val response = client.get("https://discord.com/api/v9/users/@me") {
                     header("Authorization", token)
                     header("User-Agent", userAgent)
                     if (superPropertiesBase64 != null) {

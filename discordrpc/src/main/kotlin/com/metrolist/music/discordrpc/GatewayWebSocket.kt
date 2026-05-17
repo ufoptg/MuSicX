@@ -199,7 +199,7 @@ class GatewayWebSocket(
             "READY" -> {
                 val ready = json.decodeFromJsonElement<Ready>(payload.d!!)
                 sessionId = ready.sessionId
-                resumeUrl = ready.resumeGatewayUrl?.let { "$it/?v=10&encoding=json" }
+                resumeUrl = ready.resumeGatewayUrl?.let { "$it/?v=9&encoding=json" }
                 sessionEstablished = true
                 Timber.tag(tag).i("READY received")
             }
@@ -403,7 +403,7 @@ class GatewayWebSocket(
     }
 
     companion object {
-        private const val GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json"
+        private const val GATEWAY_URL = "wss://gateway.discord.gg/?v=9&encoding=json"
         private const val USER_AGENT = "Discord-Android/314013;RNA"
 
         private val INITIAL_RECONNECT_DELAY = 1.seconds

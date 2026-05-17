@@ -34,7 +34,7 @@ suspend fun fetchExternalAsset(
     superPropertiesBase64: String? = null,
 ): String? {
     if (imageUrl.startsWith("mp:")) return imageUrl
-    val api = "https://discord.com/api/v10/applications/$applicationId/external-assets"
+    val api = "https://discord.com/api/v9/applications/$applicationId/external-assets"
     val imageId = imageUrl.takeLast(20)
     Timber.tag("ExtAssets").d("Uploading external asset: ...$imageId")
     return runCatching {
