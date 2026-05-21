@@ -30,7 +30,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.utils.parseCookieString
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.R
@@ -74,20 +73,19 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material3.FilterChip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material3.FilterChipDefaults
-import com.metrolist.music.LocalSyncUtils
 
 @Composable
 fun AddToPlaylistDialog(
     isVisible: Boolean,
     allowSyncing: Boolean = true,
     initialTextFieldValue: String? = null,
+    multiSelectParams: String? = null,
     onGetSong: suspend (Playlist) -> List<String>, // list of song ids. Songs should be inserted to database in this function.
     onGetSongIds: (suspend () -> List<String>)? = null,
     onDismiss: () -> Unit,
     viewModel: PlaylistsViewModel = hiltViewModel()
 ) {
     val database = LocalDatabase.current
-    val syncUtils = LocalSyncUtils.current
     val coroutineScope = rememberCoroutineScope()
     val (sortType, onSortTypeChange) = rememberEnumPreference(
         AddToPlaylistSortTypeKey,
@@ -120,20 +118,6 @@ fun AddToPlaylistDialog(
     }
     var playlistsContainingSong by remember {
         mutableStateOf<Set<String>>(emptySet())
-    }
-
-    suspend fun addSongsAndSync(targetPlaylist: Playlist, ids: List<String>) {
-        database.addSongsToPlaylist(targetPlaylist, ids.map { it to null }, prepend = true)
-        targetPlaylist.playlist.browseId?.let { plist ->
-            ids.forEach { songId ->
-                syncUtils.registerPendingAdd(plist, songId)
-                try {
-                    YouTube.addToPlaylist(plist, songId)
-                } finally {
-                    syncUtils.unregisterPendingAdd(plist, songId)
-                }
-            }
-        }
     }
 
     LaunchedEffect(isVisible, playlists.isEmpty()) {
@@ -291,26 +275,29 @@ fun AddToPlaylistDialog(
                     animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
                     label = "playlistBg"
                 )
-                PlaylistListItem(
-                    playlist = playlist,
-                    modifier = Modifier
+                    PlaylistListItem(
+                        playlist = playlist,
+                        modifier = Modifier
                     .padding(horizontal = 8.dp, vertical = 2.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(rowBg)
                     .clickable {
                         selectedPlaylist = playlist
                         coroutineScope.launch(Dispatchers.IO) {
-                            if (songIds == null) {
-                                songIds = onGetSong(playlist)
-                            } else {
-                                onGetSong(playlist)
-                            }
-                            duplicates = database.playlistDuplicates(playlist.id, songIds!!)
+                            val resolvedSongIds =
+                                if (songIds.isNullOrEmpty()) {
+                                    onGetSong(playlist).also { resolved ->
+                                        songIds = resolved
+                                    }
+                                } else {
+                                    songIds!!
+                                }
+                            duplicates = database.playlistDuplicates(playlist.id, resolvedSongIds)
                             if (duplicates.isNotEmpty()) {
                                 showDuplicateDialog = true
                             } else {
                                 onDismiss()
-                                addSongsAndSync(playlist, songIds!!)
+                                viewModel.addSongsAndSync(playlist, resolvedSongIds, multiSelectParams)
                             }
                         }
                     }
@@ -336,12 +323,11 @@ fun AddToPlaylistDialog(
                         onClick = {
                             showDuplicateDialog = false
                             onDismiss()
-                            coroutineScope.launch(Dispatchers.IO) {
-                                addSongsAndSync(
-                                    selectedPlaylist!!,
-                                    songIds!!.filter { !duplicates.contains(it) }
-                                )
-                            }
+                            viewModel.addSongsAndSync(
+                                selectedPlaylist!!,
+                                songIds!!.filter { !duplicates.contains(it) },
+                                multiSelectParams,
+                            )
                         }
                     ) {
                         Text(stringResource(R.string.skip_duplicates))
@@ -351,9 +337,7 @@ fun AddToPlaylistDialog(
                         onClick = {
                             showDuplicateDialog = false
                             onDismiss()
-                            coroutineScope.launch(Dispatchers.IO) {
-                                addSongsAndSync(selectedPlaylist!!, songIds!!)
-                            }
+                            viewModel.addSongsAndSync(selectedPlaylist!!, songIds!!, multiSelectParams)
                         }
                     ) {
                         Text(stringResource(R.string.add_anyway))

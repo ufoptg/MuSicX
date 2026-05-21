@@ -508,6 +508,42 @@ class InnerTube {
         }
     }
 
+    suspend fun addToPlaylist(
+        client: YouTubeClient,
+        playlistId: String,
+        videoIds: List<String>,
+    ) = withRetry {
+        httpClient.post("browse/edit_playlist") {
+            ytClient(client, setLogin = true)
+            setBody(
+                EditPlaylistBody(
+                    context = client.toContext(locale, visitorData, dataSyncId),
+                    playlistId = playlistId.removePrefix("VL"),
+                    actions = videoIds.map {
+                        Action.AddVideoAction(addedVideoId = it)
+                    }
+                )
+            )
+        }
+    }
+
+    suspend fun getMultiSelectCommand(
+        client: YouTubeClient,
+        selectedItems: List<String>,
+        multiSelectParams: String? = null,
+    ) = withRetry {
+        httpClient.post("get_multi_select_command") {
+            ytClient(client, setLogin = true)
+            setBody(
+                GetMultiSelectCommandBody(
+                    context = client.toContext(locale, visitorData, dataSyncId),
+                    selectedItems = selectedItems,
+                    multiSelectParams = multiSelectParams,
+                )
+            )
+        }
+    }
+
     suspend fun addPlaylistToPlaylist(
         client: YouTubeClient,
         playlistId: String,

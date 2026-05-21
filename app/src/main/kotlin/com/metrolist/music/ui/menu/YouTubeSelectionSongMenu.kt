@@ -26,7 +26,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -122,52 +121,16 @@ fun YouTubeSelectionSongMenu(
         }
     }
 
-    AddToPlaylistDialogOnline(
+    val selectedSongs = songSelection.map { it.toMediaMetadata() }
+
+    AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
-        songs =
-            remember {
-                songSelection
-                    .map { song ->
-                        // Convert SongItem to Song entity
-                        val metadata = song.toMediaMetadata()
-                        com.metrolist.music.db.entities.Song(
-                            song =
-                                com.metrolist.music.db.entities.SongEntity(
-                                    id = metadata.id,
-                                    title = metadata.title,
-                                    duration = metadata.duration,
-                                    thumbnailUrl = metadata.thumbnailUrl,
-                                    albumId = metadata.album?.id,
-                                    albumName = metadata.album?.title,
-                                    liked = metadata.liked,
-                                    totalPlayTime = 0,
-                                    inLibrary = metadata.inLibrary,
-                                    isLocal = false,
-                                    libraryAddToken = metadata.libraryAddToken,
-                                    libraryRemoveToken = metadata.libraryRemoveToken,
-                                ),
-                            artists =
-                                metadata.artists.map { artist ->
-                                    com.metrolist.music.db.entities.ArtistEntity(
-                                        id = artist.id ?: "",
-                                        name = artist.name,
-                                    )
-                                },
-                            album =
-                                metadata.album?.let { album ->
-                                    com.metrolist.music.db.entities.AlbumEntity(
-                                        id = album.id,
-                                        title = album.title,
-                                        thumbnailUrl = metadata.thumbnailUrl, // Use song's thumbnail as album thumbnail
-                                        songCount = 0,
-                                        duration = 0,
-                                    )
-                                },
-                        )
-                    }.toMutableStateList()
-            },
-        onProgressStart = { },
-        onPercentageChange = { },
+        onGetSong = {
+            database.withTransaction {
+                selectedSongs.forEach(::insert)
+            }
+            selectedSongs.map { it.id }
+        },
         onDismiss = {
             showChoosePlaylistDialog = false
         },

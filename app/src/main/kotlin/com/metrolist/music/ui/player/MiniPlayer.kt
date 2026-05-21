@@ -179,6 +179,7 @@ private fun NewMiniPlayer(
     onClick: () -> Unit = {},
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
+    val database = LocalDatabase.current
     val menuState = LocalMenuState.current
 
     // Theme settings - these rarely change
@@ -486,7 +487,12 @@ private fun NewMiniPlayer(
                             menuState.show {
                                 AddToPlaylistDialog(
                                     isVisible = true,
-                                    onGetSong = { listOf(metadata.id) },
+                                    onGetSong = {
+                                        database.withTransaction {
+                                            insert(metadata)
+                                        }
+                                        listOf(metadata.id)
+                                    },
                                     onDismiss = menuState::dismiss,
                                 )
                             }
