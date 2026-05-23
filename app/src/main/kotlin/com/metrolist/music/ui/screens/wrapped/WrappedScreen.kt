@@ -1,5 +1,6 @@
 package com.metrolist.music.ui.screens.wrapped
 
+import android.app.Activity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,11 +10,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -22,19 +24,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.metrolist.music.R
-import kotlinx.coroutines.launch
 
 @Composable
 fun WrappedScreen(
@@ -42,7 +47,6 @@ fun WrappedScreen(
     viewModel: WrappedViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
 
     DisposableEffect(Unit) {
         onDispose { viewModel.releaseAudio() }
@@ -67,6 +71,23 @@ fun WrappedScreen(
                 fromTimeStamp = WrappedViewModel.HALF_YEAR_START,
                 toTimeStamp = WrappedViewModel.HALF_YEAR_END,
             )
+        }
+    }
+
+    val window = (LocalContext.current as? Activity)?.window
+
+    DisposableEffect(window) {
+        if (window != null) {
+            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            insetsController.hide(WindowInsetsCompat.Type.systemBars())
+            insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+
+        onDispose {
+            if (window != null) {
+                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            }
         }
     }
 
@@ -173,39 +194,39 @@ fun WrappedScreen(
                     modifier = Modifier.fillMaxSize(),
                     beyondViewportPageCount = 1,
                 ) { page ->
-                    val goNext: () -> Unit = { scope.launch { pagerState.animateScrollToPage(page + 1) }; Unit }
-                    val goPrev: () -> Unit = { scope.launch { pagerState.animateScrollToPage(page - 1) }; Unit }
-                    val goFinish: () -> Unit = { navController.popBackStack() }
-
                     when (page) {
-                        0 -> WrappedPage1Intro(state, goNext, {}, goFinish)
-                        1 -> WrappedPage2GuessMinutes(state, goNext, goPrev, goFinish)
-                        2 -> WrappedPage3MinutesReveal(state, goNext, goPrev, goFinish)
-                        3 -> WrappedPage4ShareMinutes(state, goNext, goPrev, goFinish)
-                        4 -> WrappedPage5TotalSongs(state, goNext, goPrev, goFinish)
-                        5 -> WrappedPage6GuessTopSong(state, goNext, goPrev, goFinish)
-                        6 -> WrappedPage7TopSongs(state, goNext, goPrev, goFinish)
-                        7 -> WrappedPage8ShareTopTracks(state, goNext, goPrev, goFinish)
-                        8 -> WrappedPage9GuessTopArtist(state, goNext, goPrev, goFinish)
-                        9 -> WrappedPage10TopArtistReveal(state, goNext, goPrev, goFinish)
-                        10 -> WrappedPage11TopArtists(state, goNext, goPrev, goFinish)
-                        11 -> WrappedPage12ShareTopArtists(state, goNext, goPrev, goFinish)
-                        12 -> WrappedPage13GuessTopAlbum(state, goNext, goPrev, goFinish)
-                        13 -> WrappedPage14TopAlbumReveal(state, goNext, goPrev, goFinish)
-                        14 -> WrappedPage15TopAlbums(state, goNext, goPrev, goFinish)
-                        15 -> WrappedPage16FunStat(state, goNext, goPrev, goFinish)
-                        16 -> WrappedPage17Playlist(state, goNext, goPrev, goFinish)
-                        17 -> WrappedPage18Conclusion(state, goNext, goPrev, goFinish)
-                        18 -> WrappedPage19Credits(state, {}, goPrev, goFinish)
+                        0 -> WrappedPage1Intro(state)
+                        1 -> WrappedPage2GuessMinutes(state)
+                        2 -> WrappedPage3MinutesReveal(state)
+                        3 -> WrappedPage4ShareMinutes(state)
+                        4 -> WrappedPage5TotalSongs(state)
+                        5 -> WrappedPage6GuessTopSong(state)
+                        6 -> WrappedPage7TopSongs(state)
+                        7 -> WrappedPage8ShareTopTracks(state)
+                        8 -> WrappedPage9GuessTopArtist(state)
+                        9 -> WrappedPage10TopArtistReveal(state)
+                        10 -> WrappedPage11TopArtists(state)
+                        11 -> WrappedPage12ShareTopArtists(state)
+                        12 -> WrappedPage13GuessTopAlbum(state)
+                        13 -> WrappedPage14TopAlbumReveal(state)
+                        14 -> WrappedPage15TopAlbums(state)
+                        15 -> WrappedPage16FunStat(state)
+                        16 -> WrappedPage17Playlist(state)
+                        17 -> WrappedPage18Conclusion(state)
+                        18 -> WrappedPage19Credits(state)
                     }
                 }
 
-                TextButton(
+                IconButton(
                     onClick = { viewModel.toggleMute() },
                     modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
                 ) {
-                    Text(
-                        text = if (state.isMuted) stringResource(R.string.wrapped_unmute)
+                    Icon(
+                        painter = painterResource(
+                            if (state.isMuted) R.drawable.volume_off
+                            else R.drawable.volume_up
+                        ),
+                        contentDescription = if (state.isMuted) stringResource(R.string.wrapped_unmute)
                         else stringResource(R.string.wrapped_mute),
                     )
                 }

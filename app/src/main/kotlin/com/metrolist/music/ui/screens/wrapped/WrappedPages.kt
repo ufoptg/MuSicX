@@ -1,103 +1,35 @@
 package com.metrolist.music.ui.screens.wrapped
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-private const val TOTAL_PAGES = 19
-
 @Composable
 fun WrappedPageLayout(
-    pageIndex: Int,
-    onNext: () -> Unit = {},
-    onPrev: () -> Unit = {},
-    onFinish: () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
-    val isFirst = pageIndex == 0
-    val isLast = pageIndex == TOTAL_PAGES - 1
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        Box(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            contentAlignment = Alignment.Center,
-        ) {
-            content()
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (!isFirst) {
-                TextButton(onClick = onPrev) {
-                    Text("< Back")
-                }
-            } else {
-                Spacer(Modifier.width(64.dp))
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                repeat(TOTAL_PAGES) { i ->
-                    Box(
-                        modifier = Modifier
-                            .size(
-                                width = if (i == pageIndex) 24.dp else 8.dp,
-                                height = 8.dp,
-                            )
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(
-                                if (i == pageIndex) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.outlineVariant,
-                            ),
-                    )
-                }
-            }
-
-            if (!isLast) {
-                TextButton(onClick = onNext) {
-                    Text("Next >")
-                }
-            } else {
-                Button(onClick = onFinish) {
-                    Text("Finish")
-                }
-            }
-        }
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
     }
 }
 
 @Composable
 fun WrappedPage1Intro(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 0, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Your Half-Year in Music",
@@ -117,11 +49,8 @@ fun WrappedPage1Intro(
 @Composable
 fun WrappedPage2GuessMinutes(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 1, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Guess Your Minutes",
@@ -141,11 +70,8 @@ fun WrappedPage2GuessMinutes(
 @Composable
 fun WrappedPage3MinutesReveal(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 2, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Minutes Listened",
@@ -165,11 +91,8 @@ fun WrappedPage3MinutesReveal(
 @Composable
 fun WrappedPage4ShareMinutes(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 3, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Share Your Minutes",
@@ -189,11 +112,8 @@ fun WrappedPage4ShareMinutes(
 @Composable
 fun WrappedPage5TotalSongs(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 4, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Total Songs",
@@ -213,11 +133,8 @@ fun WrappedPage5TotalSongs(
 @Composable
 fun WrappedPage6GuessTopSong(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 5, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Guess Your #1 Song",
@@ -237,11 +154,8 @@ fun WrappedPage6GuessTopSong(
 @Composable
 fun WrappedPage7TopSongs(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 6, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Your Top 5 Songs",
@@ -262,11 +176,8 @@ fun WrappedPage7TopSongs(
 @Composable
 fun WrappedPage8ShareTopTracks(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 7, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Share Your Top Tracks",
@@ -286,11 +197,8 @@ fun WrappedPage8ShareTopTracks(
 @Composable
 fun WrappedPage9GuessTopArtist(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 8, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Guess Your #1 Artist",
@@ -310,11 +218,8 @@ fun WrappedPage9GuessTopArtist(
 @Composable
 fun WrappedPage10TopArtistReveal(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 9, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Your #1 Artist",
@@ -334,11 +239,8 @@ fun WrappedPage10TopArtistReveal(
 @Composable
 fun WrappedPage11TopArtists(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 10, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Your Top 5 Artists",
@@ -359,11 +261,8 @@ fun WrappedPage11TopArtists(
 @Composable
 fun WrappedPage12ShareTopArtists(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 11, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Share Your Top Artists",
@@ -383,11 +282,8 @@ fun WrappedPage12ShareTopArtists(
 @Composable
 fun WrappedPage13GuessTopAlbum(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 12, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Guess Your #1 Album",
@@ -407,11 +303,8 @@ fun WrappedPage13GuessTopAlbum(
 @Composable
 fun WrappedPage14TopAlbumReveal(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 13, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Your #1 Album",
@@ -431,11 +324,8 @@ fun WrappedPage14TopAlbumReveal(
 @Composable
 fun WrappedPage15TopAlbums(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 14, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Your Top 5 Albums",
@@ -456,11 +346,8 @@ fun WrappedPage15TopAlbums(
 @Composable
 fun WrappedPage16FunStat(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 15, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Fun Stat",
@@ -480,11 +367,8 @@ fun WrappedPage16FunStat(
 @Composable
 fun WrappedPage17Playlist(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 16, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Your Wrapped Playlist",
@@ -504,11 +388,8 @@ fun WrappedPage17Playlist(
 @Composable
 fun WrappedPage18Conclusion(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 17, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Thanks for listening!",
@@ -528,11 +409,8 @@ fun WrappedPage18Conclusion(
 @Composable
 fun WrappedPage19Credits(
     state: WrappedState,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-    onFinish: () -> Unit,
 ) {
-    WrappedPageLayout(pageIndex = 18, onNext = onNext, onPrev = onPrev, onFinish = onFinish) {
+    WrappedPageLayout {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "Made with love",
