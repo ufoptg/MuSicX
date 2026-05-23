@@ -42,6 +42,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import timber.log.Timber
 import java.time.LocalDate
 import java.time.LocalTime
@@ -53,7 +55,7 @@ class PlayerConnection(
     context: Context,
     binder: MusicBinder,
     val database: MusicDatabase,
-    scope: CoroutineScope,
+    val scope: CoroutineScope,
 ) : Player.Listener {
     private companion object {
         private const val TAG = "PlayerConnection"
@@ -206,7 +208,6 @@ class PlayerConnection(
             Timber.tag(TAG).d("PlayerConnection flow observer registered")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Failed to initialize PlayerConnection listener or state")
-            // Propagate the error so MainActivity can retry
             throw e
         }
     }
@@ -229,7 +230,6 @@ class PlayerConnection(
     }
 
     fun playQueue(queue: Queue) {
-        // Block if Listen Together guest (unless internal sync)
         if (!allowInternalSync && shouldBlockPlaybackChanges?.invoke() == true) {
             Timber.tag("PlayerConnection").d("playQueue blocked - Listen Together guest")
             return
@@ -246,7 +246,6 @@ class PlayerConnection(
     }
 
     fun startRadioSeamlessly() {
-        // Block if Listen Together guest
         if (shouldBlockPlaybackChanges?.invoke() == true) {
             Timber.tag("PlayerConnection").d("startRadioSeamlessly blocked - Listen Together guest")
             return
@@ -265,7 +264,6 @@ class PlayerConnection(
     fun playNext(item: MediaItem) = playNext(listOf(item))
 
     fun playNext(items: List<MediaItem>) {
-        // Block if Listen Together guest (unless internal sync)
         if (!allowInternalSync && shouldBlockPlaybackChanges?.invoke() == true) {
             Timber.tag("PlayerConnection").d("playNext blocked - Listen Together guest")
             return
@@ -281,7 +279,6 @@ class PlayerConnection(
     fun addToQueue(item: MediaItem) = addToQueue(listOf(item))
 
     fun addToQueue(items: List<MediaItem>) {
-        // Block if Listen Together guest (unless internal sync)
         if (!allowInternalSync && shouldBlockPlaybackChanges?.invoke() == true) {
             Timber.tag("PlayerConnection").d("addToQueue blocked - Listen Together guest")
             return
@@ -318,9 +315,6 @@ class PlayerConnection(
         }
     }
 
-    /**
-     * Toggle play/pause - handles Cast when active
-     */
     fun togglePlayPause() {
         if (!allowInternalSync && shouldBlockPlaybackChanges?.invoke() == true) return
         try {
@@ -339,9 +333,6 @@ class PlayerConnection(
         }
     }
 
-    /**
-     * Start playback - handles Cast when active
-     */
     fun play() {
         try {
             val castHandler = service.castConnectionHandler
@@ -358,9 +349,6 @@ class PlayerConnection(
         }
     }
 
-    /**
-     * Pause playback - handles Cast when active
-     */
     fun pause() {
         try {
             val castHandler = service.castConnectionHandler
@@ -374,9 +362,6 @@ class PlayerConnection(
         }
     }
 
-    /**
-     * Seek to position - handles Cast when active
-     */
     fun seekTo(position: Long) {
         try {
             val castHandler = service.castConnectionHandler
@@ -392,7 +377,6 @@ class PlayerConnection(
 
     fun seekToNext() {
         try {
-            // When casting, use Cast skip instead of local player
             val castHandler = service.castConnectionHandler
             if (castHandler?.isCasting?.value == true) {
                 castHandler.skipToNext()
@@ -413,15 +397,12 @@ class PlayerConnection(
 
     fun seekToPrevious() {
         try {
-            // When casting, use Cast skip instead of local player
             val castHandler = service.castConnectionHandler
             if (castHandler?.isCasting?.value == true) {
                 castHandler.skipToPrevious()
                 return
             }
 
-            // Logic to mimic standard seekToPrevious behavior but with explicit callbacks
-            // If we are more than 3 seconds in, just restart the song
             if (player.currentPosition > 3000 || !player.hasPreviousMediaItem()) {
                 player.seekTo(0)
                 if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
@@ -430,7 +411,6 @@ class PlayerConnection(
                 player.playWhenReady = true
                 onRestartSong?.invoke()
             } else {
-                // Otherwise go to previous media item
                 player.seekToPreviousMediaItem()
                 if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
                     player.prepare()
@@ -443,7 +423,6 @@ class PlayerConnection(
         }
     }
 
-    /** Parses "0=09:00-23:00;1=22:00-06:00" into Map<dayIndex, Pair<start, end>>. */
     private fun parseDayTimes(raw: String): Map<Int, Pair<String, String>> {
         if (raw.isBlank()) return emptyMap()
         return raw
@@ -480,12 +459,7 @@ class PlayerConnection(
             val sleepTimerCustomDaysStr = service.applicationContext.dataStore.get(SleepTimerCustomDaysKey) ?: "0,1,2,3,4"
             val sleepTimerDayTimesStr = service.applicationContext.dataStore.get(SleepTimerDayTimesKey) ?: ""
 
-            Timber
-                .tag(
-                    TAG,
-                ).d(
-                    "Sleep Timer Config: repeat=$sleepTimerRepeat start=$sleepTimerStartTime end=$sleepTimerEndTime default=$sleepTimerDefaultMinutes custom=$sleepTimerCustomDaysStr",
-                )
+            Timber.tag(TAG).d("Sleep Timer Config: repeat=$sleepTimerRepeat start=$sleepTimerStartTime end=$sleepTimerEndTime default=$sleepTimerDefaultMinutes custom=$sleepTimerCustomDaysStr")
 
             val currentTime = LocalTime.now()
             val today = LocalDate.now()
@@ -496,32 +470,15 @@ class PlayerConnection(
 
             val isDayAllowed =
                 when (sleepTimerRepeat) {
-                    "daily" -> {
-                        true
-                    }
-
-                    "weekdays" -> {
-                        adjustedDayOfWeek in 0..4
-                    }
-
-                    "weekends" -> {
-                        adjustedDayOfWeek in 5..6
-                    }
-
-                    "weekdays_weekends" -> {
-                        true
-                    }
-
-                    // both groups active; per-day time handles the distinction
+                    "daily" -> true
+                    "weekdays" -> adjustedDayOfWeek in 0..4
+                    "weekends" -> adjustedDayOfWeek in 5..6
+                    "weekdays_weekends" -> true
                     "custom" -> {
                         val customDays = sleepTimerCustomDaysStr.split(",").mapNotNull { it.trim().toIntOrNull() }
-                        Timber.tag(TAG).d("Custom days: $customDays, adjustedDayOfWeek=$adjustedDayOfWeek")
                         adjustedDayOfWeek in customDays
                     }
-
-                    else -> {
-                        false
-                    }
+                    else -> false
                 }
 
             if (!isDayAllowed) {
@@ -529,9 +486,6 @@ class PlayerConnection(
                 return false
             }
 
-// "daily" uses the single global time window.
-// All other modes store per-day times in the dayTimes map so that
-// e.g. weekdays and weekends can have different windows.
             val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
             val usesDayTimesMap = sleepTimerRepeat != "daily"
             val (startStr, endStr) =
@@ -545,7 +499,6 @@ class PlayerConnection(
             val startTime = LocalTime.parse(startStr, timeFormatter)
             val endTime = LocalTime.parse(endStr, timeFormatter)
 
-            // Support overnight ranges (e.g. 22:00–06:00) in addition to normal ranges
             val isTimeInRange =
                 if (endTime.isAfter(startTime)) {
                     currentTime.isAfter(startTime) && currentTime.isBefore(endTime)
@@ -581,7 +534,6 @@ class PlayerConnection(
         val wasPlaying = playWhenReady.value
         playWhenReady.value = newPlayWhenReady
 
-        // Central sleep timer trigger: fires on every paused -> playing transition,
         if (newPlayWhenReady && !wasPlaying) {
             checkAndStartAutomaticSleepTimer()
         }
@@ -595,6 +547,39 @@ class PlayerConnection(
         currentMediaItemIndex.value = player.currentMediaItemIndex
         currentWindowIndex.value = player.getCurrentQueueIndex()
         updateCanSkipPreviousAndNext()
+
+        // --- EXCLUSIVELY ADDED: SMART/INFINITE SHUFFLE ALGORITHM LOOP ---
+        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && shuffleModeEnabled.value) {
+            val localPlayer = player
+            // If there's no native upcoming track remaining in the Media3 buffer queue, kick off loop
+            if (!localPlayer.hasNextMediaItem()) {
+                Timber.tag(TAG).d("Infinite Shuffle Engine Activated: Current list exhausted.")
+                
+                scope.launch {
+                    try {
+                        val totalSongsCount = localPlayer.mediaItemCount
+                        if (totalSongsCount > 1) {
+                            // Extract references from main thread to build the layout clone array
+                            val structuralClone = mutableListOf<MediaItem>()
+                            for (i in 0 until totalSongsCount) {
+                                structuralClone.add(localPlayer.getMediaItemAt(i))
+                            }
+                            
+                            // Perform a random reshuffle on the background pool thread to optimize performance
+                            withContext(Dispatchers.Default) {
+                                structuralClone.shuffle()
+                            }
+                            
+                            // Feed the reshuffled queue straight back into the tail end of ExoPlayer
+                            localPlayer.addMediaItems(structuralClone)
+                            Timber.tag(TAG).i("Successfully generated loop step: Appended ${structuralClone.size} fresh shuffled tracks.")
+                        }
+                    } catch (e: Exception) {
+                        Timber.tag(TAG).e(e, "Failed executing structural playlist array shuffle mutation")
+                    }
+                }
+            }
+        }
     }
 
     override fun onTimelineChanged(
