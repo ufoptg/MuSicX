@@ -19,7 +19,11 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.*
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.*
+import io.ktor.http.content.OutgoingContent
 import io.ktor.serialization.kotlinx.json.*
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.jvm.javaio.toByteReadChannel
+import java.io.InputStream
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import java.net.Proxy
@@ -739,12 +743,24 @@ class InnerTube {
 
     /**
      * Upload song data to the provided upload URL.
+     *
+     * Streams the body from [contentSource] rather than buffering the whole file
+     * in memory. The factory is invoked once per attempt — required because
+     * [withRetry] re-executes the post block on IOException and a single
+     * InputStream cannot be re-read.
      */
     suspend fun uploadSongData(
         uploadUrl: String,
-        data: ByteArray,
-        onProgress: ((Float) -> Unit)? = null
+        contentLength: Long,
+        contentSource: () -> InputStream,
+        onProgress: ((Float) -> Unit)? = null,
     ) = withRetry {
+        val body = object : OutgoingContent.ReadChannelContent() {
+            override val contentType = ContentType.Application.OctetStream
+            override val contentLength: Long = contentLength
+            override fun readFrom(): ByteReadChannel =
+                contentSource().toByteReadChannel()
+        }
         httpClient.post(uploadUrl) {
             headers {
                 append("X-Goog-Upload-Command", "upload, finalize")
@@ -759,10 +775,9 @@ class InnerTube {
                     append("Authorization", "SAPISIDHASH ${currentTime}_${sapisidHash}")
                 }
             }
-            contentType(ContentType.Application.OctetStream)
-            setBody(data)
-            onUpload { bytesSentTotal, contentLength ->
-                contentLength?.let {
+            setBody(body)
+            onUpload { bytesSentTotal, total ->
+                total?.let {
                     onProgress?.invoke(bytesSentTotal.toFloat() / it.toFloat())
                 }
             }

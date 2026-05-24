@@ -80,6 +80,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import timber.log.Timber
+import java.io.InputStream
 import java.net.Proxy
 import kotlin.random.Random
 
@@ -3270,21 +3271,28 @@ object YouTube {
 
     /**
      * Upload a song to YouTube Music.
+     *
+     * The body is streamed from [contentSource], so memory stays flat regardless
+     * of file size. The factory is invoked once per upload attempt — see
+     * [InnerTube.uploadSongData].
+     *
      * @param filename The name of the file
-     * @param data The file data as ByteArray
+     * @param contentLength Exact byte length of the file (required for progress and content-length header)
+     * @param contentSource Factory yielding a fresh InputStream per attempt
      * @param onProgress Callback for upload progress (0.0 to 1.0)
      * @return true if upload succeeded
      */
     suspend fun uploadSong(
         filename: String,
-        data: ByteArray,
+        contentLength: Long,
+        contentSource: () -> InputStream,
         onProgress: ((Float) -> Unit)? = null,
     ): Result<Boolean> =
         runCatching {
             onProgress?.invoke(0f)
 
             // Step 1: Initialize upload (5% of progress)
-            val initResponse = innerTube.initSongUpload(filename, data.size.toLong())
+            val initResponse = innerTube.initSongUpload(filename, contentLength)
             val uploadUrl =
                 initResponse.headers["X-Goog-Upload-URL"]
                     ?: throw Exception("Failed to get upload URL")
@@ -3295,7 +3303,8 @@ object YouTube {
             val uploadResponse =
                 innerTube.uploadSongData(
                     uploadUrl = uploadUrl,
-                    data = data,
+                    contentLength = contentLength,
+                    contentSource = contentSource,
                     onProgress = { uploadProgress ->
                         // Map upload progress (0-1) to overall progress (0.05-1.0)
                         onProgress?.invoke(0.05f + uploadProgress * 0.95f)

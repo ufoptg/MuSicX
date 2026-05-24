@@ -196,13 +196,14 @@ fun LibrarySongsScreen(
                                     return@forEachIndexed
                                 }
 
-                                val inputStream = context.contentResolver.openInputStream(uri)
-                                val data = inputStream?.readBytes()
-                                inputStream?.close()
+                                val size = context.contentResolver
+                                    .openFileDescriptor(uri, "r")
+                                    ?.use { it.statSize }
+                                    ?: -1L
 
-                                if (data == null) return@forEachIndexed
+                                if (size <= 0L) return@forEachIndexed
 
-                                if (data.size > YouTube.MAX_UPLOAD_SIZE) {
+                                if (size > YouTube.MAX_UPLOAD_SIZE) {
                                     withContext(Dispatchers.Main) {
                                         Toast
                                             .makeText(
@@ -217,7 +218,11 @@ fun LibrarySongsScreen(
                                 val result =
                                     YouTube.uploadSong(
                                         filename = fileName,
-                                        data = data,
+                                        contentLength = size,
+                                        contentSource = {
+                                            context.contentResolver.openInputStream(uri)
+                                                ?: throw java.io.IOException("Cannot open $uri")
+                                        },
                                         onProgress = { progress ->
                                             uploadProgress = progress
                                         },
