@@ -1,89 +1,64 @@
-/**
- * Metrolist Project (C) 2026
- * Licensed under GPL-3.0 | See git history for contributors
- */
-
 package com.metrolist.music.widget
 
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
-import android.content.Intent
-import android.os.Build
-import android.os.Bundle
-import com.metrolist.music.playback.MusicService
+import android.content.ComponentName
+import android.graphics.Bitmap
+import android.widget.RemoteViews
+import androidx.core.graphics.ColorUtils
+import androidx.palette.graphics.Palette
+import com.metrolist.music.R
 
 class MusicWidgetReceiver : AppWidgetProvider() {
 
-    override fun onUpdate(
-        context: Context,
-        appWidgetManager: AppWidgetManager,
-        appWidgetIds: IntArray
-    ) {
-        // Only trigger update through MusicService if it's already running
-        // This prevents BackgroundServiceStartNotAllowedException on Android 14+
-        if (MusicService.isRunning) {
-            val intent = Intent(context, MusicService::class.java).apply {
-                action = ACTION_UPDATE_WIDGET
-            }
-            try {
-                context.startService(intent)
-            } catch (e: Exception) {
-                // Service might be restricted in background
-            }
-        }
-        // If service is not running, widget shows default layout until user opens app
-    }
-
-    override fun onAppWidgetOptionsChanged(
-        context: Context,
-        appWidgetManager: AppWidgetManager,
-        appWidgetId: Int,
-        newOptions: Bundle
-    ) {
-        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
-        // Trigger widget update when size changes
-        if (MusicService.isRunning) {
-            val intent = Intent(context, MusicService::class.java).apply {
-                action = ACTION_UPDATE_WIDGET
-            }
-            try {
-                context.startService(intent)
-            } catch (e: Exception) {
-                // Service might be restricted in background
-            }
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        // Core initialization loop
+        for (widgetId in appWidgetIds) {
+            val views = RemoteViews(context.packageName, R.layout.music_widget)
+            appWidgetManager.updateAppWidget(widgetId, views)
         }
     }
 
-    override fun onReceive(context: Context, intent: Intent) {
-        super.onReceive(context, intent)
+    /**
+     * Call this dedicated interface method within Metrolist's background service/playback loop 
+     * whenever track changes happen and fresh artwork is resolved.
+     */
+    fun updateWidgetMetadata(context: Context, title: String, artist: String, albumArt: Bitmap?) {
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val thisWidget = ComponentName(context, MusicWidgetReceiver::class.java)
+        val views = RemoteViews(context.packageName, R.layout.music_widget)
 
-        when (intent.action) {
-            ACTION_PLAY_PAUSE, ACTION_LIKE, ACTION_NEXT, ACTION_PREVIOUS -> {
-                // User interactions from widget buttons can start the service
-                // Android allows starting FGS from widget PendingIntent clicks
-                val serviceIntent = Intent(context, MusicService::class.java).apply {
-                    action = intent.action
-                    putExtras(intent)
-                }
-                try {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        context.startService(serviceIntent)
-                    } else {
-                        context.startService(serviceIntent)
-                    }
-                } catch (e: Exception) {
-                    // Service might be restricted in background
-                }
+        // Bind raw text parameters
+        views.setTextViewText(R.id.widget_song_title, title)
+        views.setTextViewText(R.id.widget_artist_name, artist)
+
+        if (albumArt != null) {
+            views.setImageViewBitmap(R.id.widget_album_art, albumArt)
+
+            // Extract structural colors asynchronously to prevent rendering pipeline lockups
+            Palette.from(albumArt).generate { palette ->
+                // Extract dominant spectrum with mid-gray fallback safety bounds
+                val extractedColor = palette?.getDominantColor(0xFF888888.toInt()) ?: 0xFF888888.toInt()
+                
+                // Restructure hex structure down to 35% opacity saturation levels (89 out of 255)
+                val glassTintedColor = ColorUtils.setAlphaComponent(extractedColor, 89)
+                
+                // Reflect color changes safely across process boundaries to the root container background
+                views.setInt(
+                    R.id.widget_root_container, 
+                    "setBackgroundColor", 
+                    glassTintedColor
+                )
+                
+                // Commit viewport configuration delta records back onto launcher manager thread
+                appWidgetManager.updateAppWidget(thisWidget, views)
             }
+        } else {
+            // Revert background layer states back to default neutral opacity matrix values
+            views.setImageViewResource(R.id.widget_album_art, R.drawable.ic_music_placeholder)
+            views.setInt(R.id.widget_root_container, "setBackgroundColor", 0x33FFFFFF)
+            appWidgetManager.updateAppWidget(thisWidget, views)
         }
-    }
-
-    companion object {
-        const val ACTION_PLAY_PAUSE = "com.metrolist.music.widget.PLAY_PAUSE"
-        const val ACTION_LIKE = "com.metrolist.music.widget.LIKE"
-        const val ACTION_NEXT = "com.metrolist.music.widget.NEXT"
-        const val ACTION_PREVIOUS = "com.metrolist.music.widget.PREVIOUS"
-        const val ACTION_UPDATE_WIDGET = "com.metrolist.music.widget.UPDATE_WIDGET"
     }
 }
