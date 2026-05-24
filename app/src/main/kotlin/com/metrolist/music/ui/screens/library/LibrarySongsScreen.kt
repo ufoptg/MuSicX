@@ -90,6 +90,7 @@ import com.metrolist.music.ui.menu.SongMenu
 import com.metrolist.music.ui.utils.isScrollingUp
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
+import com.metrolist.music.utils.withJobRetry
 import com.metrolist.music.viewmodels.LibrarySongsViewModel
 import timber.log.Timber
 import kotlinx.coroutines.Dispatchers
@@ -216,17 +217,19 @@ fun LibrarySongsScreen(
                                 }
 
                                 val result =
-                                    YouTube.uploadSong(
-                                        filename = fileName,
-                                        contentLength = size,
-                                        contentSource = {
-                                            context.contentResolver.openInputStream(uri)
-                                                ?: throw java.io.IOException("Cannot open $uri")
-                                        },
-                                        onProgress = { progress ->
-                                            uploadProgress = progress
-                                        },
-                                    )
+                                    withJobRetry {
+                                        YouTube.uploadSong(
+                                            filename = fileName,
+                                            contentLength = size,
+                                            contentSource = {
+                                                context.contentResolver.openInputStream(uri)
+                                                    ?: throw java.io.IOException("Cannot open $uri")
+                                            },
+                                            onProgress = { progress ->
+                                                uploadProgress = progress
+                                            },
+                                        )
+                                    }
 
                                 if (result.isSuccess && result.getOrDefault(false)) {
                                     successCount++
