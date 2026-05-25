@@ -289,6 +289,19 @@ object DiscordRpcManager {
         nativeClear()
     }
 
+    fun reconnectWithToken(token: String) {
+        if (!initialized) return
+        Timber.d("reconnectWithToken: reusing saved token")
+        accessToken = token
+        nativeSetTokenAndConnect(token)
+        _authorized = true
+        _connectionStatus.value = Status.Authorizing
+        Handler(Looper.getMainLooper()).post {
+            nativeConnect()
+            Timber.d("reconnectWithToken: nativeConnect called")
+        }
+    }
+
     fun destroy() = synchronized(this) {
         _ready = false
         _authorized = false

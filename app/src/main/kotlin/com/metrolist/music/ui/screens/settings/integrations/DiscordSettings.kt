@@ -64,6 +64,7 @@ import coil3.compose.AsyncImage
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.constants.DiscordAccessTokenKey
 import com.metrolist.music.constants.DiscordAvatarKey
 import com.metrolist.music.constants.DiscordInfoDismissedKey
 import com.metrolist.music.constants.DiscordNameKey
@@ -102,6 +103,7 @@ fun DiscordSettings(
     var discordUsername by rememberPreference(DiscordUsernameKey, "")
     var discordName by rememberPreference(DiscordNameKey, "")
     var discordAvatar by rememberPreference(DiscordAvatarKey, "")
+    var discordAccessToken by rememberPreference(DiscordAccessTokenKey, "")
     var infoDismissed by rememberPreference(DiscordInfoDismissedKey, false)
 
     val (discordRPC, onDiscordRPCChange) = rememberPreference(EnableDiscordRPCKey, true)
@@ -121,6 +123,12 @@ fun DiscordSettings(
 
     if (!DiscordRpcManager.isInitialized()) {
         DiscordRpcManager.init()
+    }
+
+    LaunchedEffect(Unit) {
+        if (discordAccessToken.isNotEmpty() && !DiscordRpcManager.isAuthorized()) {
+            DiscordRpcManager.reconnectWithToken(discordAccessToken)
+        }
     }
 
     LaunchedEffect(playbackState) {
@@ -277,6 +285,7 @@ fun DiscordSettings(
                         discordName = ""
                         discordUsername = ""
                         discordAvatar = ""
+                        discordAccessToken = ""
                         coroutineScope.launch(Dispatchers.IO) {
                             DiscordRpcManager.disconnect()
                         }
@@ -307,6 +316,7 @@ fun DiscordSettings(
                                                 val user = DiscordRpcManager.fetchCurrentUser(token)
                                                 if (user != null) {
                                                     withContext(Dispatchers.Main) {
+                                                        discordAccessToken = token
                                                         discordUsername = user.username
                                                         discordName = user.name
                                                         discordAvatar = user.avatar ?: ""
