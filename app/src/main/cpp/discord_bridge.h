@@ -16,7 +16,7 @@ public:
     void SetTokenAndConnect(const char* token);
     void Connect();
     void SetListening(
-        const char* state, const char* details,
+        const char* name, const char* state, const char* details,
         int64_t startSecs, int64_t endSecs,
         const char* largeImage, const char* largeText,
         const char* smallImage, const char* smallText,

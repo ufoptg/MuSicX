@@ -469,7 +469,9 @@ class MusicService :
                     Intent.ACTION_SCREEN_ON -> {
                         if (player.isPlaying && DiscordRpcManager.isReady()) {
                             currentSong.value?.let { song ->
-                                updateDiscordRPC(song)
+                                scope.launch(Dispatchers.IO) {
+                                    updateDiscordRPC(song)
+                                }
                             }
                         }
                     }
@@ -3205,7 +3207,7 @@ class MusicService :
         }
     }
 
-    private fun updateDiscordRPC(song: Song) {
+    private suspend fun updateDiscordRPC(song: Song) {
         if (!DiscordRpcManager.isReady() || !discordRpcEnabled) return
 
         val currentPosition = player.currentPosition
@@ -3216,29 +3218,56 @@ class MusicService :
         val remainingMs = song.song.duration * 1000L - currentPosition
         val adjustedRemainingMs = (remainingMs / speed).toLong()
 
-        val artistName = song.artists.joinToString { it.name }
+        val artistName = song.artists.joinToString { it.name }.ifEmpty { "Unknown Artist" }
+        val albumName = song.album?.title
         val songTitle = if (speed != 1.0f) {
             "${song.song.title} [${String.format("%.2fx", speed)}]"
         } else {
             song.song.title
         }
+        val artistThumbnail = song.artists.firstOrNull()?.thumbnailUrl
 
         DiscordRpcManager.setActivity(
             DiscordActivity(
-                state = "Listening to $artistName",
+                name = artistName,
+                state = artistName,
                 details = songTitle,
                 startTimestamp = startTime,
                 endTimestamp = now + adjustedRemainingMs / 1000,
                 largeImage = song.song.thumbnailUrl,
-                largeText = song.album?.title,
-                smallImage = song.artists.firstOrNull()?.thumbnailUrl,
+                largeText = albumName,
+                smallImage = artistThumbnail,
                 smallText = artistName,
                 button1Label = "Listen on YouTube Music",
                 button1Url = "https://music.youtube.com/watch?v=${song.song.id}",
-                button2Label = null,
-                button2Url = null,
+                button2Label = "Visit Metrolist",
+                button2Url = "https://github.com/MetrolistGroup/Metrolist",
             )
         )
+
+        val fetched = fetchArtistThumbnail(song)
+        if (fetched != null && DiscordRpcManager.isReady() && discordRpcEnabled) {
+            val fetchedArtistName = fetched.artists.joinToString { it.name }.ifEmpty { "Unknown Artist" }
+            val fetchedAlbumName = fetched.album?.title
+            val fetchedArtistThumbnail = fetched.artists.firstOrNull()?.thumbnailUrl
+            DiscordRpcManager.setActivity(
+                DiscordActivity(
+                    name = fetchedArtistName,
+                    state = fetchedArtistName,
+                    details = songTitle,
+                    startTimestamp = startTime,
+                    endTimestamp = now + adjustedRemainingMs / 1000,
+                    largeImage = fetched.song.thumbnailUrl,
+                    largeText = fetchedAlbumName,
+                    smallImage = fetchedArtistThumbnail,
+                    smallText = fetchedArtistName,
+                    button1Label = "Listen on YouTube Music",
+                    button1Url = "https://music.youtube.com/watch?v=${fetched.song.id}",
+                    button2Label = "Visit Metrolist",
+                    button2Url = "https://github.com/MetrolistGroup/Metrolist",
+                )
+            )
+        }
     }
 
     private suspend fun fetchArtistThumbnail(song: Song): Song? {

@@ -15,6 +15,13 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import timber.log.Timber
 
+data class DiscordUser(
+    val id: String,
+    val username: String,
+    val name: String,
+    val avatar: String?,
+)
+
 object DiscordRpcManager {
     private const val APP_ID = 1447278780795064401L
     private const val SCOPES = "openid sdk.social_layer_presence"
@@ -25,11 +32,14 @@ object DiscordRpcManager {
     @Volatile private var initialized = false
     @Volatile private var _authorized = false
     @Volatile private var _ready = false
+    @Volatile private var accessToken: String? = null
 
     private val _connectionStatus = MutableStateFlow(Status.Disconnected)
     val connectionStatus: StateFlow<Status> = _connectionStatus
 
     enum class Status { Disconnected, Authorizing, Connected }
+
+    fun getAccessToken(): String? = accessToken
 
     private external fun nativeInit(appId: Long): Boolean
     private external fun nativeSetTokenAndConnect(token: String)
@@ -37,7 +47,7 @@ object DiscordRpcManager {
     private external fun nativeIsReady(): Boolean
     private external fun nativeIsAuthorized(): Boolean
     private external fun nativeSetListening(
-        state: String?, details: String?,
+        name: String?, state: String?, details: String?,
         startSecs: Long, endSecs: Long,
         largeImage: String?, largeText: String?,
         smallImage: String?, smallText: String?,
@@ -53,16 +63,20 @@ object DiscordRpcManager {
     fun isAuthorized(): Boolean = _authorized
     fun isReady(): Boolean = _ready
 
-    fun init() = synchronized(this) {
-        if (initialized) return
-        try {
-            System.loadLibrary("metrolist_discord")
-        } catch (e: UnsatisfiedLinkError) {
-            Timber.e(e, "Failed to load native library")
-            return
-        }
-        initialized = nativeInit(APP_ID)
-        if (initialized) {
+    fun init() {
+        synchronized(this) {
+            if (initialized) return
+            try {
+                System.loadLibrary("metrolist_discord")
+            } catch (e: UnsatisfiedLinkError) {
+                Timber.e(e, "Failed to load native library")
+                return
+            }
+            initialized = nativeInit(APP_ID)
+            if (!initialized) {
+                Timber.w("init: nativeInit failed")
+                return
+            }
             _connectionStatus.value = Status.Disconnected
             java.util.Timer("DiscordRPC", false).schedule(
                 object : java.util.TimerTask() {
@@ -89,8 +103,6 @@ object DiscordRpcManager {
                 },
                 1000, 1000
             )
-        } else {
-            Timber.w("init: nativeInit failed")
         }
     }
 
@@ -187,6 +199,7 @@ object DiscordRpcManager {
                     val accessToken = json.optString("access_token")
                     if (accessToken.isNotEmpty()) {
                         Timber.d("exchange: got access_token")
+                        this@DiscordRpcManager.accessToken = accessToken
                         nativeSetTokenAndConnect(accessToken)
                         _authorized = true
                         _connectionStatus.value = Status.Authorizing
@@ -218,13 +231,51 @@ object DiscordRpcManager {
         _connectionStatus.value = Status.Disconnected
         _ready = false
         _authorized = false
+        accessToken = null
         nativeDisconnect()
+    }
+
+    fun fetchCurrentUser(token: String): DiscordUser? {
+        return try {
+            val url = URL("https://discord.com/api/v10/users/@me")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.setRequestProperty("Authorization", "Bearer $token")
+            conn.setRequestProperty("Accept", "application/json")
+
+            val responseCode = conn.responseCode
+            val responseBody = if (responseCode in 200..299) {
+                conn.inputStream.bufferedReader().readText()
+            } else {
+                conn.errorStream?.bufferedReader()?.readText() ?: ""
+            }
+            conn.disconnect()
+
+            if (responseCode !in 200..299) {
+                Timber.w("fetchCurrentUser: HTTP $responseCode body=$responseBody")
+                return null
+            }
+
+            val json = JSONObject(responseBody)
+            val id = json.getString("id")
+            val username = json.getString("username")
+            val name = json.optString("global_name", username)
+            val avatarHash = json.optString("avatar")
+            val avatar = if (avatarHash.isNotEmpty() && avatarHash != "null") {
+                "https://cdn.discordapp.com/avatars/$id/$avatarHash.png"
+            } else null
+
+            DiscordUser(id, username, name, avatar)
+        } catch (e: Exception) {
+            Timber.e(e, "fetchCurrentUser: exception")
+            null
+        }
     }
 
     fun setActivity(activity: DiscordActivity) {
         if (!_ready) return
         nativeSetListening(
-            activity.state, activity.details,
+            activity.name, activity.state, activity.details,
             activity.startTimestamp, activity.endTimestamp ?: 0L,
             activity.largeImage, activity.largeText,
             activity.smallImage, activity.smallText,

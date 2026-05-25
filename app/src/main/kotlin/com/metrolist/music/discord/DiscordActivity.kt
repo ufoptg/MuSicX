@@ -1,8 +1,9 @@
 package com.metrolist.music.discord
 
 data class DiscordActivity(
+    val name: String?,
     val state: String,
-    val details: String,
+    val details: String?,
     val startTimestamp: Long,
     val endTimestamp: Long?,
     val largeImage: String?,

@@ -184,7 +184,7 @@ void DiscordBridge::DoGetToken(
 }
 
 void DiscordBridge::SetListening(
-    const char* state, const char* details,
+    const char* name, const char* state, const char* details,
     int64_t startSecs, int64_t endSecs,
     const char* largeImage, const char* largeText,
     const char* smallImage, const char* smallText,
@@ -194,11 +194,12 @@ void DiscordBridge::SetListening(
     std::lock_guard<std::mutex> lock(mutex_);
     if (!client_) { LOGW("SetListening: no client"); return; }
     if (!ready_) { LOGW("SetListening: not ready"); return; }
-    LOGI("SetListening: state=%s details=%s", state ? state : "null", details ? details : "null");
+    LOGI("SetListening: name=%s state=%s details=%s", name ? name : "null", state ? state : "null", details ? details : "null");
 
     try {
         discordpp::Activity activity;
         activity.SetType(discordpp::ActivityTypes::Listening);
+        if (name) activity.SetName(std::string(name));
         if (state) activity.SetState(std::string(state));
         if (details) activity.SetDetails(std::string(details));
 
@@ -393,13 +394,14 @@ Java_com_metrolist_music_discord_DiscordRpcManager_nativeConnect(
 JNIEXPORT void JNICALL
 Java_com_metrolist_music_discord_DiscordRpcManager_nativeSetListening(
     JNIEnv* env, jobject thiz,
-    jstring state, jstring details,
+    jstring name, jstring state, jstring details,
     jlong startSecs, jlong endSecs,
     jstring largeImage, jstring largeText,
     jstring smallImage, jstring smallText,
     jstring button1Label, jstring button1Url,
     jstring button2Label, jstring button2Url
 ) {
+    const char* cName = name ? env->GetStringUTFChars(name, nullptr) : nullptr;
     const char* cState = state ? env->GetStringUTFChars(state, nullptr) : nullptr;
     const char* cDetails = details ? env->GetStringUTFChars(details, nullptr) : nullptr;
     const char* cLargeImage = largeImage ? env->GetStringUTFChars(largeImage, nullptr) : nullptr;
@@ -412,12 +414,13 @@ Java_com_metrolist_music_discord_DiscordRpcManager_nativeSetListening(
     const char* cBtn2Url = button2Url ? env->GetStringUTFChars(button2Url, nullptr) : nullptr;
 
     g_discordBridge.SetListening(
-        cState, cDetails,
+        cName, cState, cDetails,
         static_cast<int64_t>(startSecs), static_cast<int64_t>(endSecs),
         cLargeImage, cLargeText, cSmallImage, cSmallText,
         cBtn1Label, cBtn1Url, cBtn2Label, cBtn2Url
     );
 
+    if (cName) env->ReleaseStringUTFChars(name, cName);
     if (cState) env->ReleaseStringUTFChars(state, cState);
     if (cDetails) env->ReleaseStringUTFChars(details, cDetails);
     if (cLargeImage) env->ReleaseStringUTFChars(largeImage, cLargeImage);
