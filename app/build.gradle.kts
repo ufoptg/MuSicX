@@ -228,6 +228,12 @@ android {
         generateLocaleConfig = true
     }
 
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+        }
+    }
+
     packaging {
         jniLibs {
             useLegacyPackaging = false
@@ -235,6 +241,7 @@ android {
                 listOf(
                     "**/libandroidx.graphics.path.so",
                     "**/libdatastore_shared_counter.so",
+                    "**/libdiscord_partner_sdk.so",
                 )
         }
         resources {
@@ -350,6 +357,7 @@ dependencies {
 
     implementation(libs.coil)
     implementation(libs.coil.network.okhttp)
+    implementation(libs.browser)
 
     implementation(libs.ucrop)
 
@@ -379,7 +387,7 @@ dependencies {
     implementation(project(":innertube"))
     implementation(project(":kugou"))
     implementation(project(":lrclib"))
-    implementation(project(":discordrpc"))
+    implementation(files("libs/discord_partner_sdk.aar"))
     implementation(project(":lastfm"))
     implementation(project(":betterlyrics"))
     implementation(project(":shazamkit"))
