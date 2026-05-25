@@ -59,8 +59,6 @@
     <string name="set_quick_picks">Imposta le scelte rapide</string>
     <string name="last_song_listened">Basato sull\'ultimo brano ascoltato</string>
     <string name="app_language">Lingua dell\'app</string>
-    <string name="auto_radio_queue">Coda radio automatica</string>
-    <string name="auto_radio_queue_desc">Crea automaticamente una coda radio quando si avvia una canzone dalla ricerca o home</string>
     <string name="enable_similar_content">Attiva Contenuto simile</string>
     <string name="similar_content_desc">Aggiunge automaticamente altri brani simili quando la fine della coda viene raggiunta</string>
     <string name="percentage_format">%d%%</string>
