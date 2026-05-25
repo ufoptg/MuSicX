@@ -644,14 +644,14 @@ class MainActivity : ComponentActivity() {
             themeColor = themeColor,
         ) {
             val currentDensity = LocalDensity.current
-            val realConfig = LocalConfiguration.current
-            val realScreenWidthDp = realConfig.screenWidthDp
+            val windowInfo = LocalWindowInfo.current
+            val containerWidthDp = windowInfo.containerDpSize.width
 
-            val densityScale = remember(realScreenWidthDp) {
+            val densityScale = remember(containerWidthDp) {
                 when {
-                    realScreenWidthDp >= 840 -> 1.25f
-                    realScreenWidthDp >= 720 -> 1.15f
-                    realScreenWidthDp >= 600 -> 1.1f
+                    containerWidthDp >= 840.dp -> 1.25f
+                    containerWidthDp >= 720.dp -> 1.15f
+                    containerWidthDp >= 600.dp -> 1.1f
                     else -> 1.0f
                 }
             }
@@ -778,7 +778,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                 val isLandscape = configuration.containerDpSize.width > configuration.containerDpSize.height
-                val isTablet = realScreenWidthDp >= 600
+                val isTablet = configuration.containerDpSize.width >= 600.dp
 
                 val showRail = (isLandscape || isTablet) && !inSearchScreen
 
