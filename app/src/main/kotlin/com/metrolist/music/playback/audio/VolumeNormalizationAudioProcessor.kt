@@ -17,7 +17,8 @@ class VolumeNormalizationAudioProcessor : AudioProcessor {
     private var channelCount = 0
     private var encoding = C.ENCODING_INVALID
     private var isActive = false
-    
+
+    @Volatile
     var enabled = false
         set(value) {
             if (field != value) {
@@ -26,11 +27,13 @@ class VolumeNormalizationAudioProcessor : AudioProcessor {
             }
         }
 
-    private var inputBuffer: ByteBuffer = EMPTY_BUFFER
     private var outputBuffer: ByteBuffer = EMPTY_BUFFER
     private var inputEnded = false
 
+    @Volatile
     private var targetGainMb: Int = 0
+
+    @Volatile
     private var linearGain: Double = 1.0
 
     companion object {
@@ -125,7 +128,6 @@ class VolumeNormalizationAudioProcessor : AudioProcessor {
     override fun reset() {
         @Suppress("DEPRECATION")
         flush()
-        inputBuffer = EMPTY_BUFFER
         sampleRate = 0
         channelCount = 0
         encoding = C.ENCODING_INVALID
