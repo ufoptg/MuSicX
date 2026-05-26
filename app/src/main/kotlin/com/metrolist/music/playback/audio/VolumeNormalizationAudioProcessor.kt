@@ -8,14 +8,14 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.pow
 
-
 @UnstableApi
-@SuppressWarnings("Deprecated")
+@Suppress("DEPRECATION")
 class VolumeNormalizationAudioProcessor : AudioProcessor {
 
     private var sampleRate = 0
     private var channelCount = 0
     private var encoding = C.ENCODING_INVALID
+    private var bytesPerSample = 0
     private var isActive = false
 
     @Volatile
@@ -54,12 +54,15 @@ class VolumeNormalizationAudioProcessor : AudioProcessor {
         channelCount = inputAudioFormat.channelCount
         encoding = inputAudioFormat.encoding
 
-        Timber.tag(TAG).d("Configured: sampleRate=$sampleRate, channels=$channelCount, encoding=$encoding")
-
-        if (encoding != C.ENCODING_PCM_16BIT) {
-            val exception = AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
-            throw exception
+        bytesPerSample = when (encoding) {
+            C.ENCODING_PCM_16BIT -> 2
+            C.ENCODING_PCM_24BIT -> 3
+            C.ENCODING_PCM_32BIT -> 4
+            C.ENCODING_PCM_FLOAT -> 4
+            else -> throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
         }
+
+        Timber.tag(TAG).d("Configured: sampleRate=$sampleRate, channels=$channelCount, encoding=$encoding")
 
         isActive = true
         return inputAudioFormat
@@ -72,37 +75,63 @@ class VolumeNormalizationAudioProcessor : AudioProcessor {
         if (!enabled || gain.targetGainMb == 0) {
             val remaining = inputBuffer.remaining()
             if (remaining == 0) return
-
-            if (outputBuffer.capacity() < remaining) {
-                outputBuffer = ByteBuffer.allocateDirect(remaining).order(ByteOrder.nativeOrder())
-            } else {
-                outputBuffer.clear()
-            }
-            outputBuffer.put(inputBuffer)
-            outputBuffer.flip()
+            val out = replaceOutputBuffer(remaining)
+            out.put(inputBuffer)
+            out.flip()
             return
         }
 
         val inputSize = inputBuffer.remaining()
         if (inputSize == 0) return
 
-        if (outputBuffer === EMPTY_BUFFER || outputBuffer === inputBuffer) {
-            outputBuffer = ByteBuffer.allocateDirect(inputSize).order(ByteOrder.nativeOrder())
-        } else if (outputBuffer.capacity() < inputSize) {
-            outputBuffer = ByteBuffer.allocateDirect(inputSize).order(ByteOrder.nativeOrder())
-        } else {
-            outputBuffer.clear()
+        val sampleCount = inputSize / bytesPerSample
+        val out = replaceOutputBuffer(inputSize)
+
+        inputBuffer.order(ByteOrder.LITTLE_ENDIAN)
+        out.order(ByteOrder.LITTLE_ENDIAN)
+
+        when (encoding) {
+            C.ENCODING_PCM_16BIT -> {
+                repeat(sampleCount) {
+                    val sample = inputBuffer.getShort()
+                    val processed = (sample * gain.linearGain)
+                        .coerceIn(-32768.0, 32767.0)
+                        .toInt()
+                        .toShort()
+                    out.putShort(processed)
+                }
+            }
+
+            C.ENCODING_PCM_24BIT -> {
+                repeat(sampleCount) {
+                    val sample = read24Bit(inputBuffer)
+                    val processed = (sample * gain.linearGain)
+                        .coerceIn(-8388608.0, 8388607.0)
+                        .toInt()
+                    write24Bit(out, processed)
+                }
+            }
+
+            C.ENCODING_PCM_32BIT -> {
+                repeat(sampleCount) {
+                    val sample = inputBuffer.getInt()
+                    val processed = (sample * gain.linearGain)
+                        .coerceIn(Int.MIN_VALUE.toDouble(), Int.MAX_VALUE.toDouble())
+                        .toInt()
+                    out.putInt(processed)
+                }
+            }
+
+            C.ENCODING_PCM_FLOAT -> {
+                repeat(sampleCount) {
+                    val sample = inputBuffer.getFloat()
+                    val processed = (sample * gain.linearGain.toFloat()).coerceIn(-1.0f, 1.0f)
+                    out.putFloat(processed)
+                }
+            }
         }
 
-        val sampleCount = inputSize / 2
-
-        repeat(sampleCount) {
-            val sample = inputBuffer.getShort()
-            val processed = (sample * gain.linearGain).coerceIn(-32768.0, 32767.0).toInt().toShort()
-            outputBuffer.putShort(processed)
-        }
-
-        outputBuffer.flip()
+        out.flip()
     }
 
     override fun queueEndOfStream() {
@@ -116,23 +145,46 @@ class VolumeNormalizationAudioProcessor : AudioProcessor {
     }
 
     override fun isEnded(): Boolean {
-        return inputEnded && outputBuffer.remaining() == 0
+        return inputEnded && outputBuffer === EMPTY_BUFFER
     }
 
-    @Deprecated("Deprecated in Java")
+    @Deprecated("Deprecated in AudioProcessor")
     override fun flush() {
         outputBuffer = EMPTY_BUFFER
         inputEnded = false
     }
 
+    @Deprecated("Deprecated in AudioProcessor")
     override fun reset() {
-        @Suppress("DEPRECATION")
         flush()
         sampleRate = 0
         channelCount = 0
         encoding = C.ENCODING_INVALID
+        bytesPerSample = 0
         isActive = false
         currentGain = GainState(0, 1.0)
         enabled = false
+    }
+
+    private fun replaceOutputBuffer(size: Int): ByteBuffer {
+        if (outputBuffer.capacity() < size) {
+            outputBuffer = ByteBuffer.allocateDirect(size).order(ByteOrder.nativeOrder())
+        } else {
+            outputBuffer.clear()
+        }
+        return outputBuffer
+    }
+
+    private fun read24Bit(buffer: ByteBuffer): Int {
+        val b0 = buffer.get().toInt() and 0xFF
+        val b1 = buffer.get().toInt() and 0xFF
+        val b2 = buffer.get().toInt()
+        return (b2 shl 16) or (b1 shl 8) or b0
+    }
+
+    private fun write24Bit(buffer: ByteBuffer, value: Int) {
+        buffer.put((value and 0xFF).toByte())
+        buffer.put(((value shr 8) and 0xFF).toByte())
+        buffer.put((value shr 16).toByte())
     }
 }
