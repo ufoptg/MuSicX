@@ -3247,8 +3247,10 @@ class MusicService :
     private suspend fun updateDiscordRPC(song: Song) {
         if (!DiscordRpcManager.isReady() || !discordRpcEnabled) return
 
-        val currentPosition = player.currentPosition
-        val speed = player.playbackParameters.speed
+        // ExoPlayer must be accessed on the main thread
+        val (currentPosition, speed) = withContext(Dispatchers.Main.immediate) {
+            player.currentPosition to player.playbackParameters.speed
+        }
         val adjustedTime = (currentPosition / speed).toLong()
         val now = System.currentTimeMillis() / 1000
         val startTime = now - adjustedTime / 1000
