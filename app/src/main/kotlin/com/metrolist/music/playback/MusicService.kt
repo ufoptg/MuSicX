@@ -912,7 +912,7 @@ class MusicService :
                     }
                 } else if (!enabled && DiscordRpcManager.isReady()) {
                     scope.launch(Dispatchers.IO) {
-                        DiscordRpcManager.clear()
+                        DiscordRpcManager.disconnect()
                     }
                 }
             }
@@ -2518,7 +2518,7 @@ class MusicService :
                 )
             ) {
                 scope.launch(Dispatchers.IO) {
-                    DiscordRpcManager.clear()
+                    DiscordRpcManager.disconnect()
                 }
             }
         }
@@ -2528,6 +2528,15 @@ class MusicService :
                 Player.EVENT_IS_PLAYING_CHANGED,
             ) && player.isPlaying
         ) {
+            if (!DiscordRpcManager.isReady() && discordRpcEnabled) {
+                val token = DiscordRpcManager.getAccessToken()
+                if (token != null && !DiscordRpcManager.isAuthorized()) {
+                    if (!DiscordRpcManager.isInitialized()) {
+                        DiscordRpcManager.init()
+                    }
+                    DiscordRpcManager.reconnectWithToken(token)
+                }
+            }
             val mediaId = player.currentMetadata?.id
             if (mediaId != null) {
                 scope.launch {
