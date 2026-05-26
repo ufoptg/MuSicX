@@ -90,7 +90,13 @@ object DiscordRpcManager {
                             if (!_ready && _authorized && nativeReady) {
                                 _ready = true
                                 _connectionStatus.value = Status.Connected
-                                Timber.d("TIMER: _ready set to true")
+                                Timber.d("TIMER: _ready set to true (Kotlin -> Connected) at epoch=%d",
+                                    System.currentTimeMillis())
+                            }
+                            if (_ready && !nativeReady) {
+                                Timber.w("TIMER: _ready=true but nativeReady=false — native disconnected! Resetting _ready")
+                                _ready = false
+                                _connectionStatus.value = Status.Authorizing
                             }
                             if (!_authorized && nativeAuth) {
                                 _authorized = true
@@ -228,11 +234,13 @@ object DiscordRpcManager {
     }
 
     fun disconnect() {
+        Timber.d("disconnect: _ready=%s _authorized=%s", _ready, _authorized)
         _connectionStatus.value = Status.Disconnected
         _ready = false
         _authorized = false
         accessToken = null
         nativeDisconnect()
+        Timber.d("disconnect: done")
     }
 
     fun fetchCurrentUser(token: String): DiscordUser? {
@@ -273,7 +281,12 @@ object DiscordRpcManager {
     }
 
     fun setActivity(activity: DiscordActivity) {
-        if (!_ready) return
+        if (!_ready) {
+            Timber.w("setActivity: SKIPPED — _ready=false, name=%s details=%s", activity.name, activity.details)
+            return
+        }
+        Timber.d("setActivity: name=%s state=%s details=%s largeImage=%s smallImage=%s",
+            activity.name, activity.state, activity.details, activity.largeImage, activity.smallImage)
         nativeSetListening(
             activity.name, activity.state, activity.details,
             activity.startTimestamp, activity.endTimestamp ?: 0L,
@@ -285,27 +298,36 @@ object DiscordRpcManager {
     }
 
     fun clear() {
-        if (!_ready) return
+        if (!_ready) {
+            Timber.d("clear: SKIPPED — _ready=false")
+            return
+        }
+        Timber.d("clear: clearing activity")
         nativeClear()
     }
 
     fun reconnectWithToken(token: String) {
-        if (!initialized) return
-        Timber.d("reconnectWithToken: reusing saved token")
+        if (!initialized) {
+            Timber.w("reconnectWithToken: SKIPPED — not initialized")
+            return
+        }
+        Timber.d("reconnectWithToken: token=${token.take(10)}..., setting token+auth, calling connect")
         accessToken = token
         nativeSetTokenAndConnect(token)
         _authorized = true
         _connectionStatus.value = Status.Authorizing
         Handler(Looper.getMainLooper()).post {
             nativeConnect()
-            Timber.d("reconnectWithToken: nativeConnect called")
+            Timber.d("reconnectWithToken: nativeConnect called from main thread")
         }
     }
 
     fun destroy() = synchronized(this) {
+        Timber.d("destroy: tearing down")
         _ready = false
         _authorized = false
         initialized = false
         nativeDestroy()
+        Timber.d("destroy: done")
     }
 }
