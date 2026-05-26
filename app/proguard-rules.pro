@@ -13,10 +13,7 @@
 # Since Metrolist is fully open-source, obfuscation provides no meaningful security benefit.
 -dontobfuscate
 
-# WEB_REMIX Streaming - WebView JavaScript interfaces
--keepclassmembers class com.metrolist.music.utils.sabr.EjsNTransformSolver$SolverWebView {
-    @android.webkit.JavascriptInterface public *;
-}
+# WebView JavaScript interfaces
 -keepclassmembers class com.metrolist.music.utils.cipher.CipherWebView {
     @android.webkit.JavascriptInterface public *;
 }
@@ -26,7 +23,6 @@
 
 # Keep streaming utility classes
 -keep class com.metrolist.music.utils.cipher.** { *; }
--keep class com.metrolist.music.utils.sabr.** { *; }
 -keep class com.metrolist.music.utils.potoken.** { *; }
 
 # Keep coroutine continuation for WebView callbacks

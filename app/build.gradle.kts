@@ -101,6 +101,10 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
 
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
+
         // LastFM API keys from GitHub Secrets
         val lastFmKey = localProperties.getProperty("LASTFM_API_KEY") ?: System.getenv("LASTFM_API_KEY") ?: ""
         val lastFmSecret = localProperties.getProperty("LASTFM_SECRET") ?: System.getenv("LASTFM_SECRET") ?: ""
@@ -241,7 +245,6 @@ android {
                 listOf(
                     "**/libandroidx.graphics.path.so",
                     "**/libdatastore_shared_counter.so",
-                    "**/libdiscord_partner_sdk.so",
                 )
         }
         resources {
