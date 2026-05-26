@@ -471,7 +471,7 @@ class MusicService :
                         if (player.isPlaying && DiscordRpcManager.isReady()) {
                             currentSong.value?.let { song ->
                                 scope.launch(Dispatchers.IO) {
-                                    updateDiscordRPC(song, "screen_on")
+                                    updateDiscordRPC(song)
                                 }
                             }
                         }
@@ -678,7 +678,7 @@ class MusicService :
                     val mediaId = player.currentMetadata?.id
                     if (mediaId != null) {
                         database.song(mediaId).first()?.let { song ->
-                            updateDiscordRPC(song, "network_reconnect")
+                            updateDiscordRPC(song)
                         }
                     }
                 }
@@ -908,7 +908,7 @@ class MusicService :
                 discordRpcEnabled = enabled
                 if (enabled && DiscordRpcManager.isReady()) {
                     scope.launch(Dispatchers.IO) {
-                        currentSong.value?.let { updateDiscordRPC(it, "pref_enabled") }
+                        currentSong.value?.let { updateDiscordRPC(it) }
                     }
                 } else if (!enabled && DiscordRpcManager.isReady()) {
                     scope.launch(Dispatchers.IO) {
@@ -923,11 +923,9 @@ class MusicService :
             .collect(scope) { token ->
                 if (token.isNotEmpty()) {
                     if (!DiscordRpcManager.isInitialized()) {
-                        Timber.d("[RPC] Early init from DataStore token")
                         DiscordRpcManager.init()
                     }
                     if (!DiscordRpcManager.isAuthorized()) {
-                        Timber.d("[RPC] Early reconnect from DataStore token")
                         DiscordRpcManager.reconnectWithToken(token)
                     }
                 }
@@ -936,10 +934,9 @@ class MusicService :
         scope.launch {
             DiscordRpcManager.connectionStatus.collect { status ->
                 if (status == DiscordRpcManager.Status.Connected && discordRpcEnabled && player.isPlaying) {
-                    Timber.d("[RPC] connectionStatus=Connected, retrying current song")
                     currentSong.value?.let { song ->
                         scope.launch(Dispatchers.IO) {
-                            updateDiscordRPC(song, "connection_ready")
+                            updateDiscordRPC(song)
                         }
                     }
                 }
@@ -2535,11 +2532,10 @@ class MusicService :
             if (mediaId != null) {
                 scope.launch {
                     database.song(mediaId).first()?.let { song ->
-                        updateDiscordRPC(song, "onEvents_media_transition")
+                        updateDiscordRPC(song)
                     }
                 }
             } else {
-                Timber.d("[RPC] onEvents: mediaId is null, cannot update RPC")
             }
         }
 
@@ -2644,7 +2640,7 @@ class MusicService :
                 delay(1000)
                 if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
                     currentSong.value?.let { song ->
-                        updateDiscordRPC(song, "speed_change")
+                        updateDiscordRPC(song)
                     }
                 }
             }
@@ -3239,12 +3235,8 @@ class MusicService :
         }
     }
 
-    private suspend fun updateDiscordRPC(song: Song, source: String = "") {
-        val ready = DiscordRpcManager.isReady()
-        val enabled = discordRpcEnabled
-        Timber.d("[RPC] updateDiscordRPC (src=%s) song=%s isReady=%s enabled=%s",
-            source, song.song.title, ready, enabled)
-        if (!ready || !enabled) return
+    private suspend fun updateDiscordRPC(song: Song) {
+        if (!DiscordRpcManager.isReady() || !discordRpcEnabled) return
 
         val currentPosition = player.currentPosition
         val speed = player.playbackParameters.speed
@@ -3263,8 +3255,6 @@ class MusicService :
         }
         val artistThumbnail = song.artists.firstOrNull()?.thumbnailUrl
 
-        Timber.d("[RPC] setActivity — name=%s details=%s largeImage=%s smallImage=%s start=%d end=%d",
-            artistName, songTitle, song.song.thumbnailUrl, artistThumbnail, startTime, now + adjustedRemainingMs / 1000)
         DiscordRpcManager.setActivity(
             DiscordActivity(
                 name = artistName,
@@ -3288,8 +3278,6 @@ class MusicService :
             val fetchedArtistName = fetched.artists.joinToString { it.name }.ifEmpty { "Unknown Artist" }
             val fetchedAlbumName = fetched.album?.title
             val fetchedArtistThumbnail = fetched.artists.firstOrNull()?.thumbnailUrl
-            Timber.d("[RPC] setActivity (after artist fetch) — name=%s details=%s",
-                fetchedArtistName, songTitle)
             DiscordRpcManager.setActivity(
                 DiscordActivity(
                     name = fetchedArtistName,
@@ -3312,60 +3300,35 @@ class MusicService :
 
     private suspend fun fetchArtistThumbnail(song: Song): Song? {
         val artist = song.artists.firstOrNull()
-        Timber.d("[ArtistFetch] fetchArtistThumbnail: artist=${artist?.name}, thumbnailUrl=${artist?.thumbnailUrl}")
-        
-        if (artist == null) {
-            Timber.w("[ArtistFetch] No artist found")
-            return null
-        }
-        
-        if (artist.thumbnailUrl != null) {
-            Timber.d("[ArtistFetch] Artist already has thumbnail, skipping")
-            return null
-        }
+        if (artist == null) return null
+        if (artist.thumbnailUrl != null) return null
 
         val browseId = when {
             artist.channelId != null && !artist.channelId.startsWith("LA")
                 && !artist.channelId.startsWith("FEmusic_library_privately_owned") -> {
-                Timber.d("[ArtistFetch] Using channelId: ${artist.channelId}")
                 artist.channelId
             }
             !artist.id.startsWith("LA")
                 && !artist.id.startsWith("FEmusic_library_privately_owned") -> {
-                Timber.d("[ArtistFetch] Using id: ${artist.id}")
                 artist.id
             }
-            else -> {
-                Timber.w("[ArtistFetch] No valid browseId (id=${artist.id}, channelId=${artist.channelId})")
-                return null
-            }
+            else -> return null
         }
 
         return try {
-            Timber.d("[ArtistFetch] Calling YouTube.artist($browseId)...")
-            val startTime = System.currentTimeMillis()
             val artistPage = withContext(Dispatchers.IO) {
                 YouTube.artist(browseId).getOrNull()
             }
-            Timber.d("[ArtistFetch] YouTube.artist completed in ${System.currentTimeMillis() - startTime}ms, result=${artistPage != null}")
-            
             val thumbnail = artistPage?.artist?.thumbnail?.resize(1080, 1080)
-            Timber.d("[ArtistFetch] Thumbnail from API: ${thumbnail != null}")
-            
             if (thumbnail != null) {
                 withContext(Dispatchers.IO) {
                     database.update(artist.copy(thumbnailUrl = thumbnail))
                 }
-                Timber.d("[ArtistFetch] Database updated with thumbnail")
-                val updatedSong = database.getSongById(song.song.id)
-                Timber.d("[ArtistFetch] Returning updated song")
-                updatedSong
+                database.getSongById(song.song.id)
             } else {
-                Timber.w("[ArtistFetch] No thumbnail in artistPage")
                 null
             }
         } catch (e: Exception) {
-            Timber.e(e, "[ArtistFetch] Exception during fetch")
             null
         }
     }

@@ -85,22 +85,16 @@ object DiscordRpcManager {
                             nativeRunCallbacks()
                             val nativeReady = nativeIsReady()
                             val nativeAuth = nativeIsAuthorized()
-                            Timber.d("TIMER: _ready=%s _authorized=%s nativeReady=%s nativeAuth=%s",
-                                _ready, _authorized, nativeReady, nativeAuth)
                             if (!_ready && _authorized && nativeReady) {
                                 _ready = true
                                 _connectionStatus.value = Status.Connected
-                                Timber.d("TIMER: _ready set to true (Kotlin -> Connected) at epoch=%d",
-                                    System.currentTimeMillis())
                             }
                             if (_ready && !nativeReady) {
-                                Timber.w("TIMER: _ready=true but nativeReady=false — native disconnected! Resetting _ready")
                                 _ready = false
                                 _connectionStatus.value = Status.Authorizing
                             }
                             if (!_authorized && nativeAuth) {
                                 _authorized = true
-                                Timber.d("TIMER: _authorized set to true via native")
                             }
                         } catch (e: Exception) {
                             Timber.w(e, "TIMER: error")
@@ -138,8 +132,6 @@ object DiscordRpcManager {
             "&code_challenge_method=S256" +
             "&code_challenge=$challenge"
 
-        Timber.d("authorize: oauthUrl=$oauthUrl")
-
         val callback = object : AuthenticationClientCallback(0) {
             private val codeVerifier = verifier
             private var callbackFired = false
@@ -148,10 +140,7 @@ object DiscordRpcManager {
                 if (callbackFired) return
                 callbackFired = true
 
-                Timber.d("CALLBACK: error='$error' authCode='$authCode' state='$state'")
-
                 if (!error.isNullOrEmpty() || authCode.isNullOrEmpty()) {
-                    Timber.w("CALLBACK: error='$error' authCode='$authCode'")
                     onComplete(false)
                     return
                 }
@@ -181,8 +170,6 @@ object DiscordRpcManager {
                     "&redirect_uri=${java.net.URLEncoder.encode(REDIRECT_URI, "UTF-8")}" +
                     "&code_verifier=$codeVerifier"
 
-                Timber.d("exchange: body=$body")
-
                 val conn = URL(TOKEN_URL).openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.doOutput = true
@@ -198,28 +185,20 @@ object DiscordRpcManager {
                 }
                 conn.disconnect()
 
-                Timber.d("exchange: HTTP $responseCode body=$responseBody")
-
                 if (responseCode in 200..299) {
                     val json = JSONObject(responseBody)
                     val accessToken = json.optString("access_token")
                     if (accessToken.isNotEmpty()) {
-                        Timber.d("exchange: got access_token")
                         this@DiscordRpcManager.accessToken = accessToken
                         nativeSetTokenAndConnect(accessToken)
                         _authorized = true
                         _connectionStatus.value = Status.Authorizing
-                        Timber.d("exchange: token set, connecting...")
                         Handler(Looper.getMainLooper()).post {
                             nativeConnect()
-                            Timber.d("exchange: connect called on main thread")
                             onComplete(true)
                         }
                         return@Thread
                     }
-                    Timber.w("exchange: no access_token in response")
-                } else {
-                    Timber.w("exchange: HTTP error $responseCode")
                 }
                 Handler(Looper.getMainLooper()).post {
                     onComplete(false)
@@ -234,13 +213,11 @@ object DiscordRpcManager {
     }
 
     fun disconnect() {
-        Timber.d("disconnect: _ready=%s _authorized=%s", _ready, _authorized)
         _connectionStatus.value = Status.Disconnected
         _ready = false
         _authorized = false
         accessToken = null
         nativeDisconnect()
-        Timber.d("disconnect: done")
     }
 
     fun fetchCurrentUser(token: String): DiscordUser? {
@@ -281,12 +258,7 @@ object DiscordRpcManager {
     }
 
     fun setActivity(activity: DiscordActivity) {
-        if (!_ready) {
-            Timber.w("setActivity: SKIPPED — _ready=false, name=%s details=%s", activity.name, activity.details)
-            return
-        }
-        Timber.d("setActivity: name=%s state=%s details=%s largeImage=%s smallImage=%s",
-            activity.name, activity.state, activity.details, activity.largeImage, activity.smallImage)
+        if (!_ready) return
         nativeSetListening(
             activity.name, activity.state, activity.details,
             activity.startTimestamp, activity.endTimestamp ?: 0L,
@@ -298,36 +270,25 @@ object DiscordRpcManager {
     }
 
     fun clear() {
-        if (!_ready) {
-            Timber.d("clear: SKIPPED — _ready=false")
-            return
-        }
-        Timber.d("clear: clearing activity")
+        if (!_ready) return
         nativeClear()
     }
 
     fun reconnectWithToken(token: String) {
-        if (!initialized) {
-            Timber.w("reconnectWithToken: SKIPPED — not initialized")
-            return
-        }
-        Timber.d("reconnectWithToken: token=${token.take(10)}..., setting token+auth, calling connect")
+        if (!initialized) return
         accessToken = token
         nativeSetTokenAndConnect(token)
         _authorized = true
         _connectionStatus.value = Status.Authorizing
         Handler(Looper.getMainLooper()).post {
             nativeConnect()
-            Timber.d("reconnectWithToken: nativeConnect called from main thread")
         }
     }
 
     fun destroy() = synchronized(this) {
-        Timber.d("destroy: tearing down")
         _ready = false
         _authorized = false
         initialized = false
         nativeDestroy()
-        Timber.d("destroy: done")
     }
 }
