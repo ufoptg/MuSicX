@@ -394,6 +394,12 @@ class MusicService :
     private var cachedNormalizationEnabled: Boolean = false
 
     @Volatile private var discordRpcEnabled = false
+    private val screenOffHandler = Handler(Looper.getMainLooper())
+    private val screenOffTimeout = Runnable {
+        if (!player.isPlaying && DiscordRpcManager.isReady()) {
+            DiscordRpcManager.disconnect()
+        }
+    }
     private var lastPlaybackSpeed = 1.0f
 
     @Volatile
@@ -460,14 +466,11 @@ class MusicService :
             ) {
                 when (intent.action) {
                     Intent.ACTION_SCREEN_OFF -> {
-                        if (!player.isPlaying && DiscordRpcManager.isReady()) {
-                            scope.launch(Dispatchers.IO) {
-                                DiscordRpcManager.clear()
-                            }
-                        }
+                        screenOffHandler.postDelayed(screenOffTimeout, 60_000)
                     }
 
                     Intent.ACTION_SCREEN_ON -> {
+                        screenOffHandler.removeCallbacks(screenOffTimeout)
                         if (player.isPlaying && DiscordRpcManager.isReady()) {
                             currentSong.value?.let { song ->
                                 scope.launch(Dispatchers.IO) {
@@ -906,11 +909,20 @@ class MusicService :
             .distinctUntilChanged()
             .collect(scope) { enabled ->
                 discordRpcEnabled = enabled
-                if (enabled && DiscordRpcManager.isReady()) {
-                    scope.launch(Dispatchers.IO) {
-                        currentSong.value?.let { updateDiscordRPC(it) }
+                if (enabled) {
+                    if (DiscordRpcManager.isReady()) {
+                        scope.launch(Dispatchers.IO) {
+                            currentSong.value?.let { updateDiscordRPC(it) }
+                        }
+                    } else if (DiscordRpcManager.getAccessToken() != null) {
+                        scope.launch(Dispatchers.IO) {
+                            if (!DiscordRpcManager.isInitialized()) {
+                                DiscordRpcManager.init()
+                            }
+                            DiscordRpcManager.reconnectWithToken(DiscordRpcManager.getAccessToken()!!)
+                        }
                     }
-                } else if (!enabled && DiscordRpcManager.isReady()) {
+                } else if (DiscordRpcManager.isReady()) {
                     scope.launch(Dispatchers.IO) {
                         DiscordRpcManager.disconnect()
                     }
@@ -2507,18 +2519,40 @@ class MusicService :
         if (events.containsAny(Player.EVENT_IS_PLAYING_CHANGED)) {
             updateWidgetUI(player.isPlaying)
             if (player.isPlaying) {
+                screenOffHandler.removeCallbacks(screenOffTimeout)
                 startWidgetUpdates()
             } else {
                 stopWidgetUpdates()
-            }
-            if (!player.isPlaying &&
-                !events.containsAny(
-                    Player.EVENT_POSITION_DISCONTINUITY,
-                    Player.EVENT_MEDIA_ITEM_TRANSITION,
-                )
-            ) {
-                scope.launch(Dispatchers.IO) {
-                    DiscordRpcManager.disconnect()
+                screenOffHandler.postDelayed(screenOffTimeout, 60_000)
+                Handler(Looper.getMainLooper()).post {
+                    if (!DiscordRpcManager.isReady() || !discordRpcEnabled) return@post
+                    currentSong.value?.let { song ->
+                        val speed = player.playbackParameters.speed
+                        val artistName = song.artists.joinToString { it.name }.ifEmpty { "Unknown Artist" }
+                        val albumName = song.album?.title
+                        val songTitle = if (speed != 1.0f) {
+                            "${song.song.title} [${String.format("%.2fx", speed)}]"
+                        } else {
+                            song.song.title
+                        }
+                        val artistThumbnail = song.artists.firstOrNull()?.thumbnailUrl
+                        DiscordRpcManager.setActivity(
+                            DiscordActivity(
+                                name = artistName,
+                                state = artistName,
+                                details = songTitle,
+                                startTimestamp = 0L, endTimestamp = null,
+                                largeImage = song.song.thumbnailUrl,
+                                largeText = albumName,
+                                smallImage = artistThumbnail,
+                                smallText = artistName,
+                                button1Label = "Listen on YouTube Music",
+                                button1Url = "https://music.youtube.com/watch?v=${song.song.id}",
+                                button2Label = "Visit Metrolist",
+                                button2Url = "https://github.com/MetrolistGroup/Metrolist",
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -2530,7 +2564,7 @@ class MusicService :
         ) {
             if (!DiscordRpcManager.isReady() && discordRpcEnabled) {
                 val token = DiscordRpcManager.getAccessToken()
-                if (token != null && !DiscordRpcManager.isAuthorized()) {
+                if (token != null) {
                     if (!DiscordRpcManager.isInitialized()) {
                         DiscordRpcManager.init()
                     }
@@ -3746,7 +3780,7 @@ class MusicService :
         }
         if (DiscordRpcManager.isReady()) {
             scope.launch(Dispatchers.IO) {
-                DiscordRpcManager.clear()
+                DiscordRpcManager.disconnect()
             }
         }
         connectivityObserver.unregister()

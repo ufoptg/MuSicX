@@ -203,10 +203,12 @@ void DiscordBridge::SetListening(
         if (state) activity.SetState(std::string(state));
         if (details) activity.SetDetails(std::string(details));
 
-        discordpp::ActivityTimestamps ts;
-        ts.SetStart(static_cast<uint64_t>(startSecs));
-        if (endSecs > 0) ts.SetEnd(static_cast<uint64_t>(endSecs));
-        activity.SetTimestamps(std::move(ts));
+        if (startSecs > 0 || endSecs > 0) {
+            discordpp::ActivityTimestamps ts;
+            if (startSecs > 0) ts.SetStart(static_cast<uint64_t>(startSecs));
+            if (endSecs > 0) ts.SetEnd(static_cast<uint64_t>(endSecs));
+            activity.SetTimestamps(std::move(ts));
+        }
 
         discordpp::ActivityAssets assets;
         if (largeImage) assets.SetLargeImage(std::string(largeImage));

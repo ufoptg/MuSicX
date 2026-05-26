@@ -216,8 +216,12 @@ object DiscordRpcManager {
         _connectionStatus.value = Status.Disconnected
         _ready = false
         _authorized = false
-        accessToken = null
         nativeDisconnect()
+    }
+
+    fun logout() {
+        disconnect()
+        accessToken = null
     }
 
     fun fetchCurrentUser(token: String): DiscordUser? {

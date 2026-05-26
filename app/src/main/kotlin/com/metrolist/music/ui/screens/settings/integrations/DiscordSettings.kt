@@ -287,7 +287,7 @@ fun DiscordSettings(
                         discordAvatar = ""
                         discordAccessToken = ""
                         coroutineScope.launch(Dispatchers.IO) {
-                            DiscordRpcManager.disconnect()
+                            DiscordRpcManager.logout()
                         }
                     }) {
                         Text(stringResource(R.string.action_logout))
