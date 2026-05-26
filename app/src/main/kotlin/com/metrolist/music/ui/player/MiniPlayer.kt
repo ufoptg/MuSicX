@@ -670,10 +670,9 @@ private fun NewMiniPlayerSongInfo(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (metadata.explicit) MIcon.Explicit()
-                val displayArtists = metadata.artists.filter { it.name.isNotBlank() }
-                if (displayArtists.isNotEmpty()) {
+                if (metadata.artists.any { it.name.isNotBlank() }) {
                     Text(
-                        text = displayArtists.joinToString(" ${stringResource(R.string.and)} ") { it.name },
+                        text = metadata.artists.joinToString { it.name },
                         color = onSurfaceColor.copy(alpha = 0.7f),
                         fontSize = 12.sp,
                         maxLines = 1,

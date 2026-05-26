@@ -61,7 +61,6 @@ fun YouTubeArtistMenu(
     val listenTogetherManager = LocalListenTogetherManager.current
     val isGuest = listenTogetherManager?.isInRoom == true && !listenTogetherManager.isHost
     val isPinned by database.speedDialDao.isPinned(artist.id).collectAsStateWithLifecycle(initialValue = false)
-    val separator = " ${stringResource(R.string.and)} "
     val coroutineScope = rememberCoroutineScope()
 
     YouTubeListItem(
@@ -125,7 +124,7 @@ fun YouTubeArtistMenu(
                                     if (isPinned) {
                                         database.speedDialDao.delete(artist.id)
                                     } else {
-                                        database.speedDialDao.insert(SpeedDialItem.fromYTItem(artist, separator))
+                                        database.speedDialDao.insert(SpeedDialItem.fromYTItem(artist))
                                     }
                                 }
                                 onDismiss()

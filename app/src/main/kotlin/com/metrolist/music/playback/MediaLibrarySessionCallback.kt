@@ -5,7 +5,6 @@
 
 package com.metrolist.music.playback
 
-import com.metrolist.music.utils.getArtistSeparator
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
@@ -423,8 +422,8 @@ constructor(
                                             .setMediaMetadata(
                                                 MediaMetadata.Builder()
                                                     .setTitle(songItem.title)
-                                                    .setSubtitle(songItem.artists.joinToString(getArtistSeparator(context)) { it.name })
-                                                    .setArtist(songItem.artists.joinToString(getArtistSeparator(context)) { it.name })
+                                                    .setSubtitle(songItem.artists.joinToString(", ") { it.name })
+                                                    .setArtist(songItem.artists.joinToString(", ") { it.name })
                                                     .setArtworkUri(songItem.thumbnail.toUri())
                                                     .setIsPlayable(true)
                                                     .setIsBrowsable(false)
@@ -552,8 +551,8 @@ constructor(
                                 .setMediaMetadata(
                                     MediaMetadata.Builder()
                                         .setTitle(songItem.title)
-                                        .setSubtitle(songItem.artists.joinToString(getArtistSeparator(context)) { it.name })
-                                        .setArtist(songItem.artists.joinToString(getArtistSeparator(context)) { it.name })
+                                        .setSubtitle(songItem.artists.joinToString(", ") { it.name })
+                                        .setArtist(songItem.artists.joinToString(", ") { it.name })
                                         .setArtworkUri(songItem.thumbnail.toUri())
                                         .setIsPlayable(true)
                                         .setIsBrowsable(true)

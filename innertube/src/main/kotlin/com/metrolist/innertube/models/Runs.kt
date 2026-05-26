@@ -41,7 +41,7 @@ fun List<Run>.splitArtistsByConjunction(): List<Run> {
             val parts = text.split(conjunctionPattern)
             parts.forEachIndexed { index, part ->
                 if (part.isNotBlank()) {
-                    result.add(Run(part.trim(), if (index == 0) run.navigationEndpoint else null))
+                    result.add(Run(part.trim(), run.navigationEndpoint))
                 }
             }
         } else if (text.trim().equals("&", ignoreCase = true) ||

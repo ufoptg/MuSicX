@@ -5,7 +5,6 @@
 
 package com.metrolist.music.ui.menu
 
-
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.Configuration
@@ -110,7 +109,6 @@ fun YouTubeSongMenu(
     val syncUtils = LocalSyncUtils.current
     val listenTogetherManager = LocalListenTogetherManager.current
     val isPinned by database.speedDialDao.isPinned(song.id).collectAsStateWithLifecycle(initialValue = false)
-    val separator = " ${stringResource(R.string.and)} "
     val artists = remember {
         song.artists.mapNotNull {
             it.id?.let { artistId ->
@@ -368,7 +366,7 @@ fun YouTubeSongMenu(
                                 val trackInfo = com.metrolist.music.listentogether.TrackInfo(
                                     id = song.id,
                                     title = song.title,
-                                    artist = artists.joinToString(" ${stringResource(R.string.and)} ") { it.name },
+                                    artist = artists.joinToString(", ") { it.name },
                                     album = song.album?.name,
                                     duration = durationMs,
                                     thumbnail = song.thumbnail
@@ -518,7 +516,7 @@ fun YouTubeSongMenu(
                                     if (isPinned) {
                                         database.speedDialDao.delete(song.id)
                                     } else {
-                                        database.speedDialDao.insert(SpeedDialItem.fromYTItem(song, separator))
+                                        database.speedDialDao.insert(SpeedDialItem.fromYTItem(song))
                                     }
                                 }
                                 onDismiss()

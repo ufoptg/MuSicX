@@ -5,7 +5,6 @@
 
 package com.metrolist.music.viewmodels
 
-import com.metrolist.music.utils.getArtistSeparator
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -456,7 +455,7 @@ class BackupRestoreViewModel @Inject constructor(
 
                                 val logEntry = ConvertedSongLog(
                                     title = title,
-                                    artists = artists.joinToString(getArtistSeparator(context)) { it.name },
+                                    artists = artists.joinToString(", ") { it.name },
                                 )
                                 recentLogs.add(0, logEntry)
                                 if (recentLogs.size > 3) {
@@ -513,8 +512,8 @@ class BackupRestoreViewModel @Inject constructor(
                 if (lines.isNotEmpty() && lines.first().startsWith("#EXTM3U")) {
                     lines.forEachIndexed { _, rawLine ->
                         if (rawLine.startsWith("#EXTINF:")) {
-                             val artists =
-                                 rawLine.substringAfter("#EXTINF:").substringAfter(',').substringBefore(" - ").split(getArtistSeparator(context))
+                            val artists =
+                                rawLine.substringAfter("#EXTINF:").substringAfter(',').substringBefore(" - ").split(';')
                             val title = rawLine.substringAfter("#EXTINF:").substringAfter(',').substringAfter(" - ")
 
                             val mockSong = Song(

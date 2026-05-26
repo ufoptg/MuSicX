@@ -7,7 +7,6 @@
 
 package com.metrolist.music.ui.component
 
-
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animate
@@ -40,7 +39,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -98,7 +96,6 @@ import com.metrolist.innertube.models.YTItem
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalPlayerConnection
-import androidx.navigation.NavController
 import com.metrolist.music.R
 import com.metrolist.music.constants.CropAlbumArtKey
 import com.metrolist.music.constants.GridItemSize
@@ -131,45 +128,6 @@ import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 const val ActiveBoxAlpha = 0.6f
-
-@Composable
-fun ClickableArtistText(
-    artists: List<Artist>,
-    navController: NavController,
-    modifier: Modifier = Modifier,
-    style: TextStyle = MaterialTheme.typography.bodySmall,
-    color: Color = MaterialTheme.colorScheme.secondary,
-    maxLines: Int = 1,
-    overflow: TextOverflow = TextOverflow.Ellipsis,
-) {
-    val annotatedString = remember(artists) {
-        buildAnnotatedString {
-            artists.forEachIndexed { index, artist ->
-                artist.id?.let { id ->
-                    pushStringAnnotation("artist_$id", id)
-                    append(artist.name)
-                    pop()
-                } ?: append(artist.name)
-                if (index != artists.lastIndex) {
-                    append(" ${stringResource(R.string.and)} ")
-                }
-            }
-        }
-    }
-    ClickableText(
-        text = annotatedString,
-        style = style.copy(color = color),
-        maxLines = maxLines,
-        overflow = overflow,
-        modifier = modifier,
-        onClick = { offset ->
-            annotatedString
-                .getStringAnnotations(offset, offset)
-                .firstOrNull()
-                ?.let { navController.navigate("artist/${it.item}") }
-        },
-    )
-}
 
 @Composable
 fun currentGridThumbnailHeight(): Dp {
@@ -419,7 +377,6 @@ fun SongListItem(
     showInLibraryIcon: Boolean = false,
     showDownloadIcon: Boolean = true,
     subtitleOverride: String? = null,
-    navController: NavController? = null,
     badges: @Composable RowScope.() -> Unit = {
         if (showLikedIcon && song.song.liked) {
             Icon.Favorite()
@@ -447,47 +404,10 @@ fun SongListItem(
     val content: @Composable () -> Unit = {
         ListItem(
             title = song.song.title,
-            subtitle = if (navController != null && subtitleOverride == null) {
-                {
-                    val annotated = remember(song.orderedArtists) {
-                        buildAnnotatedString {
-                            song.orderedArtists.forEachIndexed { index, artist ->
-                                artist.id?.let { id ->
-                                    pushStringAnnotation("artist_$id", id)
-                                    append(artist.name)
-                                    pop()
-                                } ?: append(artist.name)
-                                if (index != song.orderedArtists.lastIndex) {
-                                    append(" ${stringResource(R.string.and)} ")
-                                }
-                            }
-                            append(" • ")
-                            append(makeTimeString(song.song.duration * 1000L))
-                        }
-                    }
-                    ClickableText(
-                        text = annotated,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = MaterialTheme.colorScheme.secondary
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        onClick = { offset ->
-                            annotated
-                                .getStringAnnotations(offset, offset)
-                                .firstOrNull()
-                                ?.let {
-                                    navController.navigate("artist/${it.item}")
-                                }
-                        },
-                    )
-                }
-            } else {
-                subtitleOverride ?: joinByBullet(
-                    song.orderedArtists.joinToString(" ${stringResource(R.string.and)} ") { it.name },
-                    makeTimeString(song.song.duration * 1000L)
-                )
-            },
+            subtitle = subtitleOverride ?: joinByBullet(
+                song.orderedArtists.joinToString { it.name },
+                makeTimeString(song.song.duration * 1000L)
+            ),
             badges = badges,
             thumbnailContent = {
                 ItemThumbnail(
@@ -526,7 +446,6 @@ fun SongGridItem(
     showLikedIcon: Boolean = true,
     showInLibraryIcon: Boolean = false,
     showDownloadIcon: Boolean = true,
-    navController: NavController? = null,
     badges: @Composable RowScope.() -> Unit = {
         if (showLikedIcon && song.song.liked) {
             Icon.Favorite()
@@ -553,29 +472,17 @@ fun SongGridItem(
             modifier = Modifier.basicMarquee().fillMaxWidth()
         )
     },
-    subtitle = if (navController != null) {
-        {
-            ClickableArtistText(
-                artists = song.orderedArtists,
-                navController = navController,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary,
-                maxLines = 2,
-            )
-        }
-    } else {
-        {
-            Text(
-                text = joinByBullet(
-                    song.orderedArtists.joinToString(" ${stringResource(R.string.and)} ") { it.name },
-                    makeTimeString(song.song.duration * 1000L)
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+    subtitle = {
+        Text(
+            text = joinByBullet(
+                song.orderedArtists.joinToString { it.name },
+                makeTimeString(song.song.duration * 1000L)
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.secondary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
     },
     badges = badges,
     thumbnailContent = {
@@ -674,7 +581,6 @@ fun AlbumListItem(
     album: Album,
     modifier: Modifier = Modifier,
     showLikedIcon: Boolean = true,
-    navController: NavController? = null,
     badges: @Composable RowScope.() -> Unit = {
         val downloadUtil = LocalDownloadUtil.current
         val database = LocalDatabase.current
@@ -714,50 +620,11 @@ fun AlbumListItem(
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) = ListItem(
     title = album.album.title,
-    subtitle = if (navController != null) {
-        {
-            val annotated = remember(album.artists) {
-                buildAnnotatedString {
-                    album.artists.forEachIndexed { index, artist ->
-                        artist.id?.let { id ->
-                            pushStringAnnotation("artist_$id", id)
-                            append(artist.name)
-                            pop()
-                        } ?: append(artist.name)
-                        if (index != album.artists.lastIndex) {
-                            append(" ${stringResource(R.string.and)} ")
-                        }
-                    }
-                    append(" • ")
-                    append(pluralStringResource(R.plurals.n_song, album.album.songCount, album.album.songCount))
-                    if (album.album.year != null) {
-                        append(" • ")
-                        append(album.album.year.toString())
-                    }
-                }
-            }
-            ClickableText(
-                text = annotated,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    color = MaterialTheme.colorScheme.secondary
-                ),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                onClick = { offset ->
-                    annotated
-                        .getStringAnnotations(offset, offset)
-                        .firstOrNull()
-                        ?.let { navController.navigate("artist/${it.item}") }
-                },
-            )
-        }
-    } else {
-        joinByBullet(
-            album.artists.joinToString(" ${stringResource(R.string.and)} ") { it.name },
-            pluralStringResource(R.plurals.n_song, album.album.songCount, album.album.songCount),
-            album.album.year?.toString()
-        )
-    },
+    subtitle = joinByBullet(
+        album.artists.joinToString { it.name },
+        pluralStringResource(R.plurals.n_song, album.album.songCount, album.album.songCount),
+        album.album.year?.toString()
+    ),
     badges = badges,
     thumbnailContent = {
         ItemThumbnail(
@@ -827,7 +694,7 @@ fun AlbumGridItem(
     },
     subtitle = {
         Text(
-            text = album.artists.joinToString(" ${stringResource(R.string.and)} ") { it.name },
+            text = album.artists.joinToString { it.name },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.secondary,
             maxLines = 2,
@@ -1064,7 +931,7 @@ fun MediaMetadataListItem(
         title = mediaMetadata.title,
         subtitle = if (mediaMetadata.suggestedBy != null) {
             buildAnnotatedString {
-                append(mediaMetadata.artists.joinToString(" ${stringResource(R.string.and)} ") { it.name })
+                append(mediaMetadata.artists.joinToString { it.name })
                 append(" • ")
                 append(makeTimeString(mediaMetadata.duration * 1000L))
                 append(" • ")
@@ -1075,7 +942,7 @@ fun MediaMetadataListItem(
         } else {
             AnnotatedString(
                 joinByBullet(
-                    mediaMetadata.artists.joinToString(" ${stringResource(R.string.and)} ") { it.name },
+                    mediaMetadata.artists.joinToString { it.name },
                     makeTimeString(mediaMetadata.duration * 1000L)
                 )
             )
@@ -1139,8 +1006,8 @@ fun YouTubeListItem(
         ListItem(
             title = item.title,
             subtitle = when (item) {
-                is SongItem -> joinByBullet(item.artists.joinToString(" ${stringResource(R.string.and)} ") { it.name }, makeTimeString(item.duration?.times(1000L)))
-                is AlbumItem -> joinByBullet(item.artists?.joinToString(" ${stringResource(R.string.and)} ") { it.name }, item.year?.toString())
+                is SongItem -> joinByBullet(item.artists.joinToString { it.name }, makeTimeString(item.duration?.times(1000L)))
+                is AlbumItem -> joinByBullet(item.artists?.joinToString { it.name }, item.year?.toString())
                 is ArtistItem -> null
                 is PlaylistItem -> joinByBullet(item.author?.name, item.songCountText)
                 is PodcastItem -> joinByBullet(item.author?.name, item.episodeCountText)
@@ -1220,8 +1087,8 @@ fun YouTubeGridItem(
     },
     subtitle = {
         val subtitle = when (item) {
-            is SongItem -> joinByBullet(item.artists.joinToString(" ${stringResource(R.string.and)} ") { it.name }, makeTimeString(item.duration?.times(1000L)))
-            is AlbumItem -> joinByBullet(item.artists?.joinToString(" ${stringResource(R.string.and)} ") { it.name }, item.year?.toString())
+            is SongItem -> joinByBullet(item.artists.joinToString { it.name }, makeTimeString(item.duration?.times(1000L)))
+            is AlbumItem -> joinByBullet(item.artists?.joinToString { it.name }, item.year?.toString())
             is ArtistItem -> null
             is PlaylistItem -> joinByBullet(item.author?.name, item.songCountText)
             is PodcastItem -> joinByBullet(item.author?.name, item.episodeCountText)

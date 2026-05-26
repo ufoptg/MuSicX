@@ -7,10 +7,7 @@ package com.metrolist.music.utils
 
 import android.content.Context
 import android.content.res.Configuration
-import com.metrolist.music.R
 import java.util.Locale
-
-fun getArtistSeparator(context: Context): String = " ${context.getString(R.string.and)} "
 
 fun reportException(throwable: Throwable) {
     throwable.printStackTrace()

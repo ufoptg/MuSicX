@@ -115,7 +115,6 @@ fun YouTubePlaylistMenu(
     val isGuest = listenTogetherManager?.isInRoom == true && !listenTogetherManager.isHost
     val dbPlaylist by database.playlistByBrowseId(playlist.id).collectAsStateWithLifecycle(initialValue = null)
     val isPinned by database.speedDialDao.isPinned(playlist.id).collectAsStateWithLifecycle(initialValue = false)
-    val separator = " ${stringResource(R.string.and)} "
 
     var showChoosePlaylistDialog by rememberSaveable { mutableStateOf(false) }
     var showImportPlaylistDialog by rememberSaveable { mutableStateOf(false) }
@@ -579,7 +578,7 @@ fun YouTubePlaylistMenu(
                                     if (isPinned) {
                                         database.speedDialDao.delete(playlist.id)
                                     } else {
-                                        database.speedDialDao.insert(SpeedDialItem.fromYTItem(playlist, separator))
+                                        database.speedDialDao.insert(SpeedDialItem.fromYTItem(playlist))
                                     }
                                 }
                                 onDismiss()

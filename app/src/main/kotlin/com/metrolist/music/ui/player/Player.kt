@@ -1022,19 +1022,17 @@ fun BottomSheetPlayer(
                     ) {
                         if (mediaMetadata.explicit) MIcon.Explicit()
 
-                        val validArtists = mediaMetadata.artists.filter { it.id != null && it.name.isNotBlank() }
-                        if (validArtists.isNotEmpty()) {
+                        if (mediaMetadata.artists.any { it.name.isNotBlank() }) {
                             val annotatedString =
                                 buildAnnotatedString {
-                                    validArtists.forEachIndexed { index, artist ->
-                                        val id = requireNotNull(artist.id)
-                                        val tag = "artist_$id"
-                                        pushStringAnnotation(tag = tag, annotation = id)
+                                    mediaMetadata.artists.forEachIndexed { index, artist ->
+                                        val tag = "artist_${artist.id.orEmpty()}"
+                                        pushStringAnnotation(tag = tag, annotation = artist.id.orEmpty())
                                         withStyle(SpanStyle(color = TextBackgroundColor, fontSize = 16.sp)) {
                                             append(artist.name)
                                         }
                                         pop()
-                                        if (index != validArtists.lastIndex) append(" - ")
+                                        if (index != mediaMetadata.artists.lastIndex) append(", ")
                                     }
                                 }
 
