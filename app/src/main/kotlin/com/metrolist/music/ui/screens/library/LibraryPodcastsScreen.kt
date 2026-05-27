@@ -551,7 +551,7 @@ private fun AutoPlaylistCard(
                     buildString {
                         append(stringResource(R.string.auto_playlist))
                         if (!episodeCount.isNullOrBlank()) {
-                            append(" • ")
+                            append(" | ")
                             append(episodeCount)
                         }
                     },

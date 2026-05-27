@@ -510,7 +510,7 @@ fun SongListItem(
                             modifier = Modifier.weight(1f)
                         )
                         Text(
-                            text = " • ${makeTimeString(song.song.duration * 1000L)}",
+                            text = " | ${makeTimeString(song.song.duration * 1000L)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.secondary,
                             maxLines = 1,
@@ -609,7 +609,7 @@ fun SongGridItem(
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    text = " • ${makeTimeString(song.song.duration * 1000L)}",
+                    text = " | ${makeTimeString(song.song.duration * 1000L)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.secondary,
                     maxLines = 1,
@@ -777,7 +777,7 @@ fun AlbumListItem(
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    text = " • ${pluralStringResource(R.plurals.n_song, album.album.songCount, album.album.songCount)}${album.album.year?.let { " • $it" } ?: ""}",
+                    text = " | ${pluralStringResource(R.plurals.n_song, album.album.songCount, album.album.songCount)}${album.album.year?.let { " | $it" } ?: ""}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.secondary,
                     maxLines = 1,
@@ -1115,7 +1115,7 @@ fun MediaMetadataListItem(
                         modifier = Modifier.weight(1f)
                     )
                     Text(
-                        text = " • ${makeTimeString(mediaMetadata.duration * 1000L)}",
+                        text = " | ${makeTimeString(mediaMetadata.duration * 1000L)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.secondary,
                         maxLines = 1,
@@ -1123,7 +1123,7 @@ fun MediaMetadataListItem(
                     )
                     if (mediaMetadata.suggestedBy != null) {
                         Text(
-                            text = " • ",
+                            text = " | ",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.secondary,
                             maxLines = 1,
@@ -1142,9 +1142,9 @@ fun MediaMetadataListItem(
                 Text(
                     text = buildAnnotatedString {
                         append(mediaMetadata.artists.joinToArtistString(" ${stringResource(R.string.and)} ") { it.name })
-                        append(" • ")
+                        append(" | ")
                         append(makeTimeString(mediaMetadata.duration * 1000L))
-                        append(" • ")
+                        append(" | ")
                         withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
                             append(mediaMetadata.suggestedBy)
                         }

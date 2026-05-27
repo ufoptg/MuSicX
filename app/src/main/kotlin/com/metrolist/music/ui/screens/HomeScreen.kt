@@ -587,7 +587,7 @@ fun DailyDiscoverCard(
                                 buildString {
                                     append((dailyDiscover.recommendation as? SongItem)?.artists?.joinToArtistString(" ${stringResource(R.string.and)} ") { it.name } ?: "")
                                     if (playCount > 0) {
-                                        append(" • $playCount $playsString")
+                                        append(" | $playCount $playsString")
                                     }
                                 },
                             style = MaterialTheme.typography.bodyMedium,
