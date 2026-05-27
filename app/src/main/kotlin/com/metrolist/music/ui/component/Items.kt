@@ -154,7 +154,11 @@ fun ClickableArtistText(
                     pop()
                 }
                 if (index != artists.lastIndex) {
-                    append(" $andString ")
+                    if (index == artists.lastIndex - 1) {
+                        append(" $andString ")
+                    } else {
+                        append(", ")
+                    }
                 }
             }
         }
@@ -194,7 +198,11 @@ fun ClickableArtistText(
                     pop()
                 } ?: append(artist.name)
                 if (index != artists.lastIndex) {
-                    append(" $andString ")
+                    if (index == artists.lastIndex - 1) {
+                        append(" $andString ")
+                    } else {
+                        append(", ")
+                    }
                 }
             }
         }

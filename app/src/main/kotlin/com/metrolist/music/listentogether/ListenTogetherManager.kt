@@ -22,6 +22,7 @@ import com.metrolist.music.playback.PlayerConnection
 import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.getArtistSeparator
+import com.metrolist.music.utils.joinToArtistString
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -1724,7 +1725,7 @@ class ListenTogetherManager
                  TrackInfo(
                      id = metadata.id,
                      title = metadata.title,
-                     artist = metadata.artists.joinToString(getArtistSeparator(context)) { it.name },
+                     artist = metadata.artists.joinToArtistString(getArtistSeparator(context)) { it.name },
                     album = metadata.album?.title,
                     duration = durationMs,
                     thumbnail = metadata.thumbnailUrl,
@@ -1824,7 +1825,7 @@ class ListenTogetherManager
              return TrackInfo(
                  id = metadata.id,
                  title = metadata.title,
-                 artist = metadata.artists.joinToString(getArtistSeparator(context)) { it.name },
+                 artist = metadata.artists.joinToArtistString(getArtistSeparator(context)) { it.name },
                 album = metadata.album?.title,
                 duration = durationMs,
                 thumbnail = metadata.thumbnailUrl,
