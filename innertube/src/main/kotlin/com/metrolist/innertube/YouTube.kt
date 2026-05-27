@@ -9,6 +9,7 @@ import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.GridRenderer
 import com.metrolist.innertube.models.MediaInfo
 import com.metrolist.innertube.models.MusicCarouselShelfRenderer
+import com.metrolist.innertube.models.MusicMultiRowListItemRenderer
 import com.metrolist.innertube.models.MusicResponsiveListItemRenderer
 import com.metrolist.innertube.models.MusicShelfRenderer
 import com.metrolist.innertube.models.MusicTwoRowItemRenderer
@@ -1678,29 +1679,6 @@ object YouTube {
                                 }
 
                                 content.musicCarouselShelfRenderer != null -> {
-                                    val carouselItems = mutableListOf<YTItem>()
-
-                                    content.musicCarouselShelfRenderer.contents
-                                        .mapNotNull(MusicCarouselShelfRenderer.Content::musicTwoRowItemRenderer)
-                                        .mapNotNull { renderer ->
-                                            LibraryPage.fromMusicTwoRowItemRenderer(renderer)
-                                                ?: RelatedPage.fromMusicTwoRowItemRenderer(renderer)
-                                        }
-                                        .let { carouselItems.addAll(it) }
-
-                                    content.musicCarouselShelfRenderer.contents
-                                        .mapNotNull(MusicCarouselShelfRenderer.Content::musicMultiRowListItemRenderer)
-                                        .mapNotNull { PodcastPage.fromMusicMultiRowListItemRenderer(it) }
-                                        .let { carouselItems.addAll(it) }
-
-                                    content.musicCarouselShelfRenderer.contents
-                                        .mapNotNull(MusicCarouselShelfRenderer.Content::musicResponsiveListItemRenderer)
-                                        .mapNotNull { renderer ->
-                                            LibraryPage.fromMusicResponsiveListItemRenderer(renderer)
-                                                ?: RelatedPage.fromMusicResponsiveListItemRenderer(renderer)
-                                        }
-                                        .let { carouselItems.addAll(it) }
-
                                     BrowseResult.Item(
                                         title =
                                             content.musicCarouselShelfRenderer.header
@@ -1709,7 +1687,18 @@ object YouTube {
                                                 ?.runs
                                                 ?.firstOrNull()
                                                 ?.text,
-                                        items = carouselItems,
+                                        items =
+                                            content.musicCarouselShelfRenderer.contents.mapNotNull { content ->
+                                                content.musicTwoRowItemRenderer?.let { renderer ->
+                                                    LibraryPage.fromMusicTwoRowItemRenderer(renderer)
+                                                        ?: RelatedPage.fromMusicTwoRowItemRenderer(renderer)
+                                                } ?: content.musicMultiRowListItemRenderer?.let { renderer ->
+                                                    PodcastPage.fromMusicMultiRowListItemRenderer(renderer)
+                                                } ?: content.musicResponsiveListItemRenderer?.let { renderer ->
+                                                    LibraryPage.fromMusicResponsiveListItemRenderer(renderer)
+                                                        ?: RelatedPage.fromMusicResponsiveListItemRenderer(renderer)
+                                                }
+                                            },
                                     )
                                 }
 
@@ -2315,9 +2304,15 @@ object YouTube {
                         }
 
                         content.musicCarouselShelfRenderer != null -> {
-                            content.musicCarouselShelfRenderer.contents
-                                .mapNotNull(MusicCarouselShelfRenderer.Content::musicTwoRowItemRenderer)
-                                .mapNotNull { LibraryPage.fromMusicTwoRowItemRenderer(it) }
+                            content.musicCarouselShelfRenderer.contents.mapNotNull { content ->
+                                content.musicTwoRowItemRenderer?.let { renderer ->
+                                    LibraryPage.fromMusicTwoRowItemRenderer(renderer)
+                                } ?: content.musicMultiRowListItemRenderer?.let { renderer ->
+                                    PodcastPage.fromMusicMultiRowListItemRenderer(renderer)
+                                } ?: content.musicResponsiveListItemRenderer?.let { renderer ->
+                                    LibraryPage.fromMusicResponsiveListItemRenderer(renderer)
+                                }
+                            }
                         }
 
                         else -> {
