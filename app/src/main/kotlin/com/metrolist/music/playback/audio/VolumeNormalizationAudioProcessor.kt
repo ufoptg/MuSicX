@@ -101,28 +101,30 @@ class VolumeNormalizationAudioProcessor : AudioProcessor {
 
             C.ENCODING_PCM_24BIT -> {
                 repeat(sampleCount) {
-                    val sample = read24Bit(inputBuffer)
+                    val sample = read24Bit(inputBuffer) shr 8
                     val processed = if (applyGain) {
                         (sample * gain.linearGain)
                             .coerceIn(-32768.0, 32767.0)
                             .toInt()
+                            .toShort()
                     } else {
-                        sample shr 8
-                    }.toShort()
+                        sample.toShort()
+                    }
                     out.putShort(processed)
                 }
             }
 
             C.ENCODING_PCM_32BIT -> {
                 repeat(sampleCount) {
-                    val sample = inputBuffer.getInt()
+                    val sample = inputBuffer.getInt() shr 16
                     val processed = if (applyGain) {
                         (sample * gain.linearGain)
                             .coerceIn(-32768.0, 32767.0)
                             .toInt()
+                            .toShort()
                     } else {
-                        sample shr 16
-                    }.toShort()
+                        sample.toShort()
+                    }
                     out.putShort(processed)
                 }
             }
