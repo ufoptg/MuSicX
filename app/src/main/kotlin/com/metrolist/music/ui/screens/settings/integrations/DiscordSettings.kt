@@ -344,7 +344,7 @@ fun DiscordSettings(
         TextFieldDialog(
             onDismiss = { showActivityNameDialog = false },
             onDone = {
-                activityName = it
+                activityName = it.trim()
                 showActivityNameDialog = false
             },
             singleLine = true,
