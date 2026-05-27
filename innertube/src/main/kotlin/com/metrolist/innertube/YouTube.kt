@@ -1678,6 +1678,29 @@ object YouTube {
                                 }
 
                                 content.musicCarouselShelfRenderer != null -> {
+                                    val carouselItems = mutableListOf<YTItem>()
+
+                                    content.musicCarouselShelfRenderer.contents
+                                        .mapNotNull(MusicCarouselShelfRenderer.Content::musicTwoRowItemRenderer)
+                                        .mapNotNull { renderer ->
+                                            LibraryPage.fromMusicTwoRowItemRenderer(renderer)
+                                                ?: RelatedPage.fromMusicTwoRowItemRenderer(renderer)
+                                        }
+                                        .let { carouselItems.addAll(it) }
+
+                                    content.musicCarouselShelfRenderer.contents
+                                        .mapNotNull(MusicCarouselShelfRenderer.Content::musicMultiRowListItemRenderer)
+                                        .mapNotNull { PodcastPage.fromMusicMultiRowListItemRenderer(it) }
+                                        .let { carouselItems.addAll(it) }
+
+                                    content.musicCarouselShelfRenderer.contents
+                                        .mapNotNull(MusicCarouselShelfRenderer.Content::musicResponsiveListItemRenderer)
+                                        .mapNotNull { renderer ->
+                                            LibraryPage.fromMusicResponsiveListItemRenderer(renderer)
+                                                ?: RelatedPage.fromMusicResponsiveListItemRenderer(renderer)
+                                        }
+                                        .let { carouselItems.addAll(it) }
+
                                     BrowseResult.Item(
                                         title =
                                             content.musicCarouselShelfRenderer.header
@@ -1686,13 +1709,7 @@ object YouTube {
                                                 ?.runs
                                                 ?.firstOrNull()
                                                 ?.text,
-                                        items =
-                                            content.musicCarouselShelfRenderer.contents
-                                                .mapNotNull(MusicCarouselShelfRenderer.Content::musicTwoRowItemRenderer)
-                                                .mapNotNull { renderer ->
-                                                    LibraryPage.fromMusicTwoRowItemRenderer(renderer)
-                                                        ?: RelatedPage.fromMusicTwoRowItemRenderer(renderer)
-                                                },
+                                        items = carouselItems,
                                     )
                                 }
 
