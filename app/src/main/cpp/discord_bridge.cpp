@@ -4,6 +4,7 @@
 #include <cstring>
 
 #define LOG_TAG "DiscordBridge"
+#define LOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, LOG_TAG, __VA_ARGS__)
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
@@ -38,18 +39,47 @@ bool DiscordBridge::Init(int64_t appId) {
                    discordpp::Client::Error error,
                    int32_t errorDetail) {
                 std::lock_guard<std::mutex> lock(mutex_);
-                LOGI("StatusChanged: status=%d err=%d detail=%d",
-                     static_cast<int>(status), static_cast<int>(error), errorDetail);
+                const char* statusStr = "Unknown";
+                switch (status) {
+                    case discordpp::Client::Status::Connecting:    statusStr = "Connecting"; break;
+                    case discordpp::Client::Status::Connected:     statusStr = "Connected"; break;
+                    case discordpp::Client::Status::Ready:         statusStr = "Ready"; break;
+                    case discordpp::Client::Status::Disconnected:  statusStr = "Disconnected"; break;
+                    case discordpp::Client::Status::Reconnecting:  statusStr = "Reconnecting"; break;
+                    case discordpp::Client::Status::Disconnecting: statusStr = "Disconnecting"; break;
+                    case discordpp::Client::Status::HttpWait:      statusStr = "HttpWait"; break;
+                }
+                const char* errorStr = "None";
+                switch (error) {
+                    case discordpp::Client::Error::None:              errorStr = "None"; break;
+                    case discordpp::Client::Error::ConnectionFailed:  errorStr = "ConnectionFailed"; break;
+                    case discordpp::Client::Error::UnexpectedClose:   errorStr = "UnexpectedClose"; break;
+                    case discordpp::Client::Error::ConnectionCanceled: errorStr = "ConnectionCanceled"; break;
+                }
+                LOGI("StatusChanged: status=%s(%d) error=%s(%d) errorDetail=%d ready_=%s authorized_=%s",
+                     statusStr, static_cast<int>(status),
+                     errorStr, static_cast<int>(error),
+                     errorDetail,
+                     ready_ ? "true" : "false",
+                     authorized_ ? "true" : "false");
                 if (status == discordpp::Client::Status::Ready) {
                     ready_ = true;
-                    LOGI("STATUS: Ready!");
+                    LOGI("STATUS: Ready! Connection established");
                 } else if (status == discordpp::Client::Status::Disconnected) {
+                    if (ready_) {
+                        LOGW("STATUS: Disconnected while previously ready (err=%s)", errorStr);
+                    }
                     ready_ = false;
-                    LOGI("STATUS: Disconnected (err=%d)", static_cast<int>(error));
+                } else if (status == discordpp::Client::Status::Disconnecting) {
+                    LOGI("STATUS: Disconnecting...");
+                } else if (status == discordpp::Client::Status::Reconnecting) {
+                    LOGW("STATUS: Reconnecting...");
+                } else if (status == discordpp::Client::Status::HttpWait) {
+                    LOGI("STATUS: HttpWait (rate limited?)");
                 } else if (status == discordpp::Client::Status::Connecting) {
                     LOGI("STATUS: Connecting...");
-                } else {
-                    LOGI("STATUS: Other status=%d", static_cast<int>(status));
+                } else if (status == discordpp::Client::Status::Connected) {
+                    LOGI("STATUS: Connected (not yet ready)");
                 }
             });
         LOGI("Init: success");
@@ -192,9 +222,21 @@ void DiscordBridge::SetListening(
     const char* button2Label, const char* button2Url
 ) {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (!client_) { LOGW("SetListening: no client"); return; }
-    if (!ready_) { LOGW("SetListening: not ready"); return; }
-    LOGI("SetListening: name=%s state=%s details=%s", name ? name : "null", state ? state : "null", details ? details : "null");
+    if (!client_) { LOGW("SetListening: no client, skipping"); return; }
+    if (!ready_) {
+        LOGW("SetListening: not ready (ready_=false), skipping activity for name=%s",
+             name ? name : "null");
+        return;
+    }
+    LOGI("SetListening: name=%s state=%s details=%s startSecs=%lld endSecs=%lld",
+         name ? name : "null", state ? state : "null", details ? details : "null",
+         (long long)startSecs, (long long)endSecs);
+    LOGI("SetListening: largeImage=%s largeText=%s smallImage=%s smallText=%s",
+         largeImage ? largeImage : "null", largeText ? largeText : "null",
+         smallImage ? smallImage : "null", smallText ? smallText : "null");
+    LOGI("SetListening: btn1=%s/%s btn2=%s/%s",
+         button1Label ? button1Label : "null", button1Url ? button1Url : "null",
+         button2Label ? button2Label : "null", button2Url ? button2Url : "null");
 
     try {
         discordpp::Activity activity;
@@ -208,6 +250,8 @@ void DiscordBridge::SetListening(
             if (startSecs > 0) ts.SetStart(static_cast<uint64_t>(startSecs));
             if (endSecs > 0) ts.SetEnd(static_cast<uint64_t>(endSecs));
             activity.SetTimestamps(std::move(ts));
+            LOGI("SetListening: timestamps start=%llu end=%llu",
+                 (unsigned long long)startSecs, (unsigned long long)endSecs);
         }
 
         discordpp::ActivityAssets assets;
@@ -222,126 +266,187 @@ void DiscordBridge::SetListening(
             btn1.SetLabel(std::string(button1Label));
             btn1.SetUrl(std::string(button1Url));
             activity.AddButton(std::move(btn1));
+            LOGI("SetListening: added button1");
         }
         if (button2Label && button2Url && strlen(button2Label) > 0 && strlen(button2Url) > 0) {
             discordpp::ActivityButton btn2;
             btn2.SetLabel(std::string(button2Label));
             btn2.SetUrl(std::string(button2Url));
             activity.AddButton(std::move(btn2));
+            LOGI("SetListening: added button2");
         }
 
+        LOGI("SetListening: calling client_->UpdateRichPresence...");
         client_->UpdateRichPresence(
             std::move(activity),
             [](discordpp::ClientResult r) {
                 if (!r.Successful()) {
-                    LOGE("UpdateRichPresence failed: err=%s errCode=%d",
-                         r.Error().c_str(), r.ErrorCode());
+                    LOGE("SetListening: UpdateRichPresence FAILED: err=%s errCode=%d retryable=%s",
+                         r.Error().c_str(), r.ErrorCode(),
+                         r.Retryable() ? "true" : "false");
                 } else {
-                    LOGI("UpdateRichPresence succeeded");
+                    LOGI("SetListening: UpdateRichPresence succeeded");
                 }
             }
         );
+        LOGI("SetListening: UpdateRichPresence call returned (async)");
     } catch (const std::exception& e) {
-        LOGE("SetListening threw: %s", e.what());
+        LOGE("SetListening threw exception: %s", e.what());
+    } catch (...) {
+        LOGE("SetListening threw unknown exception");
     }
 }
 
 void DiscordBridge::Clear() {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (!client_) return;
-    if (!ready_) return;
-    LOGI("Clear called");
+    if (!client_) {
+        LOGW("Clear: no client, skipping");
+        return;
+    }
+    if (!ready_) {
+        LOGW("Clear: not ready, skipping");
+        return;
+    }
+    LOGI("Clear: clearing rich presence");
     try {
         discordpp::Activity activity;
+        LOGI("Clear: calling client_->UpdateRichPresence with empty activity...");
         client_->UpdateRichPresence(
             std::move(activity),
             [](discordpp::ClientResult r) {
                 if (!r.Successful()) {
-                    LOGE("Clear failed: err=%s", r.Error().c_str());
+                    LOGE("Clear: UpdateRichPresence failed: err=%s errCode=%d",
+                         r.Error().c_str(), r.ErrorCode());
                 } else {
-                    LOGI("Clear succeeded");
+                    LOGI("Clear: UpdateRichPresence succeeded");
                 }
             }
         );
+        LOGI("Clear: UpdateRichPresence call returned (async)");
     } catch (const std::exception& e) {
-        LOGE("Clear threw: %s", e.what());
+        LOGE("Clear threw exception: %s", e.what());
+    } catch (...) {
+        LOGE("Clear threw unknown exception");
     }
 }
 
 void DiscordBridge::Shutdown() {
-    LOGI("Shutdown called");
+    LOGI("Shutdown called (ready_=%s, authorized_=%s, client_=%s)",
+         ready_ ? "true" : "false",
+         authorized_ ? "true" : "false",
+         client_ ? "exists" : "null");
     std::lock_guard<std::mutex> lock(mutex_);
-    if (!client_) return;
+    if (!client_) {
+        LOGW("Shutdown: no client, nothing to do");
+        return;
+    }
     try {
+        LOGI("Shutdown: calling client_->Disconnect()...");
         client_->Disconnect();
-        LOGI("Shutdown: Disconnect called");
+        LOGI("Shutdown: client_->Disconnect() returned");
     } catch (const std::exception& e) {
-        LOGE("Shutdown threw: %s", e.what());
+        LOGE("Shutdown threw exception: %s", e.what());
+    } catch (...) {
+        LOGE("Shutdown threw unknown exception");
     }
     ready_ = false;
     authorized_ = false;
-    LOGI("Shutdown complete");
+    LOGI("Shutdown: complete (ready_=false, authorized_=false)");
 }
 
 void DiscordBridge::SetTokenAndConnect(const char* token) {
-    LOGI("SetTokenAndConnect: token=%s", token ? "provided" : "null");
+    LOGI("SetTokenAndConnect: token=%s, ready_=%s, authorized_=%s",
+         token ? "provided" : "null",
+         ready_ ? "true" : "false",
+         authorized_ ? "true" : "false");
     if (!client_) { LOGE("SetTokenAndConnect: no client"); return; }
     if (!token) { LOGE("SetTokenAndConnect: null token"); return; }
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (authorized_) {
+        LOGW("SetTokenAndConnect: already authorized, skipping");
+        return;
+    }
     try {
-        LOGI("SetTokenAndConnect: creating UpdateToken callback");
+        LOGI("SetTokenAndConnect: calling client_->UpdateToken(Bearer, token_len=%zu)...",
+             strlen(token));
         client_->UpdateToken(
             discordpp::AuthorizationTokenType::Bearer,
             std::string(token),
             [this](discordpp::ClientResult result) {
                 if (result.Successful()) {
+                    std::lock_guard<std::mutex> lk(mutex_);
                     authorized_ = true;
-                    LOGI("SetTokenAndConnect: UpdateToken succeeded");
+                    LOGI("SetTokenAndConnect: UpdateToken succeeded, authorized_=true");
                 } else {
-                    LOGE("SetTokenAndConnect: UpdateToken failed: err=%s errCode=%d",
-                         result.Error().c_str(), result.ErrorCode());
+                    LOGE("SetTokenAndConnect: UpdateToken FAILED: err=%s errCode=%d retryable=%s",
+                         result.Error().c_str(), result.ErrorCode(),
+                         result.Retryable() ? "true" : "false");
                 }
             }
         );
-        LOGI("SetTokenAndConnect: UpdateToken initiated");
+        LOGI("SetTokenAndConnect: UpdateToken initiated (async)");
     } catch (const std::exception& e) {
-        LOGE("SetTokenAndConnect threw: %s", e.what());
+        LOGE("SetTokenAndConnect threw exception: %s", e.what());
+    } catch (...) {
+        LOGE("SetTokenAndConnect threw unknown exception");
     }
 }
 
 void DiscordBridge::Connect() {
-    LOGI("Connect called");
+    LOGI("Connect called (ready_=%s, authorized_=%s)",
+         ready_ ? "true" : "false", authorized_ ? "true" : "false");
     if (!client_) { LOGE("Connect: no client"); return; }
+    if (ready_) {
+        LOGW("Connect: already ready, skipping");
+        return;
+    }
     try {
+        LOGI("Connect: calling client_->Connect()...");
         client_->Connect();
-        LOGI("Connect: initiated");
+        LOGI("Connect: client_->Connect() returned (async)");
     } catch (const std::exception& e) {
-        LOGE("Connect threw: %s", e.what());
+        LOGE("Connect threw exception: %s", e.what());
+    } catch (...) {
+        LOGE("Connect threw unknown exception");
     }
 }
 
 void DiscordBridge::RunCallbacks() {
+    LOGV("RunCallbacks: entering");
     try {
         discordpp::RunCallbacks();
+        LOGV("RunCallbacks: completed successfully");
     } catch (const std::exception& e) {
-        LOGE("RunCallbacks threw: %s", e.what());
+        LOGE("RunCallbacks threw exception: %s", e.what());
+    } catch (...) {
+        LOGE("RunCallbacks threw unknown exception");
     }
 }
 
 void DiscordBridge::Destroy() {
-    LOGI("Destroy called");
+    LOGI("Destroy called (ready_=%s, authorized_=%s, client_=%s)",
+         ready_ ? "true" : "false",
+         authorized_ ? "true" : "false",
+         client_ ? "exists" : "null");
     std::lock_guard<std::mutex> lock(mutex_);
     ready_ = false;
     authorized_ = false;
     if (client_) {
         try {
+            LOGI("Destroy: disconnecting client...");
             client_->Disconnect();
-            LOGI("Destroy: Disconnected");
+            LOGI("Destroy: disconnected");
+        } catch (const std::exception& e) {
+            LOGW("Destroy: Disconnect threw: %s (ignored)", e.what());
         } catch (...) {
-            LOGW("Destroy: Disconnect threw (ignored)");
+            LOGW("Destroy: Disconnect threw unknown (ignored)");
         }
+        LOGI("Destroy: deleting client...");
         delete client_;
         client_ = nullptr;
-        LOGI("Destroy: client deleted");
+        LOGI("Destroy: client deleted successfully");
+    } else {
+        LOGW("Destroy: no client to destroy");
     }
 }
 
