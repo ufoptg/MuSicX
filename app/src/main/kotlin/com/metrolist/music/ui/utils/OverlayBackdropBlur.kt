@@ -26,10 +26,14 @@ fun Modifier.overlayBackdropBlur(
 ): Modifier {
     if (!enabled || blurLayer == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
         return this
-    } else {
-        onApplied()
     }
+    var hasNotifiedApplied = false
     return drawWithContent drawContentBlock@{
+        if (!hasNotifiedApplied) {
+            onApplied()
+            hasNotifiedApplied = true
+        }
+
         val layerSize = IntSize(size.width.roundToInt(), size.height.roundToInt())
         if (layerSize.width <= 0 || layerSize.height <= 0) {
             return@drawContentBlock

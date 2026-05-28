@@ -117,9 +117,11 @@ fun BottomSheet(
             PredictiveBackHandler { progress ->
                 val initialValue = state.value
                 try {
+                    val range = initialValue - state.collapsedBound
                     progress.collect { event ->
-                        val range = initialValue - state.collapsedBound
-                        state.snapTo(initialValue - range * event.progress)
+                        state.snapToAndWait(
+                            initialValue - range * event.progress.coerceIn(0f, 1f)
+                        )
                     }
                     state.collapseSoft()
                 } catch (_: CancellationException) {
@@ -238,6 +240,10 @@ class BottomSheetState(
         coroutineScope.launch {
             animatable.snapTo(value)
         }
+    }
+
+    suspend fun snapToAndWait(value: Dp) {
+        animatable.snapTo(value)
     }
 
     fun performFling(velocity: Float, onDismiss: (() -> Unit)?) {
