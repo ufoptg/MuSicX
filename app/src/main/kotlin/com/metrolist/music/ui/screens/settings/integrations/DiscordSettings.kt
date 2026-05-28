@@ -1,11 +1,16 @@
 package com.metrolist.music.ui.screens.settings.integrations
 
 import android.content.Intent
+import androidx.datastore.preferences.core.edit
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -19,6 +24,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,6 +36,9 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -53,6 +63,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -65,17 +77,34 @@ import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.DiscordAccessTokenKey
+import com.metrolist.music.constants.DiscordActivityNameKey
+import com.metrolist.music.constants.DiscordActivityTypeKey
+import com.metrolist.music.constants.DiscordAdvancedModeKey
 import com.metrolist.music.constants.DiscordAvatarKey
+import com.metrolist.music.constants.DiscordButton1EnabledKey
+import com.metrolist.music.constants.DiscordButton1LabelKey
+import com.metrolist.music.constants.DiscordButton1UrlKey
+import com.metrolist.music.constants.DiscordButton2EnabledKey
+import com.metrolist.music.constants.DiscordButton2LabelKey
+import com.metrolist.music.constants.DiscordButton2UrlKey
+import com.metrolist.music.constants.DiscordDetailsTemplateKey
 import com.metrolist.music.constants.DiscordInfoDismissedKey
 import com.metrolist.music.constants.DiscordNameKey
+import com.metrolist.music.constants.DiscordStateTemplateKey
+import com.metrolist.music.constants.DiscordUserStatusKey
 import com.metrolist.music.constants.DiscordUsernameKey
 import com.metrolist.music.constants.EnableDiscordRPCKey
 import com.metrolist.music.db.entities.Song
+import com.metrolist.music.discord.DiscordActivity
 import com.metrolist.music.discord.DiscordRpcManager
+import com.metrolist.music.discord.DiscordTemplateRenderer
+import com.metrolist.music.ui.component.EnumDialog
+import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.utils.backToMain
+import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.makeTimeString
 import com.metrolist.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
@@ -84,7 +113,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun DiscordSettings(
     navController: NavController,
@@ -107,6 +136,29 @@ fun DiscordSettings(
     var infoDismissed by rememberPreference(DiscordInfoDismissedKey, false)
 
     val (discordRPC, onDiscordRPCChange) = rememberPreference(EnableDiscordRPCKey, true)
+    val (advancedMode, onAdvancedModeChange) = rememberPreference(DiscordAdvancedModeKey, false)
+
+    val (activityType, onActivityTypeChange) = rememberPreference(DiscordActivityTypeKey, "2")
+    val (activityName, onActivityNameChange) = rememberPreference(DiscordActivityNameKey, "")
+    val (stateTemplate, onStateTemplateChange) = rememberPreference(DiscordStateTemplateKey, "{artist.name}")
+    val (detailsTemplate, onDetailsTemplateChange) = rememberPreference(DiscordDetailsTemplateKey, "{song.name}")
+    val (btn1Enabled, onBtn1EnabledChange) = rememberPreference(DiscordButton1EnabledKey, true)
+    val (btn1Label, onBtn1LabelChange) = rememberPreference(DiscordButton1LabelKey, "Listen on YouTube Music")
+    val (btn1Url, onBtn1UrlChange) = rememberPreference(DiscordButton1UrlKey, "https://music.youtube.com/watch?v={song.id}")
+    val (btn2Enabled, onBtn2EnabledChange) = rememberPreference(DiscordButton2EnabledKey, true)
+    val (btn2Label, onBtn2LabelChange) = rememberPreference(DiscordButton2LabelKey, "Visit Metrolist")
+    val (btn2Url, onBtn2UrlChange) = rememberPreference(DiscordButton2UrlKey, "https://github.com/MetrolistGroup/Metrolist")
+    val (userStatus, onUserStatusChange) = rememberPreference(DiscordUserStatusKey, "online")
+
+    var showActivityTypeDialog by remember { mutableStateOf(false) }
+    var showActivityNameDialog by remember { mutableStateOf(false) }
+    var showStateDialog by remember { mutableStateOf(false) }
+    var showDetailsDialog by remember { mutableStateOf(false) }
+    var showBtn1LabelDialog by remember { mutableStateOf(false) }
+    var showBtn1UrlDialog by remember { mutableStateOf(false) }
+    var showBtn2LabelDialog by remember { mutableStateOf(false) }
+    var showBtn2UrlDialog by remember { mutableStateOf(false) }
+    var showUserStatusDialog by remember { mutableStateOf(false) }
 
     val isLoggedIn = remember(discordName) { discordName.isNotEmpty() }
     var isBusy by remember { mutableStateOf(false) }
@@ -138,6 +190,23 @@ fun DiscordSettings(
                 position = playerConnection.player.currentPosition
             }
         }
+    }
+
+    val activityTypeLabel = when (activityType) {
+        "0" -> stringResource(R.string.discord_activity_playing)
+        "3" -> stringResource(R.string.discord_activity_watching)
+        "5" -> stringResource(R.string.discord_activity_competing)
+        else -> stringResource(R.string.discord_activity_listening)
+    }
+
+    val userStatusLabel = when (userStatus) {
+        "idle" -> stringResource(R.string.discord_status_idle)
+        "dnd" -> stringResource(R.string.discord_status_dnd)
+        else -> stringResource(R.string.discord_status_online)
+    }
+
+    fun onPrefChanged() {
+        DiscordRpcManager.notifySettingsChanged()
     }
 
     Column(
@@ -369,8 +438,186 @@ fun DiscordSettings(
                         enabled = isLoggedIn,
                         onClick = { if (isLoggedIn) onDiscordRPCChange(!discordRPC) },
                     ),
+                    Material3SettingsItem(
+                        title = { Text(stringResource(R.string.discord_advanced_mode)) },
+                        description = { Text(stringResource(R.string.discord_advanced_mode_description)) },
+                        trailingContent = {
+                            Switch(
+                                checked = advancedMode,
+                                onCheckedChange = {
+                                    onAdvancedModeChange(it)
+                                    onPrefChanged()
+                                },
+                                enabled = isLoggedIn,
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = if (advancedMode) R.drawable.check else R.drawable.close
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize),
+                                    )
+                                },
+                            )
+                        },
+                        enabled = isLoggedIn,
+                        onClick = {
+                            if (isLoggedIn) {
+                                onAdvancedModeChange(!advancedMode)
+                                onPrefChanged()
+                            }
+                        },
+                    ),
                 ),
         )
+
+        AnimatedVisibility(
+            visible = advancedMode && isLoggedIn,
+            enter = expandVertically(),
+            exit = shrinkVertically(),
+        ) {
+            Column {
+                Spacer(Modifier.height(8.dp))
+
+                Material3SettingsGroup(
+                    title = stringResource(R.string.discord_presence),
+                    items =
+                        listOf(
+                            Material3SettingsItem(
+                                title = { Text(stringResource(R.string.discord_activity_type)) },
+                                description = { Text(activityTypeLabel) },
+                                onClick = { showActivityTypeDialog = true },
+                            ),
+                            Material3SettingsItem(
+                                title = { Text(stringResource(R.string.discord_activity_name)) },
+                                description = { Text(activityName.ifEmpty { "(default)" }) },
+                                onClick = { showActivityNameDialog = true },
+                            ),
+                            Material3SettingsItem(
+                                title = { Text(stringResource(R.string.discord_state)) },
+                                description = { Text(stateTemplate) },
+                                onClick = { showStateDialog = true },
+                            ),
+                            Material3SettingsItem(
+                                title = { Text(stringResource(R.string.discord_details)) },
+                                description = { Text(detailsTemplate) },
+                                onClick = { showDetailsDialog = true },
+                            ),
+                        ),
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Material3SettingsGroup(
+                    title = stringResource(R.string.discord_buttons),
+                    items =
+                        buildList {
+                            add(
+                                Material3SettingsItem(
+                                    title = { Text(stringResource(R.string.discord_enable_button_1)) },
+                                    trailingContent = {
+                                        Switch(
+                                            checked = btn1Enabled,
+                                            onCheckedChange = {
+                                                onBtn1EnabledChange(it)
+                                                onPrefChanged()
+                                            },
+                                            thumbContent = {
+                                                Icon(
+                                                    painter = painterResource(
+                                                        id = if (btn1Enabled) R.drawable.check else R.drawable.close
+                                                    ),
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(SwitchDefaults.IconSize),
+                                                )
+                                            },
+                                        )
+                                    },
+                                    onClick = {
+                                        onBtn1EnabledChange(!btn1Enabled)
+                                        onPrefChanged()
+                                    },
+                                ),
+                            )
+                            if (btn1Enabled) {
+                                add(
+                                    Material3SettingsItem(
+                                        title = { Text("${stringResource(R.string.discord_button_1)} — ${stringResource(R.string.discord_button_label)}") },
+                                        description = { Text(btn1Label) },
+                                        onClick = { showBtn1LabelDialog = true },
+                                    ),
+                                )
+                                add(
+                                    Material3SettingsItem(
+                                        title = { Text("${stringResource(R.string.discord_button_1)} — ${stringResource(R.string.discord_button_url)}") },
+                                        description = { Text(btn1Url) },
+                                        onClick = { showBtn1UrlDialog = true },
+                                    ),
+                                )
+                            }
+                            add(
+                                Material3SettingsItem(
+                                    title = { Text(stringResource(R.string.discord_enable_button_2)) },
+                                    trailingContent = {
+                                        Switch(
+                                            checked = btn2Enabled,
+                                            onCheckedChange = {
+                                                onBtn2EnabledChange(it)
+                                                onPrefChanged()
+                                            },
+                                            thumbContent = {
+                                                Icon(
+                                                    painter = painterResource(
+                                                        id = if (btn2Enabled) R.drawable.check else R.drawable.close
+                                                    ),
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(SwitchDefaults.IconSize),
+                                                )
+                                            },
+                                        )
+                                    },
+                                    onClick = {
+                                        onBtn2EnabledChange(!btn2Enabled)
+                                        onPrefChanged()
+                                    },
+                                ),
+                            )
+                            if (btn2Enabled) {
+                                add(
+                                    Material3SettingsItem(
+                                        title = { Text("${stringResource(R.string.discord_button_2)} — ${stringResource(R.string.discord_button_label)}") },
+                                        description = { Text(btn2Label) },
+                                        onClick = { showBtn2LabelDialog = true },
+                                    ),
+                                )
+                                add(
+                                    Material3SettingsItem(
+                                        title = { Text("${stringResource(R.string.discord_button_2)} — ${stringResource(R.string.discord_button_url)}") },
+                                        description = { Text(btn2Url) },
+                                        onClick = { showBtn2UrlDialog = true },
+                                    ),
+                                )
+                            }
+                        },
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Material3SettingsGroup(
+                    title = stringResource(R.string.discord_status),
+                    items =
+                        listOf(
+                            Material3SettingsItem(
+                                title = { Text(stringResource(R.string.discord_status)) },
+                                description = { Text(userStatusLabel) },
+                                onClick = { showUserStatusDialog = true },
+                            ),
+                        ),
+                )
+
+                Spacer(Modifier.height(12.dp))
+            }
+        }
 
         Spacer(Modifier.height(8.dp))
 
@@ -384,9 +631,173 @@ fun DiscordSettings(
         RichPresence(
             song = song,
             currentPlaybackTimeMillis = position,
+            advancedMode = advancedMode,
+            activityType = activityType,
+            stateTemplate = stateTemplate,
+            detailsTemplate = detailsTemplate,
+            btn1Label = btn1Label,
+            btn1Url = btn1Url,
+            btn1Enabled = btn1Enabled,
+            btn2Label = btn2Label,
+            btn2Url = btn2Url,
+            btn2Enabled = btn2Enabled,
         )
 
         Spacer(Modifier.height(24.dp))
+    }
+
+    if (showActivityTypeDialog) {
+        EnumDialog(
+            onDismiss = { showActivityTypeDialog = false },
+            onSelect = { value ->
+                onActivityTypeChange(value)
+                showActivityTypeDialog = false
+                coroutineScope.launch(Dispatchers.IO) {
+                    context.dataStore.edit { it[DiscordActivityTypeKey] = value }
+                    withContext(Dispatchers.Main) { onPrefChanged() }
+                }
+            },
+            title = stringResource(R.string.discord_activity_type),
+            current = activityType,
+            values = listOf("2", "0", "3", "5"),
+            valueText = { value ->
+                when (value) {
+                    "0" -> stringResource(R.string.discord_activity_playing)
+                    "3" -> stringResource(R.string.discord_activity_watching)
+                    "5" -> stringResource(R.string.discord_activity_competing)
+                    else -> stringResource(R.string.discord_activity_listening)
+                }
+            },
+        )
+    }
+
+    if (showActivityNameDialog) {
+        TemplateFieldDialog(
+            title = stringResource(R.string.discord_activity_name),
+            value = activityName,
+            onDone = {
+                onActivityNameChange(it)
+                coroutineScope.launch(Dispatchers.IO) {
+                    context.dataStore.edit { prefs -> prefs[DiscordActivityNameKey] = it }
+                    withContext(Dispatchers.Main) { onPrefChanged() }
+                }
+            },
+            onDismiss = { showActivityNameDialog = false },
+        )
+    }
+
+    if (showStateDialog) {
+        TemplateFieldDialog(
+            title = stringResource(R.string.discord_state),
+            value = stateTemplate,
+            onDone = {
+                onStateTemplateChange(it)
+                coroutineScope.launch(Dispatchers.IO) {
+                    context.dataStore.edit { prefs -> prefs[DiscordStateTemplateKey] = it }
+                    withContext(Dispatchers.Main) { onPrefChanged() }
+                }
+            },
+            onDismiss = { showStateDialog = false },
+        )
+    }
+
+    if (showDetailsDialog) {
+        TemplateFieldDialog(
+            title = stringResource(R.string.discord_details),
+            value = detailsTemplate,
+            onDone = {
+                onDetailsTemplateChange(it)
+                coroutineScope.launch(Dispatchers.IO) {
+                    context.dataStore.edit { prefs -> prefs[DiscordDetailsTemplateKey] = it }
+                    withContext(Dispatchers.Main) { onPrefChanged() }
+                }
+            },
+            onDismiss = { showDetailsDialog = false },
+        )
+    }
+
+    if (showBtn1LabelDialog) {
+        TemplateFieldDialog(
+            title = "${stringResource(R.string.discord_button_1)} — ${stringResource(R.string.discord_button_label)}",
+            value = btn1Label,
+            onDone = {
+                onBtn1LabelChange(it)
+                coroutineScope.launch(Dispatchers.IO) {
+                    context.dataStore.edit { prefs -> prefs[DiscordButton1LabelKey] = it }
+                    withContext(Dispatchers.Main) { onPrefChanged() }
+                }
+            },
+            onDismiss = { showBtn1LabelDialog = false },
+        )
+    }
+
+    if (showBtn1UrlDialog) {
+        TemplateFieldDialog(
+            title = "${stringResource(R.string.discord_button_1)} — ${stringResource(R.string.discord_button_url)}",
+            value = btn1Url,
+            onDone = {
+                onBtn1UrlChange(it)
+                coroutineScope.launch(Dispatchers.IO) {
+                    context.dataStore.edit { prefs -> prefs[DiscordButton1UrlKey] = it }
+                    withContext(Dispatchers.Main) { onPrefChanged() }
+                }
+            },
+            onDismiss = { showBtn1UrlDialog = false },
+        )
+    }
+
+    if (showBtn2LabelDialog) {
+        TemplateFieldDialog(
+            title = "${stringResource(R.string.discord_button_2)} — ${stringResource(R.string.discord_button_label)}",
+            value = btn2Label,
+            onDone = {
+                onBtn2LabelChange(it)
+                coroutineScope.launch(Dispatchers.IO) {
+                    context.dataStore.edit { prefs -> prefs[DiscordButton2LabelKey] = it }
+                    withContext(Dispatchers.Main) { onPrefChanged() }
+                }
+            },
+            onDismiss = { showBtn2LabelDialog = false },
+        )
+    }
+
+    if (showBtn2UrlDialog) {
+        TemplateFieldDialog(
+            title = "${stringResource(R.string.discord_button_2)} — ${stringResource(R.string.discord_button_url)}",
+            value = btn2Url,
+            onDone = {
+                onBtn2UrlChange(it)
+                coroutineScope.launch(Dispatchers.IO) {
+                    context.dataStore.edit { prefs -> prefs[DiscordButton2UrlKey] = it }
+                    withContext(Dispatchers.Main) { onPrefChanged() }
+                }
+            },
+            onDismiss = { showBtn2UrlDialog = false },
+        )
+    }
+
+    if (showUserStatusDialog) {
+        EnumDialog(
+            onDismiss = { showUserStatusDialog = false },
+            onSelect = { value ->
+                onUserStatusChange(value)
+                showUserStatusDialog = false
+                coroutineScope.launch(Dispatchers.IO) {
+                    context.dataStore.edit { prefs -> prefs[DiscordUserStatusKey] = value }
+                    withContext(Dispatchers.Main) { onPrefChanged() }
+                }
+            },
+            title = stringResource(R.string.discord_status),
+            current = userStatus,
+            values = listOf("online", "idle", "dnd"),
+            valueText = { value ->
+                when (value) {
+                    "idle" -> stringResource(R.string.discord_status_idle)
+                    "dnd" -> stringResource(R.string.discord_status_dnd)
+                    else -> stringResource(R.string.discord_status_online)
+                }
+            },
+        )
     }
 
     TopAppBar(
@@ -405,13 +816,105 @@ fun DiscordSettings(
     )
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun TemplateFieldDialog(
+    title: String,
+    value: String,
+    onDone: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by remember { mutableStateOf(value) }
+
+    DefaultDialog(
+        onDismiss = onDismiss,
+        title = { Text(text = title) },
+        buttons = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.cancel))
+            }
+            TextButton(onClick = {
+                onDone(text)
+                onDismiss()
+            }) {
+                Text(stringResource(android.R.string.ok))
+            }
+        },
+    ) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it },
+            placeholder = { Text(title) },
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onDone(text); onDismiss() }),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(12.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            DiscordTemplateRenderer.PLACEHOLDERS.forEach { placeholder ->
+                SuggestionChip(
+                    onClick = { text += placeholder },
+                    label = { Text(placeholder, style = MaterialTheme.typography.bodySmall) },
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun RichPresence(
     song: Song?,
     currentPlaybackTimeMillis: Long = 0L,
+    advancedMode: Boolean = false,
+    activityType: String = "2",
+    stateTemplate: String = "{artist.name}",
+    detailsTemplate: String = "{song.name}",
+    btn1Label: String = "Listen on YouTube Music",
+    btn1Url: String = "https://music.youtube.com/watch?v={song.id}",
+    btn1Enabled: Boolean = true,
+    btn2Label: String = "Visit Metrolist",
+    btn2Url: String = "https://github.com/MetrolistGroup/Metrolist",
+    btn2Enabled: Boolean = true,
 ) {
     val context = LocalContext.current
+
+    val previewSongTitle = song?.song?.title ?: "Song Title"
+    val previewArtistName = song?.artists?.joinToString { it.name } ?: "Artist"
+    val previewAlbumName = song?.album?.title
+
+    val renderedState = if (advancedMode) {
+        DiscordTemplateRenderer.render(stateTemplate.ifEmpty { "{artist.name}" }, previewSongTitle, previewArtistName, previewAlbumName, song?.song?.id ?: "")
+    } else {
+        previewArtistName
+    }
+    val renderedDetails = if (advancedMode) {
+        DiscordTemplateRenderer.render(detailsTemplate.ifEmpty { "{song.name}" }, previewSongTitle, previewArtistName, previewAlbumName, song?.song?.id ?: "")
+    } else {
+        previewSongTitle
+    }
+    val renderedBtn1Label = if (advancedMode) {
+        DiscordTemplateRenderer.render(btn1Label.ifEmpty { "Listen on YouTube Music" }, previewSongTitle, previewArtistName, previewAlbumName, song?.song?.id ?: "")
+    } else {
+        "Listen on YouTube Music"
+    }
+    val renderedBtn2Label = if (advancedMode) {
+        DiscordTemplateRenderer.render(btn2Label.ifEmpty { "Visit Metrolist" }, previewSongTitle, previewArtistName, previewAlbumName, song?.song?.id ?: "")
+    } else {
+        "Visit Metrolist"
+    }
+
+    val activityPrefix = when (activityType) {
+        "0" -> stringResource(R.string.discord_activity_playing)
+        "3" -> stringResource(R.string.discord_activity_watching)
+        "5" -> stringResource(R.string.discord_activity_competing)
+        else -> stringResource(R.string.discord_activity_listening)
+    }
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -423,11 +926,8 @@ fun RichPresence(
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            val previewSongTitle = song?.song?.title ?: "Song Title"
-            val previewArtistName = song?.artists?.joinToString { it.name } ?: "Artist"
-
             Text(
-                text = "Listening to $previewArtistName",
+                text = "$activityPrefix $renderedState",
                 style = MaterialTheme.typography.labelLarge,
                 textAlign = TextAlign.Start,
                 fontWeight = FontWeight.ExtraBold,
@@ -489,7 +989,7 @@ fun RichPresence(
                             .padding(horizontal = 6.dp),
                 ) {
                     Text(
-                        text = previewSongTitle,
+                        text = renderedDetails,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold,
@@ -498,7 +998,7 @@ fun RichPresence(
                     )
 
                     Text(
-                        text = previewArtistName,
+                        text = renderedState,
                         color = MaterialTheme.colorScheme.secondary,
                         fontSize = 16.sp,
                         maxLines = 1,
@@ -516,33 +1016,37 @@ fun RichPresence(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedButton(
-                enabled = song != null,
-                onClick = {
-                    val intent =
-                        Intent(
-                            Intent.ACTION_VIEW,
-                            "https://music.youtube.com/watch?v=${song?.id}".toUri(),
-                        )
-                    context.startActivity(intent)
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Listen on YouTube Music")
+            if (btn1Enabled) {
+                OutlinedButton(
+                    enabled = song != null,
+                    onClick = {
+                        val intent =
+                            Intent(
+                                Intent.ACTION_VIEW,
+                                "https://music.youtube.com/watch?v=${song?.id}".toUri(),
+                            )
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(renderedBtn1Label)
+                }
             }
 
-            OutlinedButton(
-                onClick = {
-                    val intent =
-                        Intent(
-                            Intent.ACTION_VIEW,
-                            "https://github.com/MetrolistGroup/Metrolist".toUri(),
-                        )
-                    context.startActivity(intent)
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Visit Metrolist")
+            if (btn2Enabled) {
+                OutlinedButton(
+                    onClick = {
+                        val intent =
+                            Intent(
+                                Intent.ACTION_VIEW,
+                                "https://github.com/MetrolistGroup/Metrolist".toUri(),
+                            )
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(renderedBtn2Label)
+                }
             }
         }
     }

@@ -15,7 +15,8 @@ public:
     void Shutdown();
     void SetTokenAndConnect(const char* token);
     void Connect();
-    void SetListening(
+    void SetActivity(
+        int activityType,
         const char* name, const char* state, const char* details,
         int64_t startSecs, int64_t endSecs,
         const char* largeImage, const char* largeText,
@@ -23,6 +24,7 @@ public:
         const char* button1Label, const char* button1Url,
         const char* button2Label, const char* button2Url
     );
+    void SetOnlineStatus(int statusType);
     void Clear();
     void RunCallbacks();
     bool IsReady() const { return ready_; }

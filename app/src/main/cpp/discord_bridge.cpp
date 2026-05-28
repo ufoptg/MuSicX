@@ -213,7 +213,8 @@ void DiscordBridge::DoGetToken(
     }
 }
 
-void DiscordBridge::SetListening(
+void DiscordBridge::SetActivity(
+    int activityType,
     const char* name, const char* state, const char* details,
     int64_t startSecs, int64_t endSecs,
     const char* largeImage, const char* largeText,
@@ -222,25 +223,26 @@ void DiscordBridge::SetListening(
     const char* button2Label, const char* button2Url
 ) {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (!client_) { LOGW("SetListening: no client, skipping"); return; }
+    if (!client_) { LOGW("SetActivity: no client, skipping"); return; }
     if (!ready_) {
-        LOGW("SetListening: not ready (ready_=false), skipping activity for name=%s",
+        LOGW("SetActivity: not ready (ready_=false), skipping activity for name=%s",
              name ? name : "null");
         return;
     }
-    LOGI("SetListening: name=%s state=%s details=%s startSecs=%lld endSecs=%lld",
+    LOGI("SetActivity: type=%d name=%s state=%s details=%s startSecs=%lld endSecs=%lld",
+         activityType,
          name ? name : "null", state ? state : "null", details ? details : "null",
          (long long)startSecs, (long long)endSecs);
-    LOGI("SetListening: largeImage=%s largeText=%s smallImage=%s smallText=%s",
+    LOGI("SetActivity: largeImage=%s largeText=%s smallImage=%s smallText=%s",
          largeImage ? largeImage : "null", largeText ? largeText : "null",
          smallImage ? smallImage : "null", smallText ? smallText : "null");
-    LOGI("SetListening: btn1=%s/%s btn2=%s/%s",
+    LOGI("SetActivity: btn1=%s/%s btn2=%s/%s",
          button1Label ? button1Label : "null", button1Url ? button1Url : "null",
          button2Label ? button2Label : "null", button2Url ? button2Url : "null");
 
     try {
         discordpp::Activity activity;
-        activity.SetType(discordpp::ActivityTypes::Listening);
+        activity.SetType(static_cast<discordpp::ActivityTypes>(activityType));
         if (name) activity.SetName(std::string(name));
         if (state) activity.SetState(std::string(state));
         if (details) activity.SetDetails(std::string(details));
@@ -250,7 +252,7 @@ void DiscordBridge::SetListening(
             if (startSecs > 0) ts.SetStart(static_cast<uint64_t>(startSecs));
             if (endSecs > 0) ts.SetEnd(static_cast<uint64_t>(endSecs));
             activity.SetTimestamps(std::move(ts));
-            LOGI("SetListening: timestamps start=%llu end=%llu",
+            LOGI("SetActivity: timestamps start=%llu end=%llu",
                  (unsigned long long)startSecs, (unsigned long long)endSecs);
         }
 
@@ -266,34 +268,58 @@ void DiscordBridge::SetListening(
             btn1.SetLabel(std::string(button1Label));
             btn1.SetUrl(std::string(button1Url));
             activity.AddButton(std::move(btn1));
-            LOGI("SetListening: added button1");
+            LOGI("SetActivity: added button1");
         }
         if (button2Label && button2Url && strlen(button2Label) > 0 && strlen(button2Url) > 0) {
             discordpp::ActivityButton btn2;
             btn2.SetLabel(std::string(button2Label));
             btn2.SetUrl(std::string(button2Url));
             activity.AddButton(std::move(btn2));
-            LOGI("SetListening: added button2");
+            LOGI("SetActivity: added button2");
         }
 
-        LOGI("SetListening: calling client_->UpdateRichPresence...");
+        LOGI("SetActivity: calling client_->UpdateRichPresence...");
         client_->UpdateRichPresence(
             std::move(activity),
             [](discordpp::ClientResult r) {
                 if (!r.Successful()) {
-                    LOGE("SetListening: UpdateRichPresence FAILED: err=%s errCode=%d retryable=%s",
+                    LOGE("SetActivity: UpdateRichPresence FAILED: err=%s errCode=%d retryable=%s",
                          r.Error().c_str(), r.ErrorCode(),
                          r.Retryable() ? "true" : "false");
                 } else {
-                    LOGI("SetListening: UpdateRichPresence succeeded");
+                    LOGI("SetActivity: UpdateRichPresence succeeded");
                 }
             }
         );
-        LOGI("SetListening: UpdateRichPresence call returned (async)");
+        LOGI("SetActivity: UpdateRichPresence call returned (async)");
     } catch (const std::exception& e) {
-        LOGE("SetListening threw exception: %s", e.what());
+        LOGE("SetActivity threw exception: %s", e.what());
     } catch (...) {
-        LOGE("SetListening threw unknown exception");
+        LOGE("SetActivity threw unknown exception");
+    }
+}
+
+void DiscordBridge::SetOnlineStatus(int statusType) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!client_) { LOGW("SetOnlineStatus: no client, skipping"); return; }
+    if (!ready_) { LOGW("SetOnlineStatus: not ready, skipping"); return; }
+    LOGI("SetOnlineStatus: setting status to %d", statusType);
+    try {
+        client_->SetOnlineStatus(
+            static_cast<discordpp::StatusType>(statusType),
+            [](discordpp::ClientResult r) {
+                if (!r.Successful()) {
+                    LOGE("SetOnlineStatus: FAILED: err=%s errCode=%d",
+                         r.Error().c_str(), r.ErrorCode());
+                } else {
+                    LOGI("SetOnlineStatus: succeeded");
+                }
+            }
+        );
+    } catch (const std::exception& e) {
+        LOGE("SetOnlineStatus threw exception: %s", e.what());
+    } catch (...) {
+        LOGE("SetOnlineStatus threw unknown exception");
     }
 }
 
@@ -499,8 +525,9 @@ Java_com_metrolist_music_discord_DiscordRpcManager_nativeConnect(
 }
 
 JNIEXPORT void JNICALL
-Java_com_metrolist_music_discord_DiscordRpcManager_nativeSetListening(
+Java_com_metrolist_music_discord_DiscordRpcManager_nativeSetActivity(
     JNIEnv* env, jobject thiz,
+    jint activityType,
     jstring name, jstring state, jstring details,
     jlong startSecs, jlong endSecs,
     jstring largeImage, jstring largeText,
@@ -520,7 +547,8 @@ Java_com_metrolist_music_discord_DiscordRpcManager_nativeSetListening(
     const char* cBtn2Label = button2Label ? env->GetStringUTFChars(button2Label, nullptr) : nullptr;
     const char* cBtn2Url = button2Url ? env->GetStringUTFChars(button2Url, nullptr) : nullptr;
 
-    g_discordBridge.SetListening(
+    g_discordBridge.SetActivity(
+        static_cast<int>(activityType),
         cName, cState, cDetails,
         static_cast<int64_t>(startSecs), static_cast<int64_t>(endSecs),
         cLargeImage, cLargeText, cSmallImage, cSmallText,
@@ -538,6 +566,13 @@ Java_com_metrolist_music_discord_DiscordRpcManager_nativeSetListening(
     if (cBtn1Url) env->ReleaseStringUTFChars(button1Url, cBtn1Url);
     if (cBtn2Label) env->ReleaseStringUTFChars(button2Label, cBtn2Label);
     if (cBtn2Url) env->ReleaseStringUTFChars(button2Url, cBtn2Url);
+}
+
+JNIEXPORT void JNICALL
+Java_com_metrolist_music_discord_DiscordRpcManager_nativeSetOnlineStatus(
+    JNIEnv* env, jobject thiz, jint statusType
+) {
+    g_discordBridge.SetOnlineStatus(static_cast<int>(statusType));
 }
 
 JNIEXPORT void JNICALL

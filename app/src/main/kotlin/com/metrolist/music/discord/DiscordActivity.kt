@@ -1,6 +1,7 @@
 package com.metrolist.music.discord
 
 data class DiscordActivity(
+    val activityType: Int = 2,
     val name: String?,
     val state: String,
     val details: String?,
@@ -14,4 +15,13 @@ data class DiscordActivity(
     val button1Url: String?,
     val button2Label: String?,
     val button2Url: String?,
-)
+) {
+    companion object {
+        const val TYPE_PLAYING = 0
+        const val TYPE_STREAMING = 1
+        const val TYPE_LISTENING = 2
+        const val TYPE_WATCHING = 3
+        const val TYPE_CUSTOM_STATUS = 4
+        const val TYPE_COMPETING = 5
+    }
+}

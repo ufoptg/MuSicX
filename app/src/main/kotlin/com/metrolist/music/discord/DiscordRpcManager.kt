@@ -37,7 +37,20 @@ object DiscordRpcManager {
     private val _connectionStatus = MutableStateFlow(Status.Disconnected)
     val connectionStatus: StateFlow<Status> = _connectionStatus
 
+    private val _settingsChanged = MutableStateFlow(0)
+    val settingsChanged: StateFlow<Int> = _settingsChanged
+
+    fun notifySettingsChanged() {
+        _settingsChanged.value++
+    }
+
     enum class Status { Disconnected, Authorizing, Connected }
+
+    enum class StatusType(val value: Int) {
+        Online(0),
+        Idle(3),
+        Dnd(4),
+    }
 
     fun getAccessToken(): String? = accessToken
 
@@ -46,7 +59,8 @@ object DiscordRpcManager {
     private external fun nativeConnect()
     private external fun nativeIsReady(): Boolean
     private external fun nativeIsAuthorized(): Boolean
-    private external fun nativeSetListening(
+    private external fun nativeSetActivity(
+        activityType: Int,
         name: String?, state: String?, details: String?,
         startSecs: Long, endSecs: Long,
         largeImage: String?, largeText: String?,
@@ -54,6 +68,7 @@ object DiscordRpcManager {
         button1Label: String?, button1Url: String?,
         button2Label: String?, button2Url: String?,
     )
+    private external fun nativeSetOnlineStatus(statusType: Int)
     private external fun nativeClear()
     private external fun nativeRunCallbacks()
     private external fun nativeDestroy()
@@ -303,12 +318,13 @@ object DiscordRpcManager {
             Timber.w("setActivity: skipping — _ready=false, activity name=%s", activity.name)
             return
         }
-        Timber.i("setActivity: name=%s state=%s details=%s start=%d end=%d largeImage=%s smallImage=%s btn1=%s btn2=%s",
-            activity.name, activity.state, activity.details,
+        Timber.i("setActivity: type=%d name=%s state=%s details=%s start=%d end=%d largeImage=%s smallImage=%s btn1=%s btn2=%s",
+            activity.activityType, activity.name, activity.state, activity.details,
             activity.startTimestamp, activity.endTimestamp ?: 0L,
             activity.largeImage, activity.smallImage,
             activity.button1Label, activity.button2Label)
-        nativeSetListening(
+        nativeSetActivity(
+            activity.activityType,
             activity.name, activity.state, activity.details,
             activity.startTimestamp, activity.endTimestamp ?: 0L,
             activity.largeImage, activity.largeText,
@@ -316,7 +332,16 @@ object DiscordRpcManager {
             activity.button1Label, activity.button1Url,
             activity.button2Label, activity.button2Url,
         )
-        Timber.i("setActivity: nativeSetListening call completed")
+        Timber.i("setActivity: nativeSetActivity call completed")
+    }
+
+    fun setOnlineStatus(status: StatusType) {
+        if (!_ready) {
+            Timber.w("setOnlineStatus: skipping — _ready=false")
+            return
+        }
+        Timber.i("setOnlineStatus: status=%s", status)
+        nativeSetOnlineStatus(status.value)
     }
 
     fun clear() {
