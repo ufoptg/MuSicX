@@ -1679,6 +1679,21 @@ object YouTube {
                                 }
 
                                 content.musicCarouselShelfRenderer != null -> {
+                                    val carouselItems = mutableListOf<YTItem>()
+                                    for (carouselContent in content.musicCarouselShelfRenderer.contents) {
+                                        val item = carouselContent.musicTwoRowItemRenderer?.let { renderer ->
+                                            LibraryPage.fromMusicTwoRowItemRenderer(renderer)
+                                                ?: RelatedPage.fromMusicTwoRowItemRenderer(renderer)
+                                        } ?: carouselContent.musicMultiRowListItemRenderer?.let { renderer ->
+                                            PodcastPage.fromMusicMultiRowListItemRenderer(renderer)
+                                        } ?: carouselContent.musicResponsiveListItemRenderer?.let { renderer ->
+                                            LibraryPage.fromMusicResponsiveListItemRenderer(renderer)
+                                                ?: RelatedPage.fromMusicResponsiveListItemRenderer(renderer)
+                                        }
+                                        if (item != null) {
+                                            carouselItems.add(item)
+                                        }
+                                    }
                                     BrowseResult.Item(
                                         title =
                                             content.musicCarouselShelfRenderer.header
