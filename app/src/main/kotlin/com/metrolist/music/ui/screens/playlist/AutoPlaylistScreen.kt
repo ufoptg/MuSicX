@@ -682,6 +682,10 @@ fun AutoPlaylistScreen(
 
         UploadStatusBar(
             jobs = uploadJobs,
+            onCancel = uploadViewModel::cancel,
+            onRetry = uploadViewModel::retry,
+            onCancelAll = uploadViewModel::cancelAll,
+            onClearCompleted = uploadViewModel::clearCompleted,
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)

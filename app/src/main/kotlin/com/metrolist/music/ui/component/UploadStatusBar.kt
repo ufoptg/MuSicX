@@ -23,10 +23,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,16 +55,24 @@ import kotlin.math.roundToInt
  *
  * Collapsed: a one-line summary ("Uploading N of M · P%") with an aggregate
  * progress indicator. Tapping expands a per-job list (name, state, progress,
- * and a reserved action slot — Cancel/Retry land in #3604 iter 7).
+ * and a per-row action: Cancel for active rows, Retry for failed ones) plus a
+ * footer with "Cancel all" / "Clear completed".
  *
  * Visibility: shown while any job is active (`PENDING`/`RUNNING`); once every
  * job is terminal and none failed, it lingers [AUTO_HIDE_DELAY_MS] (mirroring
  * the old dialog's 1 s success delay) then hides. If any job `FAILED`, the bar
- * stays up so the failure is visible (per-row dismissal arrives in iter 7).
+ * stays up so the failure is visible until the user retries or clears it.
+ *
+ * Stateless / VM-agnostic: callers pass the action lambdas (the screens wire
+ * them to `UploadViewModel`).
  */
 @Composable
 fun UploadStatusBar(
     jobs: List<UploadQueueEntity>,
+    onCancel: (String) -> Unit,
+    onRetry: (String) -> Unit,
+    onCancelAll: () -> Unit,
+    onClearCompleted: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val hasActive = jobs.any { it.state == UploadState.PENDING || it.state == UploadState.RUNNING }
@@ -141,7 +151,29 @@ fun UploadStatusBar(
                     Column {
                         jobs.forEach { job ->
                             Spacer(Modifier.height(12.dp))
-                            UploadJobRow(job)
+                            UploadJobRow(job, onCancel = onCancel, onRetry = onRetry)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.End,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            if (hasActive) {
+                                TextButton(onClick = onCancelAll) {
+                                    Text(stringResource(R.string.upload_cancel_all))
+                                }
+                            }
+                            val hasTerminal =
+                                jobs.any {
+                                    it.state == UploadState.SUCCESS ||
+                                        it.state == UploadState.FAILED ||
+                                        it.state == UploadState.CANCELLED
+                                }
+                            if (hasTerminal) {
+                                TextButton(onClick = onClearCompleted) {
+                                    Text(stringResource(R.string.upload_clear_completed))
+                                }
+                            }
                         }
                     }
                 }
@@ -151,7 +183,11 @@ fun UploadStatusBar(
 }
 
 @Composable
-private fun UploadJobRow(job: UploadQueueEntity) {
+private fun UploadJobRow(
+    job: UploadQueueEntity,
+    onCancel: (String) -> Unit,
+    onRetry: (String) -> Unit,
+) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -163,8 +199,25 @@ private fun UploadJobRow(job: UploadQueueEntity) {
             )
             Spacer(Modifier.width(8.dp))
             UploadStateChip(job.state)
-            // Action slot placeholder — Cancel/Retry buttons land in #3604 iter 7.
-            Box(modifier = Modifier.size(40.dp))
+            // Action slot: Cancel while active, Retry once failed, empty otherwise.
+            when (job.state) {
+                UploadState.PENDING, UploadState.RUNNING ->
+                    IconButton(onClick = { onCancel(job.id) }, modifier = Modifier.size(40.dp)) {
+                        Icon(
+                            painter = painterResource(R.drawable.close),
+                            contentDescription = stringResource(R.string.upload_cancel),
+                        )
+                    }
+                UploadState.FAILED ->
+                    IconButton(onClick = { onRetry(job.id) }, modifier = Modifier.size(40.dp)) {
+                        Icon(
+                            painter = painterResource(R.drawable.replay),
+                            contentDescription = stringResource(R.string.upload_retry),
+                        )
+                    }
+                UploadState.SUCCESS, UploadState.CANCELLED ->
+                    Box(modifier = Modifier.size(40.dp))
+            }
         }
         if (job.state == UploadState.RUNNING) {
             Spacer(Modifier.height(4.dp))

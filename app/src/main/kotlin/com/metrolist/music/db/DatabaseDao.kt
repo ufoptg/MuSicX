@@ -1954,10 +1954,28 @@ interface DatabaseDao {
     @Query("UPDATE upload_queue SET state = :state, errorMessage = :error, completedAt = :completedAt WHERE id = :id")
     suspend fun updateUploadState(id: String, state: UploadState, error: String? = null, completedAt: Long? = null): Int
 
+    /**
+     * Atomically flip a row PENDING -> RUNNING. Returns 0 if the row is no longer
+     * PENDING (e.g. it was CANCELLED between the collector reading it and runOne
+     * acquiring its permit), letting the caller bail without clobbering the new
+     * state. Replaces an unguarded `updateUploadState(RUNNING)`.
+     */
+    @Query("UPDATE upload_queue SET state = 'RUNNING' WHERE id = :id AND state = 'PENDING'")
+    suspend fun markUploadRunning(id: String): Int
+
     @Query("UPDATE upload_queue SET progress = :progress WHERE id = :id")
     suspend fun updateUploadProgress(id: String, progress: Float): Int
 
-    @Query("DELETE FROM upload_queue WHERE state IN ('SUCCESS', 'CANCELLED')")
+    /** Flip a FAILED row back to PENDING (fresh start) so the collector retries it. */
+    @Query("UPDATE upload_queue SET state = 'PENDING', progress = 0, attempts = 0, errorMessage = NULL, completedAt = NULL WHERE id = :id")
+    suspend fun retryUpload(id: String): Int
+
+    /** Mark every still-active (PENDING/RUNNING) row CANCELLED — used by "Cancel all". */
+    @Query("UPDATE upload_queue SET state = 'CANCELLED', completedAt = :completedAt WHERE state IN ('PENDING', 'RUNNING')")
+    suspend fun cancelActiveUploads(completedAt: Long): Int
+
+    /** Delete all terminal rows (SUCCESS, CANCELLED, FAILED) — the "Clear completed" action. */
+    @Query("DELETE FROM upload_queue WHERE state IN ('SUCCESS', 'CANCELLED', 'FAILED')")
     suspend fun deleteCompletedUploads(): Int
 
     /**

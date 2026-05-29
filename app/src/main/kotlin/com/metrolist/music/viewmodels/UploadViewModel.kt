@@ -112,6 +112,43 @@ constructor(
         }
     }
 
+    /** Cancel one queued/running upload. Routed to the service, which holds the job handle. */
+    fun cancel(id: String) {
+        context.startService(
+            Intent(context, UploadService::class.java).apply {
+                action = UploadService.ACTION_CANCEL
+                putExtra(UploadService.EXTRA_UPLOAD_ID, id)
+            },
+        )
+    }
+
+    /** Cancel the entire active queue. */
+    fun cancelAll() {
+        context.startService(
+            Intent(context, UploadService::class.java).apply {
+                action = UploadService.ACTION_CANCEL_ALL
+            },
+        )
+    }
+
+    /**
+     * Retry a FAILED row: flip it back to PENDING and (re)start the service —
+     * a FAILED-only queue has no active rows, so the service has already stopped.
+     */
+    fun retry(id: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            database.retryUpload(id)
+            startUploadService()
+        }
+    }
+
+    /** Remove all terminal rows (SUCCESS, CANCELLED, FAILED) from the queue. */
+    fun clearCompleted() {
+        viewModelScope.launch(Dispatchers.IO) {
+            database.deleteCompletedUploads()
+        }
+    }
+
     private fun startUploadService() {
         ContextCompat.startForegroundService(
             context,

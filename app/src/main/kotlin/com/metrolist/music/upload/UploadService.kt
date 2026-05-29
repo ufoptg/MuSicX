@@ -6,6 +6,7 @@
 package com.metrolist.music.upload
 
 import android.app.Notification
+import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
@@ -20,6 +21,10 @@ import com.metrolist.music.db.entities.UploadQueueEntity
 import com.metrolist.music.db.entities.UploadState
 import com.metrolist.music.utils.withJobRetry
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -27,6 +32,7 @@ import timber.log.Timber
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
+import kotlin.coroutines.coroutineContext
 
 /**
  * Foreground service that owns execution of the DB-backed upload queue
@@ -40,8 +46,11 @@ import javax.inject.Inject
  * [MAX_CONCURRENT_UPLOADS] jobs at once via a [Semaphore]. We stop ourselves
  * once no `PENDING`/`RUNNING` rows remain.
  *
- * Cancel/Retry intents (#3604 iter 7) and the post-success
- * `syncUploadedSongs()` call (iter 8) are intentionally not wired here yet.
+ * Cancel & Retry: the status bar and notification deliver `ACTION_CANCEL(id)` /
+ * `ACTION_CANCEL_ALL` intents here (only the service holds the per-row coroutine
+ * [Job] handles needed to abort a live upload). Retry is a pure DB write driven
+ * from the ViewModel, so it has no action here. The post-success
+ * `syncUploadedSongs()` call (iter 8) is intentionally not wired here yet.
  */
 @AndroidEntryPoint
 class UploadService : LifecycleService() {
@@ -50,10 +59,11 @@ class UploadService : LifecycleService() {
 
     private val semaphore = Semaphore(MAX_CONCURRENT_UPLOADS)
 
-    // Rows whose runOne has already been launched. Guards against the pending
-    // collector re-emitting a still-PENDING row (it only leaves the query once
-    // it flips to RUNNING) and double-launching it.
-    private val active: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    // Rows whose runOne has been launched, mapped to their coroutine Job so a
+    // specific row can be cancelled. Guards against the pending collector
+    // re-emitting a still-PENDING row (it only leaves the query once it flips to
+    // RUNNING) and double-launching it.
+    private val active = ConcurrentHashMap<String, Job>()
 
     override fun onCreate() {
         super.onCreate()
@@ -66,15 +76,18 @@ class UploadService : LifecycleService() {
 
             database.observePendingUploads().collect { pending ->
                 pending.forEach { row ->
-                    if (active.add(row.id)) {
-                        launch {
-                            try {
-                                semaphore.withPermit { runOne(row) }
-                            } finally {
-                                active.remove(row.id)
-                                stopIfDone()
+                    if (!active.containsKey(row.id)) {
+                        val job =
+                            launch(start = CoroutineStart.LAZY) {
+                                try {
+                                    semaphore.withPermit { runOne(row) }
+                                } finally {
+                                    active.remove(row.id)
+                                    stopIfDone()
+                                }
                             }
-                        }
+                        active[row.id] = job
+                        job.start()
                     }
                 }
                 stopIfDone()
@@ -82,8 +95,40 @@ class UploadService : LifecycleService() {
         }
     }
 
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
+        when (intent?.action) {
+            ACTION_CANCEL ->
+                intent.getStringExtra(EXTRA_UPLOAD_ID)?.let { id ->
+                    lifecycleScope.launch { cancelOne(id) }
+                }
+            ACTION_CANCEL_ALL -> lifecycleScope.launch { cancelAll() }
+        }
+        return START_NOT_STICKY
+    }
+
+    /** Cancel a single row: mark it CANCELLED, then abort its job if running. */
+    private suspend fun cancelOne(id: String) {
+        // Mark CANCELLED first so the row leaves the PENDING query and loses the
+        // markUploadRunning race if runOne is just starting.
+        database.updateUploadState(id, UploadState.CANCELLED, completedAt = System.currentTimeMillis())
+        active.remove(id)?.cancel()
+        stopIfDone()
+    }
+
+    /** Cancel the whole queue (notification "Cancel all"). */
+    private suspend fun cancelAll() {
+        database.cancelActiveUploads(System.currentTimeMillis())
+        val jobs = active.values.toList()
+        active.clear()
+        jobs.forEach { it.cancel() }
+        stopIfDone()
+    }
+
     private suspend fun runOne(row: UploadQueueEntity) {
-        database.updateUploadState(row.id, UploadState.RUNNING)
+        // Atomic PENDING -> RUNNING; bail if the row was cancelled in the gap
+        // between the collector reading it and us acquiring the permit.
+        if (database.markUploadRunning(row.id) == 0) return
 
         var lastProgressWrite = 0L
         val result =
@@ -106,6 +151,13 @@ class UploadService : LifecycleService() {
                     },
                 )
             }
+
+        // If this job was cancelled mid-flight, the cancel path already wrote
+        // CANCELLED — propagate the cancellation instead of overwriting it with
+        // FAILED (uploadSong swallows CancellationException into Result.failure,
+        // and withJobRetry returns it without rethrowing).
+        result.exceptionOrNull()?.let { if (it is CancellationException) throw it }
+        coroutineContext.ensureActive()
 
         if (result.isSuccess && result.getOrDefault(false)) {
             database.updateUploadProgress(row.id, 1f)
@@ -161,17 +213,29 @@ class UploadService : LifecycleService() {
         }
     }
 
-    private fun buildNotification(): Notification =
-        NotificationCompat.Builder(this, CHANNEL_ID)
+    private fun buildNotification(): Notification {
+        val cancelAllIntent =
+            PendingIntent.getService(
+                this,
+                0,
+                Intent(this, UploadService::class.java).apply { action = ACTION_CANCEL_ALL },
+                PendingIntent.FLAG_IMMUTABLE,
+            )
+        return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.upload)
             .setContentTitle(getString(R.string.upload_notification_title))
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
+            .addAction(R.drawable.close, getString(R.string.upload_cancel_all), cancelAllIntent)
             .build()
+    }
 
     companion object {
         const val CHANNEL_ID = "uploads"
+        const val ACTION_CANCEL = "com.metrolist.music.upload.action.CANCEL"
+        const val ACTION_CANCEL_ALL = "com.metrolist.music.upload.action.CANCEL_ALL"
+        const val EXTRA_UPLOAD_ID = "com.metrolist.music.upload.extra.UPLOAD_ID"
         private const val NOTIFICATION_ID = 9200
         private const val MAX_CONCURRENT_UPLOADS = 2
         private const val PROGRESS_WRITE_INTERVAL_MS = 250L
