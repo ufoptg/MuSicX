@@ -1959,4 +1959,15 @@ interface DatabaseDao {
 
     @Query("DELETE FROM upload_queue WHERE state IN ('SUCCESS', 'CANCELLED')")
     suspend fun deleteCompletedUploads(): Int
+
+    /**
+     * Re-mark rows orphaned in RUNNING by a previous process back to PENDING so
+     * the collector picks them up again. Must run on UploadService start before
+     * the collector, else stale RUNNING rows are skipped and never retry.
+     */
+    @Query("UPDATE upload_queue SET state = 'PENDING' WHERE state = 'RUNNING'")
+    suspend fun resetRunningUploads(): Int
+
+    @Query("SELECT COUNT(*) FROM upload_queue WHERE state IN ('PENDING', 'RUNNING')")
+    suspend fun countActiveUploads(): Int
 }

@@ -365,6 +365,11 @@
             android:exported="false"
             android:foregroundServiceType="microphone" />
 
+        <service
+            android:name=".upload.UploadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <!-- Music Recognizer Quick Settings Tile -->
         <service
             android:name=".quicksettings.MusicRecognizerTileService"

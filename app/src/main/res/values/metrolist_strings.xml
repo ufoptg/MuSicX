@@ -918,6 +918,9 @@
 
     <!-- Upload songs -->
     <string name="upload_songs">Upload songs</string>
+    <string name="upload_channel_name">Uploads</string>
+    <string name="upload_channel_desc">Shows a notification while uploading songs in the background</string>
+    <string name="upload_notification_title">Uploading songs</string>
     <string name="uploading">Uploading…</string>
     <string name="upload_progress">%1$d of %2$d</string>
     <string name="upload_status_summary">Uploading %1$d of %2$d · %3$d%%</string>

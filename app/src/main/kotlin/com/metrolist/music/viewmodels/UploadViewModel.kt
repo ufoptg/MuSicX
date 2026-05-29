@@ -10,15 +10,14 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.widget.Toast
-import androidx.core.net.toUri
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.metrolist.innertube.YouTube
 import com.metrolist.music.R
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.UploadQueueEntity
-import com.metrolist.music.db.entities.UploadState
-import com.metrolist.music.utils.withJobRetry
+import com.metrolist.music.upload.UploadService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -26,23 +25,16 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import timber.log.Timber
-import java.io.IOException
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 /**
- * Drives the DB-backed upload queue (`upload_queue` table). Replaces the
- * in-Compose upload loop that used to live in `LibrarySongsScreen`.
- *
- * [enqueue] validates the picked URIs and writes `PENDING` rows; a collector
- * in [init] picks those rows up and runs at most [MAX_CONCURRENT_UPLOADS] at a
- * time via [Semaphore]. Execution lives in [viewModelScope] — it survives
- * navigation but **not** process death; moving it to a foreground service is a
- * later iteration (#3604, iter 6).
+ * Thin DB client for the upload queue (`upload_queue` table). [enqueue]
+ * validates picked URIs, writes `PENDING` rows, and starts [UploadService];
+ * the service owns execution (Semaphore, retry, progress writes) so uploads
+ * survive process death. This VM no longer drives the queue itself — it just
+ * exposes [jobs] for the UI and kicks the service.
  */
 @HiltViewModel
 class UploadViewModel
@@ -56,37 +48,26 @@ constructor(
             .observeAllUploads()
             .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    private val semaphore = Semaphore(MAX_CONCURRENT_UPLOADS)
-
-    // Rows whose runOne has already been launched. Guards against the pending
-    // collector re-emitting a still-PENDING row (it only leaves the query once
-    // it flips to RUNNING) and double-launching it.
-    private val active: MutableSet<String> = ConcurrentHashMap.newKeySet()
-
     init {
-        viewModelScope.launch {
-            database.observePendingUploads().collect { pending ->
-                pending.forEach { row ->
-                    if (active.add(row.id)) {
-                        launch {
-                            try {
-                                semaphore.withPermit { runOne(row) }
-                            } finally {
-                                active.remove(row.id)
-                            }
-                        }
-                    }
-                }
+        // Resume an interrupted batch on app reopen: if the queue still has
+        // PENDING/RUNNING rows (e.g. after a force-stop killed the service),
+        // bring the service back so those rows continue. The service re-marks
+        // orphaned RUNNING rows to PENDING on start.
+        viewModelScope.launch(Dispatchers.IO) {
+            if (database.countActiveUploads() > 0) {
+                startUploadService()
             }
         }
     }
 
     /**
      * Validate the picked [uris] and enqueue the acceptable ones as `PENDING`
-     * rows. Unsupported formats and oversized files are rejected with a toast.
+     * rows, then start [UploadService]. Unsupported formats and oversized files
+     * are rejected with a toast.
      */
     fun enqueue(uris: List<Uri>) {
         viewModelScope.launch(Dispatchers.IO) {
+            var enqueued = 0
             uris.forEach { uri ->
                 try {
                     context.contentResolver.takePersistableUriPermission(
@@ -122,50 +103,20 @@ constructor(
                         sizeBytes = size,
                     ),
                 )
+                enqueued++
+            }
+
+            if (enqueued > 0) {
+                startUploadService()
             }
         }
     }
 
-    private suspend fun runOne(row: UploadQueueEntity) {
-        database.updateUploadState(row.id, UploadState.RUNNING)
-
-        var lastProgressWrite = 0L
-        val result =
-            withJobRetry {
-                YouTube.uploadSong(
-                    filename = row.displayName,
-                    contentLength = row.sizeBytes,
-                    contentSource = {
-                        context.contentResolver.openInputStream(row.uri.toUri())
-                            ?: throw IOException("Cannot open ${row.uri}")
-                    },
-                    onProgress = { progress ->
-                        val now = System.currentTimeMillis()
-                        if (now - lastProgressWrite >= PROGRESS_WRITE_INTERVAL_MS) {
-                            lastProgressWrite = now
-                            viewModelScope.launch {
-                                database.updateUploadProgress(row.id, progress)
-                            }
-                        }
-                    },
-                )
-            }
-
-        if (result.isSuccess && result.getOrDefault(false)) {
-            database.updateUploadProgress(row.id, 1f)
-            database.updateUploadState(
-                row.id,
-                UploadState.SUCCESS,
-                completedAt = System.currentTimeMillis(),
-            )
-        } else {
-            database.updateUploadState(
-                row.id,
-                UploadState.FAILED,
-                error = result.exceptionOrNull()?.message,
-                completedAt = System.currentTimeMillis(),
-            )
-        }
+    private fun startUploadService() {
+        ContextCompat.startForegroundService(
+            context,
+            Intent(context, UploadService::class.java),
+        )
     }
 
     private fun resolveDisplayName(uri: Uri): String {
@@ -188,10 +139,5 @@ constructor(
         withContext(Dispatchers.Main) {
             Toast.makeText(context, context.getString(resId), Toast.LENGTH_SHORT).show()
         }
-    }
-
-    companion object {
-        private const val MAX_CONCURRENT_UPLOADS = 2
-        private const val PROGRESS_WRITE_INTERVAL_MS = 250L
     }
 }

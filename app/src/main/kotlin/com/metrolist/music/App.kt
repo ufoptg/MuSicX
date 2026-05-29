@@ -168,8 +168,17 @@ class App :
             ).apply {
                 description = getString(R.string.update_channel_desc)
             }
+        val uploadsChannel =
+            NotificationChannel(
+                "uploads",
+                getString(R.string.upload_channel_name),
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = getString(R.string.upload_channel_desc)
+            }
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(channel)
+        nm.createNotificationChannel(uploadsChannel)
     }
 
     private fun observeSettingsChanges() {
