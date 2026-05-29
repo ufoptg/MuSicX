@@ -19,6 +19,7 @@ import com.metrolist.music.R
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.UploadQueueEntity
 import com.metrolist.music.db.entities.UploadState
+import com.metrolist.music.utils.SyncUtils
 import com.metrolist.music.utils.withJobRetry
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
@@ -31,6 +32,7 @@ import kotlinx.coroutines.sync.withPermit
 import timber.log.Timber
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
 
@@ -49,15 +51,27 @@ import kotlin.coroutines.coroutineContext
  * Cancel & Retry: the status bar and notification deliver `ACTION_CANCEL(id)` /
  * `ACTION_CANCEL_ALL` intents here (only the service holds the per-row coroutine
  * [Job] handles needed to abort a live upload). Retry is a pure DB write driven
- * from the ViewModel, so it has no action here. The post-success
- * `syncUploadedSongs()` call (iter 8) is intentionally not wired here yet.
+ * from the ViewModel, so it has no action here.
+ *
+ * Once a batch goes idle (queue fully drained) and at least one upload
+ * succeeded, we kick a single [SyncUtils.syncUploadedSongs] so the library
+ * reflects the new songs even if no upload screen is open.
  */
 @AndroidEntryPoint
 class UploadService : LifecycleService() {
     @Inject
     lateinit var database: MusicDatabase
 
+    @Inject
+    lateinit var syncUtils: SyncUtils
+
     private val semaphore = Semaphore(MAX_CONCURRENT_UPLOADS)
+
+    // Set when any upload in the current run reaches SUCCESS; consumed once the
+    // queue drains to trigger a single uploaded-songs sync (coalesces a whole
+    // batch into one sync). Atomic because stopIfDone can be entered from both
+    // the collector and a job's finally, interleaving at suspend points.
+    private val hadSuccessfulUpload = AtomicBoolean(false)
 
     // Rows whose runOne has been launched, mapped to their coroutine Job so a
     // specific row can be cancelled. Guards against the pending collector
@@ -166,6 +180,7 @@ class UploadService : LifecycleService() {
                 UploadState.SUCCESS,
                 completedAt = System.currentTimeMillis(),
             )
+            hadSuccessfulUpload.set(true)
         } else {
             database.updateUploadState(
                 row.id,
@@ -179,6 +194,12 @@ class UploadService : LifecycleService() {
     /** Stop the service once nothing is pending or running. */
     private suspend fun stopIfDone() {
         if (active.isEmpty() && database.countActiveUploads() == 0) {
+            // Batch idle: if anything succeeded this run, refresh the library
+            // once. Fire-and-forget on SyncUtils' own scope, so it survives the
+            // stopSelf() below; getAndSet keeps it to a single sync per batch.
+            if (hadSuccessfulUpload.getAndSet(false)) {
+                syncUtils.syncUploadedSongs()
+            }
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
