@@ -920,6 +920,7 @@
     <string name="upload_songs">Upload songs</string>
     <string name="uploading">Uploading…</string>
     <string name="upload_progress">%1$d of %2$d</string>
+    <string name="upload_status_summary">Uploading %1$d of %2$d · %3$d%%</string>
     <string name="upload_complete">Upload complete</string>
     <string name="upload_failed">Upload failed</string>
     <string name="upload_file_too_large">File too large (maximum 300MB)</string>
