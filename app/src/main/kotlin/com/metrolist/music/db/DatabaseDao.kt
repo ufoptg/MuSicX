@@ -51,6 +51,8 @@ import com.metrolist.music.db.entities.SongAlbumMap
 import com.metrolist.music.db.entities.SongArtistMap
 import com.metrolist.music.db.entities.SongEntity
 import com.metrolist.music.db.entities.SongWithStats
+import com.metrolist.music.db.entities.UploadQueueEntity
+import com.metrolist.music.db.entities.UploadState
 import com.metrolist.music.extensions.reversed
 import com.metrolist.music.extensions.toSQLiteQuery
 import com.metrolist.music.models.MediaMetadata
@@ -1931,4 +1933,30 @@ interface DatabaseDao {
 
     @Delete
     fun delete(podcast: PodcastEntity)
+
+    /**
+     * upload_queue — the background upload pipeline's durable job queue (#3604).
+     * Enum columns are stored by Room as their TEXT name, so SQL compares against
+     * the literal state name (e.g. 'PENDING').
+     */
+    @Query("SELECT * FROM upload_queue WHERE state = 'PENDING' ORDER BY enqueuedAt")
+    fun observePendingUploads(): Flow<List<UploadQueueEntity>>
+
+    @Query("SELECT * FROM upload_queue ORDER BY enqueuedAt")
+    fun observeAllUploads(): Flow<List<UploadQueueEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(upload: UploadQueueEntity)
+
+    @Update
+    suspend fun update(upload: UploadQueueEntity)
+
+    @Query("UPDATE upload_queue SET state = :state, errorMessage = :error, completedAt = :completedAt WHERE id = :id")
+    suspend fun updateUploadState(id: String, state: UploadState, error: String? = null, completedAt: Long? = null): Int
+
+    @Query("UPDATE upload_queue SET progress = :progress WHERE id = :id")
+    suspend fun updateUploadProgress(id: String, progress: Float): Int
+
+    @Query("DELETE FROM upload_queue WHERE state IN ('SUCCESS', 'CANCELLED')")
+    suspend fun deleteCompletedUploads(): Int
 }
