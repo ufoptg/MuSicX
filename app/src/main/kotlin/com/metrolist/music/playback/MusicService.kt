@@ -446,9 +446,6 @@ class MusicService :
         }
     )
 
-    // In-memory cache for playback tracking URLs (videostatsPlaybackUrl.baseUrl).
-    // Populated synchronously during data source resolution so it's always available
-    // in onPlaybackStatsReady without relying on database Flow queries.
     private val playbackUrlCache = Collections.synchronizedMap(
         object : LinkedHashMap<String, String>(0, 0.75f, true) {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>): Boolean {

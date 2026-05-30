@@ -446,7 +446,6 @@ object YTPlayerUtils {
     /**
      * Player response intended for metadata / playback-tracking retrieval.
      * Stream URLs of this response might not work so don't use them.
-     * Includes signature-timestamp and poToken so YouTube returns playbackTracking data.
      */
     suspend fun playerResponseForMetadata(
         videoId: String,
