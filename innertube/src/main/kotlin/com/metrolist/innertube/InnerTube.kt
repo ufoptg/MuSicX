@@ -259,7 +259,8 @@ class InnerTube {
     ) = withRetry {
         httpClient.get(url) {
             ytClient(client, true)
-            parameter("ver", "2")
+            // ver parameter is intentionally omitted – the tracking URL from YouTube's
+            // player response already includes it. Adding a duplicate would risk rejection.
             parameter("c", client.clientName)
             parameter("cpn", cpn)
 

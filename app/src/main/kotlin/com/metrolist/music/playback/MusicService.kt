@@ -446,6 +446,17 @@ class MusicService :
         }
     )
 
+    // In-memory cache for playback tracking URLs (videostatsPlaybackUrl.baseUrl).
+    // Populated synchronously during data source resolution so it's always available
+    // in onPlaybackStatsReady without relying on database Flow queries.
+    private val playbackUrlCache = Collections.synchronizedMap(
+        object : LinkedHashMap<String, String>(0, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>): Boolean {
+                return size > 500
+            }
+        }
+    )
+
     // Flag to bypass cache when quality changes - forces fresh stream fetch
     private val bypassCacheForQualityChange = mutableSetOf<String>()
 
@@ -3513,6 +3524,11 @@ class MusicService :
 
                 songUrlCache[mediaId] =
                     streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
+
+                nonNullPlayback.playbackTracking?.videostatsPlaybackUrl?.baseUrl?.let {
+                    playbackUrlCache[mediaId] = it
+                }
+
                 return@Factory dataSpec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
             }
         }
@@ -3580,20 +3596,23 @@ class MusicService :
         if (playbackStats.totalPlayTimeMs >= historyDurationMs) {
             CoroutineScope(Dispatchers.IO).launch {
                 val playbackUrl =
-                    database.format(mediaItem.mediaId).first()?.playbackUrl
+                    playbackUrlCache[mediaItem.mediaId]
+                        ?: database.formatOnce(mediaItem.mediaId)?.playbackUrl
                         ?: YTPlayerUtils
                             .playerResponseForMetadata(mediaItem.mediaId, null)
                             .getOrNull()
                             ?.playbackTracking
                             ?.videostatsPlaybackUrl
                             ?.baseUrl
-                playbackUrl?.let {
-                    YouTube
-                        .registerPlayback(null, playbackUrl)
-                        .onFailure {
-                            reportException(it)
-                        }
+                if (playbackUrl == null) {
+                    Timber.tag(TAG).w("No playback tracking URL available for $mediaItem.mediaId, skipping YouTube history registration")
+                    return@launch
                 }
+                YouTube
+                    .registerPlayback(null, playbackUrl)
+                    .onFailure {
+                        reportException(it)
+                    }
             }
         }
     }
