@@ -446,6 +446,11 @@ class MusicService :
         }
     )
 
+    private val sessionKey
+        get() = YouTube.dataSyncId ?: YouTube.visitorData ?: ""
+
+    private fun cacheKey(mediaId: String) = "${sessionKey}:$mediaId"
+
     private val playbackUrlCache = Collections.synchronizedMap(
         object : LinkedHashMap<String, String>(0, 0.75f, true) {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>): Boolean {
@@ -3523,7 +3528,7 @@ class MusicService :
                     streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
 
                 nonNullPlayback.playbackTracking?.videostatsPlaybackUrl?.baseUrl?.let {
-                    playbackUrlCache[mediaId] = it
+                    playbackUrlCache[cacheKey(mediaId)] = it
                 }
 
                 return@Factory dataSpec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
@@ -3591,10 +3596,9 @@ class MusicService :
         }
 
         if (playbackStats.totalPlayTimeMs >= historyDurationMs) {
-            CoroutineScope(Dispatchers.IO).launch {
+            scope.launch(Dispatchers.IO) {
                 val playbackUrl =
-                    playbackUrlCache[mediaItem.mediaId]
-                        ?: database.formatOnce(mediaItem.mediaId)?.playbackUrl
+                    playbackUrlCache[cacheKey(mediaItem.mediaId)]
                         ?: YTPlayerUtils
                             .playerResponseForMetadata(mediaItem.mediaId, null)
                             .getOrNull()
