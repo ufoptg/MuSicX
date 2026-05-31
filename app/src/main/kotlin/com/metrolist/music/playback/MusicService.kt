@@ -447,7 +447,9 @@ class MusicService :
     )
 
     private val sessionKey
-        get() = YouTube.dataSyncId ?: YouTube.visitorData ?: ""
+        get() = YouTube.dataSyncId.takeIf { !it.isNullOrBlank() }
+            ?: YouTube.visitorData.takeIf { !it.isNullOrBlank() }
+            ?: ""
 
     private fun cacheKey(mediaId: String) = "${sessionKey}:$mediaId"
 
