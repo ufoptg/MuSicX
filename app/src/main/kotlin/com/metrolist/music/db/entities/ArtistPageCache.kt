@@ -8,6 +8,7 @@ import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
 import com.metrolist.innertube.pages.ArtistSection
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -46,25 +47,76 @@ data class CachedSection(
 )
 
 @Serializable
-data class CachedItem(
-    val id: String,
-    val title: String,
-    val thumbnail: String,
-    val type: String,
-    val explicit: Boolean = false,
-    val artists: List<CachedArtist> = emptyList(),
-    val album: CachedAlbum? = null,
-    val duration: Int? = null,
-    val year: Int? = null,
-    val songCountText: String? = null,
-    val author: CachedArtist? = null,
-    val channelId: String? = null,
-    val browseId: String? = null,
-    val playlistId: String? = null,
-    val authorAvatarUrl: String? = null,
-    val episodeCountText: String? = null,
-    val videoId: String? = null,
-)
+sealed class CachedItem {
+    @Serializable
+    @SerialName("song")
+    data class Song(
+        val id: String,
+        val title: String,
+        val thumbnail: String,
+        val explicit: Boolean = false,
+        val artists: List<CachedArtist> = emptyList(),
+        val album: CachedAlbum? = null,
+        val duration: Int? = null,
+        val videoId: String? = null
+    ) : CachedItem()
+
+    @Serializable
+    @SerialName("album")
+    data class Album(
+        val id: String,
+        val title: String,
+        val thumbnail: String,
+        val explicit: Boolean = false,
+        val artists: List<CachedArtist> = emptyList(),
+        val year: Int? = null,
+        val browseId: String? = null,
+        val playlistId: String? = null
+    ) : CachedItem()
+
+    @Serializable
+    @SerialName("playlist")
+    data class Playlist(
+        val id: String,
+        val title: String,
+        val thumbnail: String,
+        val author: CachedArtist? = null,
+        val songCountText: String? = null,
+        val authorAvatarUrl: String? = null
+    ) : CachedItem()
+
+    @Serializable
+    @SerialName("artist")
+    data class Artist(
+        val id: String,
+        val title: String,
+        val thumbnail: String,
+        val channelId: String? = null
+    ) : CachedItem()
+
+    @Serializable
+    @SerialName("podcast")
+    data class Podcast(
+        val id: String,
+        val title: String,
+        val thumbnail: String,
+        val author: CachedArtist? = null,
+        val episodeCountText: String? = null,
+        val channelId: String? = null
+    ) : CachedItem()
+
+    @Serializable
+    @SerialName("episode")
+    data class Episode(
+        val id: String,
+        val title: String,
+        val thumbnail: String,
+        val explicit: Boolean = false,
+        val author: CachedArtist? = null,
+        val album: CachedAlbum? = null,
+        val duration: Int? = null
+    ) : CachedItem()
+}
 
 @Serializable
 data class CachedArtist(val name: String, val id: String? = null)
@@ -142,8 +194,8 @@ fun CachedArtistPage.toArtistPage(): com.metrolist.innertube.pages.ArtistPage {
 }
 
 private fun CachedItem.toYTItem(): YTItem {
-    return when (type) {
-        "song" -> SongItem(
+    return when (this) {
+        is CachedItem.Song -> SongItem(
             id = id,
             title = title,
             thumbnail = thumbnail,
@@ -153,7 +205,7 @@ private fun CachedItem.toYTItem(): YTItem {
             duration = duration ?: 0,
             setVideoId = videoId,
         )
-        "album" -> AlbumItem(
+        is CachedItem.Album -> AlbumItem(
             browseId = browseId ?: id,
             playlistId = playlistId ?: id,
             id = id,
@@ -163,7 +215,7 @@ private fun CachedItem.toYTItem(): YTItem {
             artists = artists.map { com.metrolist.innertube.models.Artist(it.name, it.id) }.ifEmpty { null },
             year = year,
         )
-        "playlist" -> PlaylistItem(
+        is CachedItem.Playlist -> PlaylistItem(
             id = id,
             title = title,
             thumbnail = thumbnail.takeIf { it.isNotBlank() },
@@ -174,7 +226,7 @@ private fun CachedItem.toYTItem(): YTItem {
             radioEndpoint = null,
             authorAvatarUrl = authorAvatarUrl,
         )
-        "artist" -> ArtistItem(
+        is CachedItem.Artist -> ArtistItem(
             id = id,
             title = title,
             thumbnail = thumbnail.takeIf { it.isNotBlank() },
@@ -183,7 +235,7 @@ private fun CachedItem.toYTItem(): YTItem {
             shuffleEndpoint = null,
             radioEndpoint = null,
         )
-        "podcast" -> PodcastItem(
+        is CachedItem.Podcast -> PodcastItem(
             id = id,
             title = title,
             thumbnail = thumbnail.takeIf { it.isNotBlank() },
@@ -193,7 +245,7 @@ private fun CachedItem.toYTItem(): YTItem {
             shuffleEndpoint = null,
             channelId = channelId,
         )
-        "episode" -> EpisodeItem(
+        is CachedItem.Episode -> EpisodeItem(
             id = id,
             title = title,
             thumbnail = thumbnail,
@@ -203,72 +255,57 @@ private fun CachedItem.toYTItem(): YTItem {
             duration = duration,
             endpoint = null,
         )
-        else -> SongItem(
-            id = id,
-            title = title,
-            thumbnail = thumbnail,
-            explicit = explicit,
-            artists = artists.map { com.metrolist.innertube.models.Artist(it.name, it.id) },
-            album = album?.let { com.metrolist.innertube.models.Album(it.name, it.id) },
-            duration = duration ?: 0,
-        )
     }
 }
 
 private fun YTItem.toCachedItem(): CachedItem {
     return when (this) {
-        is SongItem -> CachedItem(
+        is SongItem -> CachedItem.Song(
             id = id,
             title = title,
             thumbnail = thumbnail,
-            type = "song",
             explicit = explicit,
             artists = artists.map { CachedArtist(it.name, it.id) },
             album = album?.let { CachedAlbum(it.name, it.id) },
             duration = duration,
             videoId = setVideoId,
         )
-        is AlbumItem -> CachedItem(
+        is AlbumItem -> CachedItem.Album(
             id = id,
             title = title,
             thumbnail = thumbnail,
-            type = "album",
             explicit = explicit,
             artists = artists?.map { CachedArtist(it.name, it.id) } ?: emptyList(),
             year = year,
             browseId = browseId,
             playlistId = playlistId,
         )
-        is PlaylistItem -> CachedItem(
+        is PlaylistItem -> CachedItem.Playlist(
             id = id,
             title = title,
             thumbnail = thumbnail ?: "",
-            type = "playlist",
             author = author?.let { CachedArtist(it.name, it.id) },
             songCountText = songCountText,
             authorAvatarUrl = authorAvatarUrl,
         )
-        is ArtistItem -> CachedItem(
+        is ArtistItem -> CachedItem.Artist(
             id = id,
             title = title,
             thumbnail = thumbnail ?: "",
-            type = "artist",
             channelId = channelId,
         )
-        is PodcastItem -> CachedItem(
+        is PodcastItem -> CachedItem.Podcast(
             id = id,
             title = title,
             thumbnail = thumbnail ?: "",
-            type = "podcast",
             author = author?.let { CachedArtist(it.name, it.id) },
             episodeCountText = episodeCountText,
             channelId = channelId,
         )
-        is EpisodeItem -> CachedItem(
+        is EpisodeItem -> CachedItem.Episode(
             id = id,
             title = title,
             thumbnail = thumbnail,
-            type = "episode",
             explicit = explicit,
             author = author?.let { CachedArtist(it.name, it.id) },
             album = podcast?.let { CachedAlbum(it.name, it.id) },
