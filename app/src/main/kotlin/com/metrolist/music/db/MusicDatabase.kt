@@ -819,7 +819,7 @@ val MIGRATION_38_37 =
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("DROP TABLE IF EXISTS `ArtistPageCache`")
             db.execSQL(
-                "CREATE TABLE IF NOT EXISTS `artist_new` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `thumbnailUrl` TEXT, `channelId` TEXT, `lastUpdateTime` INTEGER NOT NULL, `bookmarkedAt` INTEGER, `isLocal` INTEGER NOT NULL DEFAULT false, `isPodcastChannel` INTEGER NOT NULL DEFAULT false, PRIMARY KEY(`id`))"
+                "CREATE TABLE IF NOT EXISTS `artist_new` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `thumbnailUrl` TEXT, `channelId` TEXT, `lastUpdateTime` INTEGER NOT NULL, `bookmarkedAt` INTEGER, `isLocal` INTEGER NOT NULL DEFAULT 0, `isPodcastChannel` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))"
             )
             db.execSQL(
                 "INSERT INTO `artist_new` (`id`, `name`, `thumbnailUrl`, `channelId`, `lastUpdateTime`, `bookmarkedAt`, `isLocal`, `isPodcastChannel`) SELECT `id`, `name`, `thumbnailUrl`, `channelId`, `lastUpdateTime`, `bookmarkedAt`, `isLocal`, `isPodcastChannel` FROM `artist`"
