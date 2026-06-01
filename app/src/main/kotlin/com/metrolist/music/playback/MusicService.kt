@@ -118,7 +118,9 @@ import com.metrolist.music.constants.DiscordStateTemplateKey
 import com.metrolist.music.constants.DiscordUserStatusKey
 import com.metrolist.music.constants.EnableDiscordRPCKey
 import com.metrolist.music.discord.DiscordActivity
+import com.metrolist.music.discord.DiscordDefaults
 import com.metrolist.music.discord.DiscordRpcManager
+import com.metrolist.music.discord.DiscordActivityBuilder
 import com.metrolist.music.discord.DiscordTemplateRenderer
 import com.metrolist.music.constants.EnableLastFMScrobblingKey
 import com.metrolist.music.constants.EnableSongCacheKey
@@ -2585,7 +2587,7 @@ class MusicService :
                     }
                     currentSong.value?.let { song ->
                         val speed = player.playbackParameters.speed
-                        val artistName = song.artists.joinToString { it.name }.ifEmpty { "Unknown Artist" }
+                        val artistName = song.artists.joinToString { it.name }.ifEmpty { DiscordDefaults.UNKNOWN_ARTIST }
                         val albumName = song.album?.title
                         val songTitle = if (speed != 1.0f) {
                             "${song.song.title} [${String.format("%.2fx", speed)}]"
@@ -2596,65 +2598,37 @@ class MusicService :
                         Timber.tag("DiscordSvc").i("playback paused: setting static activity")
 
                         val pausedAdvanced = dataStore.get(DiscordAdvancedModeKey, false)
-                        val paType: Int
-                        val paName: String?
-                        val paState: String
-                        val paDetails: String?
-                        val paBtn1L: String?
-                        val paBtn1U: String?
-                        val paBtn2L: String?
-                        val paBtn2U: String?
-
-                        if (pausedAdvanced) {
-                            paType = dataStore.get(DiscordActivityTypeKey, "2").toIntOrNull() ?: DiscordActivity.TYPE_LISTENING
-                            val rawPausedName = dataStore.get(DiscordActivityNameKey, "")
-                            paName = DiscordTemplateRenderer.render(rawPausedName, songTitle, artistName, albumName, song.song.id).ifEmpty { artistName }
-                            paState = DiscordTemplateRenderer.render(
-                                dataStore.get(DiscordStateTemplateKey, "{artist.name}").ifEmpty { "{artist.name}" }, songTitle, artistName, albumName, song.song.id
-                            )
-                            paDetails = DiscordTemplateRenderer.render(
-                                dataStore.get(DiscordDetailsTemplateKey, "{song.name}").ifEmpty { "{song.name}" }, songTitle, artistName, albumName, song.song.id
-                            )
-                            val pab1enabled = dataStore.get(DiscordButton1EnabledKey, true)
-                            paBtn1L = if (pab1enabled) DiscordTemplateRenderer.render(
-                                dataStore.get(DiscordButton1LabelKey, "Listen on YouTube Music").ifEmpty { "Listen on YouTube Music" }, songTitle, artistName, albumName, song.song.id
-                            ) else null
-                            paBtn1U = if (pab1enabled) DiscordTemplateRenderer.render(
-                                dataStore.get(DiscordButton1UrlKey, "https://music.youtube.com/watch?v=${song.song.id}").ifEmpty { "https://music.youtube.com/watch?v=${song.song.id}" }, songTitle, artistName, albumName, song.song.id
-                            ) else null
-                            val pab2enabled = dataStore.get(DiscordButton2EnabledKey, true)
-                            paBtn2L = if (pab2enabled) DiscordTemplateRenderer.render(
-                                dataStore.get(DiscordButton2LabelKey, "Visit Metrolist").ifEmpty { "Visit Metrolist" }, songTitle, artistName, albumName, song.song.id
-                            ) else null
-                            paBtn2U = if (pab2enabled) DiscordTemplateRenderer.render(
-                                dataStore.get(DiscordButton2UrlKey, "https://github.com/MetrolistGroup/Metrolist").ifEmpty { "https://github.com/MetrolistGroup/Metrolist" }, songTitle, artistName, albumName, song.song.id
-                            ) else null
-                        } else {
-                            paType = DiscordActivity.TYPE_LISTENING
-                            paName = artistName
-                            paState = artistName
-                            paDetails = songTitle
-                            paBtn1L = "Listen on YouTube Music"
-                            paBtn1U = "https://music.youtube.com/watch?v=${song.song.id}"
-                            paBtn2L = "Visit Metrolist"
-                            paBtn2U = "https://github.com/MetrolistGroup/Metrolist"
-                        }
+                        val paType = dataStore.get(DiscordActivityTypeKey, DiscordDefaults.ACTIVITY_TYPE).toIntOrNull() ?: DiscordActivity.TYPE_LISTENING
+                        val paName = dataStore.get(DiscordActivityNameKey, DiscordDefaults.ACTIVITY_NAME)
+                        val paStateTemplate = dataStore.get(DiscordStateTemplateKey, DiscordDefaults.STATE_TEMPLATE)
+                        val paDetailsTemplate = dataStore.get(DiscordDetailsTemplateKey, DiscordDefaults.DETAILS_TEMPLATE)
+                        val paBtn1Enabled = dataStore.get(DiscordButton1EnabledKey, true)
+                        val paBtn1Label = dataStore.get(DiscordButton1LabelKey, DiscordDefaults.BUTTON1_LABEL)
+                        val paBtn1Url = dataStore.get(DiscordButton1UrlKey, DiscordDefaults.BUTTON1_URL_TEMPLATE)
+                        val paBtn2Enabled = dataStore.get(DiscordButton2EnabledKey, true)
+                        val paBtn2Label = dataStore.get(DiscordButton2LabelKey, DiscordDefaults.BUTTON2_LABEL)
+                        val paBtn2Url = dataStore.get(DiscordButton2UrlKey, DiscordDefaults.BUTTON2_URL)
 
                         DiscordRpcManager.setActivity(
-                            DiscordActivity(
+                            DiscordActivityBuilder.build(
+                                song = song,
+                                artistName = artistName,
+                                albumName = albumName,
+                                artistThumbnail = artistThumbnail,
+                                songTitle = songTitle,
+                                startTimestamp = 0L,
+                                endTimestamp = null,
+                                advancedMode = pausedAdvanced,
                                 activityType = paType,
-                                name = paName,
-                                state = paState,
-                                details = paDetails,
-                                startTimestamp = 0L, endTimestamp = null,
-                                largeImage = song.song.thumbnailUrl,
-                                largeText = albumName,
-                                smallImage = artistThumbnail,
-                                smallText = artistName,
-                                button1Label = paBtn1L,
-                                button1Url = paBtn1U,
-                                button2Label = paBtn2L,
-                                button2Url = paBtn2U,
+                                activityName = paName,
+                                stateTemplate = paStateTemplate,
+                                detailsTemplate = paDetailsTemplate,
+                                btn1Enabled = paBtn1Enabled,
+                                btn1Label = paBtn1Label,
+                                btn1Url = paBtn1Url,
+                                btn2Enabled = paBtn2Enabled,
+                                btn2Label = paBtn2Label,
+                                btn2Url = paBtn2Url,
                             )
                         )
                     }
@@ -3409,7 +3383,7 @@ class MusicService :
         val remainingMs = song.song.duration * 1000L - currentPosition
         val adjustedRemainingMs = (remainingMs / speed).toLong()
 
-        val artistName = song.artists.joinToString { it.name }.ifEmpty { "Unknown Artist" }
+        val artistName = song.artists.joinToString { it.name }.ifEmpty { DiscordDefaults.UNKNOWN_ARTIST }
         val albumName = song.album?.title
         val songTitle = if (speed != 1.0f) {
             "${song.song.title} [${String.format("%.2fx", speed)}]"
@@ -3419,77 +3393,47 @@ class MusicService :
         val artistThumbnail = song.artists.firstOrNull()?.thumbnailUrl
 
         val advancedMode = dataStore.get(DiscordAdvancedModeKey, false)
+        val activityType = dataStore.get(DiscordActivityTypeKey, DiscordDefaults.ACTIVITY_TYPE).toIntOrNull() ?: DiscordActivity.TYPE_LISTENING
+        val activityName = dataStore.get(DiscordActivityNameKey, DiscordDefaults.ACTIVITY_NAME)
+        val stateTemplate = dataStore.get(DiscordStateTemplateKey, DiscordDefaults.STATE_TEMPLATE)
+        val detailsTemplate = dataStore.get(DiscordDetailsTemplateKey, DiscordDefaults.DETAILS_TEMPLATE)
+        val btn1Enabled = dataStore.get(DiscordButton1EnabledKey, true)
+        val btn1Label = dataStore.get(DiscordButton1LabelKey, DiscordDefaults.BUTTON1_LABEL)
+        val btn1Url = dataStore.get(DiscordButton1UrlKey, DiscordDefaults.BUTTON1_URL_TEMPLATE)
+        val btn2Enabled = dataStore.get(DiscordButton2EnabledKey, true)
+        val btn2Label = dataStore.get(DiscordButton2LabelKey, DiscordDefaults.BUTTON2_LABEL)
+        val btn2Url = dataStore.get(DiscordButton2UrlKey, DiscordDefaults.BUTTON2_URL)
 
-        val activityTypeVal: Int
-        val activityNameVal: String?
-        val stateVal: String
-        val detailsVal: String?
-        val btn1LabelVal: String?
-        val btn1UrlVal: String?
-        val btn2LabelVal: String?
-        val btn2UrlVal: String?
-
-        if (advancedMode) {
-            activityTypeVal = dataStore.get(DiscordActivityTypeKey, "2").toIntOrNull() ?: DiscordActivity.TYPE_LISTENING
-            val rawActivityName = dataStore.get(DiscordActivityNameKey, "")
-            activityNameVal = DiscordTemplateRenderer.render(rawActivityName, song).ifEmpty { artistName }
-            stateVal = DiscordTemplateRenderer.render(
-                dataStore.get(DiscordStateTemplateKey, "{artist.name}").ifEmpty { "{artist.name}" }, song
-            )
-            detailsVal = DiscordTemplateRenderer.render(
-                dataStore.get(DiscordDetailsTemplateKey, "{song.name}").ifEmpty { "{song.name}" }, song
-            )
-            val b1enabled = dataStore.get(DiscordButton1EnabledKey, true)
-            btn1LabelVal = if (b1enabled) DiscordTemplateRenderer.render(
-                dataStore.get(DiscordButton1LabelKey, "Listen on YouTube Music").ifEmpty { "Listen on YouTube Music" }, song
-            ) else null
-            btn1UrlVal = if (b1enabled) DiscordTemplateRenderer.render(
-                dataStore.get(DiscordButton1UrlKey, "https://music.youtube.com/watch?v=${song.song.id}").ifEmpty { "https://music.youtube.com/watch?v=${song.song.id}" }, song
-            ) else null
-            val b2enabled = dataStore.get(DiscordButton2EnabledKey, true)
-            btn2LabelVal = if (b2enabled) DiscordTemplateRenderer.render(
-                dataStore.get(DiscordButton2LabelKey, "Visit Metrolist").ifEmpty { "Visit Metrolist" }, song
-            ) else null
-            btn2UrlVal = if (b2enabled) DiscordTemplateRenderer.render(
-                dataStore.get(DiscordButton2UrlKey, "https://github.com/MetrolistGroup/Metrolist").ifEmpty { "https://github.com/MetrolistGroup/Metrolist" }, song
-            ) else null
-        } else {
-            activityTypeVal = DiscordActivity.TYPE_LISTENING
-            activityNameVal = artistName
-            stateVal = artistName
-            detailsVal = songTitle
-            btn1LabelVal = "Listen on YouTube Music"
-            btn1UrlVal = "https://music.youtube.com/watch?v=${song.song.id}"
-            btn2LabelVal = "Visit Metrolist"
-            btn2UrlVal = "https://github.com/MetrolistGroup/Metrolist"
-        }
-
-        Timber.tag("DiscordSvc").i("updateDiscordRPC: type=%d name=%s state=%s details=%s start=%d end=%d",
-            activityTypeVal, activityNameVal, stateVal, detailsVal, startTime, now + adjustedRemainingMs / 1000)
-
-        DiscordRpcManager.setActivity(
-            DiscordActivity(
-                activityType = activityTypeVal,
-                name = activityNameVal,
-                state = stateVal,
-                details = detailsVal,
-                startTimestamp = startTime,
-                endTimestamp = now + adjustedRemainingMs / 1000,
-                largeImage = song.song.thumbnailUrl,
-                largeText = albumName,
-                smallImage = artistThumbnail,
-                smallText = artistName,
-                button1Label = btn1LabelVal,
-                button1Url = btn1UrlVal,
-                button2Label = btn2LabelVal,
-                button2Url = btn2UrlVal,
-            )
+        val activity = DiscordActivityBuilder.build(
+            song = song,
+            artistName = artistName,
+            albumName = albumName,
+            artistThumbnail = artistThumbnail,
+            songTitle = songTitle,
+            startTimestamp = startTime,
+            endTimestamp = now + adjustedRemainingMs / 1000,
+            advancedMode = advancedMode,
+            activityType = activityType,
+            activityName = activityName,
+            stateTemplate = stateTemplate,
+            detailsTemplate = detailsTemplate,
+            btn1Enabled = btn1Enabled,
+            btn1Label = btn1Label,
+            btn1Url = btn1Url,
+            btn2Enabled = btn2Enabled,
+            btn2Label = btn2Label,
+            btn2Url = btn2Url,
         )
 
-        val statusStr = dataStore.get(DiscordUserStatusKey, "online")
+        Timber.tag("DiscordSvc").i("updateDiscordRPC: type=%d name=%s state=%s details=%s start=%d end=%d",
+            activity.activityType, activity.name, activity.state, activity.details, activity.startTimestamp, activity.endTimestamp)
+
+        DiscordRpcManager.setActivity(activity)
+
+        val statusStr = dataStore.get(DiscordUserStatusKey, DiscordDefaults.USER_STATUS)
         val status = when (statusStr) {
-            "idle" -> if (advancedMode) DiscordRpcManager.StatusType.Idle else DiscordRpcManager.StatusType.Online
-            "dnd" -> if (advancedMode) DiscordRpcManager.StatusType.Dnd else DiscordRpcManager.StatusType.Online
+            DiscordDefaults.STATUS_IDLE -> if (advancedMode) DiscordRpcManager.StatusType.Idle else DiscordRpcManager.StatusType.Online
+            DiscordDefaults.STATUS_DND -> if (advancedMode) DiscordRpcManager.StatusType.Dnd else DiscordRpcManager.StatusType.Online
             else -> DiscordRpcManager.StatusType.Online
         }
         DiscordRpcManager.setOnlineStatus(status)
@@ -3497,58 +3441,32 @@ class MusicService :
         val fetched = fetchArtistThumbnail(song)
         if (fetched != null && DiscordRpcManager.isReady() && discordRpcEnabled) {
             Timber.tag("DiscordSvc").i("updateDiscordRPC: updating with fetched thumbnail")
-            val fetchedArtistName = fetched.artists.joinToString { it.name }.ifEmpty { "Unknown Artist" }
+            val fetchedArtistName = fetched.artists.joinToString { it.name }.ifEmpty { DiscordDefaults.UNKNOWN_ARTIST }
             val fetchedAlbumName = fetched.album?.title
             val fetchedArtistThumbnail = fetched.artists.firstOrNull()?.thumbnailUrl
 
-            val faType: Int
-            val faName: String?
-            val faState: String
-            val faDetails: String?
-            val faBtn1L: String?
-            val faBtn1U: String?
-            val faBtn2L: String?
-            val faBtn2U: String?
-
-            if (advancedMode) {
-                faType = dataStore.get(DiscordActivityTypeKey, "2").toIntOrNull() ?: DiscordActivity.TYPE_LISTENING
-                val customName = dataStore.get(DiscordActivityNameKey, "")
-                faName = customName.ifEmpty { fetchedArtistName }
-                faState = DiscordTemplateRenderer.render(dataStore.get(DiscordStateTemplateKey, "{artist.name}"), fetched)
-                faDetails = DiscordTemplateRenderer.render(dataStore.get(DiscordDetailsTemplateKey, "{song.name}"), fetched)
-                faBtn1L = DiscordTemplateRenderer.render(dataStore.get(DiscordButton1LabelKey, "Listen on YouTube Music"), fetched)
-                faBtn1U = DiscordTemplateRenderer.render(dataStore.get(DiscordButton1UrlKey, "https://music.youtube.com/watch?v=${fetched.song.id}"), fetched)
-                faBtn2L = DiscordTemplateRenderer.render(dataStore.get(DiscordButton2LabelKey, "Visit Metrolist"), fetched)
-                faBtn2U = DiscordTemplateRenderer.render(dataStore.get(DiscordButton2UrlKey, "https://github.com/MetrolistGroup/Metrolist"), fetched)
-            } else {
-                faType = DiscordActivity.TYPE_LISTENING
-                faName = fetchedArtistName
-                faState = fetchedArtistName
-                faDetails = songTitle
-                faBtn1L = "Listen on YouTube Music"
-                faBtn1U = "https://music.youtube.com/watch?v=${fetched.song.id}"
-                faBtn2L = "Visit Metrolist"
-                faBtn2U = "https://github.com/MetrolistGroup/Metrolist"
-            }
-
-            DiscordRpcManager.setActivity(
-                DiscordActivity(
-                    activityType = faType,
-                    name = faName,
-                    state = faState,
-                    details = faDetails,
-                    startTimestamp = startTime,
-                    endTimestamp = now + adjustedRemainingMs / 1000,
-                    largeImage = fetched.song.thumbnailUrl,
-                    largeText = fetchedAlbumName,
-                    smallImage = fetchedArtistThumbnail,
-                    smallText = fetchedArtistName,
-                    button1Label = faBtn1L,
-                    button1Url = faBtn1U,
-                    button2Label = faBtn2L,
-                    button2Url = faBtn2U,
-                )
+            val fetchedActivity = DiscordActivityBuilder.build(
+                song = fetched,
+                artistName = fetchedArtistName,
+                albumName = fetchedAlbumName,
+                artistThumbnail = fetchedArtistThumbnail,
+                songTitle = songTitle,
+                startTimestamp = startTime,
+                endTimestamp = now + adjustedRemainingMs / 1000,
+                advancedMode = advancedMode,
+                activityType = activityType,
+                activityName = activityName,
+                stateTemplate = stateTemplate,
+                detailsTemplate = detailsTemplate,
+                btn1Enabled = btn1Enabled,
+                btn1Label = btn1Label,
+                btn1Url = btn1Url,
+                btn2Enabled = btn2Enabled,
+                btn2Label = btn2Label,
+                btn2Url = btn2Url,
             )
+
+            DiscordRpcManager.setActivity(fetchedActivity)
         } else {
             Timber.tag("DiscordSvc").i("updateDiscordRPC: fetched=%s (no thumbnail update)", fetched != null)
         }

@@ -29,16 +29,19 @@ public:
     void RunCallbacks();
     bool IsReady() const { return ready_; }
     bool IsAuthorized() const { return authorized_; }
+    void SetJavaVM(JavaVM* vm);
     void Destroy();
 
 private:
     void DoGetToken(std::string code, std::string redirectUri, std::string codeVerifier);
+    void FireNativeStatusCallback(int statusCode, bool ready, bool authorized);
 
     discordpp::Client* client_;
     std::atomic<bool> ready_;
     std::atomic<bool> authorized_;
     mutable std::mutex mutex_;
     int64_t appId_;
+    JavaVM* javaVm_;
 };
 
 extern DiscordBridge g_discordBridge;

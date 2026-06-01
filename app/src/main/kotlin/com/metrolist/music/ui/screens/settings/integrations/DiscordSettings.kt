@@ -96,6 +96,7 @@ import com.metrolist.music.constants.DiscordUsernameKey
 import com.metrolist.music.constants.EnableDiscordRPCKey
 import com.metrolist.music.db.entities.Song
 import com.metrolist.music.discord.DiscordActivity
+import com.metrolist.music.discord.DiscordDefaults
 import com.metrolist.music.discord.DiscordRpcManager
 import com.metrolist.music.discord.DiscordTemplateRenderer
 import com.metrolist.music.ui.component.EnumDialog
@@ -138,17 +139,17 @@ fun DiscordSettings(
     val (discordRPC, onDiscordRPCChange) = rememberPreference(EnableDiscordRPCKey, true)
     val (advancedMode, onAdvancedModeChange) = rememberPreference(DiscordAdvancedModeKey, false)
 
-    val (activityType, onActivityTypeChange) = rememberPreference(DiscordActivityTypeKey, "2")
-    val (activityName, onActivityNameChange) = rememberPreference(DiscordActivityNameKey, "")
-    val (stateTemplate, onStateTemplateChange) = rememberPreference(DiscordStateTemplateKey, "{artist.name}")
-    val (detailsTemplate, onDetailsTemplateChange) = rememberPreference(DiscordDetailsTemplateKey, "{song.name}")
+    val (activityType, onActivityTypeChange) = rememberPreference(DiscordActivityTypeKey, DiscordDefaults.ACTIVITY_TYPE)
+    val (activityName, onActivityNameChange) = rememberPreference(DiscordActivityNameKey, DiscordDefaults.ACTIVITY_NAME)
+    val (stateTemplate, onStateTemplateChange) = rememberPreference(DiscordStateTemplateKey, DiscordDefaults.STATE_TEMPLATE)
+    val (detailsTemplate, onDetailsTemplateChange) = rememberPreference(DiscordDetailsTemplateKey, DiscordDefaults.DETAILS_TEMPLATE)
     val (btn1Enabled, onBtn1EnabledChange) = rememberPreference(DiscordButton1EnabledKey, true)
-    val (btn1Label, onBtn1LabelChange) = rememberPreference(DiscordButton1LabelKey, "Listen on YouTube Music")
-    val (btn1Url, onBtn1UrlChange) = rememberPreference(DiscordButton1UrlKey, "https://music.youtube.com/watch?v={song.id}")
+    val (btn1Label, onBtn1LabelChange) = rememberPreference(DiscordButton1LabelKey, DiscordDefaults.BUTTON1_LABEL)
+    val (btn1Url, onBtn1UrlChange) = rememberPreference(DiscordButton1UrlKey, DiscordDefaults.BUTTON1_URL_TEMPLATE)
     val (btn2Enabled, onBtn2EnabledChange) = rememberPreference(DiscordButton2EnabledKey, true)
-    val (btn2Label, onBtn2LabelChange) = rememberPreference(DiscordButton2LabelKey, "Visit Metrolist")
-    val (btn2Url, onBtn2UrlChange) = rememberPreference(DiscordButton2UrlKey, "https://github.com/MetrolistGroup/Metrolist")
-    val (userStatus, onUserStatusChange) = rememberPreference(DiscordUserStatusKey, "online")
+    val (btn2Label, onBtn2LabelChange) = rememberPreference(DiscordButton2LabelKey, DiscordDefaults.BUTTON2_LABEL)
+    val (btn2Url, onBtn2UrlChange) = rememberPreference(DiscordButton2UrlKey, DiscordDefaults.BUTTON2_URL)
+    val (userStatus, onUserStatusChange) = rememberPreference(DiscordUserStatusKey, DiscordDefaults.USER_STATUS)
 
     var showActivityTypeDialog by remember { mutableStateOf(false) }
     var showActivityNameDialog by remember { mutableStateOf(false) }
@@ -659,7 +660,7 @@ fun DiscordSettings(
             },
             title = stringResource(R.string.discord_activity_type),
             current = activityType,
-            values = listOf("2", "0", "3", "5"),
+            values = listOf(DiscordDefaults.ACTIVITY_TYPE_LISTENING, DiscordDefaults.ACTIVITY_TYPE_PLAYING, DiscordDefaults.ACTIVITY_TYPE_WATCHING, DiscordDefaults.ACTIVITY_TYPE_COMPETING),
             valueText = { value ->
                 when (value) {
                     "0" -> stringResource(R.string.discord_activity_playing)
@@ -789,7 +790,7 @@ fun DiscordSettings(
             },
             title = stringResource(R.string.discord_status),
             current = userStatus,
-            values = listOf("online", "idle", "dnd"),
+            values = listOf(DiscordDefaults.USER_STATUS, DiscordDefaults.STATUS_IDLE, DiscordDefaults.STATUS_DND),
             valueText = { value ->
                 when (value) {
                     "idle" -> stringResource(R.string.discord_status_idle)
@@ -872,14 +873,14 @@ fun RichPresence(
     song: Song?,
     currentPlaybackTimeMillis: Long = 0L,
     advancedMode: Boolean = false,
-    activityType: String = "2",
-    stateTemplate: String = "{artist.name}",
-    detailsTemplate: String = "{song.name}",
-    btn1Label: String = "Listen on YouTube Music",
-    btn1Url: String = "https://music.youtube.com/watch?v={song.id}",
+    activityType: String = DiscordDefaults.ACTIVITY_TYPE,
+    stateTemplate: String = DiscordDefaults.STATE_TEMPLATE,
+    detailsTemplate: String = DiscordDefaults.DETAILS_TEMPLATE,
+    btn1Label: String = DiscordDefaults.BUTTON1_LABEL,
+    btn1Url: String = DiscordDefaults.BUTTON1_URL_TEMPLATE,
     btn1Enabled: Boolean = true,
-    btn2Label: String = "Visit Metrolist",
-    btn2Url: String = "https://github.com/MetrolistGroup/Metrolist",
+    btn2Label: String = DiscordDefaults.BUTTON2_LABEL,
+    btn2Url: String = DiscordDefaults.BUTTON2_URL,
     btn2Enabled: Boolean = true,
 ) {
     val context = LocalContext.current
@@ -889,24 +890,24 @@ fun RichPresence(
     val previewAlbumName = song?.album?.title
 
     val renderedState = if (advancedMode) {
-        DiscordTemplateRenderer.render(stateTemplate.ifEmpty { "{artist.name}" }, previewSongTitle, previewArtistName, previewAlbumName, song?.song?.id ?: "")
+        DiscordTemplateRenderer.render(stateTemplate.ifEmpty { DiscordDefaults.STATE_TEMPLATE }, previewSongTitle, previewArtistName, previewAlbumName, song?.song?.id ?: "")
     } else {
         previewArtistName
     }
     val renderedDetails = if (advancedMode) {
-        DiscordTemplateRenderer.render(detailsTemplate.ifEmpty { "{song.name}" }, previewSongTitle, previewArtistName, previewAlbumName, song?.song?.id ?: "")
+        DiscordTemplateRenderer.render(detailsTemplate.ifEmpty { DiscordDefaults.DETAILS_TEMPLATE }, previewSongTitle, previewArtistName, previewAlbumName, song?.song?.id ?: "")
     } else {
         previewSongTitle
     }
     val renderedBtn1Label = if (advancedMode) {
-        DiscordTemplateRenderer.render(btn1Label.ifEmpty { "Listen on YouTube Music" }, previewSongTitle, previewArtistName, previewAlbumName, song?.song?.id ?: "")
+        DiscordTemplateRenderer.render(btn1Label.ifEmpty { DiscordDefaults.BUTTON1_LABEL }, previewSongTitle, previewArtistName, previewAlbumName, song?.song?.id ?: "")
     } else {
-        "Listen on YouTube Music"
+        DiscordDefaults.BUTTON1_LABEL
     }
     val renderedBtn2Label = if (advancedMode) {
-        DiscordTemplateRenderer.render(btn2Label.ifEmpty { "Visit Metrolist" }, previewSongTitle, previewArtistName, previewAlbumName, song?.song?.id ?: "")
+        DiscordTemplateRenderer.render(btn2Label.ifEmpty { DiscordDefaults.BUTTON2_LABEL }, previewSongTitle, previewArtistName, previewAlbumName, song?.song?.id ?: "")
     } else {
-        "Visit Metrolist"
+        DiscordDefaults.BUTTON2_LABEL
     }
 
     val activityPrefix = when (activityType) {
@@ -1023,7 +1024,7 @@ fun RichPresence(
                         val intent =
                             Intent(
                                 Intent.ACTION_VIEW,
-                                "https://music.youtube.com/watch?v=${song?.id}".toUri(),
+                                "${DiscordDefaults.YOUTUBE_WATCH_URL}${song?.id}".toUri(),
                             )
                         context.startActivity(intent)
                     },
@@ -1039,7 +1040,7 @@ fun RichPresence(
                         val intent =
                             Intent(
                                 Intent.ACTION_VIEW,
-                                "https://github.com/MetrolistGroup/Metrolist".toUri(),
+                                DiscordDefaults.BUTTON2_URL.toUri(),
                             )
                         context.startActivity(intent)
                     },

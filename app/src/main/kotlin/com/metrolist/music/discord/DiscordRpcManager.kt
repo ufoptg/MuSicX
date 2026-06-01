@@ -5,6 +5,14 @@ import android.os.Looper
 import android.util.Base64
 import com.discord.socialsdk.NativeCalls
 import com.discord.socialsdk.AuthenticationClientCallback
+import com.metrolist.music.BuildConfig
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONObject
@@ -23,9 +31,9 @@ data class DiscordUser(
 )
 
 object DiscordRpcManager {
-    private const val APP_ID = 1447278780795064401L
+    private val APP_ID = BuildConfig.DISCORD_APP_ID
     private const val SCOPES = "openid sdk.social_layer_presence"
-    private const val REDIRECT_URI = "discord-$APP_ID:///authorize/callback"
+    private val REDIRECT_URI = "discord-$APP_ID:///authorize/callback"
     private const val TOKEN_URL = "https://discord.com/api/v10/oauth2/token"
     private const val AUTH_URL = "https://discord.com/oauth2/authorize"
 
@@ -33,6 +41,8 @@ object DiscordRpcManager {
     @Volatile private var _authorized = false
     @Volatile private var _ready = false
     @Volatile private var accessToken: String? = null
+
+    private var callbackJob: Job? = null
 
     private val _connectionStatus = MutableStateFlow(Status.Disconnected)
     val connectionStatus: StateFlow<Status> = _connectionStatus
@@ -52,13 +62,21 @@ object DiscordRpcManager {
         Dnd(4),
     }
 
+    @JvmStatic
+    fun onNativeStatusChanged(statusCode: Int, ready: Boolean, authorized: Boolean) {
+        synchronized(this) {
+            Timber.i("onNativeStatusChanged: statusCode=%d ready=%s authorized=%s", statusCode, ready, authorized)
+            _ready = ready
+            _authorized = authorized
+            _connectionStatus.value = if (ready && authorized) Status.Connected else Status.Authorizing
+        }
+    }
+
     fun getAccessToken(): String? = accessToken
 
     private external fun nativeInit(appId: Long): Boolean
     private external fun nativeSetTokenAndConnect(token: String)
     private external fun nativeConnect()
-    private external fun nativeIsReady(): Boolean
-    private external fun nativeIsAuthorized(): Boolean
     private external fun nativeSetActivity(
         activityType: Int,
         name: String?, state: String?, details: String?,
@@ -100,45 +118,18 @@ object DiscordRpcManager {
             }
             Timber.i("init: nativeInit succeeded")
             _connectionStatus.value = Status.Disconnected
-            Timber.i("init: starting 1s polling timer")
-            java.util.Timer("DiscordRPC", false).schedule(
-                object : java.util.TimerTask() {
-                    override fun run() {
-                        try {
-                            nativeRunCallbacks()
-                            val nativeReady = nativeIsReady()
-                            val nativeAuth = nativeIsAuthorized()
-                            val prevReady = _ready
-                            val prevAuth = _authorized
-                            val prevStatus = _connectionStatus.value
-
-                            if (!_ready && _authorized && nativeReady) {
-                                _ready = true
-                                _connectionStatus.value = Status.Connected
-                                Timber.i("TIMER: state transition -> Connected (nativeReady=true, _authorized=true)")
-                            }
-                            if (_ready && !nativeReady) {
-                                _ready = false
-                                _connectionStatus.value = Status.Authorizing
-                                Timber.w("TIMER: state transition -> Authorizing (nativeReady dropped to false)")
-                            }
-                            if (!_authorized && nativeAuth) {
-                                _authorized = true
-                                Timber.i("TIMER: _authorized set to true by nativeAuth")
-                            }
-
-                            if (prevReady != _ready || prevAuth != _authorized || prevStatus != _connectionStatus.value) {
-                                Timber.i("TIMER: state updated _ready=%s _authorized=%s status=%s nativeReady=%s nativeAuth=%s",
-                                    _ready, _authorized, _connectionStatus.value, nativeReady, nativeAuth)
-                            }
-                        } catch (e: Exception) {
-                            Timber.w(e, "TIMER: error in poll iteration")
-                        }
+            Timber.i("init: starting callback processing coroutine")
+            callbackJob = CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                while (isActive) {
+                    try {
+                        nativeRunCallbacks()
+                    } catch (e: Exception) {
+                        Timber.w(e, "coroutine: error in callback processing iteration")
                     }
-                },
-                1000, 1000
-            )
-            Timber.i("init: timer scheduled, returning")
+                    delay(1000)
+                }
+            }
+            Timber.i("init: coroutine launched, returning")
         }
     }
 
@@ -314,9 +305,11 @@ object DiscordRpcManager {
     }
 
     fun setActivity(activity: DiscordActivity) {
-        if (!_ready) {
-            Timber.w("setActivity: skipping — _ready=false, activity name=%s", activity.name)
-            return
+        synchronized(this) {
+            if (!_ready) {
+                Timber.w("setActivity: skipping — _ready=false, activity name=%s", activity.name)
+                return
+            }
         }
         Timber.i("setActivity: type=%d name=%s state=%s details=%s start=%d end=%d largeImage=%s smallImage=%s btn1=%s btn2=%s",
             activity.activityType, activity.name, activity.state, activity.details,
@@ -336,34 +329,40 @@ object DiscordRpcManager {
     }
 
     fun setOnlineStatus(status: StatusType) {
-        if (!_ready) {
-            Timber.w("setOnlineStatus: skipping — _ready=false")
-            return
+        synchronized(this) {
+            if (!_ready) {
+                Timber.w("setOnlineStatus: skipping — _ready=false")
+                return
+            }
         }
         Timber.i("setOnlineStatus: status=%s", status)
         nativeSetOnlineStatus(status.value)
     }
 
     fun clear() {
-        if (!_ready) {
-            Timber.w("clear: skipping — _ready=false")
-            return
+        synchronized(this) {
+            if (!_ready) {
+                Timber.w("clear: skipping — _ready=false")
+                return
+            }
         }
         Timber.i("clear: calling nativeClear")
         nativeClear()
     }
 
     fun reconnectWithToken(token: String) {
-        if (!initialized) {
-            Timber.w("reconnectWithToken: skipping — not initialized")
-            return
+        synchronized(this) {
+            if (!initialized) {
+                Timber.w("reconnectWithToken: skipping — not initialized")
+                return
+            }
+            Timber.i("reconnectWithToken: calling nativeSetTokenAndConnect (token length=%d)", token.length)
+            accessToken = token
+            _authorized = true
+            _connectionStatus.value = Status.Authorizing
         }
-        Timber.i("reconnectWithToken: calling nativeSetTokenAndConnect (token length=%d)", token.length)
-        accessToken = token
-        nativeSetTokenAndConnect(token)
-        _authorized = true
-        _connectionStatus.value = Status.Authorizing
         Timber.i("reconnectWithToken: set _authorized=true, status=Authorizing, posting nativeConnect")
+        nativeSetTokenAndConnect(token)
         Handler(Looper.getMainLooper()).post {
             Timber.i("reconnectWithToken: executing nativeConnect on main thread")
             nativeConnect()
@@ -375,15 +374,19 @@ object DiscordRpcManager {
         _ready = false
         _authorized = false
         initialized = false
+        callbackJob?.cancel()
+        callbackJob = null
         nativeDestroy()
         Timber.i("destroy: complete")
     }
 
     fun disconnect() {
-        Timber.i("disconnect: entering (_ready=%s, _authorized=%s)", _ready, _authorized)
-        _connectionStatus.value = Status.Disconnected
-        _ready = false
-        _authorized = false
+        synchronized(this) {
+            Timber.i("disconnect: entering (_ready=%s, _authorized=%s)", _ready, _authorized)
+            _connectionStatus.value = Status.Disconnected
+            _ready = false
+            _authorized = false
+        }
         nativeDisconnect()
         Timber.i("disconnect: complete")
     }

@@ -12,7 +12,7 @@
 DiscordBridge g_discordBridge;
 
 DiscordBridge::DiscordBridge()
-    : client_(nullptr), ready_(false), authorized_(false), appId_(0) {
+    : client_(nullptr), ready_(false), authorized_(false), appId_(0), javaVm_(nullptr) {
     LOGI("DiscordBridge constructed");
 }
 
@@ -81,15 +81,18 @@ bool DiscordBridge::Init(int64_t appId) {
                 } else if (status == discordpp::Client::Status::Connected) {
                     LOGI("STATUS: Connected (not yet ready)");
                 }
+                FireNativeStatusCallback(static_cast<int>(status), ready_, authorized_);
             });
         LOGI("Init: success");
         return true;
     } catch (const std::exception& e) {
         LOGE("Init failed with exception: %s", e.what());
+        delete client_;
         client_ = nullptr;
         return false;
     } catch (...) {
         LOGE("Init failed with unknown exception");
+        delete client_;
         client_ = nullptr;
         return false;
     }
@@ -210,6 +213,33 @@ void DiscordBridge::DoGetToken(
         LOGE("DoGetToken threw exception: %s", e.what());
     } catch (...) {
         LOGE("DoGetToken threw unknown exception");
+    }
+}
+
+void DiscordBridge::FireNativeStatusCallback(int statusCode, bool ready, bool authorized) {
+    if (!javaVm_) return;
+    JNIEnv* env = nullptr;
+    int getEnvStat = javaVm_->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
+    bool needsDetach = false;
+    if (getEnvStat == JNI_EDETACHED) {
+        JavaVMAttachArgs args = {JNI_VERSION_1_6, "DiscordCallback", nullptr};
+        if (javaVm_->AttachCurrentThread(&env, &args) != JNI_OK) return;
+        needsDetach = true;
+    } else if (getEnvStat != JNI_OK) {
+        return;
+    }
+
+    jclass clazz = env->FindClass("com/metrolist/music/discord/DiscordRpcManager");
+    if (clazz) {
+        jmethodID method = env->GetStaticMethodID(clazz, "onNativeStatusChanged", "(IZZ)V");
+        if (method) {
+            env->CallStaticVoidMethod(clazz, method, statusCode, ready, authorized);
+        }
+        env->DeleteLocalRef(clazz);
+    }
+
+    if (needsDetach) {
+        javaVm_->DetachCurrentThread();
     }
 }
 
@@ -449,6 +479,10 @@ void DiscordBridge::RunCallbacks() {
     }
 }
 
+void DiscordBridge::SetJavaVM(JavaVM* vm) {
+    javaVm_ = vm;
+}
+
 void DiscordBridge::Destroy() {
     LOGI("Destroy called (ready_=%s, authorized_=%s, client_=%s)",
          ready_ ? "true" : "false",
@@ -474,6 +508,7 @@ void DiscordBridge::Destroy() {
     } else {
         LOGW("Destroy: no client to destroy");
     }
+    javaVm_ = nullptr;
 }
 
 extern "C" {
@@ -482,6 +517,9 @@ JNIEXPORT jboolean JNICALL
 Java_com_metrolist_music_discord_DiscordRpcManager_nativeInit(
     JNIEnv* env, jobject thiz, jlong appId
 ) {
+    JavaVM* vm;
+    env->GetJavaVM(&vm);
+    g_discordBridge.SetJavaVM(vm);
     return g_discordBridge.Init(static_cast<int64_t>(appId)) ? JNI_TRUE : JNI_FALSE;
 }
 
