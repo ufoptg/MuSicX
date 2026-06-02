@@ -39,7 +39,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.ClickableText
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.withLink
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -146,13 +148,19 @@ fun ClickableArtistText(
 ) {
     val navController = LocalNavController.current
     val andString = stringResource(R.string.and)
+    val linkColor = LocalContentColor.current
     val annotatedString = remember(artists, andString) {
         buildAnnotatedString {
             artists.forEachIndexed { index, artist ->
-                artist.id.let { id ->
-                    pushStringAnnotation("artist_$id", id)
+                withLink(
+                    LinkAnnotation.Clickable(
+                        tag = artist.id,
+                        styles = TextLinkStyles(SpanStyle(color = linkColor)),
+                    ) {
+                        navController.navigate("artist/${artist.id}")
+                    }
+                ) {
                     append(artist.name)
-                    pop()
                 }
                 if (index != artists.lastIndex) {
                     if (index == artists.lastIndex - 1) {
@@ -164,18 +172,12 @@ fun ClickableArtistText(
             }
         }
     }
-    ClickableText(
+    Text(
         text = annotatedString,
         style = style,
         maxLines = maxLines,
         overflow = overflow,
         modifier = modifier,
-        onClick = { offset ->
-            annotatedString
-                .getStringAnnotations(offset, offset)
-                .firstOrNull()
-                ?.let { navController.navigate("artist/${it.item}") }
-        },
     )
 }
 
@@ -190,14 +192,24 @@ fun ClickableArtistText(
 ) {
     val navController = LocalNavController.current
     val andString = stringResource(R.string.and)
+    val linkColor = LocalContentColor.current
     val annotatedString = remember(artists, andString) {
         buildAnnotatedString {
             artists.forEachIndexed { index, artist ->
-                artist.id?.let { id ->
-                    pushStringAnnotation("artist_$id", id)
+                if (artist.id != null) {
+                    withLink(
+                        LinkAnnotation.Clickable(
+                            tag = artist.id!!,
+                            styles = TextLinkStyles(SpanStyle(color = linkColor)),
+                        ) {
+                            navController.navigate("artist/${artist.id}")
+                        }
+                    ) {
+                        append(artist.name)
+                    }
+                } else {
                     append(artist.name)
-                    pop()
-                } ?: append(artist.name)
+                }
                 if (index != artists.lastIndex) {
                     if (index == artists.lastIndex - 1) {
                         append(" $andString ")
@@ -208,18 +220,12 @@ fun ClickableArtistText(
             }
         }
     }
-    ClickableText(
+    Text(
         text = annotatedString,
         style = style,
         maxLines = maxLines,
         overflow = overflow,
         modifier = modifier,
-        onClick = { offset ->
-            annotatedString
-                .getStringAnnotations(offset, offset)
-                .firstOrNull()
-                ?.let { navController.navigate("artist/${it.item}") }
-        },
     )
 }
 

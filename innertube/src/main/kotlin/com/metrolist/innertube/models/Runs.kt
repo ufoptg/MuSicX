@@ -33,7 +33,8 @@ fun List<Run>.splitArtistsByConjunction(): List<Run> {
     val words = ArtistConjunctions.conjunctions
     val conjunctionPattern = Regex(
         if (words.isNotEmpty()) " (${words.joinToString("|") { Regex.escape(it) }}) | & "
-        else " & "
+        else " & ",
+        RegexOption.IGNORE_CASE
     )
     forEach { run ->
         val text = run.text

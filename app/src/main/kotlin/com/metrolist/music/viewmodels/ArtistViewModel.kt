@@ -90,13 +90,10 @@ class ArtistViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
-        // Load cached page first for instant display
         viewModelScope.launch {
+            // Load cached page first for instant display, then fetch fresh data
             loadCachedPage()
-        }
 
-        // Then listen for settings changes and fetch fresh data
-        viewModelScope.launch {
             context.dataStore.data
                 .map {
                     Triple(
