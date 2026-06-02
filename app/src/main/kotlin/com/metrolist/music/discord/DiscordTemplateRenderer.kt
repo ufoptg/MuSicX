@@ -7,8 +7,8 @@ object DiscordTemplateRenderer {
         var result = template
             .replace("{song.name}", song.song.title)
             .replace("{song.id}", song.song.id)
-            .replace("{artist.name}", song.artists.joinToString { it.name }.ifEmpty { "Unknown Artist" })
-            .replace("{album.name}", song.album?.title ?: "Unknown Album")
+            .replace("{artist.name}", song.artists.joinToString { it.name }.ifEmpty { DiscordDefaults.UNKNOWN_ARTIST })
+            .replace("{album.name}", song.album?.title ?: DiscordDefaults.UNKNOWN_ALBUM)
         return result
     }
 
@@ -23,7 +23,7 @@ object DiscordTemplateRenderer {
             .replace("{song.name}", title)
             .replace("{song.id}", songId)
             .replace("{artist.name}", artist)
-            .replace("{album.name}", album ?: "Unknown Album")
+            .replace("{album.name}", album ?: DiscordDefaults.UNKNOWN_ALBUM)
         return result
     }
 

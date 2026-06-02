@@ -49,6 +49,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -113,6 +114,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalLayoutApi::class)
 @Composable
@@ -120,8 +122,8 @@ fun DiscordSettings(
     navController: NavController,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
-    val song by playerConnection.currentSong.collectAsState(null)
-    val playbackState by playerConnection.playbackState.collectAsState()
+    val song by playerConnection.currentSong.collectAsStateWithLifecycle(null)
+    val playbackState by playerConnection.playbackState.collectAsStateWithLifecycle()
 
     var position by rememberSaveable(playbackState) {
         mutableLongStateOf(playerConnection.player.currentPosition)
@@ -174,8 +176,10 @@ fun DiscordSettings(
         else -> ""
     }
 
-    if (!DiscordRpcManager.isInitialized()) {
-        DiscordRpcManager.init()
+    LaunchedEffect(Unit) {
+        if (!DiscordRpcManager.isInitialized()) {
+            DiscordRpcManager.init()
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -357,7 +361,11 @@ fun DiscordSettings(
                         discordAvatar = ""
                         discordAccessToken = ""
                         coroutineScope.launch(Dispatchers.IO) {
-                            DiscordRpcManager.logout()
+                            try {
+                                DiscordRpcManager.logout()
+                            } catch (e: Exception) {
+                                Timber.e(e, "Discord logout failed")
+                            }
                         }
                     }) {
                         Text(stringResource(R.string.action_logout))
@@ -1022,10 +1030,10 @@ fun RichPresence(
                     enabled = song != null,
                     onClick = {
                         val intent =
-                            Intent(
-                                Intent.ACTION_VIEW,
-                                "${DiscordDefaults.YOUTUBE_WATCH_URL}${song?.id}".toUri(),
-                            )
+                                Intent(
+                                    Intent.ACTION_VIEW,
+                                    "${DiscordDefaults.YOUTUBE_WATCH_URL}${song?.song?.id}".toUri(),
+                                )
                         context.startActivity(intent)
                     },
                     modifier = Modifier.fillMaxWidth(),

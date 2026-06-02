@@ -68,7 +68,11 @@ object DiscordRpcManager {
             Timber.i("onNativeStatusChanged: statusCode=%d ready=%s authorized=%s", statusCode, ready, authorized)
             _ready = ready
             _authorized = authorized
-            _connectionStatus.value = if (ready && authorized) Status.Connected else Status.Authorizing
+            _connectionStatus.value = when {
+                ready && authorized -> Status.Connected
+                statusCode == 3 || (!ready && !authorized) -> Status.Disconnected
+                else -> Status.Authorizing
+            }
         }
     }
 
@@ -218,6 +222,8 @@ object DiscordRpcManager {
 
                 Timber.i("exchange: POSTing to %s", TOKEN_URL)
                 val conn = URL(TOKEN_URL).openConnection() as HttpURLConnection
+                conn.connectTimeout = 10_000
+                conn.readTimeout = 10_000
                 conn.requestMethod = "POST"
                 conn.doOutput = true
                 conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
@@ -241,7 +247,6 @@ object DiscordRpcManager {
                         Timber.i("exchange: got access_token (length=%d), calling nativeSetTokenAndConnect", accessToken.length)
                         this@DiscordRpcManager.accessToken = accessToken
                         nativeSetTokenAndConnect(accessToken)
-                        _authorized = true
                         _connectionStatus.value = Status.Authorizing
                         Handler(Looper.getMainLooper()).post {
                             Timber.i("exchange: posting nativeConnect to main thread")
@@ -271,6 +276,8 @@ object DiscordRpcManager {
         return try {
             val url = URL("https://discord.com/api/v10/users/@me")
             val conn = url.openConnection() as HttpURLConnection
+            conn.connectTimeout = 10_000
+            conn.readTimeout = 10_000
             conn.requestMethod = "GET"
             conn.setRequestProperty("Authorization", "Bearer $token")
             conn.setRequestProperty("Accept", "application/json")
@@ -358,10 +365,9 @@ object DiscordRpcManager {
             }
             Timber.i("reconnectWithToken: calling nativeSetTokenAndConnect (token length=%d)", token.length)
             accessToken = token
-            _authorized = true
             _connectionStatus.value = Status.Authorizing
         }
-        Timber.i("reconnectWithToken: set _authorized=true, status=Authorizing, posting nativeConnect")
+        Timber.i("reconnectWithToken: set status=Authorizing, posting nativeConnect")
         nativeSetTokenAndConnect(token)
         Handler(Looper.getMainLooper()).post {
             Timber.i("reconnectWithToken: executing nativeConnect on main thread")

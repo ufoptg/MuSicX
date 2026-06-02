@@ -32,7 +32,13 @@ public:
     void SetJavaVM(JavaVM* vm);
     void Destroy();
 
+    static jclass GetDiscordRpcManagerClass() { return discordRpcManagerClass_; }
+    static jmethodID GetOnNativeStatusChangedMethod() { return onNativeStatusChangedMethod_; }
+    static void SetDiscordRpcManagerClass(jclass clazz) { discordRpcManagerClass_ = clazz; }
+    static void SetOnNativeStatusChangedMethod(jmethodID method) { onNativeStatusChangedMethod_ = method; }
+
 private:
+    void DestroyUnlocked();
     void DoGetToken(std::string code, std::string redirectUri, std::string codeVerifier);
     void FireNativeStatusCallback(int statusCode, bool ready, bool authorized);
 
@@ -42,6 +48,9 @@ private:
     mutable std::mutex mutex_;
     int64_t appId_;
     JavaVM* javaVm_;
+
+    static jclass discordRpcManagerClass_;
+    static jmethodID onNativeStatusChangedMethod_;
 };
 
 extern DiscordBridge g_discordBridge;

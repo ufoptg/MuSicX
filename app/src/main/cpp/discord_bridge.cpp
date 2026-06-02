@@ -11,6 +11,9 @@
 
 DiscordBridge g_discordBridge;
 
+jclass DiscordBridge::discordRpcManagerClass_ = nullptr;
+jmethodID DiscordBridge::onNativeStatusChangedMethod_ = nullptr;
+
 DiscordBridge::DiscordBridge()
     : client_(nullptr), ready_(false), authorized_(false), appId_(0), javaVm_(nullptr) {
     LOGI("DiscordBridge constructed");
@@ -26,7 +29,7 @@ bool DiscordBridge::Init(int64_t appId) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (client_) {
         LOGI("Init: client already exists, destroying first");
-        Destroy();
+        DestroyUnlocked();
     }
 
     appId_ = appId;
@@ -229,13 +232,8 @@ void DiscordBridge::FireNativeStatusCallback(int statusCode, bool ready, bool au
         return;
     }
 
-    jclass clazz = env->FindClass("com/metrolist/music/discord/DiscordRpcManager");
-    if (clazz) {
-        jmethodID method = env->GetStaticMethodID(clazz, "onNativeStatusChanged", "(IZZ)V");
-        if (method) {
-            env->CallStaticVoidMethod(clazz, method, statusCode, ready, authorized);
-        }
-        env->DeleteLocalRef(clazz);
+    if (discordRpcManagerClass_ && onNativeStatusChangedMethod_) {
+        env->CallStaticVoidMethod(discordRpcManagerClass_, onNativeStatusChangedMethod_, statusCode, ready, authorized);
     }
 
     if (needsDetach) {
@@ -415,9 +413,9 @@ void DiscordBridge::SetTokenAndConnect(const char* token) {
          token ? "provided" : "null",
          ready_ ? "true" : "false",
          authorized_ ? "true" : "false");
-    if (!client_) { LOGE("SetTokenAndConnect: no client"); return; }
     if (!token) { LOGE("SetTokenAndConnect: null token"); return; }
     std::lock_guard<std::mutex> lock(mutex_);
+    if (!client_) { LOGE("SetTokenAndConnect: no client"); return; }
     if (authorized_) {
         LOGW("SetTokenAndConnect: already authorized, skipping");
         return;
@@ -451,6 +449,7 @@ void DiscordBridge::SetTokenAndConnect(const char* token) {
 void DiscordBridge::Connect() {
     LOGI("Connect called (ready_=%s, authorized_=%s)",
          ready_ ? "true" : "false", authorized_ ? "true" : "false");
+    std::lock_guard<std::mutex> lock(mutex_);
     if (!client_) { LOGE("Connect: no client"); return; }
     if (ready_) {
         LOGW("Connect: already ready, skipping");
@@ -483,32 +482,36 @@ void DiscordBridge::SetJavaVM(JavaVM* vm) {
     javaVm_ = vm;
 }
 
+void DiscordBridge::DestroyUnlocked() {
+    ready_ = false;
+    authorized_ = false;
+    if (client_) {
+        try {
+            LOGI("DestroyUnlocked: disconnecting client...");
+            client_->Disconnect();
+            LOGI("DestroyUnlocked: disconnected");
+        } catch (const std::exception& e) {
+            LOGW("DestroyUnlocked: Disconnect threw: %s (ignored)", e.what());
+        } catch (...) {
+            LOGW("DestroyUnlocked: Disconnect threw unknown (ignored)");
+        }
+        LOGI("DestroyUnlocked: deleting client...");
+        delete client_;
+        client_ = nullptr;
+        LOGI("DestroyUnlocked: client deleted successfully");
+    } else {
+        LOGW("DestroyUnlocked: no client to destroy");
+    }
+    javaVm_ = nullptr;
+}
+
 void DiscordBridge::Destroy() {
     LOGI("Destroy called (ready_=%s, authorized_=%s, client_=%s)",
          ready_ ? "true" : "false",
          authorized_ ? "true" : "false",
          client_ ? "exists" : "null");
     std::lock_guard<std::mutex> lock(mutex_);
-    ready_ = false;
-    authorized_ = false;
-    if (client_) {
-        try {
-            LOGI("Destroy: disconnecting client...");
-            client_->Disconnect();
-            LOGI("Destroy: disconnected");
-        } catch (const std::exception& e) {
-            LOGW("Destroy: Disconnect threw: %s (ignored)", e.what());
-        } catch (...) {
-            LOGW("Destroy: Disconnect threw unknown (ignored)");
-        }
-        LOGI("Destroy: deleting client...");
-        delete client_;
-        client_ = nullptr;
-        LOGI("Destroy: client deleted successfully");
-    } else {
-        LOGW("Destroy: no client to destroy");
-    }
-    javaVm_ = nullptr;
+    DestroyUnlocked();
 }
 
 extern "C" {
@@ -520,6 +523,18 @@ Java_com_metrolist_music_discord_DiscordRpcManager_nativeInit(
     JavaVM* vm;
     env->GetJavaVM(&vm);
     g_discordBridge.SetJavaVM(vm);
+
+    jclass localClass = env->FindClass("com/metrolist/music/discord/DiscordRpcManager");
+    if (localClass) {
+        jclass globalClass = static_cast<jclass>(env->NewGlobalRef(localClass));
+        DiscordBridge::SetDiscordRpcManagerClass(globalClass);
+        jmethodID method = env->GetStaticMethodID(localClass, "onNativeStatusChanged", "(IZZ)V");
+        if (method) {
+            DiscordBridge::SetOnNativeStatusChangedMethod(method);
+        }
+        env->DeleteLocalRef(localClass);
+    }
+
     return g_discordBridge.Init(static_cast<int64_t>(appId)) ? JNI_TRUE : JNI_FALSE;
 }
 
