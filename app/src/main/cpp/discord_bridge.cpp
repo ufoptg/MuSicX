@@ -522,7 +522,7 @@ Java_com_metrolist_music_discord_DiscordRpcManager_nativeInit(
     jclass localClass = env->FindClass("com/metrolist/music/discord/DiscordRpcManager");
     if (localClass) {
         jclass globalClass = static_cast<jclass>(env->NewGlobalRef(localClass));
-        DiscordBridge::SetDiscordRpcManagerClass(globalClass);
+        DiscordBridge::SetDiscordRpcManagerClass(env, globalClass);
         jmethodID method = env->GetStaticMethodID(localClass, "onNativeStatusChanged", "(IZZ)V");
         if (method) {
             DiscordBridge::SetOnNativeStatusChangedMethod(method);

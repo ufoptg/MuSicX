@@ -77,7 +77,6 @@ import coil3.compose.AsyncImage
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
-import com.metrolist.music.constants.DiscordAccessTokenKey
 import com.metrolist.music.constants.DiscordActivityNameKey
 import com.metrolist.music.constants.DiscordActivityTypeKey
 import com.metrolist.music.constants.DiscordAdvancedModeKey
@@ -96,10 +95,10 @@ import com.metrolist.music.constants.DiscordUserStatusKey
 import com.metrolist.music.constants.DiscordUsernameKey
 import com.metrolist.music.constants.EnableDiscordRPCKey
 import com.metrolist.music.db.entities.Song
-import com.metrolist.music.discord.DiscordActivity
 import com.metrolist.music.discord.DiscordDefaults
 import com.metrolist.music.discord.DiscordRpcManager
 import com.metrolist.music.discord.DiscordTemplateRenderer
+import com.metrolist.music.discord.DiscordTokenStore
 import com.metrolist.music.ui.component.EnumDialog
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.IconButton
@@ -135,7 +134,7 @@ fun DiscordSettings(
     var discordUsername by rememberPreference(DiscordUsernameKey, "")
     var discordName by rememberPreference(DiscordNameKey, "")
     var discordAvatar by rememberPreference(DiscordAvatarKey, "")
-    var discordAccessToken by rememberPreference(DiscordAccessTokenKey, "")
+    var discordAccessToken by remember { mutableStateOf(DiscordTokenStore.retrieve()) }
     var infoDismissed by rememberPreference(DiscordInfoDismissedKey, false)
 
     val (discordRPC, onDiscordRPCChange) = rememberPreference(EnableDiscordRPCKey, true)
@@ -178,13 +177,14 @@ fun DiscordSettings(
 
     LaunchedEffect(Unit) {
         if (!DiscordRpcManager.isInitialized()) {
-            DiscordRpcManager.init()
+            DiscordRpcManager.init(context)
         }
     }
 
     LaunchedEffect(Unit) {
-        if (discordAccessToken.isNotEmpty() && !DiscordRpcManager.isAuthorized()) {
-            DiscordRpcManager.reconnectWithToken(discordAccessToken)
+        val token = DiscordTokenStore.retrieve()
+        if (token != null && !DiscordRpcManager.isAuthorized()) {
+            DiscordRpcManager.reconnectWithToken(token)
         }
     }
 
@@ -359,7 +359,7 @@ fun DiscordSettings(
                         discordName = ""
                         discordUsername = ""
                         discordAvatar = ""
-                        discordAccessToken = ""
+                        discordAccessToken = null
                         coroutineScope.launch(Dispatchers.IO) {
                             try {
                                 DiscordRpcManager.logout()

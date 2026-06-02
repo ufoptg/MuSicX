@@ -165,10 +165,8 @@ val DiscordInfoDismissedKey = booleanPreferencesKey("discordInfoDismissed")
 val DiscordUsernameKey = stringPreferencesKey("discordUsername")
 val DiscordNameKey = stringPreferencesKey("discordName")
 val DiscordAvatarKey = stringPreferencesKey("discordAvatar")
-// TODO: Migrate to EncryptedSharedPreferences or Jetpack Security to avoid
-// storing the OAuth bearer token in plain text. This token is scoped to
-// sdk.social_layer_presence+openid only, but plain-text persistence is still
-// a risk if the device storage is compromised.
+// Token is now stored in EncryptedSharedPreferences via DiscordTokenStore.
+// This key is retained only for potential migration from old plain-text instances.
 val DiscordAccessTokenKey = stringPreferencesKey("discordAccessToken")
 val DiscordAdvancedModeKey = booleanPreferencesKey("discordAdvancedMode")
 val DiscordActivityTypeKey = stringPreferencesKey("discordActivityType")

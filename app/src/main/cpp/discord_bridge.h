@@ -34,7 +34,10 @@ public:
 
     static jclass GetDiscordRpcManagerClass() { return discordRpcManagerClass_; }
     static jmethodID GetOnNativeStatusChangedMethod() { return onNativeStatusChangedMethod_; }
-    static void SetDiscordRpcManagerClass(jclass clazz) { discordRpcManagerClass_ = clazz; }
+    static void SetDiscordRpcManagerClass(JNIEnv* env, jclass clazz) {
+        if (discordRpcManagerClass_) env->DeleteGlobalRef(discordRpcManagerClass_);
+        discordRpcManagerClass_ = clazz;
+    }
     static void SetOnNativeStatusChangedMethod(jmethodID method) { onNativeStatusChangedMethod_ = method; }
 
 private:

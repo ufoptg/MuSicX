@@ -113,6 +113,7 @@ android {
         buildConfigField("String", "LASTFM_SECRET", "\"$lastFmSecret\"")
         buildConfigField("String", "ARCHITECTURE", "\"universal\"")
         buildConfigField("Long", "DISCORD_APP_ID", "1447278780795064401L")
+        manifestPlaceholders["discordAppId"] = "1447278780795064401"
     }
 
     flavorDimensions += listOf("variant")
@@ -322,18 +323,6 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
     }
 }
 
-tasks.register("checkDiscordAppId") {
-    val manifestScheme = "discord-1447278780795064401"
-    val appId = "1447278780795064401"
-    if (!manifestScheme.contains(appId)) {
-        throw GradleException(
-            "Discord app ID mismatch: AndroidManifest.xml scheme '$manifestScheme' " +
-                "does not contain DISCORD_APP_ID '$appId' in build.gradle.kts"
-        )
-    }
-}
-tasks.getByName("preBuild").dependsOn("checkDiscordAppId")
-
 // Android provides org.json as a platform API (/apex/com.android.art/javalib/core-libart.jar).
 // The standalone org.json:json artefact bundles an older Apache Harmony copy of JSONArray that
 // contains an internal `myArrayList` field absent from the platform class.  Without obfuscation
@@ -374,6 +363,7 @@ dependencies {
     implementation(libs.coil)
     implementation(libs.coil.network.okhttp)
     implementation(libs.browser)
+    implementation(libs.security.crypto)
 
     implementation(libs.ucrop)
 

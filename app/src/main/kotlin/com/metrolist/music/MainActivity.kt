@@ -350,6 +350,10 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         if (isFinishing) {
             listenTogetherManager.disconnect()
+            try {
+                DiscordSocialSdkInit.setEngineActivity(null)
+            } catch (_: Exception) {
+            }
         }
         super.onDestroy()
         // Use effective playing state so Cast (local player paused, remote playing) is included.

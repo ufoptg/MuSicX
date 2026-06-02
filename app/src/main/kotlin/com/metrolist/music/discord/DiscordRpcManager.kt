@@ -1,5 +1,6 @@
 package com.metrolist.music.discord
 
+import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
@@ -37,10 +38,13 @@ object DiscordRpcManager {
     private const val TOKEN_URL = "https://discord.com/api/v10/oauth2/token"
     private const val AUTH_URL = "https://discord.com/oauth2/authorize"
 
-    @Volatile private var initialized = false
+    private val initialized = java.util.concurrent.atomic.AtomicBoolean(false)
     @Volatile private var _authorized = false
     @Volatile private var _ready = false
     @Volatile private var accessToken: String? = null
+
+    private val _accessTokenFlow = MutableStateFlow<String?>(null)
+    val accessTokenFlow: StateFlow<String?> = _accessTokenFlow
 
     private var callbackJob: Job? = null
 
@@ -96,45 +100,45 @@ object DiscordRpcManager {
     private external fun nativeDestroy()
     private external fun nativeDisconnect()
 
-    fun isInitialized(): Boolean = initialized
+    fun isInitialized(): Boolean = initialized.get()
     fun isAuthorized(): Boolean = _authorized
     fun isReady(): Boolean = _ready
 
-    fun init() {
-        synchronized(this) {
-            if (initialized) {
-                Timber.i("init: already initialized, skipping")
-                return
-            }
-            Timber.i("init: loading native library 'metrolist_discord'")
-            try {
-                System.loadLibrary("metrolist_discord")
-                Timber.i("init: native library loaded successfully")
-            } catch (e: UnsatisfiedLinkError) {
-                Timber.e(e, "init: Failed to load native library")
-                return
-            }
-            Timber.i("init: calling nativeInit(appId=%d)", APP_ID)
-            initialized = nativeInit(APP_ID)
-            if (!initialized) {
-                Timber.w("init: nativeInit returned false")
-                return
-            }
-            Timber.i("init: nativeInit succeeded")
-            _connectionStatus.value = Status.Disconnected
-            Timber.i("init: starting callback processing coroutine")
-            callbackJob = CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-                while (isActive) {
-                    try {
-                        nativeRunCallbacks()
-                    } catch (e: Exception) {
-                        Timber.w(e, "coroutine: error in callback processing iteration")
-                    }
-                    delay(1000)
-                }
-            }
-            Timber.i("init: coroutine launched, returning")
+    fun init(context: Context) {
+        DiscordTokenStore.init(context.applicationContext)
+        if (!initialized.compareAndSet(false, true)) {
+            Timber.i("init: already initialized, skipping")
+            return
         }
+        Timber.i("init: loading native library 'metrolist_discord'")
+        try {
+            System.loadLibrary("metrolist_discord")
+            Timber.i("init: native library loaded successfully")
+        } catch (e: UnsatisfiedLinkError) {
+            Timber.e(e, "init: Failed to load native library")
+            initialized.set(false)
+            return
+        }
+        Timber.i("init: calling nativeInit(appId=%d)", APP_ID)
+        if (!nativeInit(APP_ID)) {
+            Timber.w("init: nativeInit returned false")
+            initialized.set(false)
+            return
+        }
+        Timber.i("init: nativeInit succeeded")
+        _connectionStatus.value = Status.Disconnected
+        Timber.i("init: starting callback processing coroutine")
+        callbackJob = CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            while (isActive) {
+                try {
+                    nativeRunCallbacks()
+                } catch (e: Exception) {
+                    Timber.w(e, "coroutine: error in callback processing iteration")
+                }
+                delay(1000)
+            }
+        }
+        Timber.i("init: coroutine launched, returning")
     }
 
     private fun generateCodeVerifier(): String {
@@ -149,7 +153,7 @@ object DiscordRpcManager {
     }
 
     fun authorize(onComplete: (Boolean) -> Unit) {
-        if (!initialized) {
+        if (!initialized.get()) {
             Timber.w("authorize: skipping — not initialized")
             onComplete(false)
             return
@@ -246,6 +250,8 @@ object DiscordRpcManager {
                     if (accessToken.isNotEmpty()) {
                         Timber.i("exchange: got access_token (length=%d), calling nativeSetTokenAndConnect", accessToken.length)
                         this@DiscordRpcManager.accessToken = accessToken
+                        _accessTokenFlow.value = accessToken
+                        DiscordTokenStore.store(accessToken)
                         nativeSetTokenAndConnect(accessToken)
                         _connectionStatus.value = Status.Authorizing
                         Handler(Looper.getMainLooper()).post {
@@ -359,12 +365,14 @@ object DiscordRpcManager {
 
     fun reconnectWithToken(token: String) {
         synchronized(this) {
-            if (!initialized) {
+            if (!initialized.get()) {
                 Timber.w("reconnectWithToken: skipping — not initialized")
                 return
             }
             Timber.i("reconnectWithToken: calling nativeSetTokenAndConnect (token length=%d)", token.length)
             accessToken = token
+            _accessTokenFlow.value = token
+            DiscordTokenStore.store(token)
             _connectionStatus.value = Status.Authorizing
         }
         Timber.i("reconnectWithToken: set status=Authorizing, posting nativeConnect")
@@ -379,7 +387,7 @@ object DiscordRpcManager {
         Timber.i("destroy: entering (_ready=%s, _authorized=%s, initialized=%s)", _ready, _authorized, initialized)
         _ready = false
         _authorized = false
-        initialized = false
+        initialized.set(false)
         callbackJob?.cancel()
         callbackJob = null
         nativeDestroy()
@@ -401,6 +409,8 @@ object DiscordRpcManager {
         Timber.i("logout: entering")
         disconnect()
         accessToken = null
+        _accessTokenFlow.value = null
+        DiscordTokenStore.clear()
         Timber.i("logout: complete, accessToken cleared")
     }
 }

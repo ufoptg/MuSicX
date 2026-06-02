@@ -103,7 +103,6 @@ import com.metrolist.music.constants.CrossfadeDurationKey
 import com.metrolist.music.constants.CrossfadeEnabledKey
 import com.metrolist.music.constants.CrossfadeGaplessKey
 import com.metrolist.music.constants.DisableLoadMoreWhenRepeatAllKey
-import com.metrolist.music.constants.DiscordAccessTokenKey
 import com.metrolist.music.constants.DiscordActivityNameKey
 import com.metrolist.music.constants.DiscordActivityTypeKey
 import com.metrolist.music.constants.DiscordAdvancedModeKey
@@ -944,7 +943,7 @@ class MusicService :
                         scope.launch(Dispatchers.IO) {
                             if (!DiscordRpcManager.isInitialized()) {
                                 Timber.tag("DiscordSvc").i("RPC toggle: initializing")
-                                DiscordRpcManager.init()
+                                DiscordRpcManager.init(this@MusicService)
                             }
                             DiscordRpcManager.reconnectWithToken(DiscordRpcManager.getAccessToken()!!)
                         }
@@ -959,28 +958,23 @@ class MusicService :
                 }
             }
 
-        dataStore.data
-            .map { it[DiscordAccessTokenKey] ?: "" }
-            .distinctUntilChanged()
-            .collect(scope) { token ->
-                Timber.tag("DiscordSvc").i("Token change: length=%d, initialized=%s, authorized=%s, enabled=%s",
-                    token.length, DiscordRpcManager.isInitialized(), DiscordRpcManager.isAuthorized(), discordRpcEnabled)
-                if (token.isEmpty()) {
+        DiscordRpcManager.accessTokenFlow.collectLatest(scope) { token ->
+                Timber.tag("DiscordSvc").i("Token change: hasToken=%s, initialized=%s, authorized=%s, enabled=%s",
+                    token != null, DiscordRpcManager.isInitialized(), DiscordRpcManager.isAuthorized(), discordRpcEnabled)
+                if (token == null) {
                     if (DiscordRpcManager.isReady()) {
                         Timber.tag("DiscordSvc").i("Token change: empty token, disconnecting")
-                        scope.launch(Dispatchers.IO) {
-                            DiscordRpcManager.disconnect()
-                        }
+                        DiscordRpcManager.disconnect()
                     }
-                    return@collect
+                    return@collectLatest
                 }
                 if (!discordRpcEnabled) {
                     Timber.tag("DiscordSvc").i("Token change: RPC disabled, skipping reconnect")
-                    return@collect
+                    return@collectLatest
                 }
                 if (!DiscordRpcManager.isInitialized()) {
                     Timber.tag("DiscordSvc").i("Token change: initializing")
-                    DiscordRpcManager.init()
+                    DiscordRpcManager.init(this@MusicService)
                 }
                 if (!DiscordRpcManager.isAuthorized()) {
                     Timber.tag("DiscordSvc").i("Token change: reconnecting with token")
@@ -2659,7 +2653,7 @@ class MusicService :
                 if (token != null) {
                     if (!DiscordRpcManager.isInitialized()) {
                         Timber.tag("DiscordSvc").i("playback event: initializing")
-                        DiscordRpcManager.init()
+                        DiscordRpcManager.init(this@MusicService)
                     }
                     Timber.tag("DiscordSvc").i("playback event: reconnecting with token")
                     DiscordRpcManager.reconnectWithToken(token)
@@ -3921,9 +3915,7 @@ class MusicService :
         screenOffHandler.removeCallbacks(screenOffTimeout)
         if (DiscordRpcManager.isReady()) {
             Timber.tag("DiscordSvc").i("onDestroy: disconnecting Discord RPC")
-            kotlinx.coroutines.runBlocking(Dispatchers.IO) {
-                DiscordRpcManager.disconnect()
-            }
+            DiscordRpcManager.disconnect()
         }
         connectivityObserver.unregister()
         abandonAudioFocus()
