@@ -2806,14 +2806,8 @@ object YouTube {
                     ]
                 }.joinToString("")
 
-        val playbackUrl =
-            playbackTracking.replace(
-                "https://s.youtube.com",
-                "https://music.youtube.com",
-            )
-
         innerTube.registerPlayback(
-            url = playbackUrl,
+            url = playbackTracking,
             playlistId = playlistId,
             cpn = cpn,
         )
