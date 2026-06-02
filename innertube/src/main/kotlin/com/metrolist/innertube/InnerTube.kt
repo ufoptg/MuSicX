@@ -261,6 +261,7 @@ class InnerTube {
             ytClient(client, true)
             parameter("c", client.clientName)
             parameter("cpn", cpn)
+            parameter("ver", "2")
 
             if (playlistId != null) {
                 parameter("list", playlistId)
