@@ -121,9 +121,7 @@ void DiscordBridge::Authorize() {
 
         LOGI("Authorize: creating code verifier");
         auto verifier = client_->CreateAuthorizationCodeVerifier();
-        LOGI("Authorize: verifier=%s challenge=%s",
-             verifier.Verifier().c_str(),
-             verifier.Challenge().Challenge().c_str());
+        LOGI("Authorize: PKCE verifier created (challenge method=S256)");
 
         discordpp::AuthorizationArgs args;
         args.SetClientId(static_cast<uint64_t>(appId_));
@@ -151,8 +149,7 @@ void DiscordBridge::Authorize() {
                          result.Retryable() ? "true" : "false");
                     return;
                 }
-                LOGI("Authorize callback SUCCEEDED: code=%s redirectUri=%s",
-                     code.c_str(), redirectUri.c_str());
+                LOGI("Authorize callback SUCCEEDED");
                 LOGI("Authorize: exchanging code for token...");
                 DoGetToken(std::move(code), std::move(redirectUri), ver.Verifier());
             }
@@ -168,8 +165,7 @@ void DiscordBridge::Authorize() {
 void DiscordBridge::DoGetToken(
     std::string code, std::string redirectUri, std::string codeVerifier
 ) {
-    LOGI("DoGetToken: code=%s redirectUri=%s verifier=%s",
-         code.c_str(), redirectUri.c_str(), codeVerifier.c_str());
+    LOGI("DoGetToken: exchanging authorization code for token");
     if (!client_) {
         LOGE("DoGetToken: no client");
         return;
@@ -192,8 +188,7 @@ void DiscordBridge::DoGetToken(
                          result.Error().c_str(), result.ErrorCode());
                     return;
                 }
-                LOGI("GetToken SUCCEEDED: accessToken=%s refreshToken=%s tokenType=%d expiresIn=%d scopes=%s",
-                     accessToken.c_str(), refreshToken.c_str(),
+                LOGI("GetToken SUCCEEDED: tokenType=%d expiresIn=%d scopes=%s",
                      static_cast<int>(tokenType), expiresIn, scopes.c_str());
                 LOGI("GetToken: calling UpdateToken...");
                 client_->UpdateToken(
