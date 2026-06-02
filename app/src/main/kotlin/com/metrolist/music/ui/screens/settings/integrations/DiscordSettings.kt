@@ -134,7 +134,7 @@ fun DiscordSettings(
     var discordUsername by rememberPreference(DiscordUsernameKey, "")
     var discordName by rememberPreference(DiscordNameKey, "")
     var discordAvatar by rememberPreference(DiscordAvatarKey, "")
-    var discordAccessToken by remember { mutableStateOf(DiscordTokenStore.retrieve()) }
+    var discordAccessToken by remember { mutableStateOf<String?>(null) }
     var infoDismissed by rememberPreference(DiscordInfoDismissedKey, false)
 
     val (discordRPC, onDiscordRPCChange) = rememberPreference(EnableDiscordRPCKey, true)
@@ -182,9 +182,12 @@ fun DiscordSettings(
     }
 
     LaunchedEffect(Unit) {
-        val token = DiscordTokenStore.retrieve()
-        if (token != null && !DiscordRpcManager.isAuthorized()) {
-            DiscordRpcManager.reconnectWithToken(token)
+        val token = DiscordTokenStore.retrieveSuspend()
+        if (token != null) {
+            discordAccessToken = token
+            if (!DiscordRpcManager.isAuthorized()) {
+                DiscordRpcManager.reconnectWithToken(token)
+            }
         }
     }
 

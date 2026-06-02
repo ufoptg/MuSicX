@@ -3,6 +3,7 @@ package com.metrolist.music.discord
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
+import kotlinx.coroutines.CompletableDeferred
 import timber.log.Timber
 
 object DiscordTokenStore {
@@ -11,6 +12,8 @@ object DiscordTokenStore {
 
     @Volatile
     private var prefs: EncryptedSharedPreferences? = null
+
+    private val initDeferred = CompletableDeferred<Unit>()
 
     fun init(context: Context) {
         if (prefs != null) return
@@ -29,6 +32,12 @@ object DiscordTokenStore {
                 Timber.e(e, "DiscordTokenStore init failed")
             }
         }
+        initDeferred.complete(Unit)
+    }
+
+    suspend fun retrieveSuspend(): String? {
+        initDeferred.await()
+        return retrieve()
     }
 
     fun store(token: String) {
