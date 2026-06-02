@@ -28,15 +28,20 @@ object DiscordTokenStore {
                     EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
                 ) as EncryptedSharedPreferences
+                initDeferred.complete(Unit)
             } catch (e: Exception) {
                 Timber.e(e, "DiscordTokenStore init failed")
+                initDeferred.completeExceptionally(e)
             }
         }
-        initDeferred.complete(Unit)
     }
 
     suspend fun retrieveSuspend(): String? {
-        initDeferred.await()
+        try {
+            initDeferred.await()
+        } catch (_: Exception) {
+            return null
+        }
         return retrieve()
     }
 
