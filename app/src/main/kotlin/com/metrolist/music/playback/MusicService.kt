@@ -380,6 +380,7 @@ class MusicService :
     private var crossfadeJob: Job? = null
     private var isRunning = false
     private var mediaSession: MediaLibrarySession? = null
+    private var controllerFuture: com.google.common.util.concurrent.ListenableFuture<MediaController>? = null
 
     // Tracks if player has been properly initilized
     private val playerInitialized = MutableStateFlow(false)
@@ -660,8 +661,8 @@ class MusicService :
 
         // Keep a connected controller so that notification works
         val sessionToken = SessionToken(this, ComponentName(this, MusicService::class.java))
-        val controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
-        controllerFuture.addListener({ controllerFuture.get() }, MoreExecutors.directExecutor())
+        controllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
+        controllerFuture?.addListener({ controllerFuture?.get() }, MoreExecutors.directExecutor())
 
         connectivityManager = getSystemService()!!
         connectivityObserver = NetworkConnectivityObserver(this)
@@ -3858,6 +3859,8 @@ class MusicService :
         // Note: equalizerService audio processors are cleared in equalizerService.release() if needed,
         // or we can't easily reference the specific processor created in createExoPlayer here without storing it.
         // But since we are destroying the service, it's fine.
+        controllerFuture?.let { MediaController.releaseFuture(it) }
+        controllerFuture = null
         player.release()
         scope.cancel()
         super.onDestroy()
@@ -3879,11 +3882,15 @@ class MusicService :
                 }
                 player.stop()
                 ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+                controllerFuture?.let { MediaController.releaseFuture(it) }
+                controllerFuture = null
                 // Media3: coordinates notification/foreground teardown and stopSelf; required when
                 // playback was ongoing (default super.onTaskRemoved keeps the service alive).
                 pauseAllPlayersAndStopSelf()
             }.onFailure { e ->
                 Timber.tag(TAG).e(e, "Failed to stop playback on task clear")
+                controllerFuture?.let { MediaController.releaseFuture(it) }
+                controllerFuture = null
                 runCatching { pauseAllPlayersAndStopSelf() }.onFailure { stopSelf() }
             }
             return
