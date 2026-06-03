@@ -279,40 +279,31 @@ fun SearchScreen(
         },
         containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.background,
     ) { paddingValues ->
-        val bottomPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding()
-
         Box(
             modifier =
                 Modifier
-                    .padding(paddingValues)
+                    .padding(top = paddingValues.calculateTopPadding())
                     .fillMaxSize(),
         ) {
-            Box(
-                modifier =
-                    Modifier
-                        .padding(bottom = bottomPadding)
-                        .fillMaxSize(),
-            ) {
-                when (searchSource) {
-                    SearchSource.LOCAL -> {
-                        LocalSearchScreen(
-                            query = query.text,
-                            navController = navController,
-                            onDismiss = { navController.navigateUp() },
-                            pureBlack = pureBlack,
-                        )
-                    }
+            when (searchSource) {
+                SearchSource.LOCAL -> {
+                    LocalSearchScreen(
+                        query = query.text,
+                        navController = navController,
+                        onDismiss = { navController.navigateUp() },
+                        pureBlack = pureBlack,
+                    )
+                }
 
-                    SearchSource.ONLINE -> {
-                        OnlineSearchScreen(
-                            query = query.text,
-                            onQueryChange = { query = it },
-                            navController = navController,
-                            onSearch = onSearchFromSuggestion,
-                            onDismiss = { /* Don't dismiss when searching from suggestions */ },
-                            pureBlack = pureBlack,
-                        )
-                    }
+                SearchSource.ONLINE -> {
+                    OnlineSearchScreen(
+                        query = query.text,
+                        onQueryChange = { query = it },
+                        navController = navController,
+                        onSearch = onSearchFromSuggestion,
+                        onDismiss = { /* Don't dismiss when searching from suggestions */ },
+                        pureBlack = pureBlack,
+                    )
                 }
             }
 
