@@ -922,7 +922,6 @@ class MusicService :
                 player.removeListener(this)
                 player.removeListener(sleepTimer)
                 playerSilenceProcessors.remove(player)
-        playerVolumeProcessors.remove(player)
                 playerVolumeProcessors.remove(player)
                 player.release()
 
