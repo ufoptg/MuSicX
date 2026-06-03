@@ -396,7 +396,7 @@ class MusicService :
 
     private var isAudioEffectSessionOpened = false
     private var openedAudioEffectSessionId: Int = C.AUDIO_SESSION_ID_UNSET
-    private val volumeNormalizationProcessor = VolumeNormalizationAudioProcessor()
+    private val playerVolumeProcessors = HashMap<androidx.media3.common.Player, VolumeNormalizationAudioProcessor>()
 
     private var loudnessSetupJob: Job? = null
     private var loudnessSetupGeneration: Long = 0L
@@ -922,6 +922,8 @@ class MusicService :
                 player.removeListener(this)
                 player.removeListener(sleepTimer)
                 playerSilenceProcessors.remove(player)
+        playerVolumeProcessors.remove(player)
+                playerVolumeProcessors.remove(player)
                 player.release()
 
                 val newPlayer = createExoPlayer()
@@ -1244,6 +1246,10 @@ class MusicService :
 
         val silenceProcessor = SilenceDetectorAudioProcessor { handleLongSilenceDetected() }
 
+        val volumeProcessor = VolumeNormalizationAudioProcessor()
+        volumeProcessor.enabled = cachedNormalizationEnabled
+        cachedNormalizationGainMb?.let { volumeProcessor.setTargetGain(it) }
+
         // Set initial state
         val useAudioTrackPlaybackParams = runBlocking {
             val skipSilence = dataStore.get(SkipSilenceKey, false)
@@ -1256,7 +1262,7 @@ class MusicService :
             ExoPlayer
                 .Builder(this)
                 .setMediaSourceFactory(createMediaSourceFactory())
-                .setRenderersFactory(createRenderersFactory(eqProcessor, silenceProcessor, useAudioTrackPlaybackParams))
+                .setRenderersFactory(createRenderersFactory(volumeProcessor, eqProcessor, silenceProcessor, useAudioTrackPlaybackParams))
                 .setHandleAudioBecomingNoisy(true)
                 .setWakeMode(C.WAKE_MODE_NETWORK)
                 .setAudioAttributes(
@@ -1272,6 +1278,7 @@ class MusicService :
                 .build()
 
         playerSilenceProcessors[player] = silenceProcessor
+        playerVolumeProcessors[player] = volumeProcessor
 
         player.apply {
             runBlocking {
@@ -2120,14 +2127,14 @@ class MusicService :
         try {
             val gain = cachedNormalizationGainMb
             if (cachedNormalizationEnabled && gain != null) {
-                volumeNormalizationProcessor.setTargetGain(gain)
-                volumeNormalizationProcessor.enabled = true
+                playerVolumeProcessors.values.forEach { it.setTargetGain(gain) }
+                playerVolumeProcessors.values.forEach { it.enabled = true }
             } else {
-                volumeNormalizationProcessor.enabled = false
+                playerVolumeProcessors.values.forEach { it.enabled = false }
             }
         } catch (e: Exception) {
             reportException(e)
-            volumeNormalizationProcessor.enabled = false
+            playerVolumeProcessors.values.forEach { it.enabled = false }
         }
     }
 
@@ -2167,8 +2174,8 @@ class MusicService :
 
                                 cachedNormalizationGainMb = clampedGain
                                 cachedNormalizationEnabled = true
-                                volumeNormalizationProcessor.setTargetGain(clampedGain)
-                                volumeNormalizationProcessor.enabled = true
+                                playerVolumeProcessors.values.forEach { it.setTargetGain(clampedGain) }
+                                playerVolumeProcessors.values.forEach { it.enabled = true }
                             }
                             format == null -> {
                                 Timber.tag(TAG).d("Loudness row not ready yet; keeping cached normalization state")
@@ -2176,7 +2183,7 @@ class MusicService :
                             else -> {
                                 cachedNormalizationGainMb = null
                                 cachedNormalizationEnabled = false
-                                volumeNormalizationProcessor.enabled = false
+                                playerVolumeProcessors.values.forEach { it.enabled = false }
                             }
                         }
                     }
@@ -2185,14 +2192,14 @@ class MusicService :
                         if (!isActive || requestGeneration != loudnessSetupGeneration) return@withContext
                         cachedNormalizationGainMb = null
                         cachedNormalizationEnabled = false
-                        volumeNormalizationProcessor.enabled = false
+                        playerVolumeProcessors.values.forEach { it.enabled = false }
                     }
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 reportException(e)
-                volumeNormalizationProcessor.enabled = false
+                playerVolumeProcessors.values.forEach { it.enabled = false }
             }
         }
     }
@@ -3581,6 +3588,7 @@ class MusicService :
         )
 
     private fun createRenderersFactory(
+        volumeProcessor: VolumeNormalizationAudioProcessor,
         eqProcessor: CustomEqualizerAudioProcessor,
         silenceProcessor: SilenceDetectorAudioProcessor,
         useAudioTrackPlaybackParams: Boolean,
@@ -3597,7 +3605,7 @@ class MusicService :
                 DefaultAudioSink.DefaultAudioProcessorChain(
                     // 2. Inject processor into audio pipeline
                     arrayOf(
-                        volumeNormalizationProcessor,
+                        volumeProcessor,
                         eqProcessor,
                         silenceProcessor,
                     ),
@@ -3864,6 +3872,7 @@ class MusicService :
         player.removeListener(this)
         player.removeListener(sleepTimer)
         playerSilenceProcessors.remove(player)
+        playerVolumeProcessors.remove(player)
         // Note: equalizerService audio processors are cleared in equalizerService.release() if needed,
         // or we can't easily reference the specific processor created in createExoPlayer here without storing it.
         // But since we are destroying the service, it's fine.
