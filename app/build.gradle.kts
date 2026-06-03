@@ -1,7 +1,9 @@
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RelativePath
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Internal
@@ -94,8 +96,8 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
-        versionCode = 147
-        versionName = "13.4.3"
+        versionCode = 148
+        versionName = "13.5.0"
         resValue("string", "app_name", appNameOverride ?: "Metrolist")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -117,7 +119,7 @@ android {
 
     flavorDimensions += listOf("variant")
     productFlavors {
-        // FOSS variant (default) - F-Droid compatible, no Google Play Services
+        // FOSS - Updater, but no gcast or rpc
         create("foss") {
             dimension = "variant"
             isDefault = true
@@ -126,7 +128,7 @@ android {
             buildConfigField("Boolean", "DISCORD_RPC_AVAILABLE", "false")
         }
 
-        // GMS variant - with Google Cast support (requires Google Play Services)
+        // GMS - Updater, gcast, and rpc
         create("gms") {
             dimension = "variant"
             buildConfigField("Boolean", "CAST_AVAILABLE", "true")
@@ -142,7 +144,7 @@ android {
             }
         }
 
-        // IzzyOnDroid variant - no Google Cast, no built-in updater (store handles updates)
+        // IzzyOnDroid - no gcast, no updater, no rpc - the ONLY F-droid compliant build
         create("izzy") {
             dimension = "variant"
             buildConfigField("Boolean", "CAST_AVAILABLE", "false")
@@ -317,6 +319,25 @@ val generateProto = if (protoFile.exists()) {
 tasks.configureEach {
     if (name.startsWith("compile") || name.startsWith("assemble")) {
         generateProto?.let { dependsOn(it) }
+    }
+}
+
+val extractDiscordSo = tasks.register<Copy>("extractDiscordSo") {
+    description = "Extracts libdiscord_partner_sdk.so from the AAR into src/gms/jniLibs"
+    from(zipTree("libs/discord_partner_sdk.aar").matching {
+        include("jni/**/libdiscord_partner_sdk.so")
+    })
+    into(file("src/gms/jniLibs"))
+    eachFile {
+        val parts = relativePath.segments
+        relativePath = RelativePath(true, *parts.drop(1).toTypedArray())
+    }
+    includeEmptyDirs = false
+}
+
+tasks.configureEach {
+    if (name.startsWith("buildCMake") || name.startsWith("configureCMake") || name.startsWith("merge") && name.contains("JniLib")) {
+        dependsOn(extractDiscordSo)
     }
 }
 
