@@ -583,40 +583,23 @@ object YTPlayerUtils {
 
     private suspend fun getSignatureTimestampOrNull(videoId: String): SignatureTimestampResult {
         Timber.tag(logTag).d("Getting signature timestamp for videoId: $videoId")
-        val result = NewPipeExtractor.getSignatureTimestamp(videoId)
-        return result.fold(
-            onSuccess = { timestamp ->
-                Timber.tag(logTag).d("Signature timestamp obtained via NewPipe: $timestamp")
-                SignatureTimestampResult(timestamp, isAgeRestricted = false)
-            },
-            onFailure = { error ->
-                val isAgeRestricted = error.message?.contains("age-restricted", ignoreCase = true) == true ||
-                    error.cause?.message?.contains("age-restricted", ignoreCase = true) == true
-                if (isAgeRestricted) {
-                    Timber.tag(logTag).d("Age-restricted content detected from NewPipe")
-                    Timber.tag(TAG).i("Age-restricted detected early via NewPipe: videoId=$videoId")
-                } else {
-                    Timber.tag(logTag).e(error, "Failed to get signature timestamp via NewPipe")
-                    reportException(error)
-                }
-                // Fallback: extract signatureTimestamp directly from player.js when NewPipe fails.
-                // This keeps playback working when the NewPipe extractor is outdated for a new
-                // player version, as long as the player.js still embeds signatureTimestamp inline.
-                val fallbackSts = runCatching {
-                    Timber.tag(logTag).d("Trying player.js fallback for signature timestamp")
-                    val (playerJs, hash) = PlayerJsFetcher.getPlayerJs()
-                        ?: error("PlayerJsFetcher returned null")
-                    Timber.tag(logTag).d("Got player.js (hash=$hash), extracting signatureTimestamp")
-                    FunctionNameExtractor.extractSignatureTimestamp(playerJs)
-                        ?: error("extractSignatureTimestamp returned null for hash=$hash")
-                }.onSuccess { sts ->
-                    Timber.tag(logTag).d("Signature timestamp obtained via player.js fallback: $sts")
-                }.onFailure { e ->
-                    Timber.tag(logTag).e(e, "player.js fallback for signature timestamp also failed")
-                }.getOrNull()
-                SignatureTimestampResult(fallbackSts, isAgeRestricted)
-            }
-        )
+        
+        // Extract signatureTimestamp directly from player.js
+        val sts = runCatching {
+            Timber.tag(logTag).d("Fetching player.js for signature timestamp")
+            val (playerJs, hash) = PlayerJsFetcher.getPlayerJs()
+                ?: error("PlayerJsFetcher returned null")
+            Timber.tag(logTag).d("Got player.js (hash=$hash), extracting signatureTimestamp")
+            FunctionNameExtractor.extractSignatureTimestamp(playerJs)
+                ?: error("extractSignatureTimestamp returned null for hash=$hash")
+        }.onSuccess { sts ->
+            Timber.tag(logTag).d("Signature timestamp obtained via player.js: $sts")
+        }.onFailure { e ->
+            Timber.tag(logTag).e(e, "player.js signature timestamp extraction failed")
+            reportException(e)
+        }.getOrNull()
+        
+        return SignatureTimestampResult(sts, isAgeRestricted = false)
     }
 
     private suspend fun findUrlOrNull(
