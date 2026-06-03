@@ -848,11 +848,9 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(navBackStackEntry) {
                     if (inSearchScreen) {
                         val searchQuery =
-                            withContext(Dispatchers.IO) {
-                                SearchRoutes.decodeQuery(
-                                    navBackStackEntry?.arguments?.getString("query").orEmpty(),
-                                )
-                            }
+                            SearchRoutes.decodeQuery(
+                                navBackStackEntry?.arguments?.getString("query").orEmpty(),
+                            )
                         onQueryChange(
                             TextFieldValue(
                                 searchQuery,
