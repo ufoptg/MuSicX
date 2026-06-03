@@ -44,7 +44,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,13 +53,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -101,72 +100,39 @@ fun RecognitionScreen(
     val database = LocalDatabase.current
     val coroutineScope = rememberCoroutineScope()
 
-    // Only reset in Ready state: Listening/Processing belong to a running widget-service
-    // recognition that must not be cancelled; Success/NoMatch/Error are results pending
-    // display and history saving.
-    LaunchedEffect(Unit) {
-        if (com.metrolist.music.recognition.MusicRecognitionService.recognitionStatus.value
-                is RecognitionStatus.Ready
-        ) {
-            com.metrolist.music.recognition.MusicRecognitionService
-                .reset()
-        }
+    fun resetToReady() {
+        com.metrolist.music.recognition.MusicRecognitionService.reset()
     }
 
-    DisposableEffect(Unit) {
-        onDispose {
-            com.metrolist.music.recognition.MusicRecognitionService
-                .reset()
+    // Track whether we navigated to a child screen (search results or history)
+    var navigatedToChild by rememberSaveable { mutableStateOf(false) }
+
+    // Reset on fresh entry (not when returning from child screens)
+    LaunchedEffect(Unit) {
+        if (!navigatedToChild) {
+            resetToReady()
         }
+        navigatedToChild = false
     }
 
     // Observe recognition status from service for real-time updates (Listening -> Processing -> Result)
     val recognitionStatus by com.metrolist.music.recognition.MusicRecognitionService.recognitionStatus
         .collectAsStateWithLifecycle()
 
+    // System back button: reset to Ready if showing a result, otherwise normal back
+    androidx.activity.compose.BackHandler(
+        enabled = recognitionStatus is RecognitionStatus.Success ||
+                recognitionStatus is RecognitionStatus.NoMatch ||
+                recognitionStatus is RecognitionStatus.Error
+    ) {
+        resetToReady()
+    }
+
     var hasPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
                 == PackageManager.PERMISSION_GRANTED,
         )
-    }
-
-    val permissionLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestPermission(),
-        ) { isGranted ->
-            hasPermission = isGranted
-            if (isGranted) {
-                coroutineScope.launch {
-                    com.metrolist.music.recognition.MusicRecognitionService
-                        .recognize(context)
-                }
-            }
-        }
-
-    fun startRecognition() {
-        if (hasPermission) {
-            coroutineScope.launch {
-                com.metrolist.music.recognition.MusicRecognitionService
-                    .recognize(context)
-            }
-        } else {
-            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        if (autoStart &&
-            com.metrolist.music.recognition.MusicRecognitionService.recognitionStatus.value
-                is RecognitionStatus.Ready
-        ) {
-            startRecognition()
-        }
-    }
-
-    fun resetToReady() {
-        com.metrolist.music.recognition.MusicRecognitionService
-            .reset()
     }
 
     fun saveToHistory(result: RecognitionResult) {
@@ -197,13 +163,61 @@ fun RecognitionScreen(
         }
     }
 
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission(),
+        ) { isGranted ->
+            hasPermission = isGranted
+            if (isGranted) {
+                coroutineScope.launch {
+                    val status = com.metrolist.music.recognition.MusicRecognitionService
+                        .recognize(context)
+                    if (status is RecognitionStatus.Success) {
+                        saveToHistory(status.result)
+                    }
+                }
+            }
+        }
+
+    fun startRecognition() {
+        if (hasPermission) {
+            coroutineScope.launch {
+                val status = com.metrolist.music.recognition.MusicRecognitionService
+                    .recognize(context)
+                if (status is RecognitionStatus.Success) {
+                    saveToHistory(status.result)
+                }
+            }
+        } else {
+            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (autoStart &&
+            com.metrolist.music.recognition.MusicRecognitionService.recognitionStatus.value
+                is RecognitionStatus.Ready
+        ) {
+            startRecognition()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.recognize_music)) },
                 navigationIcon = {
                     IconButton(
-                        onClick = { navController.navigateUp() },
+                        onClick = {
+                            if (recognitionStatus is RecognitionStatus.Success ||
+                                recognitionStatus is RecognitionStatus.NoMatch ||
+                                recognitionStatus is RecognitionStatus.Error
+                            ) {
+                                resetToReady()
+                            } else {
+                                navController.navigateUp()
+                            }
+                        },
                         onLongClick = { navController.backToMain() },
                     ) {
                         Icon(
@@ -213,7 +227,10 @@ fun RecognitionScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { navController.navigate("recognition_history") }) {
+                    IconButton(onClick = {
+                        navigatedToChild = true
+                        navController.navigate("recognition_history")
+                    }) {
                         Icon(
                             painter = painterResource(R.drawable.history),
                             contentDescription = stringResource(R.string.recognition_history),
@@ -246,10 +263,7 @@ fun RecognitionScreen(
 
                     is RecognitionStatus.Listening -> {
                         ListeningState(
-                            onCancel = {
-                                com.metrolist.music.recognition.MusicRecognitionService
-                                    .reset()
-                            },
+                            onCancel = { resetToReady() },
                         )
                     }
 
@@ -260,16 +274,11 @@ fun RecognitionScreen(
                     is RecognitionStatus.Success -> {
                         SuccessState(
                             result = status.result,
-                            onPlayOnApp = { result ->
-                                // Search for the track on YouTube Music
+                            onSearch = { result ->
+                                navigatedToChild = true
                                 val searchQuery = "${result.title} ${result.artist}"
                                 navController.navigate("search/${java.net.URLEncoder.encode(searchQuery, "UTF-8")}")
                             },
-                            onTryAgain = {
-                                startRecognition()
-                            },
-                            onClose = ::resetToReady,
-                            onSaveToHistory = ::saveToHistory,
                         )
                     }
 
@@ -480,16 +489,8 @@ private fun ProcessingState() {
 @Composable
 private fun SuccessState(
     result: RecognitionResult,
-    onPlayOnApp: (RecognitionResult) -> Unit,
-    onTryAgain: () -> Unit,
-    onClose: () -> Unit,
-    onSaveToHistory: (RecognitionResult) -> Unit,
+    onSearch: (RecognitionResult) -> Unit,
 ) {
-    // Save to history when success is shown
-    LaunchedEffect(result) {
-        onSaveToHistory(result)
-    }
-
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -546,50 +547,17 @@ private fun SuccessState(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Action buttons - stacked vertically
-        Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        Button(
+            onClick = { onSearch(result) },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Button(
-                onClick = { onPlayOnApp(result) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.play),
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.play_on_app))
-            }
-
-            FilledTonalButton(
-                onClick = onTryAgain,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.mic),
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.re_listen))
-            }
-
-            // Close button - Material 3 Expressive outlined style
-            OutlinedButton(
-                onClick = onClose,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.close),
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.close))
-            }
+            Icon(
+                painter = painterResource(R.drawable.search),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(stringResource(R.string.search))
         }
     }
 }
