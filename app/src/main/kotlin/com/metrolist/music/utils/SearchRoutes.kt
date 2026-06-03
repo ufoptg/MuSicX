@@ -16,5 +16,5 @@ object SearchRoutes {
         "search/${Uri.encode(QUERY_ROUTE_PREFIX + query)}"
 
     fun decodeQuery(rawQuery: String): String =
-        Uri.decode(rawQuery).removePrefix(QUERY_ROUTE_PREFIX)
+        rawQuery.removePrefix(QUERY_ROUTE_PREFIX)
 }
