@@ -80,16 +80,13 @@ object YTPlayerUtils {
         playlistId: String? = null,
         audioQuality: AudioQuality,
         connectivityManager: ConnectivityManager,
+        isUploadedTrack: Boolean = false,
     ): Result<PlaybackData> = runCatching {
         Timber.tag(TAG).d("=== PLAYER RESPONSE FOR PLAYBACK ===")
         Timber.tag(TAG).d("videoId: $videoId")
         Timber.tag(TAG).d("playlistId: $playlistId")
         Timber.tag(TAG).d("audioQuality: $audioQuality")
-
-        // Check if this is an uploaded/privately owned track
-        val isUploadedTrack = playlistId == "MLPT" || playlistId?.contains("MLPT") == true
-        Timber.tag(TAG).d("Content type detection (preliminary):")
-        Timber.tag(TAG).d("  isUploadedTrack (from playlistId): $isUploadedTrack")
+        Timber.tag(TAG).d("isUploadedTrack: $isUploadedTrack")
 
         val isLoggedIn = YouTube.cookie != null
         Timber.tag(TAG).d("Authentication status: ${if (isLoggedIn) "LOGGED_IN" else "ANONYMOUS"}")
@@ -118,7 +115,7 @@ object YTPlayerUtils {
         var mainPlayerResponse = YouTube.player(videoId, playlistId, MAIN_CLIENT, signatureTimestamp.timestamp, poToken?.playerRequestPoToken).getOrThrow()
 
         // Debug uploaded track response
-        if (isUploadedTrack || playlistId?.contains("MLPT") == true) {
+        if (isUploadedTrack) {
             println("[PLAYBACK_DEBUG] Main player response status: ${mainPlayerResponse.playabilityStatus.status}")
             println("[PLAYBACK_DEBUG] Playability reason: ${mainPlayerResponse.playabilityStatus.reason}")
             println("[PLAYBACK_DEBUG] Video details: title=${mainPlayerResponse.videoDetails?.title}, videoId=${mainPlayerResponse.videoDetails?.videoId}")
@@ -270,7 +267,7 @@ object YTPlayerUtils {
                 Timber.tag(TAG).d("=== N-TRANSFORM DECISION ===")
                 Timber.tag(TAG).d("Content type analysis:")
                 Timber.tag(TAG).d("  musicVideoType: $musicVideoType")
-                Timber.tag(TAG).d("  isUploadedTrack (from playlistId): $isUploadedTrack")
+                Timber.tag(TAG).d("  isUploadedTrack: $isUploadedTrack")
                 Timber.tag(TAG).d("  wasOriginallyAgeRestricted: $wasOriginallyAgeRestricted")
                 Timber.tag(TAG).d("Client analysis:")
                 Timber.tag(TAG).d("  currentClient: ${currentClient.clientName}")

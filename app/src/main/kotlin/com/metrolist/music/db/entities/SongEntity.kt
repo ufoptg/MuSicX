@@ -62,6 +62,8 @@ data class SongEntity(
     val playbackPosition: Long? = null,
     @ColumnInfo(name = "uploadEntityId", defaultValue = "NULL")
     val uploadEntityId: String? = null,
+    @ColumnInfo(name = "uploadPlaylistId", defaultValue = "NULL")
+    val uploadPlaylistId: String? = null,
     @ColumnInfo(name = "isCached", defaultValue = "0")
     val isCached: Boolean = false,
 ) {

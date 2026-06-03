@@ -807,14 +807,23 @@ class SyncUtils @Inject constructor(
                     remoteSongs.forEach { song ->
                         try {
                             val dbSong = database.song(song.id).firstOrNull()
+                            val remotePlaylistId =
+                                if (song.uploadEntityId != null) song.endpoint?.playlistId else null
                             database.transaction {
                                 if (dbSong == null) {
                                     insert(song.toMediaMetadata()) { it.toggleUploaded() }
                                 } else if (!dbSong.song.isUploaded) {
-                                    update(dbSong.song.copy(isUploaded = true, uploadEntityId = song.uploadEntityId))
+                                    update(
+                                        dbSong.song.copy(
+                                            isUploaded = true,
+                                            uploadEntityId = song.uploadEntityId,
+                                            uploadPlaylistId = remotePlaylistId,
+                                        ),
+                                    )
                                 } else if (dbSong.song.uploadEntityId != song.uploadEntityId && song.uploadEntityId != null) {
-                                    // Update uploadEntityId if it differs from remote
                                     update(dbSong.song.copy(uploadEntityId = song.uploadEntityId))
+                                } else if (dbSong.song.uploadPlaylistId != remotePlaylistId && remotePlaylistId != null) {
+                                    update(dbSong.song.copy(uploadPlaylistId = remotePlaylistId))
                                 }
                             }
                             delay(DB_OPERATION_DELAY_MS)
@@ -1607,7 +1616,7 @@ class SyncUtils @Inject constructor(
                 // Clear uploaded songs
                 val uploadedSongs = database.uploadedSongsByNameAsc().first()
                 uploadedSongs.forEach {
-                    database.update(it.song.copy(isUploaded = false, uploadEntityId = null))
+                    database.update(it.song.copy(isUploaded = false, uploadEntityId = null, uploadPlaylistId = null))
                 }
 
                 // Clear uploaded albums

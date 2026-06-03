@@ -34,6 +34,7 @@ data class MediaMetadata(
     val suggestedBy: String? = null,
     val isEpisode: Boolean = false,
     val uploadEntityId: String? = null,
+    val uploadPlaylistId: String? = null,
 ) : Serializable {
     val isVideoSong: Boolean
         get() = musicVideoType != null && musicVideoType != MUSIC_VIDEO_TYPE_ATV
@@ -64,7 +65,8 @@ data class MediaMetadata(
             libraryRemoveToken = libraryRemoveToken,
             isVideo = isVideoSong,
             isEpisode = isEpisode,
-            uploadEntityId = uploadEntityId
+            uploadEntityId = uploadEntityId,
+            uploadPlaylistId = uploadPlaylistId,
         )
 
     fun toYTItem() = SongItem(
@@ -112,6 +114,8 @@ fun Song.toMediaMetadata() =
         musicVideoType = if (song.isVideo) "MUSIC_VIDEO_TYPE_OMV" else null,
         suggestedBy = null,
         isEpisode = song.isEpisode,
+        uploadEntityId = song.uploadEntityId,
+        uploadPlaylistId = song.uploadPlaylistId,
     )
 
 /**
@@ -145,7 +149,11 @@ fun SongItem.toMediaMetadata() =
         libraryRemoveToken = libraryRemoveToken,
         suggestedBy = null,
         isEpisode = isEpisode,
-        uploadEntityId = uploadEntityId
+        uploadEntityId = uploadEntityId,
+        // For uploaded (privately owned) tracks the parent release's real playlistId
+        // is required by the YouTube `player` API to return a usable stream URL.
+        // The watchEndpoint of the play button always carries it.
+        uploadPlaylistId = if (uploadEntityId != null) endpoint?.playlistId else null,
     )
 
 /**

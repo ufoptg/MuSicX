@@ -3471,12 +3471,21 @@ class MusicService :
             }
 
             Timber.tag(TAG).i("FETCHING STREAM: $mediaId | quality=$audioQuality")
+
+            val dbSong = database.getSongByIdBlocking(mediaId)?.song
+            val isUploadedTrack = dbSong?.isUploaded == true
+            val uploadedPlaylistId: String? = dbSong?.uploadPlaylistId
+            if (isUploadedTrack) {
+                Timber.tag(TAG).d("Uploaded track $mediaId using parent release playlistId=${uploadedPlaylistId ?: "<none>"}")
+            }
             val playbackData =
                 runBlocking(Dispatchers.IO) {
                     YTPlayerUtils.playerResponseForPlayback(
                         mediaId,
+                        playlistId = uploadedPlaylistId,
                         audioQuality = audioQuality,
                         connectivityManager = connectivityManager,
+                        isUploadedTrack = isUploadedTrack,
                     )
                 }.getOrElse { throwable ->
                     when (throwable) {
@@ -3526,6 +3535,10 @@ class MusicService :
                     Timber.tag(TAG).w("No loudness data available from YouTube for video: $mediaId")
                 }
 
+                val contentLength = format.contentLength
+                if (contentLength == null) {
+                    Timber.tag(TAG).w("contentLength missing for $mediaId; storing -1L")
+                }
                 database.query {
                     upsert(
                         FormatEntity(
@@ -3535,7 +3548,7 @@ class MusicService :
                             codecs = format.mimeType.split("codecs=")[1].removeSurrounding("\""),
                             bitrate = format.bitrate,
                             sampleRate = format.audioSampleRate,
-                            contentLength = format.contentLength!!,
+                            contentLength = contentLength ?: -1L,
                             loudnessDb = loudnessDb,
                             perceptualLoudnessDb = perceptualLoudnessDb,
                             playbackUrl = nonNullPlayback.playbackTracking?.videostatsPlaybackUrl?.baseUrl,
@@ -4274,12 +4287,17 @@ class MusicService :
     suspend fun getStreamUrl(mediaId: String): String? =
         withContext(Dispatchers.IO) {
             try {
+                val dbSong = database.getSongByIdBlocking(mediaId)?.song
+                val isUploadedTrack = dbSong?.isUploaded == true
+                val uploadedPlaylistId: String? = dbSong?.uploadPlaylistId
                 val playbackData =
                     YTPlayerUtils
                         .playerResponseForPlayback(
                             videoId = mediaId,
+                            playlistId = uploadedPlaylistId,
                             audioQuality = audioQuality,
                             connectivityManager = connectivityManager,
+                            isUploadedTrack = isUploadedTrack,
                         ).getOrNull()
                 playbackData?.streamUrl
             } catch (e: Exception) {
