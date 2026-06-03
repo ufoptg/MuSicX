@@ -45,11 +45,12 @@ constructor(
             context.dataStore.data.map { it[HideVideoSongsKey] ?: false }.distinctUntilChanged()
         ) { period, hideVideoSongs -> period to hideVideoSongs }
             .flatMapLatest { (period, hideVideoSongs) ->
+                val now = LocalDateTime.now()
                 database.mostPlayedSongs(
                     fromTimeStamp = period.toLocalDateTime(),
                     limit = top.toInt(),
                     offset = 0,
-                    toTimeStamp = LocalDateTime.now()
+                    toTimeStamp = now
                 ).map { songs ->
                     if (hideVideoSongs) songs.filter { !it.song.isVideo } else songs
                 }

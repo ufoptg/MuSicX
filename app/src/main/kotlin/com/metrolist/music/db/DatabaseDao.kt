@@ -365,7 +365,6 @@ interface DatabaseDao {
               LIMIT :limit OFFSET :offset) AS top_songs ON s.id = top_songs.songId
         GROUP BY s.id
         ORDER BY timeListened DESC
-        LIMIT :limit OFFSET :offset
         """,
     )
     fun mostPlayedSongsStats(
@@ -457,8 +456,6 @@ interface DatabaseDao {
                      ORDER BY SUM(playTime) DESC
                      LIMIT :limit OFFSET :offset)
         ON song.id = songId
-        LIMIT :limit
-        OFFSET :offset
     """,
     )
     fun mostPlayedSongs(
