@@ -9,6 +9,8 @@ import timber.log.Timber
 object DiscordTokenStore {
     private const val PREFS_NAME = "discord_token"
     private const val TOKEN_KEY = "access_token"
+    private const val REFRESH_TOKEN_KEY = "refresh_token"
+    private const val EXPIRES_AT_KEY = "expires_at"
 
     @Volatile
     private var prefs: EncryptedSharedPreferences? = null
@@ -46,12 +48,33 @@ object DiscordTokenStore {
     }
 
     fun store(token: String) {
-        prefs?.edit()?.putString(TOKEN_KEY, token)?.apply()
+        storeFull(token, refreshToken = "", expiresInSec = 0L)
+    }
+
+    fun storeFull(accessToken: String, refreshToken: String, expiresInSec: Long) {
+        val editor = prefs?.edit() ?: return
+        editor.putString(TOKEN_KEY, accessToken)
+        if (refreshToken.isNotEmpty()) {
+            editor.putString(REFRESH_TOKEN_KEY, refreshToken)
+        }
+        if (expiresInSec > 0L) {
+            val expiresAt = (System.currentTimeMillis() / 1000L) + expiresInSec
+            editor.putLong(EXPIRES_AT_KEY, expiresAt)
+        }
+        editor.apply()
     }
 
     fun retrieve(): String? = prefs?.getString(TOKEN_KEY, null)
 
+    fun getRefreshToken(): String? = prefs?.getString(REFRESH_TOKEN_KEY, null)
+
+    fun getExpiresAt(): Long = prefs?.getLong(EXPIRES_AT_KEY, 0L) ?: 0L
+
     fun clear() {
-        prefs?.edit()?.remove(TOKEN_KEY)?.apply()
+        prefs?.edit()
+            ?.remove(TOKEN_KEY)
+            ?.remove(REFRESH_TOKEN_KEY)
+            ?.remove(EXPIRES_AT_KEY)
+            ?.apply()
     }
 }

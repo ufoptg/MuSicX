@@ -947,6 +947,11 @@ class MusicService :
                 Timber.tag("MusicService").i("Player recreated with AudioTrackPlaybackParams: $useAudioTrackParams")
             }
 
+        // Initialize Discord RPC manager (rehydrates token, reconnects gateway)
+        if (!DiscordRpcManager.isInitialized()) {
+            DiscordRpcManager.init(this@MusicService)
+        }
+
         dataStore.data
             .map { it[EnableDiscordRPCKey] ?: true }
             .debounce(300)
@@ -3337,8 +3342,8 @@ class MusicService :
             player.currentPosition to player.playbackParameters.speed
         }
         val adjustedTime = (currentPosition / speed).toLong()
-        val now = System.currentTimeMillis() / 1000
-        val startTime = now - adjustedTime / 1000
+        val now = System.currentTimeMillis()
+        val startTime = now - adjustedTime
         val remainingMs = song.song.duration * 1000L - currentPosition
         val adjustedRemainingMs = (remainingMs / speed).toLong()
 
@@ -3370,7 +3375,7 @@ class MusicService :
             artistThumbnail = artistThumbnail,
             songTitle = songTitle,
             startTimestamp = startTime,
-            endTimestamp = now + adjustedRemainingMs / 1000,
+            endTimestamp = now + adjustedRemainingMs,
             advancedMode = advancedMode,
             activityType = activityType,
             activityName = activityName,
@@ -3411,7 +3416,7 @@ class MusicService :
                 artistThumbnail = fetchedArtistThumbnail,
                 songTitle = songTitle,
                 startTimestamp = startTime,
-                endTimestamp = now + adjustedRemainingMs / 1000,
+                endTimestamp = now + adjustedRemainingMs,
                 advancedMode = advancedMode,
                 activityType = activityType,
                 activityName = activityName,

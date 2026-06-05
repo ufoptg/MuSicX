@@ -1,5 +1,6 @@
 package com.metrolist.music.ui.screens.settings.integrations
 
+import android.app.Activity
 import android.content.Intent
 import androidx.datastore.preferences.core.edit
 import androidx.compose.animation.AnimatedVisibility
@@ -168,26 +169,38 @@ fun DiscordSettings(
     val connectionStatus by DiscordRpcManager.connectionStatus.collectAsState()
 
     val statusText = when {
-        connectionStatus == DiscordRpcManager.Status.Connected -> "Connected"
-        connectionStatus == DiscordRpcManager.Status.Authorizing -> "Authorizing..."
-        !DiscordRpcManager.isInitialized() -> "Not initialized"
-        DiscordRpcManager.isAuthorized() -> "Authorized"
+        connectionStatus == DiscordRpcManager.Status.Connected -> stringResource(R.string.discord_status_connected)
+        connectionStatus == DiscordRpcManager.Status.Authorizing -> stringResource(R.string.discord_status_authorizing)
+        !DiscordRpcManager.isInitialized() -> stringResource(R.string.discord_status_not_initialized)
+        DiscordRpcManager.isAuthorized() -> stringResource(R.string.discord_status_authorized)
         else -> ""
     }
 
+    val lastErrorKey by DiscordRpcManager.lastError.collectAsState()
+    val lastErrorText = lastErrorKey?.let { key ->
+        val resId = when (key) {
+            "discord_error_loopback_unbound" -> R.string.discord_error_loopback_unbound
+            "discord_error_loopback_timeout" -> R.string.discord_error_loopback_timeout
+            "discord_error_token_refresh_failed" -> R.string.discord_error_token_refresh_failed
+            "discord_error_invalid_scope" -> R.string.discord_error_invalid_scope
+            else -> R.string.discord_error_banner_title
+        }
+        context.getString(resId)
+    }
+
+    // init() already auto-rehydrates the persisted token and reconnects.
+    // Only call it once; do NOT duplicate reconnect logic here.
     LaunchedEffect(Unit) {
         if (!DiscordRpcManager.isInitialized()) {
             DiscordRpcManager.init(context)
         }
     }
 
+    // Load saved token into local state for the UI (avatar, name, etc.)
     LaunchedEffect(Unit) {
         val token = DiscordTokenStore.retrieveSuspend()
         if (token != null) {
             discordAccessToken = token
-            if (!DiscordRpcManager.isAuthorized()) {
-                DiscordRpcManager.reconnectWithToken(token)
-            }
         }
     }
 
@@ -280,6 +293,51 @@ fun DiscordSettings(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 8.dp),
             )
+        }
+
+        if (!lastErrorText.isNullOrBlank()) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.warning),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.discord_error_banner_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = lastErrorText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(
+                            onClick = { DiscordRpcManager.clearLastError() },
+                            modifier = Modifier.align(Alignment.End),
+                        ) {
+                            Text(stringResource(R.string.dismiss))
+                        }
+                    }
+                }
+            }
         }
 
         Card(
@@ -388,19 +446,25 @@ fun DiscordSettings(
                         OutlinedButton(
                             onClick = {
                                 isBusy = true
-                                DiscordRpcManager.authorize { success ->
+                                val activity = context as? Activity
+                                if (activity == null) {
                                     isBusy = false
-                                    if (success) {
-                                        coroutineScope.launch(Dispatchers.IO) {
-                                            val token = DiscordRpcManager.getAccessToken()
-                                            if (token != null) {
-                                                val user = DiscordRpcManager.fetchCurrentUser(token)
-                                                if (user != null) {
-                                                    withContext(Dispatchers.Main) {
-                                                        discordAccessToken = token
-                                                        discordUsername = user.username
-                                                        discordName = user.name
-                                                        discordAvatar = user.avatar ?: ""
+                                    Timber.w("DiscordSettings: cannot start authorize without Activity context")
+                                } else {
+                                    DiscordRpcManager.authorize(activity) { success ->
+                                        isBusy = false
+                                        if (success) {
+                                            coroutineScope.launch(Dispatchers.IO) {
+                                                val token = DiscordRpcManager.getAccessToken()
+                                                if (token != null) {
+                                                    val user = DiscordRpcManager.fetchCurrentUser(token)
+                                                    if (user != null) {
+                                                        withContext(Dispatchers.Main) {
+                                                            discordAccessToken = token
+                                                            discordUsername = user.username
+                                                            discordName = user.name
+                                                            discordAvatar = user.avatar ?: ""
+                                                        }
                                                     }
                                                 }
                                             }

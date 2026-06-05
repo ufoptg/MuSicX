@@ -26,4 +26,17 @@ object DiscordDefaults {
 
     const val UNKNOWN_ARTIST = "Unknown Artist"
     const val UNKNOWN_ALBUM = "Unknown Album"
+
+    const val DISCORD_OAUTH_AUTHORIZE = "https://discord.com/oauth2/authorize"
+    const val DISCORD_OAUTH_TOKEN = "https://discord.com/api/v10/oauth2/token"
+    const val DISCORD_API_BASE = "https://discord.com/api/v10"
+
+    const val DISCORD_SCOPES = "openid sdk.social_layer_presence"
+
+    const val LOOPBACK_REDIRECT_PORT = 9384
+    const val LOOPBACK_REDIRECT_HOST = "127.0.0.1"
+    const val LOOPBACK_REDIRECT_PATH = "/callback"
 }
+
+fun loopbackRedirectUri(): String =
+    "http://${DiscordDefaults.LOOPBACK_REDIRECT_HOST}:${DiscordDefaults.LOOPBACK_REDIRECT_PORT}${DiscordDefaults.LOOPBACK_REDIRECT_PATH}"

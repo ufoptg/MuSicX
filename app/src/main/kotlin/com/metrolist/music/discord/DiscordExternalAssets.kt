@@ -1,0 +1,104 @@
+package com.metrolist.music.discord
+
+import io.ktor.client.HttpClient
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
+import kotlinx.serialization.json.Json
+import timber.log.Timber
+import java.util.concurrent.ConcurrentHashMap
+
+/**
+ * Resolves external image URLs to Discord asset paths for Rich Presence.
+ *
+ * Calls POST /api/v9/applications/{id}/external-assets to register the URL
+ * with Discord's servers. Returns an `mp:external/<hash>` asset reference
+ * that can be used in the Gateway PRESENCE_UPDATE `assets.large_image` field.
+ *
+ * Cache: repeated calls with the same URL return the cached result.
+ */
+object DiscordExternalAssets {
+
+    private const val TAG = "DiscordSvc"
+    private const val EXTERNAL_ASSETS_API =
+        "https://discord.com/api/v9/applications/%s/external-assets"
+
+    private val json = Json { ignoreUnknownKeys = true }
+    private val cache = ConcurrentHashMap<String, String>()
+
+    // Reuse the same Ktor client as DiscordAuth (but create a lightweight one here)
+    private val client: HttpClient by lazy {
+        HttpClient(io.ktor.client.engine.cio.CIO) {
+            install(io.ktor.client.plugins.HttpTimeout) {
+                requestTimeoutMillis = 10_000L
+                connectTimeoutMillis = 5_000L
+                socketTimeoutMillis = 10_000L
+            }
+            expectSuccess = false
+        }
+    }
+
+    /**
+     * Resolves an image URL to a Discord asset key. Returns null if resolution fails.
+     *
+     * @param imageUrl The absolute URL of the image (e.g., album art thumbnail)
+     * @param appId The Discord Application ID
+     * @param token The OAuth2 Bearer token (with "Bearer " prefix)
+     * @return The asset key (e.g., "mp:external/<hash>") or null
+     */
+    suspend fun resolve(
+        imageUrl: String,
+        appId: String,
+        token: String,
+    ): String? {
+        if (imageUrl.isBlank()) return null
+        if (imageUrl.startsWith("mp:")) return imageUrl
+
+        // Check cache
+        cache[imageUrl]?.let { return it }
+
+        return try {
+            val response = client.post(EXTERNAL_ASSETS_API.format(appId)) {
+                header("Authorization", token)
+                header("User-Agent", DiscordSuperProperties.USER_AGENT)
+                header("X-Super-Properties", DiscordSuperProperties.base64)
+                header("Content-Type", "application/json")
+                setBody("""{"urls":["$imageUrl"]}""")
+            }
+
+            val body = response.bodyAsText()
+            val statusCode = response.status.value
+
+            if (statusCode in 200..299 && body.isNotBlank()) {
+                val parsed = json.decodeFromString<List<ExternalAssetResponse>>(body)
+                val assetPath = parsed.firstOrNull()?.externalAssetPath
+                if (assetPath != null) {
+                    val result = "mp:$assetPath"
+                    cache[imageUrl] = result
+                    Timber.tag(TAG).i("external-assets: resolved %s -> %s", imageUrl.take(60), result)
+                    return result
+                } else {
+                    Timber.tag(TAG).w("external-assets: no path in response for %s: %s", imageUrl.take(60), body.take(200))
+                }
+            } else {
+                Timber.tag(TAG).w("external-assets: HTTP %d for %s: %s", statusCode, imageUrl.take(60), body.take(200))
+            }
+            null
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "external-assets: failed for %s", imageUrl.take(60))
+            null
+        }
+    }
+
+    fun clearCache() {
+        cache.clear()
+    }
+
+    @kotlinx.serialization.Serializable
+    private data class ExternalAssetResponse(
+        val url: String? = null,
+        @kotlinx.serialization.SerialName("external_asset_path")
+        val externalAssetPath: String? = null,
+    )
+}
