@@ -4,7 +4,7 @@
 
 # Metrolist
 
-### YouTube Music Client for Android
+### YouTube Music client for Android
 
 <br/>
 
@@ -30,7 +30,7 @@
 </div>
 
 > [!WARNING]
-> **Regional Restriction:** If YouTube Music is unavailable in your region, this app will not work without a **VPN or proxy** connecting to a supported region.
+> **Regional Restriction** - If YouTube Music is unavailable in your region, this app will not work without a **VPN or proxy** connecting to a supported region.
 
 ---
 
@@ -268,10 +268,6 @@
     </tr>
   </thead>
   <tbody>
-    <tr>
-      <td align="center"><a href="https://github.com/dead8309/Kizzy"><strong>Kizzy</strong></a></td>
-      <td>Discord Rich Presence implementation & inspiration</td>
-    </tr>
     <tr>
       <td align="center"><a href="https://better-lyrics.boidu.dev"><strong>Better Lyrics</strong></a></td>
       <td>Time-synced lyrics with word-by-word highlighting & YouTube Music integration</td>
