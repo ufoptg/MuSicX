@@ -1,0 +1,87 @@
+name: Nightly Release
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/nightly.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-nightly:
+    if: |
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p downloaded_artifacts
+          cd downloaded_artifacts
+          
+          echo "Fetching latest successful Build APKs run..."
+          RUN_ID=$(gh run list --workflow "Build APKs" --branch main --status success --json databaseId --jq '.[0].databaseId')
+          
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "No successful build found to download artifacts from."
+            exit 1
+          fi
+          
+          echo "Downloading artifacts from run $RUN_ID"
+          gh run download $RUN_ID
+          
+      - name: Organize APKs for release
+        run: |
+          echo "Organizing APK files..."
+          mkdir -p release_files
+          # Only pick release APKs, avoid debug ones
+          find downloaded_artifacts -name "*.apk" -not -name "*debug*.apk" -exec cp {} release_files/ \;
+          
+          if [ -z "$(ls -A release_files/)" ]; then
+            echo "No release APKs found."
+            exit 1
+          fi
+
+      - name: Delete Old Release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view nightly > /dev/null 2>&1; then
+            gh release delete nightly --cleanup-tag -y
+          fi
+          
+          if git ls-remote --tags origin | grep -q "refs/tags/nightly$"; then
+            git push --delete origin refs/tags/nightly
+          fi
+
+      - name: Create Nightly Release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TARGET="${{ github.sha }}"
+          
+          gh release create "nightly" \
+            --target "$TARGET" \
+            --title "Nightly Build" \
+            --notes "This is an automatic nightly build." \
+            --prerelease \
+            release_files/*.apk
