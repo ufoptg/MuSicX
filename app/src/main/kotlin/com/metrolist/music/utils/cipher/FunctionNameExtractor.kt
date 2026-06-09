@@ -20,6 +20,7 @@ object FunctionNameExtractor {
         val constantArgs: List<Int>? = null, // All constant args e.g., JI(48, 1918, ...) -> [48, 1918]
         val preprocessFunc: String? = null, // Preprocessing function e.g., f1
         val preprocessArgs: List<Int>? = null, // Preprocess args e.g., f1(1, 6528, sig) -> [1, 6528]
+        val jsExpression: String? = null,
         val isHardcoded: Boolean = false
     )
 
@@ -27,6 +28,7 @@ object FunctionNameExtractor {
         val name: String,
         val arrayIndex: Int?, // e.g. FUNC[0] -> index=0
         val constantArgs: List<Int>? = null, // e.g. GU(6, 6010, n) -> [6, 6010]
+        val jsExpression: String? = null,
         val isHardcoded: Boolean = false
     )
 
@@ -40,9 +42,11 @@ object FunctionNameExtractor {
         val sigConstantArgs: List<Int>? = null, // e.g. JI(48, 1918, ...) -> [48, 1918]
         val sigPreprocessFunc: String? = null, // e.g. f1
         val sigPreprocessArgs: List<Int>? = null, // e.g. f1(1, 6528, sig) -> [1, 6528]
+        val sigJsExpression: String? = null,
         val nFuncName: String,
         val nArrayIndex: Int?,
         val nConstantArgs: List<Int>?, // e.g. GU(6, 6010, n) -> [6, 6010]
+        val nJsExpression: String? = null,
         val signatureTimestamp: Int
     )
 
@@ -89,6 +93,28 @@ object FunctionNameExtractor {
             nArrayIndex = null,
             nConstantArgs = null,
             signatureTimestamp = 20591
+        ),
+        // player_ias 69e2a55d (2026-06-08): VM-dispatch via Jf/C6/iE. STS 20611.
+        "69e2a55d" to HardcodedPlayerConfig(
+            sigFuncName = "_expr_sig",
+            sigConstantArg = null,
+            sigJsExpression = "Jf(20,3699,INPUT)",
+            nFuncName = "_expr_n",
+            nArrayIndex = null,
+            nConstantArgs = null,
+            nJsExpression = "(function(n){try{var u=new g.iE('https://x.googlevideo.com/videoplayback?n='+n,true);var t=u.get('n');return(t&&t!==n)?t:n;}catch(e){return n;}})(INPUT)",
+            signatureTimestamp = 20611
+        ),
+        // MD5-fallback alias for 69e2a55d
+        "70d8066f" to HardcodedPlayerConfig(
+            sigFuncName = "_expr_sig",
+            sigConstantArg = null,
+            sigJsExpression = "Jf(20,3699,INPUT)",
+            nFuncName = "_expr_n",
+            nArrayIndex = null,
+            nConstantArgs = null,
+            nJsExpression = "(function(n){try{var u=new g.iE('https://x.googlevideo.com/videoplayback?n='+n,true);var t=u.get('n');return(t&&t!==n)?t:n;}catch(e){return n;}})(INPUT)",
+            signatureTimestamp = 20611
         )
     )
 
@@ -234,14 +260,19 @@ object FunctionNameExtractor {
             if (hashToUse != null) {
                 val config = getHardcodedConfig(hashToUse)
                 if (config != null) {
-                    Timber.tag(TAG).d("USING HARDCODED SIG FUNCTION: ${config.sigFuncName}(${config.sigConstantArgs}, ...)")
-                    Timber.tag(TAG).d("Sig preprocess: ${config.sigPreprocessFunc}(${config.sigPreprocessArgs}, sig)")
+                    if (config.sigJsExpression != null) {
+                        Timber.tag(TAG).d("USING EXPRESSION-BASED SIG: ${config.sigJsExpression}")
+                    } else {
+                        Timber.tag(TAG).d("USING HARDCODED SIG FUNCTION: ${config.sigFuncName}(${config.sigConstantArgs}, ...)")
+                        Timber.tag(TAG).d("Sig preprocess: ${config.sigPreprocessFunc}(${config.sigPreprocessArgs}, sig)")
+                    }
                     return SigFunctionInfo(
                         name = config.sigFuncName,
                         constantArg = config.sigConstantArg,
                         constantArgs = config.sigConstantArgs,
                         preprocessFunc = config.sigPreprocessFunc,
                         preprocessArgs = config.sigPreprocessArgs,
+                        jsExpression = config.sigJsExpression,
                         isHardcoded = true
                     )
                 }
@@ -311,9 +342,13 @@ object FunctionNameExtractor {
             if (hashToUse != null) {
                 val config = getHardcodedConfig(hashToUse)
                 if (config != null) {
-                    Timber.tag(TAG).d("USING HARDCODED N-FUNCTION: ${config.nFuncName}[${config.nArrayIndex}]")
-                    Timber.tag(TAG).d("N-function constant args: ${config.nConstantArgs}")
-                    return NFunctionInfo(config.nFuncName, config.nArrayIndex, config.nConstantArgs, isHardcoded = true)
+                    if (config.nJsExpression != null) {
+                        Timber.tag(TAG).d("USING EXPRESSION-BASED N-FUNCTION: ${config.nJsExpression.take(60)}")
+                    } else {
+                        Timber.tag(TAG).d("USING HARDCODED N-FUNCTION: ${config.nFuncName}[${config.nArrayIndex}]")
+                        Timber.tag(TAG).d("N-function constant args: ${config.nConstantArgs}")
+                    }
+                    return NFunctionInfo(config.nFuncName, config.nArrayIndex, config.nConstantArgs, config.nJsExpression, isHardcoded = true)
                 }
             }
         }
