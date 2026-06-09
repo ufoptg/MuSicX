@@ -47,10 +47,10 @@ object YTPlayerUtils {
 
     private val poTokenGenerator = PoTokenGenerator()
 
-    private val MAIN_CLIENT: YouTubeClient = VISIONOS
+    private val MAIN_CLIENT: YouTubeClient = WEB_REMIX
 
     private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
-        WEB_REMIX,
+        VISIONOS,
         WEB_CREATOR,
         TVHTML5_SIMPLY_EMBEDDED_PLAYER,
         TVHTML5,
