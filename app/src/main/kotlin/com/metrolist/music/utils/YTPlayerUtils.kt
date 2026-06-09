@@ -103,7 +103,7 @@ object YTPlayerUtils {
 
         // Generate PoToken
         var poToken: PoTokenResult? = null
-        val sessionId = if (isLoggedIn) YouTube.dataSyncId else YouTube.visitorData
+        val sessionId = YouTube.visitorData
         if (MAIN_CLIENT.useWebPoTokens && sessionId != null) {
             Timber.tag(logTag).d("Generating PoToken for WEB_REMIX with sessionId")
             try {
@@ -463,8 +463,7 @@ object YTPlayerUtils {
     ): Result<PlayerResponse> {
         Timber.tag(logTag).d("Fetching metadata player response for videoId: $videoId using MAIN_CLIENT: ${MAIN_CLIENT.clientName}")
         val signatureTimestamp = getSignatureTimestampOrNull(videoId)
-        val isLoggedIn = YouTube.cookie != null
-        val sessionId = if (isLoggedIn) YouTube.dataSyncId else YouTube.visitorData
+        val sessionId = YouTube.visitorData
         var poToken: PoTokenResult? = null
         if (MAIN_CLIENT.useWebPoTokens && sessionId != null) {
             try {
