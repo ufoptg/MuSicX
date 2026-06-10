@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,6 +14,7 @@ import org.json.JSONObject
 import timber.log.Timber
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicLong
 
 data class DiscordUser(
     val id: String,
@@ -45,6 +47,19 @@ object DiscordRpcManager {
     // Stores the last sent activity so setOnlineStatus can preserve it.
     @Volatile
     private var lastActivity: ActivityPayload? = null
+
+    // Tracks what the gateway currently shows so we can skip redundant sends
+    // and bypass debounce when the actual state changes.
+    @Volatile private var currentSongId: String? = null
+    @Volatile private var currentIsPlaying: Boolean = false
+
+    // Monotonically increasing ID for each setActivity call, used to guard
+    // image resolution coroutines from overwriting a newer presence.
+    private val currentActivityId = AtomicLong(0L)
+
+    // Cancelled when a new setActivity call arrives before the previous
+    // image resolution completes.
+    @Volatile private var imageResolutionJob: Job? = null
 
     private val _accessTokenFlow = MutableStateFlow<String?>(null)
     val accessTokenFlow: StateFlow<String?> = _accessTokenFlow
@@ -87,6 +102,13 @@ object DiscordRpcManager {
     fun isAuthorized(): Boolean = _authorized
 
     fun isReady(): Boolean = _ready
+
+    /**
+     * Returns true if the gateway is currently showing the given song in the given play state.
+     * Used by callers to skip redundant presence updates.
+     */
+    fun isShowingSong(songId: String, isPlaying: Boolean): Boolean =
+        currentSongId == songId && currentIsPlaying == isPlaying && lastActivity != null
 
     fun clearLastError() {
         _lastError.value = null
@@ -249,17 +271,43 @@ object DiscordRpcManager {
         }
     }
 
-    fun setActivity(activity: DiscordActivity) {
+    /**
+     * Updates the Rich Presence activity.
+     *
+     * @param activity The activity to display.
+     * @param songId The song ID this activity represents (used for staleness checks).
+     * @param isPlaying Whether the player is currently playing (used for debounce bypass).
+     */
+    fun setActivity(
+        activity: DiscordActivity,
+        songId: String? = null,
+        isPlaying: Boolean = true,
+    ) {
         if (!_ready) {
             Timber.tag(TAG).w("setActivity: skipping — not ready (name=%s)", activity.name)
             return
         }
+
+        // Determine if the actual playback state changed since the last send.
+        val stateChanged = songId != currentSongId || isPlaying != currentIsPlaying
+
         val now = System.currentTimeMillis()
-        if (lastActivitySentAtMs > 0L && (now - lastActivitySentAtMs) < 2_000L) {
-            Timber.tag(TAG).i("setActivity: debounced (<2s since last)")
+        if (!stateChanged &&
+            lastActivitySentAtMs > 0L && (now - lastActivitySentAtMs) < 2_000L
+        ) {
+            // Invalidate any in-flight image resolution — when we debounce,
+            // the previous job's timestamps are stale.
+            currentActivityId.incrementAndGet()
+            imageResolutionJob?.cancel()
+            Timber.tag(TAG).i("setActivity: debounced (<2s since last, stateChanged=%s)", stateChanged)
             return
         }
         lastActivitySentAtMs = now
+
+        // Update tracked state
+        currentSongId = songId
+        currentIsPlaying = isPlaying
+        currentActivityId.incrementAndGet()
 
         val buttons = buildList {
             if (!activity.button1Label.isNullOrEmpty() && !activity.button1Url.isNullOrEmpty()) {
@@ -290,14 +338,18 @@ object DiscordRpcManager {
                 status = PresenceStatus.Online,
                 activities = listOf(payloadNoImages),
             )
-            Timber.tag(TAG).i("setActivity: sending (type=%d, name=%s, details=%s, state=%s, buttons=%d)",
-                activity.activityType, activity.name, activity.details, activity.state, buttons.size)
+            Timber.tag(TAG).i("setActivity: sending (type=%d, name=%s, details=%s, state=%s, songId=%s, isPlaying=%s, buttons=%d)",
+                activity.activityType, activity.name, activity.details, activity.state, songId, isPlaying, buttons.size)
             gateway.presenceUpdate(presenceJson)
         } catch (e: IllegalStateException) {
             Timber.tag(TAG).w(e, "setActivity: gateway not open")
         } catch (e: Throwable) {
             Timber.tag(TAG).e(e, "setActivity: send failed")
         }
+
+        // Cancel any in-flight image resolution from a previous song — it would
+        // overwrite this presence with stale data when it completes.
+        imageResolutionJob?.cancel()
 
         // Asynchronously resolve images via external-assets API and re-send.
         val currentToken = accessToken ?: return
@@ -311,7 +363,10 @@ object DiscordRpcManager {
             smallImageUrl?.take(80),
         )
 
-        scope.launch {
+        val activityIdAtLaunch = currentActivityId.get()
+        val songIdAtLaunch = songId
+
+        imageResolutionJob = scope.launch {
             val tokenHeader = "Bearer $currentToken"
             val largeResolved = if (!largeImageUrl.isNullOrEmpty()) {
                 DiscordExternalAssets.resolve(largeImageUrl, appId, tokenHeader)
@@ -322,6 +377,16 @@ object DiscordRpcManager {
 
             if (largeResolved == null && smallResolved == null) {
                 Timber.tag(TAG).i("setActivity: image resolution returned null, keeping text-only presence")
+                return@launch
+            }
+
+            // Staleness guard: if a newer setActivity() call arrived while we
+            // were resolving images, skip this re-send entirely.
+            if (activityIdAtLaunch != currentActivityId.get()) {
+                Timber.tag(TAG).i(
+                    "setActivity: stale image resolution (launched activityId=%d, current=%d), skipping re-send",
+                    activityIdAtLaunch, currentActivityId.get(),
+                )
                 return@launch
             }
 
@@ -346,7 +411,7 @@ object DiscordRpcManager {
                     status = PresenceStatus.Online,
                     activities = listOf(payloadWithImages),
                 )
-                Timber.tag(TAG).i("setActivity: re-sending with images")
+                Timber.tag(TAG).i("setActivity: re-sending with images for songId=%s", songIdAtLaunch)
                 gateway.presenceUpdate(presenceJson)
             } catch (e: IllegalStateException) {
                 Timber.tag(TAG).w(e, "setActivity: image re-send gateway not open")
@@ -388,7 +453,16 @@ object DiscordRpcManager {
             Timber.tag(TAG).w("clear: skipping — not ready")
             return
         }
+        // Already cleared — avoid redundant empty-presence sends from the
+        // reconciliation loop.
+        if (lastActivity == null && currentSongId == null) return
         lastActivity = null
+        currentSongId = null
+        currentIsPlaying = false
+        // Increment so any in-flight image resolution coroutine sees a stale
+        // activityIdAtLaunch and skips its re-send.
+        currentActivityId.incrementAndGet()
+        imageResolutionJob?.cancel()
         try {
             gateway.presenceUpdate(
                 DiscordPresence.buildPresenceUpdate(
@@ -471,14 +545,20 @@ object DiscordRpcManager {
 
     fun disconnect() {
         Timber.tag(TAG).i("disconnect: closing gateway, clearing ready/authorized")
+        currentActivityId.incrementAndGet()
+        imageResolutionJob?.cancel()
         runCatching { gateway.close(1000, "user disconnect") }
         _connectionStatus.value = Status.Disconnected
         _ready = false
         _authorized = false
+        currentSongId = null
+        currentIsPlaying = false
     }
 
     fun destroy() {
         Timber.tag(TAG).i("destroy: cancelling scope and tearing down (initialized=%s)", initialized)
+        currentActivityId.incrementAndGet()
+        imageResolutionJob?.cancel()
         runCatching { gateway.close(1000, "destroy") }
         scope.cancel()
         _ready = false
@@ -486,6 +566,8 @@ object DiscordRpcManager {
         initialized = false
         _connectionStatus.value = Status.Disconnected
         lastActivity = null
+        currentSongId = null
+        currentIsPlaying = false
     }
 
     fun logout() {
@@ -517,6 +599,10 @@ object DiscordRpcManager {
             is GatewayEvent.Disconnected -> {
                 Timber.tag(TAG).i("gateway: Disconnected (code=%d, remote=%s, reason=%s)",
                     event.code, event.remote, event.reason)
+                // Reset tracked state so syncDiscordState() will re-push the
+                // correct presence after reconnect (the gateway lost it).
+                currentSongId = null
+                currentIsPlaying = false
                 if (event.code == 1000 && event.remote) {
                     _ready = false
                     _authorized = false
