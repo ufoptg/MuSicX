@@ -953,8 +953,6 @@ class MusicService :
                     enabled, DiscordRpcManager.isReady(), DiscordRpcManager.getAccessToken() != null)
                 discordRpcEnabled = enabled
                 if (enabled) {
-                    // User explicitly enabled RPC — override any screen-off
-                    // intentional disconnect so syncDiscordState() reconnects.
                     discordIntentionalDisconnect = false
                     if (DiscordRpcManager.isReady()) {
                         Timber.tag("DiscordSvc").i("RPC toggle: already ready, syncing RPC")
@@ -1025,10 +1023,6 @@ class MusicService :
             }
         }
 
-        // Periodic reconciliation: ensures the RPC state matches the player
-        // even if an event was missed, a coroutine failed, or a debounce
-        // dropped an update. Every 5 seconds is imperceptible to users but
-        // fast enough to correct any drift.
         scope.launch {
             while (isActive) {
                 delay(5_000)
@@ -3242,17 +3236,6 @@ class MusicService :
         }
     }
 
-    /**
-     * The single entry point for keeping Discord RPC in sync with playback.
-     *
-     * Derives the correct RPC state directly from the player (source of truth),
-     * queries the database for the current song, and pushes the update if needed.
-     * This method is idempotent — calling it repeatedly with the same player
-     * state is a no-op thanks to [DiscordRpcManager.isShowingSong].
-     *
-     * If the gateway is not connected but we have a token, a reconnect is attempted.
-     * The reconciliation loop ensures this is called periodically as a safety net.
-     */
     private fun syncDiscordState() {
         if (!discordRpcEnabled) return
 
@@ -3262,15 +3245,8 @@ class MusicService :
             return
         }
 
-        if (!DiscordRpcManager.isReady()) {
-            // Don't reconnect after an intentional disconnect (screen-off
-            // timeout). The flag is cleared when the screen turns on or
-            // playback resumes.
+            if (!DiscordRpcManager.isReady()) {
             if (discordIntentionalDisconnect) return
-            // Attempt to reconnect if we have a token — the connection status
-            // collector will call syncDiscordState() again once connected.
-            // Throttle to avoid a reconnect storm when the gateway is permanently
-            // down (the reconciliation loop calls this every 5 seconds).
             val token = DiscordRpcManager.getAccessToken()
             val now = System.currentTimeMillis()
             if (token != null && (now - lastDiscordReconnectAttemptAtMs) > 30_000L) {
@@ -3286,17 +3262,12 @@ class MusicService :
             return
         }
 
-        // Fast path: if already showing the right song + play state, skip the
-        // entire DB query and DataStore reads. Use a fresh isPlaying read
-        // from the player for the comparison.
         val isPlaying = player.isPlaying
         if (DiscordRpcManager.isShowingSong(songId, isPlaying)) {
             return
         }
 
         scope.launch(Dispatchers.IO) {
-            // Re-read songId and isPlaying atomically on the main thread —
-            // the player state may have changed since the caller captured it.
             val (freshSongId, freshIsPlaying) = withContext(Dispatchers.Main.immediate) {
                 player.currentMetadata?.id to player.isPlaying
             } ?: return@launch
@@ -3387,7 +3358,6 @@ class MusicService :
         }
         DiscordRpcManager.setOnlineStatus(status)
 
-        // Only fetch artist thumbnail if still on the same song by the time we get here
         val fetched = fetchArtistThumbnail(song)
         if (fetched != null && DiscordRpcManager.isReady() && discordRpcEnabled) {
             Timber.tag("DiscordSvc").i("updateDiscordRPC: updating with fetched thumbnail")
@@ -3395,8 +3365,6 @@ class MusicService :
             val fetchedAlbumName = fetched.album?.title
             val fetchedArtistThumbnail = fetched.artists.firstOrNull()?.thumbnailUrl
 
-            // Re-read player state — isPlaying and position may have changed
-            // during the fetchArtistThumbnail network call.
             val (freshPosition, freshSpeed, freshIsPlaying) = withContext(Dispatchers.Main.immediate) {
                 Triple(player.currentPosition, player.playbackParameters.speed, player.isPlaying)
             }

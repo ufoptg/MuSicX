@@ -44,21 +44,12 @@ object DiscordRpcManager {
     @Volatile
     private var lastActivitySentAtMs: Long = 0L
 
-    // Stores the last sent activity so setOnlineStatus can preserve it.
     @Volatile
     private var lastActivity: ActivityPayload? = null
 
-    // Tracks what the gateway currently shows so we can skip redundant sends
-    // and bypass debounce when the actual state changes.
     @Volatile private var currentSongId: String? = null
     @Volatile private var currentIsPlaying: Boolean = false
-
-    // Monotonically increasing ID for each setActivity call, used to guard
-    // image resolution coroutines from overwriting a newer presence.
     private val currentActivityId = AtomicLong(0L)
-
-    // Cancelled when a new setActivity call arrives before the previous
-    // image resolution completes.
     @Volatile private var imageResolutionJob: Job? = null
 
     private val _accessTokenFlow = MutableStateFlow<String?>(null)
@@ -103,10 +94,6 @@ object DiscordRpcManager {
 
     fun isReady(): Boolean = _ready
 
-    /**
-     * Returns true if the gateway is currently showing the given song in the given play state.
-     * Used by callers to skip redundant presence updates.
-     */
     fun isShowingSong(songId: String, isPlaying: Boolean): Boolean =
         currentSongId == songId && currentIsPlaying == isPlaying && lastActivity != null
 
@@ -271,13 +258,6 @@ object DiscordRpcManager {
         }
     }
 
-    /**
-     * Updates the Rich Presence activity.
-     *
-     * @param activity The activity to display.
-     * @param songId The song ID this activity represents (used for staleness checks).
-     * @param isPlaying Whether the player is currently playing (used for debounce bypass).
-     */
     fun setActivity(
         activity: DiscordActivity,
         songId: String? = null,
@@ -288,15 +268,12 @@ object DiscordRpcManager {
             return
         }
 
-        // Determine if the actual playback state changed since the last send.
         val stateChanged = songId != currentSongId || isPlaying != currentIsPlaying
 
         val now = System.currentTimeMillis()
         if (!stateChanged &&
             lastActivitySentAtMs > 0L && (now - lastActivitySentAtMs) < 2_000L
         ) {
-            // Invalidate any in-flight image resolution — when we debounce,
-            // the previous job's timestamps are stale.
             currentActivityId.incrementAndGet()
             imageResolutionJob?.cancel()
             Timber.tag(TAG).i("setActivity: debounced (<2s since last, stateChanged=%s)", stateChanged)
@@ -304,7 +281,6 @@ object DiscordRpcManager {
         }
         lastActivitySentAtMs = now
 
-        // Update tracked state
         currentSongId = songId
         currentIsPlaying = isPlaying
         currentActivityId.incrementAndGet()
@@ -318,9 +294,6 @@ object DiscordRpcManager {
             }
         }
 
-        // Send the initial presence WITHOUT images so the RPC shows immediately.
-        // Images require an async call to the external-assets API and will be
-        // applied in a follow-up presence update.
         val payloadNoImages = DiscordPresence.buildActivity(
             name = activity.name.orEmpty(),
             type = activityTypeToEnum(activity.activityType),
@@ -347,11 +320,8 @@ object DiscordRpcManager {
             Timber.tag(TAG).e(e, "setActivity: send failed")
         }
 
-        // Cancel any in-flight image resolution from a previous song — it would
-        // overwrite this presence with stale data when it completes.
         imageResolutionJob?.cancel()
 
-        // Asynchronously resolve images via external-assets API and re-send.
         val currentToken = accessToken ?: return
         val largeImageUrl = activity.largeImage
         val smallImageUrl = activity.smallImage
@@ -380,8 +350,6 @@ object DiscordRpcManager {
                 return@launch
             }
 
-            // Staleness guard: if a newer setActivity() call arrived while we
-            // were resolving images, skip this re-send entirely.
             if (activityIdAtLaunch != currentActivityId.get()) {
                 Timber.tag(TAG).i(
                     "setActivity: stale image resolution (launched activityId=%d, current=%d), skipping re-send",
@@ -431,8 +399,6 @@ object DiscordRpcManager {
             StatusType.Idle -> PresenceStatus.Idle
             StatusType.Dnd -> PresenceStatus.Dnd
         }
-        // Preserve the last sent activity — setOnlineStatus should only change the status,
-        // not clear the rich presence activity.
         val currentActivities = lastActivity?.let { listOf(it) } ?: emptyList()
         val onlineJson = DiscordPresence.buildPresenceUpdate(
             status = presenceStatus,
@@ -453,14 +419,10 @@ object DiscordRpcManager {
             Timber.tag(TAG).w("clear: skipping — not ready")
             return
         }
-        // Already cleared — avoid redundant empty-presence sends from the
-        // reconciliation loop.
         if (lastActivity == null && currentSongId == null) return
         lastActivity = null
         currentSongId = null
         currentIsPlaying = false
-        // Increment so any in-flight image resolution coroutine sees a stale
-        // activityIdAtLaunch and skips its re-send.
         currentActivityId.incrementAndGet()
         imageResolutionJob?.cancel()
         try {
@@ -599,8 +561,6 @@ object DiscordRpcManager {
             is GatewayEvent.Disconnected -> {
                 Timber.tag(TAG).i("gateway: Disconnected (code=%d, remote=%s, reason=%s)",
                     event.code, event.remote, event.reason)
-                // Reset tracked state so syncDiscordState() will re-push the
-                // correct presence after reconnect (the gateway lost it).
                 currentSongId = null
                 currentIsPlaying = false
                 if (event.code == 1000 && event.remote) {
