@@ -314,6 +314,7 @@ class MusicService :
     lateinit var connectivityObserver: NetworkConnectivityObserver
     val waitingForNetworkConnection = MutableStateFlow(false)
     private val isNetworkConnected = MutableStateFlow(false)
+    val currentStreamClient = MutableStateFlow<String?>(null)
 
     private lateinit var audioQuality: com.metrolist.music.constants.AudioQuality
 
@@ -395,7 +396,7 @@ class MusicService :
 
     private var isAudioEffectSessionOpened = false
     private var openedAudioEffectSessionId: Int = C.AUDIO_SESSION_ID_UNSET
-    private val volumeNormalizationProcessor = VolumeNormalizationAudioProcessor()
+    private val playerNormalizationProcessors = HashMap<Player, VolumeNormalizationAudioProcessor>()
 
     private var loudnessSetupJob: Job? = null
     private var loudnessSetupGeneration: Long = 0L
@@ -543,6 +544,7 @@ class MusicService :
     override fun onCreate() {
         super.onCreate()
         isRunning = true
+        shutdownDeferred = kotlinx.coroutines.CompletableDeferred<Unit>()
 
         setListener(
             object : MediaSessionService.Listener {
@@ -912,6 +914,7 @@ class MusicService :
 
                 player.removeListener(this)
                 player.removeListener(sleepTimer)
+                playerNormalizationProcessors.remove(player)
                 playerSilenceProcessors.remove(player)
                 player.release()
 
@@ -1230,6 +1233,10 @@ class MusicService :
     }
 
     private fun createExoPlayer(): ExoPlayer {
+        val normalizationProcessor = VolumeNormalizationAudioProcessor().also {
+            it.enabled = cachedNormalizationEnabled
+            cachedNormalizationGainMb?.let { gain -> it.setTargetGain(gain) }
+        }
         val eqProcessor = CustomEqualizerAudioProcessor()
         equalizerService.addAudioProcessor(eqProcessor)
 
@@ -1247,7 +1254,7 @@ class MusicService :
             ExoPlayer
                 .Builder(this)
                 .setMediaSourceFactory(createMediaSourceFactory())
-                .setRenderersFactory(createRenderersFactory(eqProcessor, silenceProcessor, useAudioTrackPlaybackParams))
+                .setRenderersFactory(createRenderersFactory(normalizationProcessor, eqProcessor, silenceProcessor, useAudioTrackPlaybackParams))
                 .setHandleAudioBecomingNoisy(true)
                 .setWakeMode(C.WAKE_MODE_NETWORK)
                 .setAudioAttributes(
@@ -1262,6 +1269,7 @@ class MusicService :
                 .setDeviceVolumeControlEnabled(true)
                 .build()
 
+        playerNormalizationProcessors[player] = normalizationProcessor
         playerSilenceProcessors[player] = silenceProcessor
 
         player.apply {
@@ -2108,17 +2116,20 @@ class MusicService :
     }
 
     private fun applyCachedAudioNormalizationNow() {
+        if (isCrossfading) return
         try {
             val gain = cachedNormalizationGainMb
             if (cachedNormalizationEnabled && gain != null) {
-                volumeNormalizationProcessor.setTargetGain(gain)
-                volumeNormalizationProcessor.enabled = true
+                playerNormalizationProcessors.values.forEach {
+                    it.setTargetGain(gain)
+                    it.enabled = true
+                }
             } else {
-                volumeNormalizationProcessor.enabled = false
+                playerNormalizationProcessors.values.forEach { it.enabled = false }
             }
         } catch (e: Exception) {
             reportException(e)
-            volumeNormalizationProcessor.enabled = false
+            playerNormalizationProcessors.values.forEach { it.enabled = false }
         }
     }
 
@@ -2148,6 +2159,7 @@ class MusicService :
 
                     withContext(Dispatchers.Main) {
                         if (!isActive || requestGeneration != loudnessSetupGeneration) return@withContext
+                        if (isCrossfading) return@withContext
                         if (player.currentMediaItem?.mediaId != currentMediaId) return@withContext
 
                         when {
@@ -2158,8 +2170,10 @@ class MusicService :
 
                                 cachedNormalizationGainMb = clampedGain
                                 cachedNormalizationEnabled = true
-                                volumeNormalizationProcessor.setTargetGain(clampedGain)
-                                volumeNormalizationProcessor.enabled = true
+                                playerNormalizationProcessors.values.forEach {
+                                    it.setTargetGain(clampedGain)
+                                    it.enabled = true
+                                }
                             }
                             format == null -> {
                                 Timber.tag(TAG).d("Loudness row not ready yet; keeping cached normalization state")
@@ -2167,7 +2181,7 @@ class MusicService :
                             else -> {
                                 cachedNormalizationGainMb = null
                                 cachedNormalizationEnabled = false
-                                volumeNormalizationProcessor.enabled = false
+                                playerNormalizationProcessors.values.forEach { it.enabled = false }
                             }
                         }
                     }
@@ -2176,14 +2190,14 @@ class MusicService :
                         if (!isActive || requestGeneration != loudnessSetupGeneration) return@withContext
                         cachedNormalizationGainMb = null
                         cachedNormalizationEnabled = false
-                        volumeNormalizationProcessor.enabled = false
+                        playerNormalizationProcessors.values.forEach { it.enabled = false }
                     }
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 reportException(e)
-                volumeNormalizationProcessor.enabled = false
+                playerNormalizationProcessors.values.forEach { it.enabled = false }
             }
         }
     }
@@ -3550,6 +3564,7 @@ class MusicService :
                 }
 
                 val streamUrl = nonNullPlayback.streamUrl
+                currentStreamClient.value = nonNullPlayback.streamClient
 
                 songUrlCache[mediaId] =
                     streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
@@ -3572,6 +3587,7 @@ class MusicService :
         )
 
     private fun createRenderersFactory(
+        normalizationProcessor: VolumeNormalizationAudioProcessor,
         eqProcessor: CustomEqualizerAudioProcessor,
         silenceProcessor: SilenceDetectorAudioProcessor,
         useAudioTrackPlaybackParams: Boolean,
@@ -3586,9 +3602,8 @@ class MusicService :
             .setEnableAudioTrackPlaybackParams(useAudioTrackPlaybackParams)
             .setAudioProcessorChain(
                 DefaultAudioSink.DefaultAudioProcessorChain(
-                    // 2. Inject processor into audio pipeline
                     arrayOf(
-                        volumeNormalizationProcessor,
+                        normalizationProcessor,
                         eqProcessor,
                         silenceProcessor,
                     ),
@@ -3831,6 +3846,13 @@ class MusicService :
                 database.updatePlaybackPosition(currentMetadata.id, player.currentPosition)
             }
         }
+        
+        try {
+            database.close()
+        } catch (e: Exception) {
+            Timber.e(e, "Error closing database in onDestroy")
+        }
+        shutdownDeferred.complete(Unit)
 
         try {
             unregisterReceiver(screenStateReceiver)
@@ -3854,6 +3876,7 @@ class MusicService :
         mediaSession?.release()
         player.removeListener(this)
         player.removeListener(sleepTimer)
+        playerNormalizationProcessors.remove(player)
         playerSilenceProcessors.remove(player)
         // Note: equalizerService audio processors are cleared in equalizerService.release() if needed,
         // or we can't easily reference the specific processor created in createExoPlayer here without storing it.
@@ -4316,7 +4339,7 @@ class MusicService :
     private fun scheduleCrossfade() {
         crossfadeTriggerJob?.cancel()
         crossfadeTriggerJob = null
-        if (!crossfadeEnabled || player.duration == C.TIME_UNSET || player.duration <= crossfadeDuration) return
+        if (!crossfadeEnabled || crossfadeDuration <= 0f || player.duration == C.TIME_UNSET || player.duration <= crossfadeDuration) return
         if (crossfadeGapless && isNextItemGapless()) return
         if (!player.hasNextMediaItem() && player.repeatMode != REPEAT_MODE_ONE) return
 
@@ -4345,6 +4368,9 @@ class MusicService :
 
     private fun startCrossfade() {
         if (isCrossfading) return
+
+        // Disable normalization on all processors during crossfade
+        playerNormalizationProcessors.values.forEach { it.enabled = false }
 
         // Preserve player state before creating the secondary player
         // Use runBlocking to ensure we get the correct state from DataStore
@@ -4380,8 +4406,16 @@ class MusicService :
         secPlayer.repeatMode = savedRepeatMode
         secPlayer.shuffleModeEnabled = savedShuffleEnabled
 
-        secPlayer.prepare()
-        secPlayer.playWhenReady = true
+        try {
+            secPlayer.prepare()
+            secPlayer.playWhenReady = true
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Failed to prepare secondary player for crossfade")
+            playerNormalizationProcessors.remove(secPlayer)
+            secPlayer.release()
+            secondaryPlayer = null
+            return
+        }
 
         performCrossfadeSwap()
 
@@ -4482,6 +4516,7 @@ class MusicService :
     }
 
     private fun cleanupCrossfade(fadingPlayerSessionId: Int = C.AUDIO_SESSION_ID_UNSET) {
+        fadingPlayer?.let { playerNormalizationProcessors.remove(it) }
         fadingPlayer?.stop()
         fadingPlayer?.clearMediaItems()
         fadingPlayer?.release()
@@ -4489,6 +4524,9 @@ class MusicService :
         isCrossfading = false
         applyEffectiveVolume()
         sleepTimer.notifySongTransition()
+
+        // Re-enable normalization on the surviving player
+        applyCachedAudioNormalizationNow()
 
         if (fadingPlayerSessionId != C.AUDIO_SESSION_ID_UNSET && fadingPlayerSessionId > 0) {
             closeAudioEffectSession(sessionIdOverride = fadingPlayerSessionId, clearNormalizationCache = true)
@@ -4529,5 +4567,7 @@ class MusicService :
         @Volatile
         var isRunning = false
             private set
+            
+        var shutdownDeferred = kotlinx.coroutines.CompletableDeferred<Unit>()
     }
 }
