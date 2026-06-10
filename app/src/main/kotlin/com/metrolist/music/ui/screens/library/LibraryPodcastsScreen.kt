@@ -414,7 +414,6 @@ fun LibraryPodcastsScreen(
                                         menuState.show {
                                             SongMenu(
                                                 originalSong = episode,
-                                                navController = navController,
                                                 onDismiss = menuState::dismiss,
                                             )
                                         }
