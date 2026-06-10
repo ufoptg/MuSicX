@@ -305,6 +305,12 @@ object DiscordRpcManager {
         val smallImageUrl = activity.smallImage
         if (largeImageUrl.isNullOrEmpty() && smallImageUrl.isNullOrEmpty()) return
 
+        Timber.tag(TAG).d(
+            "setActivity: resolving images — large=%s, small=%s",
+            largeImageUrl?.take(80),
+            smallImageUrl?.take(80),
+        )
+
         scope.launch {
             val tokenHeader = "Bearer $currentToken"
             val largeResolved = if (!largeImageUrl.isNullOrEmpty()) {
@@ -404,7 +410,7 @@ object DiscordRpcManager {
         }
         accessToken = token
         _accessTokenFlow.value = token
-        DiscordTokenStore.storeFull(token, refreshToken = "", expiresInSec = 0L)
+        DiscordTokenStore.storeAccessToken(token)
         _connectionStatus.value = Status.Authorizing
 
         scope.launch {
@@ -415,6 +421,14 @@ object DiscordRpcManager {
                 val needsRefresh = !refreshToken.isNullOrEmpty() &&
                     expiresAt > 0L &&
                     (expiresAt - nowSec) < 3600L
+
+                Timber.tag(TAG).i(
+                    "reconnectWithToken: hasRefreshToken=%s, expiresAt=%d, now=%d, needsRefresh=%s",
+                    !refreshToken.isNullOrEmpty(),
+                    expiresAt,
+                    nowSec,
+                    needsRefresh,
+                )
 
                 if (needsRefresh) {
                     Timber.tag(TAG).i("reconnectWithToken: proactive token refresh")
@@ -430,6 +444,11 @@ object DiscordRpcManager {
                         null
                     }
                     if (refreshed != null) {
+                        Timber.tag(TAG).i(
+                            "reconnectWithToken: refresh succeeded (new token length=%d, expiresIn=%d)",
+                            refreshed.accessToken.length,
+                            refreshed.expiresInSec,
+                        )
                         accessToken = refreshed.accessToken
                         _accessTokenFlow.value = refreshed.accessToken
                         DiscordTokenStore.storeFull(
@@ -451,7 +470,7 @@ object DiscordRpcManager {
     }
 
     fun disconnect() {
-        Timber.tag(TAG).i("disconnect: closing gateway")
+        Timber.tag(TAG).i("disconnect: closing gateway, clearing ready/authorized")
         runCatching { gateway.close(1000, "user disconnect") }
         _connectionStatus.value = Status.Disconnected
         _ready = false
@@ -459,7 +478,7 @@ object DiscordRpcManager {
     }
 
     fun destroy() {
-        Timber.tag(TAG).i("destroy: cancelling scope and tearing down")
+        Timber.tag(TAG).i("destroy: cancelling scope and tearing down (initialized=%s)", initialized)
         runCatching { gateway.close(1000, "destroy") }
         scope.cancel()
         _ready = false

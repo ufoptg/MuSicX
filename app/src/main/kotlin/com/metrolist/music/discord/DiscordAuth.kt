@@ -61,6 +61,8 @@ class DiscordAuth {
         val redirectUri = loopbackRedirectUri()
         val loopback = LoopbackAuthServer(expectedState = state)
 
+        Timber.i("DiscordAuth: authorize starting (redirectUri=%s)", redirectUri)
+
         try {
             withContext(Dispatchers.IO) { loopback.start() }
 

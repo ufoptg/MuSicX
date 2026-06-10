@@ -11,6 +11,7 @@ object DiscordTokenStore {
     private const val TOKEN_KEY = "access_token"
     private const val REFRESH_TOKEN_KEY = "refresh_token"
     private const val EXPIRES_AT_KEY = "expires_at"
+    private const val TAG = "DiscordSvc"
 
     @Volatile
     private var prefs: EncryptedSharedPreferences? = null
@@ -62,13 +63,38 @@ object DiscordTokenStore {
             editor.putLong(EXPIRES_AT_KEY, expiresAt)
         }
         editor.apply()
+        Timber.tag(TAG).d(
+            "tokenStore: stored (accessToken length=%d, refreshToken present=%s, expiresIn=%d)",
+            accessToken.length,
+            refreshToken.isNotEmpty(),
+            expiresInSec,
+        )
     }
 
-    fun retrieve(): String? = prefs?.getString(TOKEN_KEY, null)
+    fun storeAccessToken(accessToken: String) {
+        val editor = prefs?.edit() ?: return
+        editor.putString(TOKEN_KEY, accessToken)
+        editor.apply()
+        Timber.tag(TAG).d("tokenStore: access token updated (length=%d)", accessToken.length)
+    }
 
-    fun getRefreshToken(): String? = prefs?.getString(REFRESH_TOKEN_KEY, null)
+    fun retrieve(): String? {
+        val token = prefs?.getString(TOKEN_KEY, null)
+        Timber.tag(TAG).d("tokenStore: retrieve (found=%s)", !token.isNullOrEmpty())
+        return token
+    }
 
-    fun getExpiresAt(): Long = prefs?.getLong(EXPIRES_AT_KEY, 0L) ?: 0L
+    fun getRefreshToken(): String? {
+        val token = prefs?.getString(REFRESH_TOKEN_KEY, null)
+        Timber.tag(TAG).d("tokenStore: getRefreshToken (found=%s)", !token.isNullOrEmpty())
+        return token
+    }
+
+    fun getExpiresAt(): Long {
+        val expiresAt = prefs?.getLong(EXPIRES_AT_KEY, 0L) ?: 0L
+        Timber.tag(TAG).d("tokenStore: getExpiresAt (value=%d)", expiresAt)
+        return expiresAt
+    }
 
     fun clear() {
         prefs?.edit()
@@ -76,5 +102,6 @@ object DiscordTokenStore {
             ?.remove(REFRESH_TOKEN_KEY)
             ?.remove(EXPIRES_AT_KEY)
             ?.apply()
+        Timber.tag(TAG).d("tokenStore: cleared")
     }
 }

@@ -291,6 +291,7 @@ class DiscordGateway(
             seq = _currentSeq,
             sessionId = _sessionId,
         )
+        Timber.tag(TAG).i("handleClose: strategy=%s for closeCode=%d", action::class.simpleName, code)
 
         when (action) {
             is ReconnectAction.SurfaceFatal -> {
@@ -352,6 +353,7 @@ class DiscordGateway(
     private fun startHeartbeat(intervalMs: Long) {
         heartbeatJob?.cancel()
         val jittered = applyJitter(intervalMs, JITTER_RATIO)
+        Timber.tag(TAG).i("startHeartbeat: interval=%dms, jittered=%dms", intervalMs, jittered)
         lastAckAtMs.set(System.currentTimeMillis())
         heartbeatJob = externalScope.launch {
             var lastSentAt = System.currentTimeMillis()
