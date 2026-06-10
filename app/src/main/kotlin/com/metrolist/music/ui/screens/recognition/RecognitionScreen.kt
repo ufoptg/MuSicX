@@ -639,7 +639,7 @@ private fun ErrorState(
         }
 
         Text(
-            text = stringResource(R.string.recognition_error),
+            text = stringResource(R.string.recognition_failed),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
         )
