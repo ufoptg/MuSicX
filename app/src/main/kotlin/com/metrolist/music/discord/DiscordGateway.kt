@@ -60,6 +60,11 @@ class DiscordGateway(
     @Volatile
     private var isOpen: Boolean = false
 
+    private val webSocketIdCounter = AtomicLong(0L)
+
+    @Volatile
+    private var activeWebSocketId: Long = 0L
+
     @Volatile
     private var gatewayUrl: String = DEFAULT_GATEWAY_URL
 
@@ -78,16 +83,18 @@ class DiscordGateway(
         .build()
 
     suspend fun connect() {
+        val myId = webSocketIdCounter.incrementAndGet()
+        activeWebSocketId = myId
         val openDeferred = CompletableDeferred<Unit>()
         val request = Request.Builder().url(gatewayUrl).build()
-        val listener = createListener(openDeferred)
+        val listener = createListener(openDeferred, myId)
         val ws = httpClient.newWebSocket(request, listener)
         webSocket = ws
         try {
             openDeferred.await()
-            Timber.tag(TAG).i("connect: WS opened, gatewayUrl=%s", gatewayUrl)
+            Timber.tag(TAG).i("connect: WS opened (id=%d), gatewayUrl=%s", myId, gatewayUrl)
         } catch (e: Throwable) {
-            Timber.tag(TAG).e(e, "connect: failed to open WS")
+            Timber.tag(TAG).e(e, "connect: failed to open WS (id=%d)", myId)
             runCatching { ws.cancel() }
             webSocket = null
             throw e
@@ -101,6 +108,7 @@ class DiscordGateway(
         val ws = webSocket
         webSocket = null
         isOpen = false
+        activeWebSocketId = webSocketIdCounter.incrementAndGet()
         if (ws != null) {
             runCatching {
                 if (reason != null) ws.close(code, reason) else ws.close(code, null)
@@ -151,11 +159,11 @@ class DiscordGateway(
         Timber.tag(TAG).i("setGatewayUrl: %s", url)
     }
 
-    private fun createListener(openDeferred: CompletableDeferred<Unit>): WebSocketListener =
+    private fun createListener(openDeferred: CompletableDeferred<Unit>, wsId: Long): WebSocketListener =
         object : WebSocketListener() {
 
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                Timber.tag(TAG).i("onOpen: response.code=%d", response.code)
+                Timber.tag(TAG).i("onOpen: response.code=%d, wsId=%d", response.code, wsId)
                 this@DiscordGateway.webSocket = webSocket
                 isOpen = true
                 lastAckAtMs.set(System.currentTimeMillis())
@@ -177,23 +185,23 @@ class DiscordGateway(
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                Timber.tag(TAG).i("onClosing: code=%d, reason=%s", code, reason)
+                Timber.tag(TAG).i("onClosing: code=%d, reason=%s, wsId=%d", code, reason, wsId)
                 runCatching { webSocket.close(1000, null) }
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                Timber.tag(TAG).i("onClosed: code=%d, reason=%s", code, reason)
+                Timber.tag(TAG).i("onClosed: code=%d, reason=%s, wsId=%d", code, reason, wsId)
                 externalScope.launch {
-                    handleClose(code, reason, remote = true)
+                    handleClose(code, reason, remote = true, closedWebSocketId = wsId)
                 }
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                Timber.tag(TAG).e(t, "onFailure: response=%s", response?.code)
+                Timber.tag(TAG).e(t, "onFailure: response=%s, wsId=%d", response?.code, wsId)
                 externalScope.launch {
                     val code = response?.code ?: 4000
                     val reason = t.message ?: "failure"
-                    handleClose(code, reason, remote = false)
+                    handleClose(code, reason, remote = false, closedWebSocketId = wsId)
                 }
             }
         }
@@ -253,7 +261,11 @@ class DiscordGateway(
             INVALID_SESSION -> {
                 val resumable = (json.opt("d") as? Boolean) ?: false
                 Timber.tag(TAG).w("INVALID_SESSION: resumable=%s", resumable)
+                if (!resumable) {
+                    _sessionId = null
+                }
                 _events.emit(GatewayEvent.InvalidSession(resumable))
+                webSocket?.close(4000, "invalid session")
             }
             HEARTBEAT -> {
                 heartbeat(_currentSeq)
@@ -268,7 +280,14 @@ class DiscordGateway(
         }
     }
 
-    private suspend fun handleClose(code: Int, reason: String, remote: Boolean) {
+    private suspend fun handleClose(code: Int, reason: String, remote: Boolean, closedWebSocketId: Long) {
+        if (closedWebSocketId != activeWebSocketId) {
+            Timber.tag(TAG).i(
+                "handleClose: ignoring stale WS close (closedId=%d, activeId=%d, code=%d)",
+                closedWebSocketId, activeWebSocketId, code,
+            )
+            return
+        }
         if (!isOpen && webSocket == null) {
             return
         }

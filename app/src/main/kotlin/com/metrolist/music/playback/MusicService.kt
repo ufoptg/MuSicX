@@ -3344,19 +3344,19 @@ class MusicService :
         Timber.tag("DiscordSvc").i("updateDiscordRPC: type=%d name=%s state=%s details=%s start=%d end=%d isPlaying=%s",
             activity.activityType, activity.name, activity.state, activity.details, startTime, endTime, isPlaying)
 
+        val statusStr = dataStore.get(DiscordUserStatusKey, DiscordDefaults.USER_STATUS)
+        val presenceStatus = when (statusStr) {
+            DiscordDefaults.STATUS_IDLE -> if (advancedMode) com.metrolist.music.discord.PresenceStatus.Idle else com.metrolist.music.discord.PresenceStatus.Online
+            DiscordDefaults.STATUS_DND -> if (advancedMode) com.metrolist.music.discord.PresenceStatus.Dnd else com.metrolist.music.discord.PresenceStatus.Online
+            else -> com.metrolist.music.discord.PresenceStatus.Online
+        }
+
         DiscordRpcManager.setActivity(
             activity,
             songId = song.song.id,
             isPlaying = isPlaying,
+            status = presenceStatus,
         )
-
-        val statusStr = dataStore.get(DiscordUserStatusKey, DiscordDefaults.USER_STATUS)
-        val status = when (statusStr) {
-            DiscordDefaults.STATUS_IDLE -> if (advancedMode) DiscordRpcManager.StatusType.Idle else DiscordRpcManager.StatusType.Online
-            DiscordDefaults.STATUS_DND -> if (advancedMode) DiscordRpcManager.StatusType.Dnd else DiscordRpcManager.StatusType.Online
-            else -> DiscordRpcManager.StatusType.Online
-        }
-        DiscordRpcManager.setOnlineStatus(status)
 
         val fetched = fetchArtistThumbnail(song)
         if (fetched != null && DiscordRpcManager.isReady() && discordRpcEnabled) {
@@ -3400,6 +3400,7 @@ class MusicService :
                 fetchedActivity,
                 songId = song.song.id,
                 isPlaying = freshIsPlaying,
+                status = presenceStatus,
             )
         } else {
             Timber.tag("DiscordSvc").i("updateDiscordRPC: fetched=%s (no thumbnail update)", fetched != null)

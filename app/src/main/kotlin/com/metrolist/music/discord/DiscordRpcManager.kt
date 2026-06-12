@@ -262,6 +262,7 @@ object DiscordRpcManager {
         activity: DiscordActivity,
         songId: String? = null,
         isPlaying: Boolean = true,
+        status: PresenceStatus = PresenceStatus.Online,
     ) {
         if (!_ready) {
             Timber.tag(TAG).w("setActivity: skipping — not ready (name=%s)", activity.name)
@@ -308,7 +309,7 @@ object DiscordRpcManager {
 
         try {
             val presenceJson = DiscordPresence.buildPresenceUpdate(
-                status = PresenceStatus.Online,
+                status = status,
                 activities = listOf(payloadNoImages),
             )
             Timber.tag(TAG).i("setActivity: sending (type=%d, name=%s, details=%s, state=%s, songId=%s, isPlaying=%s, buttons=%d)",
@@ -376,7 +377,7 @@ object DiscordRpcManager {
 
             try {
                 val presenceJson = DiscordPresence.buildPresenceUpdate(
-                    status = PresenceStatus.Online,
+                    status = status,
                     activities = listOf(payloadWithImages),
                 )
                 Timber.tag(TAG).i("setActivity: re-sending with images for songId=%s", songIdAtLaunch)
@@ -563,6 +564,8 @@ object DiscordRpcManager {
                     event.code, event.remote, event.reason)
                 currentSongId = null
                 currentIsPlaying = false
+                imageResolutionJob?.cancel()
+                imageResolutionJob = null
                 if (event.code == 1000 && event.remote) {
                     _ready = false
                     _authorized = false
@@ -578,20 +581,9 @@ object DiscordRpcManager {
                 }
             }
             is GatewayEvent.InvalidSession -> {
-                Timber.tag(TAG).w("gateway: InvalidSession (resumable=%s)", event.resumable)
-                if (!event.resumable) {
-                    val currentToken = accessToken
-                    if (currentToken != null) {
-                        scope.launch {
-                            try {
-                                gateway.connect()
-                                gateway.identify("Bearer $currentToken")
-                            } catch (e: Throwable) {
-                                Timber.tag(TAG).e(e, "InvalidSession: re-identify failed")
-                            }
-                        }
-                    }
-                }
+                Timber.tag(TAG).w("gateway: InvalidSession (resumable=%s), closing WS to trigger reconnect", event.resumable)
+                imageResolutionJob?.cancel()
+                imageResolutionJob = null
             }
             is GatewayEvent.Hello -> Unit
             is GatewayEvent.HeartbeatAck -> Unit
