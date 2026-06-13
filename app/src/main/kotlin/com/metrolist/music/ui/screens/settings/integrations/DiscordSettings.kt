@@ -163,7 +163,12 @@ fun DiscordSettings(
     var showBtn2UrlDialog by remember { mutableStateOf(false) }
     var showUserStatusDialog by remember { mutableStateOf(false) }
 
-    val isLoggedIn = remember(discordName) { discordName.isNotEmpty() }
+    val fetchedUser by DiscordRpcManager.currentUser.collectAsState()
+    val displayUser = fetchedUser
+    val displayName = displayUser?.name?.ifEmpty { null } ?: discordName
+    val displayUsername = displayUser?.username?.ifEmpty { null } ?: discordUsername
+    val displayAvatar = displayUser?.avatar ?: discordAvatar
+    val isLoggedIn = remember(displayName) { displayName.isNotEmpty() }
     var isBusy by remember { mutableStateOf(false) }
 
     val connectionStatus by DiscordRpcManager.connectionStatus.collectAsState()
@@ -193,6 +198,15 @@ fun DiscordSettings(
     LaunchedEffect(Unit) {
         if (!DiscordRpcManager.isInitialized()) {
             DiscordRpcManager.init(context)
+        }
+    }
+
+    // Sync fetched user info into DataStore so it persists across restarts
+    LaunchedEffect(fetchedUser) {
+        if (fetchedUser != null) {
+            discordUsername = fetchedUser!!.username
+            discordName = fetchedUser!!.name
+            discordAvatar = fetchedUser!!.avatar ?: ""
         }
     }
 
@@ -363,9 +377,9 @@ fun DiscordSettings(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(modifier = Modifier.size(56.dp)) {
-                    if (isLoggedIn && discordAvatar.isNotEmpty()) {
+                    if (isLoggedIn && displayAvatar.isNotEmpty()) {
                         AsyncImage(
-                            model = discordAvatar,
+                            model = displayAvatar,
                             contentDescription = null,
                             modifier =
                                 Modifier
@@ -391,7 +405,7 @@ fun DiscordSettings(
                     Text(
                         text =
                             if (isLoggedIn) {
-                                discordName
+                                displayName
                             } else {
                                 stringResource(R.string.not_logged_in)
                             },
@@ -399,9 +413,9 @@ fun DiscordSettings(
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.alpha(if (isLoggedIn) 1f else 0.5f),
                     )
-                    if (discordUsername.isNotEmpty()) {
+                    if (displayUsername.isNotEmpty()) {
                         Text(
-                            text = "@$discordUsername",
+                            text = "@$displayUsername",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

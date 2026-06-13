@@ -61,6 +61,9 @@ object DiscordRpcManager {
     private val _lastError = MutableStateFlow<String?>(null)
     val lastError: StateFlow<String?> = _lastError
 
+    private val _currentUser = MutableStateFlow<DiscordUser?>(null)
+    val currentUser: StateFlow<DiscordUser?> = _currentUser
+
     private val _settingsChanged = MutableStateFlow(0)
     val settingsChanged: StateFlow<Int> = _settingsChanged
 
@@ -248,7 +251,7 @@ object DiscordRpcManager {
             val name = json.optString("global_name", username)
             val avatarHash = json.optString("avatar")
             val avatar = if (avatarHash.isNotEmpty() && avatarHash != "null") {
-                "https://cdn.discordapp.com/avatars/$id/$avatarHash.png"
+                "https://cdn.discordapp.com/avatars/$id/$avatarHash.png?t=${System.currentTimeMillis()}"
             } else null
 
             DiscordUser(id, username, name, avatar)
@@ -538,6 +541,7 @@ object DiscordRpcManager {
         disconnect()
         accessToken = null
         _accessTokenFlow.value = null
+        _currentUser.value = null
         DiscordTokenStore.clear()
         _lastError.value = null
         lastActivity = null
@@ -551,6 +555,14 @@ object DiscordRpcManager {
                 _authorized = true
                 _connectionStatus.value = Status.Connected
                 _lastError.value = null
+                val token = accessToken ?: return
+                scope.launch {
+                    val user = fetchCurrentUser(token)
+                    _currentUser.value = user
+                    if (user != null) {
+                        Timber.tag(TAG).i("gateway READY: fetched user %s", user.username)
+                    }
+                }
             }
             is GatewayEvent.Resumed -> {
                 Timber.tag(TAG).i("gateway: RESUMED")
