@@ -10,6 +10,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 import timber.log.Timber
 import java.net.HttpURLConnection
@@ -51,6 +53,7 @@ object DiscordRpcManager {
     @Volatile private var currentIsPlaying: Boolean = false
     private val currentActivityId = AtomicLong(0L)
     @Volatile private var imageResolutionJob: Job? = null
+    private val reconnectMutex = Mutex()
 
     private val _accessTokenFlow = MutableStateFlow<String?>(null)
     val accessTokenFlow: StateFlow<String?> = _accessTokenFlow
@@ -180,6 +183,7 @@ object DiscordRpcManager {
                 _authorized = true
 
                 try {
+                    runCatching { gateway.close(4000, "re-authorizing") }
                     gateway.connect()
                     gateway.identify("Bearer ${result.accessToken}")
                     onComplete(true)
@@ -454,57 +458,60 @@ object DiscordRpcManager {
         _connectionStatus.value = Status.Authorizing
 
         scope.launch {
-            try {
-                val refreshToken = DiscordTokenStore.getRefreshToken()
-                val expiresAt = DiscordTokenStore.getExpiresAt()
-                val nowSec = System.currentTimeMillis() / 1000L
-                val needsRefresh = !refreshToken.isNullOrEmpty() &&
-                    expiresAt > 0L &&
-                    (expiresAt - nowSec) < 3600L
+            reconnectMutex.withLock {
+                try {
+                    val refreshToken = DiscordTokenStore.getRefreshToken()
+                    val expiresAt = DiscordTokenStore.getExpiresAt()
+                    val nowSec = System.currentTimeMillis() / 1000L
+                    val needsRefresh = !refreshToken.isNullOrEmpty() &&
+                        expiresAt > 0L &&
+                        (expiresAt - nowSec) < 3600L
 
-                Timber.tag(TAG).i(
-                    "reconnectWithToken: hasRefreshToken=%s, expiresAt=%d, now=%d, needsRefresh=%s",
-                    !refreshToken.isNullOrEmpty(),
-                    expiresAt,
-                    nowSec,
-                    needsRefresh,
-                )
+                    Timber.tag(TAG).i(
+                        "reconnectWithToken: hasRefreshToken=%s, expiresAt=%d, now=%d, needsRefresh=%s",
+                        !refreshToken.isNullOrEmpty(),
+                        expiresAt,
+                        nowSec,
+                        needsRefresh,
+                    )
 
-                if (needsRefresh) {
-                    Timber.tag(TAG).i("reconnectWithToken: proactive token refresh")
-                    val refreshed = try {
-                        auth.refresh(refreshToken)
-                    } catch (e: DiscordAuthException.InvalidGrant) {
-                        Timber.tag(TAG).w(e, "reconnectWithToken: refresh invalid_grant, logging out")
-                        _lastError.value = "discord_error_token_refresh_failed"
-                        logout()
-                        return@launch
-                    } catch (e: Throwable) {
-                        Timber.tag(TAG).w(e, "reconnectWithToken: refresh failed, continuing with old token")
-                        null
+                    if (needsRefresh) {
+                        Timber.tag(TAG).i("reconnectWithToken: proactive token refresh")
+                        val refreshed = try {
+                            auth.refresh(refreshToken)
+                        } catch (e: DiscordAuthException.InvalidGrant) {
+                            Timber.tag(TAG).w(e, "reconnectWithToken: refresh invalid_grant, logging out")
+                            _lastError.value = "discord_error_token_refresh_failed"
+                            logout()
+                            return@withLock
+                        } catch (e: Throwable) {
+                            Timber.tag(TAG).w(e, "reconnectWithToken: refresh failed, continuing with old token")
+                            null
+                        }
+                        if (refreshed != null) {
+                            Timber.tag(TAG).i(
+                                "reconnectWithToken: refresh succeeded (new token length=%d, expiresIn=%d)",
+                                refreshed.accessToken.length,
+                                refreshed.expiresInSec,
+                            )
+                            accessToken = refreshed.accessToken
+                            _accessTokenFlow.value = refreshed.accessToken
+                            DiscordTokenStore.storeFull(
+                                refreshed.accessToken,
+                                refreshed.refreshToken,
+                                refreshed.expiresInSec,
+                            )
+                        }
                     }
-                    if (refreshed != null) {
-                        Timber.tag(TAG).i(
-                            "reconnectWithToken: refresh succeeded (new token length=%d, expiresIn=%d)",
-                            refreshed.accessToken.length,
-                            refreshed.expiresInSec,
-                        )
-                        accessToken = refreshed.accessToken
-                        _accessTokenFlow.value = refreshed.accessToken
-                        DiscordTokenStore.storeFull(
-                            refreshed.accessToken,
-                            refreshed.refreshToken,
-                            refreshed.expiresInSec,
-                        )
-                    }
+
+                    runCatching { gateway.close(4000, "reconnecting") }
+                    gateway.connect()
+                    gateway.identify("Bearer ${accessToken ?: token}")
+                } catch (e: Throwable) {
+                    Timber.tag(TAG).e(e, "reconnectWithToken: connect/identify failed")
+                    _lastError.value = "discord_error_loopback_timeout"
+                    _connectionStatus.value = Status.Disconnected
                 }
-
-                gateway.connect()
-                gateway.identify("Bearer ${accessToken ?: token}")
-            } catch (e: Throwable) {
-                Timber.tag(TAG).e(e, "reconnectWithToken: connect/identify failed")
-                _lastError.value = "discord_error_loopback_timeout"
-                _connectionStatus.value = Status.Disconnected
             }
         }
     }
