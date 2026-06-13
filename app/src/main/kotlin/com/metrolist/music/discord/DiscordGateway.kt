@@ -200,7 +200,12 @@ class DiscordGateway(
                 Timber.tag(TAG).e(t, "onFailure: response=%s, wsId=%d", response?.code, wsId)
                 externalScope.launch {
                     val code = response?.code ?: 4000
-                    val reason = t.message ?: "failure"
+                    val retryAfter = response?.header("Retry-After")
+                    val reason = if (retryAfter != null) {
+                        "${t.message ?: "failure"};retry_after=$retryAfter"
+                    } else {
+                        t.message ?: "failure"
+                    }
                     handleClose(code, reason, remote = false, closedWebSocketId = wsId)
                 }
             }
@@ -329,7 +334,14 @@ class DiscordGateway(
                     return
                 }
                 reconnectAttempts++
-                delay(RECONNECT_DELAY_MS)
+                val delay = if (code == 429) {
+                    val retryAfter = parseRetryAfter(reason)
+                    retryAfter.coerceAtLeast(60_000L)
+                } else {
+                    reconnectDelayMs(reconnectAttempts)
+                }
+                Timber.tag(TAG).i("handleClose: reconnecting in %dms (attempt %d, code=%d)", delay, reconnectAttempts, code)
+                delay(delay)
                 performReconnect(action)
             }
         }
@@ -398,7 +410,7 @@ class DiscordGateway(
         d.put("intents", 0)
         val props = JSONObject()
         props.put("os", "android")
-        props.put("browser", "Metrolist")
+        props.put("browser", "Discord Android")
         props.put("device", appId)
         d.put("properties", props)
         d.put("compress", false)
@@ -431,6 +443,22 @@ class DiscordGateway(
         return root.toString()
     }
 
+    private fun reconnectDelayMs(attempt: Int): Long {
+        val base = (RECONNECT_BASE_DELAY_MS * (1L shl (attempt - 1)))
+            .coerceAtMost(RECONNECT_MAX_DELAY_MS)
+        return applyJitter(base, 0.25)
+    }
+
+    private fun parseRetryAfter(reason: String): Long {
+        val prefix = ";retry_after="
+        val idx = reason.indexOf(prefix)
+        if (idx < 0) return 60_000L
+        val value = reason.substring(idx + prefix.length).trim()
+        // value is seconds as a double ("5.0")
+        val seconds = value.substringBefore(';').substringBefore(',').toDoubleOrNull()
+        return if (seconds != null) (seconds * 1000.0).toLong().coerceAtLeast(60_000L) else 60_000L
+    }
+
     private fun applyJitter(intervalMs: Long, ratio: Double): Long {
         if (intervalMs <= 0L) return intervalMs
         val delta = (intervalMs * ratio).toLong()
@@ -447,7 +475,8 @@ class DiscordGateway(
         private const val DEFAULT_HEARTBEAT_MS = 41250L
         private const val JITTER_RATIO = 0.05
         private const val MAX_RECONNECT_ATTEMPTS = 7
-        private const val RECONNECT_DELAY_MS = 1000L
+        private const val RECONNECT_BASE_DELAY_MS = 1000L
+        private const val RECONNECT_MAX_DELAY_MS = 64_000L
 
         // Discord gateway opcodes
         private const val DISPATCH = 0

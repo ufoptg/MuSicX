@@ -10,6 +10,9 @@ import java.util.UUID
  * Generates Discord Android client properties headers.
  * Used to mimic the official Discord Android client for certain API endpoints
  * (e.g., POST /api/v9/applications/{id}/external-assets).
+ *
+ * UUIDs (device_vendor_id, client_uuid) are persisted across app launches
+ * via DiscordTokenStore so the same device always presents a stable identity.
  */
 object DiscordSuperProperties {
     private const val CLIENT_VERSION = "314.13 - Stable"
@@ -17,6 +20,11 @@ object DiscordSuperProperties {
     private const val RELEASE_CHANNEL = "googleRelease"
 
     private val superProperties: JSONObject by lazy {
+        val vendorId = DiscordTokenStore.getDeviceVendorId()
+            ?: UUID.randomUUID().toString()
+        val clientUuid = DiscordTokenStore.getClientUuid()
+            ?: UUID.randomUUID().toString()
+
         JSONObject().apply {
             put("os", "Android")
             put("browser", "Discord Android")
@@ -24,8 +32,8 @@ object DiscordSuperProperties {
             put("system_locale", Locale.getDefault().toString())
             put("client_version", CLIENT_VERSION)
             put("release_channel", RELEASE_CHANNEL)
-            put("device_vendor_id", UUID.randomUUID().toString())
-            put("client_uuid", UUID.randomUUID().toString())
+            put("device_vendor_id", vendorId)
+            put("client_uuid", clientUuid)
             put("client_launch_id", UUID.randomUUID().toString())
             put("os_version", Build.VERSION.RELEASE)
             put("os_sdk_version", Build.VERSION.SDK_INT.toString())

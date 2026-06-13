@@ -5,12 +5,15 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
 import kotlinx.coroutines.CompletableDeferred
 import timber.log.Timber
+import java.util.UUID
 
 object DiscordTokenStore {
     private const val PREFS_NAME = "discord_token"
     private const val TOKEN_KEY = "access_token"
     private const val REFRESH_TOKEN_KEY = "refresh_token"
     private const val EXPIRES_AT_KEY = "expires_at"
+    private const val DEVICE_VENDOR_ID_KEY = "device_vendor_id"
+    private const val CLIENT_UUID_KEY = "client_uuid"
     private const val TAG = "DiscordSvc"
 
     @Volatile
@@ -96,11 +99,35 @@ object DiscordTokenStore {
         return expiresAt
     }
 
+    fun getDeviceVendorId(): String? {
+        val id = prefs?.getString(DEVICE_VENDOR_ID_KEY, null)
+        if (id == null) {
+            val newId = UUID.randomUUID().toString()
+            prefs?.edit()?.putString(DEVICE_VENDOR_ID_KEY, newId)?.apply()
+            Timber.tag(TAG).d("tokenStore: generated new device_vendor_id")
+            return newId
+        }
+        return id
+    }
+
+    fun getClientUuid(): String? {
+        val id = prefs?.getString(CLIENT_UUID_KEY, null)
+        if (id == null) {
+            val newId = UUID.randomUUID().toString()
+            prefs?.edit()?.putString(CLIENT_UUID_KEY, newId)?.apply()
+            Timber.tag(TAG).d("tokenStore: generated new client_uuid")
+            return newId
+        }
+        return id
+    }
+
     fun clear() {
         prefs?.edit()
             ?.remove(TOKEN_KEY)
             ?.remove(REFRESH_TOKEN_KEY)
             ?.remove(EXPIRES_AT_KEY)
+            ?.remove(DEVICE_VENDOR_ID_KEY)
+            ?.remove(CLIENT_UUID_KEY)
             ?.apply()
         Timber.tag(TAG).d("tokenStore: cleared")
     }
