@@ -55,8 +55,11 @@ object DiscordExternalAssets {
         if (imageUrl.isBlank()) return null
         if (imageUrl.startsWith("mp:")) return imageUrl
 
-        // Check cache
-        cache[imageUrl]?.let { return it }
+        cache[imageUrl]?.let {
+            Timber.tag(TAG).d("resolve: cache hit for %s -> %s", imageUrl.take(60), it)
+            return it
+        }
+        Timber.tag(TAG).d("resolve: cache miss for %s, calling API", imageUrl.take(60))
 
         return try {
             val response = client.post(EXTERNAL_ASSETS_API.format(appId)) {
@@ -92,6 +95,7 @@ object DiscordExternalAssets {
     }
 
     fun clearCache() {
+        Timber.tag(TAG).d("clearCache: clearing %d entries", cache.size)
         cache.clear()
     }
 

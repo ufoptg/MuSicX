@@ -122,13 +122,13 @@ class DiscordGateway(
             Timber.tag(TAG).w("send: WebSocket not open (ws=%s, isOpen=%s)", ws, isOpen)
             throw IllegalStateException("DiscordGateway: WebSocket is not open")
         }
-        Timber.tag(TAG).i("send: frame (length=%d, body=%s)", frameJson.length, frameJson)
+        Timber.tag(TAG).d("send: frame (length=%d)", frameJson.length)
         val ok = ws.send(frameJson)
         if (!ok) {
             Timber.tag(TAG).w("send: WebSocket send returned false (queue full or closing)")
             throw IllegalStateException("DiscordGateway: WebSocket send returned false (queue full or closing)")
         }
-        Timber.tag(TAG).i("send: frame sent successfully (length=%d)", frameJson.length)
+        Timber.tag(TAG).d("send: frame sent successfully (length=%d)", frameJson.length)
     }
 
     suspend fun identify(token: String) {
@@ -138,8 +138,7 @@ class DiscordGateway(
     }
 
     fun presenceUpdate(presenceJson: String) {
-        Timber.tag(TAG).i("presenceUpdate: sending (length=%d, body=%s)",
-            presenceJson.length, presenceJson)
+        Timber.tag(TAG).d("presenceUpdate: sending (length=%d)", presenceJson.length)
         send(presenceJson)
     }
 
@@ -150,6 +149,7 @@ class DiscordGateway(
     }
 
     fun heartbeat(seq: Int) {
+        Timber.tag(TAG).d("heartbeat: sending seq=%d", seq)
         val frame = buildHeartbeatFrame(seq)
         send(frame)
     }
@@ -223,7 +223,7 @@ class DiscordGateway(
         val d: JSONObject? = json.optJSONObject("d")
         val t: String? = if (json.has("t")) json.optString("t") else null
 
-        Timber.tag(TAG).i("handleFrame: op=%d t=%s seq=%d body=%s",
+        Timber.tag(TAG).v("handleFrame: op=%d t=%s seq=%d body=%s",
             op, t ?: "", json.optInt("s", 0), text)
 
         if (json.has("s") && !json.isNull("s")) {
@@ -235,6 +235,7 @@ class DiscordGateway(
             HELLO -> {
                 val interval = d?.optLong("heartbeat_interval", DEFAULT_HEARTBEAT_MS)
                     ?: DEFAULT_HEARTBEAT_MS
+                Timber.tag(TAG).d("handleFrame: HELLO received, heartbeatInterval=%dms", interval)
                 startHeartbeat(interval)
                 _events.emit(GatewayEvent.Hello(interval))
             }
@@ -250,12 +251,17 @@ class DiscordGateway(
                         val resumeUrl: String? = data.optString("resume_gateway_url", "")
                             .takeIf { it.isNotEmpty() }
                         _sessionId = sessionId
+                        Timber.tag(TAG).d(
+                            "handleFrame: READY parsed (sessionId prefix=%s, resumeUrl=%s)",
+                            sessionId.take(8), resumeUrl?.take(60),
+                        )
                         if (resumeUrl != null) setGatewayUrl(resumeUrl)
                         reconnectAttempts = 0
                         _events.emit(GatewayEvent.Ready(sessionId, resumeUrl))
                     }
                     "RESUMED" -> {
                         reconnectAttempts = 0
+                        Timber.tag(TAG).d("handleFrame: RESUMED parsed (sessionId prefix=%s)", _sessionId?.take(8))
                         _events.emit(GatewayEvent.Resumed(_sessionId.orEmpty()))
                     }
                     else -> {
@@ -304,6 +310,7 @@ class DiscordGateway(
         _events.emit(GatewayEvent.Disconnected(code, reason, remote))
 
         if (code == 1000 && remote) {
+            Timber.tag(TAG).d("handleClose: clean remote close (code=1000), resetting session")
             _sessionId = null
             _currentSeq = 0
             return

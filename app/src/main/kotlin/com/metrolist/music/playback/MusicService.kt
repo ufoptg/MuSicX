@@ -1026,6 +1026,7 @@ class MusicService :
         scope.launch {
             while (isActive) {
                 delay(5_000)
+                Timber.tag("DiscordSvc").v("polling: periodic syncDiscordState tick")
                 syncDiscordState()
             }
         }
@@ -2638,6 +2639,7 @@ class MusicService :
     override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
         super.onPlaybackParametersChanged(playbackParameters)
         if (playbackParameters.speed != lastPlaybackSpeed) {
+            Timber.tag("DiscordSvc").d("onPlaybackParametersChanged: speed changed %s -> %s", lastPlaybackSpeed, playbackParameters.speed)
             lastPlaybackSpeed = playbackParameters.speed
             scope.launch {
                 delay(1000)
@@ -3241,12 +3243,16 @@ class MusicService :
 
         val songId = player.currentMetadata?.id
         if (songId == null) {
+            Timber.tag("DiscordSvc").d("syncDiscordState: no song, clearing presence")
             DiscordRpcManager.clear()
             return
         }
 
             if (!DiscordRpcManager.isReady()) {
-            if (discordIntentionalDisconnect) return
+            if (discordIntentionalDisconnect) {
+                Timber.tag("DiscordSvc").d("syncDiscordState: not ready, skipping (intentional disconnect)")
+                return
+            }
             val token = DiscordRpcManager.getAccessToken()
             val now = System.currentTimeMillis()
             if (token != null && (now - lastDiscordReconnectAttemptAtMs) > 30_000L) {
@@ -3264,6 +3270,7 @@ class MusicService :
 
         val isPlaying = player.isPlaying
         if (DiscordRpcManager.isShowingSong(songId, isPlaying)) {
+            Timber.tag("DiscordSvc").d("syncDiscordState: dedup, already showing songId=%s isPlaying=%s", songId, isPlaying)
             return
         }
 
@@ -3319,6 +3326,11 @@ class MusicService :
         val btn2Enabled = dataStore.get(DiscordButton2EnabledKey, true)
         val btn2Label = dataStore.get(DiscordButton2LabelKey, DiscordDefaults.BUTTON2_LABEL)
         val btn2Url = dataStore.get(DiscordButton2UrlKey, DiscordDefaults.BUTTON2_URL)
+
+        Timber.tag("DiscordSvc").d(
+            "updateDiscordRPC: prefs — advancedMode=%s, activityType=%d, activityName=%s, stateTemplate=%s, detailsTemplate=%s",
+            advancedMode, activityType, activityName, stateTemplate, detailsTemplate,
+        )
 
         val activity = DiscordActivityBuilder.build(
             song = song,
@@ -3409,8 +3421,14 @@ class MusicService :
 
     private suspend fun fetchArtistThumbnail(song: Song): Song? {
         val artist = song.artists.firstOrNull()
-        if (artist == null) return null
-        if (artist.thumbnailUrl != null) return null
+        if (artist == null) {
+            Timber.tag("DiscordSvc").d("fetchArtistThumbnail: no artist, skipping")
+            return null
+        }
+        if (artist.thumbnailUrl != null) {
+            Timber.tag("DiscordSvc").d("fetchArtistThumbnail: artist already has thumbnail, skipping")
+            return null
+        }
 
         val browseId = when {
             artist.channelId != null && !artist.channelId.startsWith("LA")
@@ -3421,8 +3439,13 @@ class MusicService :
                 && !artist.id.startsWith("FEmusic_library_privately_owned") -> {
                 artist.id
             }
-            else -> return null
+            else -> {
+                Timber.tag("DiscordSvc").d("fetchArtistThumbnail: no valid browseId for artist %s", artist.name)
+                return null
+            }
         }
+
+        Timber.tag("DiscordSvc").d("fetchArtistThumbnail: fetching for artist=%s, browseId=%s", artist.name, browseId)
 
         return try {
             val artistPage = withContext(Dispatchers.IO) {
@@ -3430,14 +3453,17 @@ class MusicService :
             }
             val thumbnail = artistPage?.artist?.thumbnail?.resize(1080, 1080)
             if (thumbnail != null) {
+                Timber.tag("DiscordSvc").d("fetchArtistThumbnail: got thumbnail for %s", artist.name)
                 withContext(Dispatchers.IO) {
                     database.update(artist.copy(thumbnailUrl = thumbnail))
                 }
                 database.getSongById(song.song.id)
             } else {
+                Timber.tag("DiscordSvc").d("fetchArtistThumbnail: no thumbnail found for %s", artist.name)
                 null
             }
         } catch (e: Exception) {
+            Timber.tag("DiscordSvc").w(e, "fetchArtistThumbnail: failed for artist=%s", artist.name)
             null
         }
     }

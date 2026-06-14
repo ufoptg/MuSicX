@@ -71,6 +71,7 @@ object DiscordRpcManager {
     val settingsChanged: StateFlow<Int> = _settingsChanged
 
     fun notifySettingsChanged() {
+        Timber.tag(TAG).d("notifySettingsChanged: incrementing (count=%d)", _settingsChanged.value + 1)
         _settingsChanged.value++
     }
 
@@ -100,8 +101,16 @@ object DiscordRpcManager {
 
     fun isReady(): Boolean = _ready
 
-    fun isShowingSong(songId: String, isPlaying: Boolean): Boolean =
-        currentSongId == songId && currentIsPlaying == isPlaying && lastActivity != null
+    fun isShowingSong(songId: String, isPlaying: Boolean): Boolean {
+        val showing = currentSongId == songId && currentIsPlaying == isPlaying && lastActivity != null
+        if (!showing) {
+            Timber.tag(TAG).d(
+                "isShowingSong: false (currentSongId=%s, requestedSongId=%s, currentIsPlaying=%s, requestedIsPlaying=%s, hasActivity=%s)",
+                currentSongId, songId, currentIsPlaying, isPlaying, lastActivity != null,
+            )
+        }
+        return showing
+    }
 
     fun clearLastError() {
         _lastError.value = null
@@ -155,12 +164,14 @@ object DiscordRpcManager {
 
         // Short-circuit: already authorized and ready
         if (_ready && _authorized) {
+            Timber.tag(TAG).d("authorize: short-circuit — already ready and authorized")
             authorizeInProgress = false
             onComplete(true)
             return
         }
         // Short-circuit: authorized but not ready — reconnect with existing token
         if (_authorized) {
+            Timber.tag(TAG).d("authorize: short-circuit — authorized but not ready, reconnecting")
             authorizeInProgress = false
             reconnectWithToken(accessToken ?: "")
             onComplete(true)
@@ -301,6 +312,7 @@ object DiscordRpcManager {
                 add(activity.button2Label to activity.button2Url)
             }
         }
+        Timber.tag(TAG).d("setActivity: built %d buttons", buttons.size)
 
         val payloadNoImages = DiscordPresence.buildActivity(
             name = activity.name.orEmpty(),
@@ -427,7 +439,10 @@ object DiscordRpcManager {
             Timber.tag(TAG).w("clear: skipping — not ready")
             return
         }
-        if (lastActivity == null && currentSongId == null) return
+        if (lastActivity == null && currentSongId == null) {
+            Timber.tag(TAG).d("clear: already cleared, skipping")
+            return
+        }
         lastActivity = null
         currentSongId = null
         currentIsPlaying = false

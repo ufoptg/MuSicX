@@ -61,7 +61,7 @@ class DiscordAuth {
         val redirectUri = loopbackRedirectUri()
         val loopback = LoopbackAuthServer(expectedState = state)
 
-        Timber.i("DiscordAuth: authorize starting (redirectUri=%s)", redirectUri)
+        Timber.tag(TAG).i("authorize: starting (redirectUri=%s)", redirectUri)
 
         try {
             withContext(Dispatchers.IO) { loopback.start() }
@@ -73,7 +73,7 @@ class DiscordAuth {
                 challenge = pkce.challenge,
             )
 
-            Timber.i("DiscordAuth: launching authorize URL (clientId prefix=%s)", BuildConfig.DISCORD_APP_ID.toString().take(8))
+            Timber.tag(TAG).i("authorize: launching URL (clientId prefix=%s)", BuildConfig.DISCORD_APP_ID.toString().take(8))
             try {
                 CustomTabsIntent.Builder().build().launchUrl(activity, Uri.parse(authUrl))
             } catch (e: ActivityNotFoundException) {
@@ -146,8 +146,8 @@ class DiscordAuth {
             val refreshToken = json.optString("refresh_token", "")
             val expiresIn = json.optLong("expires_in", 0L)
             val scope = json.optString("scope", DISCORD_SCOPES)
-            Timber.i(
-                "DiscordAuth: token exchange success (accessToken length=%d, refreshToken present=%s, expiresIn=%d)",
+            Timber.tag(TAG).i(
+                "token exchange: success (accessToken length=%d, refreshToken present=%s, expiresIn=%d)",
                 accessToken.length,
                 refreshToken.isNotEmpty(),
                 expiresIn,
@@ -163,11 +163,11 @@ class DiscordAuth {
         val errorCode = runCatching { JSONObject(body).optString("error", "") }
             .getOrDefault("")
         if (status == HttpStatusCode.BadRequest && errorCode == "invalid_grant") {
-            Timber.w("DiscordAuth: invalid_grant on %s", grantType)
+            Timber.tag(TAG).w("token exchange: invalid_grant on %s", grantType)
             throw DiscordAuthException.InvalidGrant()
         }
-        Timber.w(
-            "DiscordAuth: token endpoint HTTP %d (grantType=%s, error=%s, body=%s)",
+        Timber.tag(TAG).w(
+            "token exchange: HTTP %d (grantType=%s, error=%s, body=%s)",
             status.value,
             grantType,
             errorCode,
@@ -197,6 +197,8 @@ class DiscordAuth {
     }
 
     companion object {
+        private const val TAG = "DiscordSvc"
+
         fun generatePkcePair(): PkcePair {
             val bytes = ByteArray(64)
             SecureRandom().nextBytes(bytes)

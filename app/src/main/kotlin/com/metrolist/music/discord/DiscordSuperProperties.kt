@@ -3,6 +3,7 @@ package com.metrolist.music.discord
 import android.os.Build
 import android.util.Base64
 import org.json.JSONObject
+import timber.log.Timber
 import java.util.Locale
 import java.util.UUID
 
@@ -15,6 +16,7 @@ import java.util.UUID
  * via DiscordTokenStore so the same device always presents a stable identity.
  */
 object DiscordSuperProperties {
+    private const val TAG = "DiscordSvc"
     private const val CLIENT_VERSION = "314.13 - Stable"
     private const val CLIENT_BUILD_NUMBER = 314013
     private const val RELEASE_CHANNEL = "googleRelease"
@@ -24,6 +26,11 @@ object DiscordSuperProperties {
             ?: UUID.randomUUID().toString()
         val clientUuid = DiscordTokenStore.getClientUuid()
             ?: UUID.randomUUID().toString()
+
+        Timber.tag(TAG).d(
+            "superProperties: building (device=%s, os=%s, sdk=%d, vendorId=%s)",
+            Build.DEVICE, Build.VERSION.RELEASE, Build.VERSION.SDK_INT, vendorId.take(8),
+        )
 
         JSONObject().apply {
             put("os", "Android")
@@ -44,10 +51,12 @@ object DiscordSuperProperties {
     }
 
     val base64: String by lazy {
-        Base64.encodeToString(
+        val encoded = Base64.encodeToString(
             superProperties.toString().toByteArray(),
             Base64.NO_WRAP,
         )
+        Timber.tag(TAG).d("superProperties: base64 encoded (length=%d)", encoded.length)
+        encoded
     }
 
     const val USER_AGENT = "Discord-Android/$CLIENT_BUILD_NUMBER;RNA"

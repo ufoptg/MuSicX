@@ -1,8 +1,11 @@
 package com.metrolist.music.discord
 
 import com.metrolist.music.db.entities.Song
+import timber.log.Timber
 
 object DiscordActivityBuilder {
+    private const val TAG = "DiscordSvc"
+
     fun build(
         song: Song,
         artistName: String,
@@ -72,7 +75,7 @@ object DiscordActivityBuilder {
             renderedBtn2Url = DiscordDefaults.BUTTON2_URL
         }
 
-        return DiscordActivity(
+        val result = DiscordActivity(
             activityType = activityType,
             name = activityName?.takeIf { it.isNotEmpty() } ?: artistName,
             state = state,
@@ -88,5 +91,13 @@ object DiscordActivityBuilder {
             button2Label = renderedBtn2Label,
             button2Url = renderedBtn2Url,
         )
+
+        Timber.tag(TAG).d(
+            "build: result — name=%s, type=%d, state=%s, details=%s, btn1=%s, btn2=%s",
+            result.name, result.activityType, result.state, result.details,
+            result.button1Label?.take(30), result.button2Label?.take(30),
+        )
+
+        return result
     }
 }

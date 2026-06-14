@@ -19,12 +19,16 @@ class LoopbackAuthServer(private val expectedState: String) {
 
     class PortInUseException(port: Int) : IOException("Port $port is already in use")
 
+    private companion object {
+        const val TAG = "DiscordSvc"
+    }
+
     private val deferred = CompletableDeferred<AuthCodeResult>()
 
     private var server: EmbeddedServer<*, *>? = null
 
     suspend fun start() {
-        Timber.i("LoopbackAuthServer: starting on 127.0.0.1:9384")
+        Timber.tag(TAG).i("loopback: starting on 127.0.0.1:9384")
         server = embeddedServer(CIO, port = 9384, host = "127.0.0.1") {
             routing {
                 get("/callback") {
@@ -32,7 +36,7 @@ class LoopbackAuthServer(private val expectedState: String) {
                     val state = call.request.queryParameters["state"]
 
                     if (code == null) {
-                        Timber.w("LoopbackAuthServer: callback received with missing code")
+                        Timber.tag(TAG).w("loopback: callback received with missing code")
                         call.respondText(
                             "<html><body><h1>Authorization Failed</h1><p>Missing authorization code.</p></body></html>",
                             ContentType.Text.Html,
@@ -41,8 +45,8 @@ class LoopbackAuthServer(private val expectedState: String) {
                     }
 
                     if (state != expectedState) {
-                        Timber.w(
-                            "LoopbackAuthServer: state mismatch (expected=%s, got=%s)",
+                        Timber.tag(TAG).w(
+                            "loopback: state mismatch (expected=%s, got=%s)",
                             expectedState.take(8),
                             state?.take(8),
                         )
@@ -53,7 +57,7 @@ class LoopbackAuthServer(private val expectedState: String) {
                         return@get
                     }
 
-                    Timber.i("LoopbackAuthServer: callback received with valid code (length=%d)", code.length)
+                    Timber.tag(TAG).i("loopback: callback received with valid code (length=%d)", code.length)
                     deferred.complete(AuthCodeResult(code = code, state = state))
                     call.respondText(
                         "<html><body><h1>Authorization Complete</h1><p>You can close this tab and return to Metrolist.</p></body></html>",
@@ -62,7 +66,7 @@ class LoopbackAuthServer(private val expectedState: String) {
                 }
             }
         }.start(wait = false)
-        Timber.i("LoopbackAuthServer: started")
+        Timber.tag(TAG).i("loopback: started")
     }
 
     suspend fun awaitCode(timeoutMs: Long = 120_000L): AuthCodeResult {
@@ -70,7 +74,7 @@ class LoopbackAuthServer(private val expectedState: String) {
     }
 
     fun stop() {
-        Timber.i("LoopbackAuthServer: stopping")
+        Timber.tag(TAG).i("loopback: stopping")
         server?.stop(1000L, 2000L)
         server = null
     }

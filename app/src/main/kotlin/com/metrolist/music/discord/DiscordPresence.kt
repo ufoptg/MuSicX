@@ -63,7 +63,13 @@ object DiscordPresence {
         startMs = startMs,
         endMs = endMs,
         buttons = buttons,
-    )
+    ).also {
+        Timber.tag(TAG).d(
+            "buildActivity: name=%s, type=%d, details=%s, state=%s, buttons=%d, hasLargeImage=%s, hasSmallImage=%s",
+            name, type.code, details?.take(40), state?.take(40), buttons.size,
+            largeImage != null, smallImage != null,
+        )
+    }
 
     fun buildPresenceUpdate(
         status: PresenceStatus,
