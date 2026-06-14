@@ -68,6 +68,10 @@ abstract class GenerateProtoTask : DefaultTask() {
             protocFile.parentFile.mkdirs()
             val connection = URL(url).openConnection() as java.net.HttpURLConnection
             connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            val responseCode = connection.responseCode
+            if (responseCode !in 200..299) {
+                throw GradleException("Failed to download protoc: Server returned HTTP response code $responseCode for URL: $url")
+            }
             connection.inputStream.use { input ->
                 protocFile.outputStream().use { output ->
                     input.copyTo(output)
