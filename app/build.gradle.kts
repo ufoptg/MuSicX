@@ -66,7 +66,9 @@ abstract class GenerateProtoTask : DefaultTask() {
             val url = protocUrl.get()
             logger.lifecycle("Downloading protoc ${url.substringAfterLast('/')} from $url")
             protocFile.parentFile.mkdirs()
-            URL(url).openStream().use { input ->
+            val connection = URL(url).openConnection() as java.net.HttpURLConnection
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            connection.inputStream.use { input ->
                 protocFile.outputStream().use { output ->
                     input.copyTo(output)
                 }
