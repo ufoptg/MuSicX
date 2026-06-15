@@ -976,6 +976,9 @@
     <string name="widget_playlists_description">Playlist shortcuts with mini-player controls</string>
     <string name="choose_something_below">Choose something below</string>
     <string name="stream_client">Stream client</string>
+    <string name="format_player_hash">Player hash</string>
+    <string name="format_cipher_support_added">Cipher support added</string>
+    <string name="not_applicable">N/A</string>
 
     <!-- Stream sources -->
     <string name="stream_sources">Stream sources</string>

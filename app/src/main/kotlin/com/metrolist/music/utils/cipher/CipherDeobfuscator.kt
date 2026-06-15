@@ -31,11 +31,22 @@ object CipherDeobfuscator {
         PlayerConfigStore.initialize(appContext)
         Timber.tag(TAG).d("Known config hashes after init: ${PlayerConfigStore.knownHashes().sorted().joinToString()}")
         PlayerConfigStore.scheduleStartupRefresh()
+        // Cosmetic "cipher support added" dates for the song-details sheet — pulled purely from a
+        // remote file and decoupled from the decipher path (any failure just yields an unknown date).
+        PlayerDatesStore.initialize(appContext)
         Timber.tag(TAG).d("CipherDeobfuscator initialized")
     }
 
     private var cipherWebView: CipherWebView? = null
     private var currentPlayerHash: String? = null
+
+    /**
+     * The player_ias hash last used to decipher a web stream (sig/n), or null if none yet.
+     * Diagnostic only — surfaced in the song-details sheet. Direct-URL clients (ANDROID_VR/IOS)
+     * never run the cipher, so this reflects the last web stream.
+     */
+    val lastUsedPlayerHash: String? get() = currentPlayerHash
+
     private val deobfuscateMutex = Mutex()
 
     /**
