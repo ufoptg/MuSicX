@@ -19,6 +19,7 @@ import com.metrolist.innertube.models.YouTubeClient.Companion.IOS
 import com.metrolist.innertube.models.YouTubeClient.Companion.IPADOS
 import com.metrolist.innertube.models.YouTubeClient.Companion.MOBILE
 import com.metrolist.innertube.models.YouTubeClient.Companion.TVHTML5
+import com.metrolist.innertube.models.YouTubeClient.Companion.TVHTML5_SIMPLY_EMBEDDED_PLAYER
 import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_CREATOR
@@ -49,14 +50,16 @@ object YTPlayerUtils {
     private val MAIN_CLIENT: YouTubeClient = WEB_REMIX
 
     // VISIONOS first (its CDN URL has no spc throttle gate, so it streams whole songs with no
-    // poToken/cipher — the most reliable fallback), then WEB_CREATOR, the TVHTML5 clients, the
-    // ANDROID_VR variants, then the spc-gated IOS/IPADOS as last-ditch attempts.
+    // poToken/cipher — the most reliable fallback), then WEB_CREATOR, TVHTML5, the ANDROID_VR
+    // variants, then TVHTML5_SIMPLY_EMBEDDED_PLAYER (login-free, bypasses age-restriction for
+    // logged-out users), then the spc-gated IOS/IPADOS as last-ditch attempts.
     private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
         VISIONOS,
         WEB_CREATOR,
         TVHTML5,
         ANDROID_VR_1_43_32,
         ANDROID_VR_1_61_48,
+        TVHTML5_SIMPLY_EMBEDDED_PLAYER,
         IOS,
         IPADOS,
         ANDROID_CREATOR,
