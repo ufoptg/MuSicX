@@ -1131,21 +1131,26 @@ class MusicService :
             dataStore.data.map { it[AutoLoadMoreKey] ?: true }.distinctUntilChanged().collect { cachedAutoLoadMore = it }
         }
         // Keep YTPlayerUtils in sync with the stream source toggles (Settings → Stream sources).
+        // Map to the derived set + distinctUntilChanged so an unrelated preference write doesn't
+        // rebuild the set and rewrite the @Volatile field on every DataStore emission.
         scope.launch {
-            dataStore.data.collect { prefs ->
-                val disabled = mutableSetOf<String>()
-                if (prefs[StreamSourceWebRemixKey] == false) disabled += "WEB_REMIX"
-                if (prefs[StreamSourceTVHTML5Key] == false) disabled += "TVHTML5"
-                if (prefs[StreamSourceAndroidVRKey] == false) disabled += "ANDROID_VR"
-                // The IOS toggle covers both the iOS and iPadOS clients (they share clientName "IOS");
-                // ANDROID_CREATOR needs DroidGuard — these default OFF (`!= true`: unset or false both
-                // disable; only an explicit toggle enables them).
-                if (prefs[StreamSourceIOSKey] != true) disabled += "IOS"
-                if (prefs[StreamSourceVisionOSKey] == false) disabled += "VISIONOS"
-                if (prefs[StreamSourceWebCreatorKey] == false) disabled += "WEB_CREATOR"
-                if (prefs[StreamSourceAndroidCreatorKey] != true) disabled += "ANDROID_CREATOR"
-                YTPlayerUtils.disabledStreamClients = disabled
-            }
+            dataStore.data
+                .map { prefs ->
+                    buildSet {
+                        if (prefs[StreamSourceWebRemixKey] == false) add("WEB_REMIX")
+                        if (prefs[StreamSourceTVHTML5Key] == false) add("TVHTML5")
+                        if (prefs[StreamSourceAndroidVRKey] == false) add("ANDROID_VR")
+                        // The IOS toggle covers both the iOS and iPadOS clients (they share clientName
+                        // "IOS"); ANDROID_CREATOR needs DroidGuard — these default OFF (`!= true`: unset
+                        // or false both disable; only an explicit toggle enables them).
+                        if (prefs[StreamSourceIOSKey] != true) add("IOS")
+                        if (prefs[StreamSourceVisionOSKey] == false) add("VISIONOS")
+                        if (prefs[StreamSourceWebCreatorKey] == false) add("WEB_CREATOR")
+                        if (prefs[StreamSourceAndroidCreatorKey] != true) add("ANDROID_CREATOR")
+                    }
+                }
+                .distinctUntilChanged()
+                .collect { YTPlayerUtils.disabledStreamClients = it }
         }
 
         if (startupPrefs!![PersistentQueueKey] ?: true) {
