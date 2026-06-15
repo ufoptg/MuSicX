@@ -429,6 +429,15 @@ class MusicService :
             DiscordRpcManager.disconnect()
         }
     }
+    private val pauseTimeout = Runnable {
+        Timber.tag("DiscordSvc").i("pauseTimeout: isPlaying=%s, isReady=%s",
+            player.isPlaying, DiscordRpcManager.isReady())
+        if (!player.isPlaying && DiscordRpcManager.isReady()) {
+            Timber.tag("DiscordSvc").i("pauseTimeout: disconnecting after 1m paused")
+            discordIntentionalDisconnect = true
+            DiscordRpcManager.disconnect()
+        }
+    }
     private var lastPlaybackSpeed = 1.0f
 
     @Volatile
@@ -510,13 +519,15 @@ class MusicService :
             ) {
                 when (intent.action) {
                     Intent.ACTION_SCREEN_OFF -> {
-                        Timber.tag("DiscordSvc").i("SCREEN_OFF: delaying disconnect 10m")
+                        Timber.tag("DiscordSvc").i("SCREEN_OFF: cancelling pause timeout, delaying disconnect 10m")
+                        screenOffHandler.removeCallbacks(pauseTimeout)
                         screenOffHandler.postDelayed(screenOffTimeout, 600_000)
                     }
 
                     Intent.ACTION_SCREEN_ON -> {
                         Timber.tag("DiscordSvc").i("SCREEN_ON: removing disconnect delay")
                         screenOffHandler.removeCallbacks(screenOffTimeout)
+                        screenOffHandler.removeCallbacks(pauseTimeout)
                         discordIntentionalDisconnect = false
                         syncDiscordState()
                     }
@@ -2528,10 +2539,11 @@ class MusicService :
             if (player.isPlaying) {
                 discordIntentionalDisconnect = false
                 screenOffHandler.removeCallbacks(screenOffTimeout)
+                screenOffHandler.removeCallbacks(pauseTimeout)
                 startWidgetUpdates()
             } else {
                 stopWidgetUpdates()
-                screenOffHandler.postDelayed(screenOffTimeout, 600_000)
+                screenOffHandler.postDelayed(pauseTimeout, 60_000)
             }
         }
 
@@ -3885,6 +3897,7 @@ class MusicService :
             saveQueueToDisk()
         }
         screenOffHandler.removeCallbacks(screenOffTimeout)
+        screenOffHandler.removeCallbacks(pauseTimeout)
         if (DiscordRpcManager.isReady()) {
             Timber.tag("DiscordSvc").i("onDestroy: disconnecting Discord RPC")
             DiscordRpcManager.disconnect()

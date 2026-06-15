@@ -75,9 +75,18 @@ object DiscordActivityBuilder {
             renderedBtn2Url = DiscordDefaults.BUTTON2_URL
         }
 
+        val renderedName = if (advancedMode && !activityName.isNullOrEmpty()) {
+            DiscordTemplateRenderer.render(
+                activityName,
+                songTitle, artistName, albumName, song.song.id,
+            )
+        } else {
+            activityName?.takeIf { it.isNotEmpty() } ?: artistName
+        }
+
         val result = DiscordActivity(
             activityType = activityType,
-            name = activityName?.takeIf { it.isNotEmpty() } ?: artistName,
+            name = renderedName,
             state = state,
             details = details,
             startTimestamp = startTimestamp,

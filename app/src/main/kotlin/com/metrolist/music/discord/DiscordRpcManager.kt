@@ -71,8 +71,10 @@ object DiscordRpcManager {
     val settingsChanged: StateFlow<Int> = _settingsChanged
 
     fun notifySettingsChanged() {
-        Timber.tag(TAG).d("notifySettingsChanged: incrementing (count=%d)", _settingsChanged.value + 1)
+        Timber.tag(TAG).d("notifySettingsChanged: incrementing (count=%d), invalidating dedup", _settingsChanged.value + 1)
         _settingsChanged.value++
+        currentSongId = null
+        currentIsPlaying = false
     }
 
     enum class Status { Disconnected, Authorizing, Connected }
