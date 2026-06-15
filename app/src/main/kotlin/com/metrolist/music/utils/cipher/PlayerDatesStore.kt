@@ -74,11 +74,15 @@ object PlayerDatesStore {
     private fun fetchRemote(): String {
         val url = URL(REMOTE_URL)
         val conn = (YouTube.proxy?.let { url.openConnection(it) } ?: url.openConnection()) as HttpURLConnection
-        return conn.run {
-            connectTimeout = 10_000
-            readTimeout = 10_000
-            setRequestProperty("User-Agent", "Mozilla/5.0")
-            inputStream.bufferedReader().use { it.readText() }
+        return try {
+            conn.run {
+                connectTimeout = 10_000
+                readTimeout = 10_000
+                setRequestProperty("User-Agent", "Mozilla/5.0")
+                inputStream.bufferedReader().use { it.readText() }
+            }
+        } finally {
+            conn.disconnect() // release the socket immediately, including on the error path
         }
     }
 }
