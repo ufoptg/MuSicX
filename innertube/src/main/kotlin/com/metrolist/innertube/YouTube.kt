@@ -2069,7 +2069,7 @@ object YouTube {
                     val artists = PageHelper.extractArtists(secondColumn.runs)
                     
                     if (artists.isEmpty()) {
-                        Timber.w("convertMusicResponsiveListItemRenderer: Song '$title' (id=${renderer.playlistItemData.videoId}) has EMPTY artists list")
+                        Timber.w("convertMusicResponsiveListItemRenderer: Song '$title' (id=${renderer.videoId}) has EMPTY artists list")
                     }
 
                     val thirdColumn =
