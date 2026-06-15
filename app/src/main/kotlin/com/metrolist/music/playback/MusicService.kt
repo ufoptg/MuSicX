@@ -26,6 +26,7 @@ import android.media.AudioManager
 import android.media.audiofx.AudioEffect
 import com.metrolist.music.playback.audio.VolumeNormalizationAudioProcessor
 import com.metrolist.music.utils.safeDataStoreEdit
+import java.util.concurrent.ConcurrentHashMap
 import android.net.ConnectivityManager
 import android.os.Binder
 import android.os.Build
@@ -387,6 +388,7 @@ class MusicService :
         private set
     private var secondaryPlayer: ExoPlayer? = null
     private var fadingPlayer: ExoPlayer? = null
+    @Volatile
     private var isCrossfading = false
     private var crossfadeJob: Job? = null
     private var isRunning = false
@@ -411,7 +413,7 @@ class MusicService :
 
     private var isAudioEffectSessionOpened = false
     private var openedAudioEffectSessionId: Int = C.AUDIO_SESSION_ID_UNSET
-    private val playerNormalizationProcessors = HashMap<Player, VolumeNormalizationAudioProcessor>()
+    private val playerNormalizationProcessors = ConcurrentHashMap<Player, VolumeNormalizationAudioProcessor>()
 
     private var loudnessSetupJob: Job? = null
     private var loudnessSetupGeneration: Long = 0L
@@ -422,7 +424,9 @@ class MusicService :
     @Volatile
     private var loudnessLevelCached: LoudnessLevel = LoudnessLevel.BALANCED
 
+    @Volatile
     private var cachedNormalizationGainMb: Int? = null
+    @Volatile
     private var cachedNormalizationEnabled: Boolean = false
 
     @Volatile private var discordRpcEnabled = false
@@ -2338,8 +2342,14 @@ class MusicService :
                                 }
                             }
                             format == null -> {
-                                Timber.tag(TAG).d("Loudness row not ready yet; keeping cached normalization state")
                                 if (isCrossfading) return@withContext
+                                Timber.tag(TAG).d("Loudness row not ready yet; resetting to neutral")
+                                cachedNormalizationGainMb = 0
+                                cachedNormalizationEnabled = false
+                                playerNormalizationProcessors.values.forEach {
+                                    it.setTargetGain(0)
+                                    it.enabled = false
+                                }
                             }
                             else -> {
                                 cachedNormalizationGainMb = 0
@@ -2366,6 +2376,38 @@ class MusicService :
                 reportException(e)
                 playerNormalizationProcessors.values.forEach { it.enabled = false }
             }
+        }
+    }
+
+    private fun applyNormalizationFromLoudnessData(
+        loudnessDb: Double?,
+        perceptualLoudnessDb: Double?,
+    ) {
+        val targetLufs = loudnessLevelCached.targetLufs
+
+        val measuredLufs = perceptualLoudnessDb
+            ?: loudnessDb?.let { it + LoudnessLevel.AGGRESSIVE.targetLufs }
+
+        if (!normalizationEnabledCached || measuredLufs == null) {
+            cachedNormalizationGainMb = 0
+            cachedNormalizationEnabled = false
+            playerNormalizationProcessors.values.forEach {
+                it.setTargetGain(0)
+                it.enabled = false
+            }
+            return
+        }
+
+        val loudnessDelta = measuredLufs - targetLufs
+        val targetGain = (-loudnessDelta * 100.0).toInt()
+        val clampedGain = targetGain.coerceIn(MIN_GAIN_MB, MAX_GAIN_MB)
+
+        cachedNormalizationGainMb = clampedGain
+        cachedNormalizationEnabled = true
+
+        playerNormalizationProcessors.values.forEach {
+            it.setTargetGain(clampedGain)
+            it.enabled = true
         }
     }
 
@@ -2511,6 +2553,7 @@ class MusicService :
 
         lastPlaybackSpeed = -1.0f // force update song
 
+        applyCachedAudioNormalizationNow()
         setupAudioNormalization()
 
         scrobbleManager?.onSongStop()
@@ -3750,6 +3793,11 @@ class MusicService :
                         ),
                     )
                 }
+
+                if (!isCrossfading) {
+                    applyNormalizationFromLoudnessData(loudnessDb, perceptualLoudnessDb)
+                }
+
                 recoverSongDeduped(mediaId, nonNullPlayback)
 
                 if (bypassCacheForQualityChange.remove(mediaId)) {
