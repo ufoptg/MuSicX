@@ -141,7 +141,7 @@ fun ShowMediaInfo(videoId: String) {
                         R.drawable.key,
                         R.drawable.play,
                         R.drawable.lock,
-                        R.drawable.key,
+                        R.drawable.key_vertical,
                         R.drawable.info,
                         R.drawable.radio,
                         R.drawable.gradient,
