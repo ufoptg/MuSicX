@@ -156,6 +156,8 @@ fun ShowMediaInfo(videoId: String) {
                     // Player hash + cipher support date apply only to deciphered web clients;
                     // direct-URL clients (VISIONOS/ANDROID_VR/IOS) never run the cipher.
                     val isWebStream = currentStreamClient in setOf("WEB_REMIX", "WEB_CREATOR", "TVHTML5", "WEB")
+                    // Read the moving global once so the hash row and its cipher-date row stay consistent.
+                    val playerHash = if (isWebStream) CipherDeobfuscator.lastUsedPlayerHash else null
 
                     val measuredLufs: Double? = currentFormat?.perceptualLoudnessDb ?: currentFormat?.loudnessDb?.let { it + LoudnessLevel.AGGRESSIVE.targetLufs }
 
@@ -167,9 +169,9 @@ fun ShowMediaInfo(videoId: String) {
                             "Itag" to currentFormat?.itag?.toString(),
                             stringResource(R.string.stream_client) to currentStreamClient,
                             stringResource(R.string.format_player_hash) to
-                                    (if (isWebStream) CipherDeobfuscator.lastUsedPlayerHash else notApplicable),
+                                    (if (isWebStream) playerHash else notApplicable),
                             stringResource(R.string.format_cipher_support_added) to
-                                    (if (isWebStream) PlayerDatesStore.get(CipherDeobfuscator.lastUsedPlayerHash) else notApplicable),
+                                    (if (isWebStream) PlayerDatesStore.get(playerHash) else notApplicable),
                             stringResource(R.string.mime_type) to currentFormat?.mimeType,
                             stringResource(R.string.codecs) to currentFormat?.codecs,
                             stringResource(R.string.bitrate) to currentFormat?.bitrate?.let { "${it / 1000} Kbps" },
