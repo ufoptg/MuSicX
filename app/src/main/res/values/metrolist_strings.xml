@@ -979,6 +979,7 @@
 
     <!-- Stream sources -->
     <string name="stream_sources">Stream sources</string>
+    <string name="stream_source_order">Stream order</string>
     <string name="stream_source_web_clients">Web clients</string>
     <string name="stream_source_native_clients">Native clients</string>
     <string name="stream_source_creator_clients">Creator clients</string>

@@ -98,7 +98,7 @@ fun SettingsScreen(
                     onClick = { navController.navigate("settings/player") }
                 ),
                 Material3SettingsItem(
-                    icon = painterResource(R.drawable.cast),
+                    icon = painterResource(R.drawable.radio),
                     title = { Text(stringResource(R.string.stream_sources)) },
                     onClick = { navController.navigate("settings/stream_sources") }
                 ),

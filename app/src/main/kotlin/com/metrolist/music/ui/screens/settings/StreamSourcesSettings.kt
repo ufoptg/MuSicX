@@ -6,24 +6,32 @@
 package com.metrolist.music.ui.screens.settings
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -59,6 +67,19 @@ fun StreamSourcesSettings(
     val (webCreator, onWebCreatorChange) = rememberPreference(StreamSourceWebCreatorKey, defaultValue = true)
     val (androidCreator, onAndroidCreatorChange) = rememberPreference(StreamSourceAndroidCreatorKey, defaultValue = false)
 
+    // Effective resolution order: WEB_REMIX (main client) then the fallback clients, mirroring the
+    // order in YTPlayerUtils. Only enabled clients appear; the ANDROID_VR variants collapse to one.
+    val streamOrder = listOf(
+        stringResource(R.string.stream_source_web_remix) to webRemix,
+        stringResource(R.string.stream_source_visionos) to visionOS,
+        stringResource(R.string.stream_source_web_creator) to webCreator,
+        stringResource(R.string.stream_source_tvhtml5) to tvhtml5,
+        stringResource(R.string.stream_source_android_vr) to androidVR,
+        stringResource(R.string.stream_source_ios) to ios,
+        stringResource(R.string.stream_source_ipados) to ipadOS,
+        stringResource(R.string.stream_source_android_creator) to androidCreator,
+    ).filter { it.second }.map { it.first }
+
     Column(
         Modifier
             .windowInsetsPadding(
@@ -74,6 +95,36 @@ fun StreamSourcesSettings(
                 LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)
             )
         )
+
+        Text(
+            text = stringResource(R.string.stream_source_order),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+        ) {
+            streamOrder.forEachIndexed { index, name ->
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                ) {
+                    Text(
+                        text = "${index + 1}. $name",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
 
         Material3SettingsGroup(
             title = stringResource(R.string.stream_source_web_clients),
