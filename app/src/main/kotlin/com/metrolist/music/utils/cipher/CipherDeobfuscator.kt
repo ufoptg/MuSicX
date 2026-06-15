@@ -38,6 +38,10 @@ object CipherDeobfuscator {
     }
 
     private var cipherWebView: CipherWebView? = null
+
+    // Written on the decipher coroutine (Dispatchers.IO) but read via lastUsedPlayerHash from the
+    // Compose UI thread (song-details sheet), so @Volatile to publish the write across threads.
+    @Volatile
     private var currentPlayerHash: String? = null
 
     /**
