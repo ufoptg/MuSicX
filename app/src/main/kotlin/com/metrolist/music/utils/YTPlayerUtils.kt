@@ -315,6 +315,8 @@ object YTPlayerUtils {
                             streamUrl = "${streamUrl}${separator}pot=${Uri.encode(poToken.streamingDataPoToken)}"
                             Timber.tag(TAG).d("  Final URL length (with pot): ${streamUrl.length}")
                         }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e // request superseded/cancelled — abort cleanly, don't validate an un-transformed URL
                     } catch (e: Exception) {
                         Timber.tag(TAG).e(e, "N-transform or pot append failed: ${e.message}")
                         Timber.tag(TAG).e("Stack trace: ${e.stackTraceToString().take(500)}")
@@ -598,10 +600,15 @@ object YTPlayerUtils {
         // independently fetched player can be a DIFFERENT generation, and a sig minted for one
         // player but deciphered by another 403s on the CDN. NewPipe is kept for age-restriction
         // detection and as the STS source only when the cipher player fetch fails.
-        val cipherSts = runCatching { CipherDeobfuscator.signatureTimestamp() }
-            .onSuccess { Timber.tag(logTag).d("Signature timestamp from cipher player: $it") }
-            .onFailure { Timber.tag(logTag).e(it, "Cipher player STS fetch failed") }
-            .getOrNull()
+        val cipherSts = try {
+            CipherDeobfuscator.signatureTimestamp()
+                ?.also { Timber.tag(logTag).d("Signature timestamp from cipher player: $it") }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e // cooperative cancellation: don't swallow, let the playback coroutine unwind
+        } catch (e: Exception) {
+            Timber.tag(logTag).e(e, "Cipher player STS fetch failed")
+            null
+        }
 
         val result = NewPipeExtractor.getSignatureTimestamp(videoId)
         return result.fold(

@@ -41,9 +41,8 @@ object PlayerConfigStore {
     private const val FORCE_REFRESH_COOLDOWN_MS = 5 * 60 * 1000L
 
     // Note: names must not start with "player_" — PlayerJsFetcher.writeToCache() purges
-    // "player_*" from this shared dir on every player-JS refresh (and invalidateCache()
-    // wipes it entirely; that is benign — the in-memory map survives and the next refresh
-    // refetches without an ETag).
+    // "player_*" from this shared dir on every player-JS refresh. PlayerJsFetcher.invalidateCache()
+    // deletes only player_*/current_hash.txt, so the config cache + ETag survive cipher retries.
     private const val CACHE_FILE = "configs_remote.json"
     private const val META_FILE = "configs_remote.meta"
 
@@ -68,10 +67,13 @@ object PlayerConfigStore {
     private val refreshMutex = Mutex()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val httpClient: OkHttpClient
-        get() = OkHttpClient.Builder()
+    // Built once on first use (mirrors PlayerJsFetcher's single client) so config refreshes
+    // reuse one connection pool/dispatcher instead of allocating a fresh client per fetch.
+    private val httpClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
             .apply { YouTube.proxy?.let { proxy(it) } }
             .build()
+    }
 
     /**
      * Synchronous: loads the bundled asset and, if present and valid, the last-good cached
