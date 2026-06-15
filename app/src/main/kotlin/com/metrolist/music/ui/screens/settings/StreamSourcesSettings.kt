@@ -42,7 +42,6 @@ import com.metrolist.music.R
 import com.metrolist.music.constants.StreamSourceAndroidCreatorKey
 import com.metrolist.music.constants.StreamSourceAndroidVRKey
 import com.metrolist.music.constants.StreamSourceIOSKey
-import com.metrolist.music.constants.StreamSourceIPadOSKey
 import com.metrolist.music.constants.StreamSourceTVHTML5Key
 import com.metrolist.music.constants.StreamSourceVisionOSKey
 import com.metrolist.music.constants.StreamSourceWebCreatorKey
@@ -63,7 +62,6 @@ fun StreamSourcesSettings(
     val (visionOS, onVisionOSChange) = rememberPreference(StreamSourceVisionOSKey, defaultValue = true)
     val (androidVR, onAndroidVRChange) = rememberPreference(StreamSourceAndroidVRKey, defaultValue = true)
     val (ios, onIosChange) = rememberPreference(StreamSourceIOSKey, defaultValue = false)
-    val (ipadOS, onIpadOSChange) = rememberPreference(StreamSourceIPadOSKey, defaultValue = false)
     val (webCreator, onWebCreatorChange) = rememberPreference(StreamSourceWebCreatorKey, defaultValue = true)
     val (androidCreator, onAndroidCreatorChange) = rememberPreference(StreamSourceAndroidCreatorKey, defaultValue = false)
 
@@ -76,7 +74,6 @@ fun StreamSourcesSettings(
         stringResource(R.string.stream_source_tvhtml5) to tvhtml5,
         stringResource(R.string.stream_source_android_vr) to androidVR,
         stringResource(R.string.stream_source_ios) to ios,
-        stringResource(R.string.stream_source_ipados) to ipadOS,
         stringResource(R.string.stream_source_android_creator) to androidCreator,
     ).filter { it.second }.map { it.first }
 
@@ -142,7 +139,6 @@ fun StreamSourcesSettings(
                 streamClientItem(R.string.stream_source_visionos, R.string.stream_source_visionos_desc, visionOS, onVisionOSChange),
                 streamClientItem(R.string.stream_source_android_vr, R.string.stream_source_android_vr_desc, androidVR, onAndroidVRChange),
                 streamClientItem(R.string.stream_source_ios, R.string.stream_source_ios_desc, ios, onIosChange),
-                streamClientItem(R.string.stream_source_ipados, R.string.stream_source_ipados_desc, ipadOS, onIpadOSChange),
             )
         )
 

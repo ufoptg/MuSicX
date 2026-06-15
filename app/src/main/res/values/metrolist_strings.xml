@@ -994,10 +994,8 @@
     <string name="stream_source_visionos_desc">Apple Vision. No throttle gate; very reliable.</string>
     <string name="stream_source_android_vr">Android VR</string>
     <string name="stream_source_android_vr_desc">Android VR clients (all versions).</string>
-    <string name="stream_source_ios">iOS</string>
-    <string name="stream_source_ios_desc">Apple iOS. Off by default; throttle-gated past ~1 MiB.</string>
-    <string name="stream_source_ipados">iPadOS</string>
-    <string name="stream_source_ipados_desc">Apple iPadOS. Off by default; shares the iOS client.</string>
+    <string name="stream_source_ios">iOS / iPadOS</string>
+    <string name="stream_source_ios_desc">Apple iOS and iPadOS clients. Off by default; throttle-gated past ~1 MiB.</string>
     <string name="stream_source_web_creator">WEB_CREATOR</string>
     <string name="stream_source_web_creator_desc">Creator web client.</string>
     <string name="stream_source_android_creator">ANDROID_CREATOR</string>
