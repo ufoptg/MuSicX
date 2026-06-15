@@ -98,6 +98,14 @@ import com.metrolist.music.constants.AudioTrackPlaybackParamsKey
 import com.metrolist.music.constants.AutoDownloadOnLikeKey
 import com.metrolist.music.constants.AutoLoadMoreKey
 import com.metrolist.music.constants.AutoSkipNextOnErrorKey
+import com.metrolist.music.constants.StreamSourceAndroidCreatorKey
+import com.metrolist.music.constants.StreamSourceAndroidVRKey
+import com.metrolist.music.constants.StreamSourceIOSKey
+import com.metrolist.music.constants.StreamSourceIPadOSKey
+import com.metrolist.music.constants.StreamSourceTVHTML5Key
+import com.metrolist.music.constants.StreamSourceVisionOSKey
+import com.metrolist.music.constants.StreamSourceWebCreatorKey
+import com.metrolist.music.constants.StreamSourceWebRemixKey
 import com.metrolist.music.constants.AutoplayKey
 import com.metrolist.music.constants.CrossfadeDurationKey
 import com.metrolist.music.constants.CrossfadeEnabledKey
@@ -1122,6 +1130,23 @@ class MusicService :
         }
         scope.launch {
             dataStore.data.map { it[AutoLoadMoreKey] ?: true }.distinctUntilChanged().collect { cachedAutoLoadMore = it }
+        }
+        // Keep YTPlayerUtils in sync with the stream source toggles (Settings → Stream sources).
+        scope.launch {
+            dataStore.data.collect { prefs ->
+                val disabled = mutableSetOf<String>()
+                if (prefs[StreamSourceWebRemixKey] == false) disabled += "WEB_REMIX"
+                if (prefs[StreamSourceTVHTML5Key] == false) disabled += "TVHTML5"
+                if (prefs[StreamSourceAndroidVRKey] == false) disabled += "ANDROID_VR"
+                // IOS/IPADOS share clientName "IOS"; ANDROID_CREATOR needs DroidGuard — these default
+                // OFF (`!= true`: unset or false both disable; only an explicit toggle enables them).
+                if (prefs[StreamSourceIOSKey] != true) disabled += "IOS"
+                if (prefs[StreamSourceIPadOSKey] != true) disabled += "IOS" // IPADOS uses the IOS clientName
+                if (prefs[StreamSourceVisionOSKey] == false) disabled += "VISIONOS"
+                if (prefs[StreamSourceWebCreatorKey] == false) disabled += "WEB_CREATOR"
+                if (prefs[StreamSourceAndroidCreatorKey] != true) disabled += "ANDROID_CREATOR"
+                YTPlayerUtils.disabledStreamClients = disabled
+            }
         }
 
         if (startupPrefs!![PersistentQueueKey] ?: true) {
