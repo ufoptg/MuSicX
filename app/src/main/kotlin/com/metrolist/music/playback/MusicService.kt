@@ -3567,8 +3567,18 @@ class MusicService :
                     }
                     Timber.tag(TAG).w("Ghost cache entry for $mediaId, re-fetching")
                     playerCache.removeResource(mediaId)
+                    // Also clear the cached URL since cache file is gone
+                    songUrlCache.remove(mediaId)
                 }
 
+                // Only use cached URL if cache file exists
+                // If cache file was deleted by system (e.g., low memory), we must re-fetch
+                if (usePlayerCache && !playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)) {
+                    // Cache file is missing, don't use cached URL - it may be expired
+                    songUrlCache.remove(mediaId)
+                    Timber.tag(TAG).d("Cache file missing for $mediaId, clearing cached URL")
+                }
+                
                 songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
                     scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                     return@Factory dataSpec.withUri(it.first.toUri())

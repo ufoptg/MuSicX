@@ -268,15 +268,28 @@ class MainActivity : ComponentActivity() {
                         listenTogetherManager.setPlayerConnection(playerConnection)
                     } catch (e: Exception) {
                         Timber.tag("MainActivity").e(e, "Failed to create PlayerConnection")
-                        // Retry after a delay of 500ms
+                        // Retry with exponential backoff - service may still be initializing
                         lifecycleScope.launch {
-                            delay(500)
-                            try {
-                                playerConnection = PlayerConnection(this@MainActivity, service, database, lifecycleScope)
-                                playerConnectionSnapshot = playerConnection
-                                listenTogetherManager.setPlayerConnection(playerConnection)
-                            } catch (e2: Exception) {
-                                Timber.tag("MainActivity").e(e2, "Failed to create PlayerConnection on retry")
+                            var retryCount = 0
+                            val maxRetries = 5
+                            var delayMs = 500L
+                            while (retryCount < maxRetries) {
+                                delay(delayMs)
+                                delayMs = (delayMs * 2).coerceAtMost(5000L) // Exponential backoff, max 5s
+                                retryCount++
+                                try {
+                                    Timber.tag("MainActivity").d("Retry $retryCount of $maxRetries for PlayerConnection")
+                                    playerConnection = PlayerConnection(this@MainActivity, service, database, lifecycleScope)
+                                    playerConnectionSnapshot = playerConnection
+                                    listenTogetherManager.setPlayerConnection(playerConnection)
+                                    Timber.tag("MainActivity").d("PlayerConnection created successfully on retry $retryCount")
+                                    break // Success, exit retry loop
+                                } catch (e2: Exception) {
+                                    Timber.tag("MainActivity").e(e2, "Failed to create PlayerConnection on retry $retryCount")
+                                    if (retryCount >= maxRetries) {
+                                        Timber.tag("MainActivity").e("Max retries reached for PlayerConnection")
+                                    }
+                                }
                             }
                         }
                     }
