@@ -55,6 +55,7 @@ object DiscordRpcManager {
     @Volatile private var currentIsPlaying: Boolean = false
     private val currentActivityId = AtomicLong(0L)
     @Volatile private var imageResolutionJob: Job? = null
+    @Volatile private var currentActivityHadImages: Boolean = false
     private val reconnectMutex = Mutex()
 
     private val _accessTokenFlow = MutableStateFlow<String?>(null)
@@ -90,14 +91,27 @@ object DiscordRpcManager {
     fun isReady(): Boolean = _ready
 
     fun isShowingSong(songId: String, isPlaying: Boolean): Boolean {
-        val showing = currentSongId == songId && currentIsPlaying == isPlaying && lastActivity != null
-        if (!showing) {
+        if (currentSongId != songId || currentIsPlaying != isPlaying) {
             Timber.tag(TAG).d(
-                "isShowingSong: false (currentSongId=%s, requestedSongId=%s, currentIsPlaying=%s, requestedIsPlaying=%s, hasActivity=%s)",
-                currentSongId, songId, currentIsPlaying, isPlaying, lastActivity != null,
+                "isShowingSong: false (currentSongId=%s, requestedSongId=%s, currentIsPlaying=%s, requestedIsPlaying=%s)",
+                currentSongId, songId, currentIsPlaying, isPlaying,
             )
+            return false
         }
-        return showing
+        if (lastActivity == null) {
+            Timber.tag(TAG).d("isShowingSong: false (no activity)")
+            return false
+        }
+        // If the last activity had images to resolve but none were sent,
+        // and no resolution is in progress, allow the caller to retry.
+        if (currentActivityHadImages &&
+            lastActivity?.largeImage == null && lastActivity?.smallImage == null &&
+            (imageResolutionJob == null || imageResolutionJob?.isCompleted == true)
+        ) {
+            Timber.tag(TAG).d("isShowingSong: false (images not resolved yet)")
+            return false
+        }
+        return true
     }
 
     fun clearLastError() {
@@ -304,8 +318,6 @@ object DiscordRpcManager {
         if (!stateChanged &&
             lastActivitySentAtMs > 0L && (now - lastActivitySentAtMs) < 2_000L
         ) {
-            currentActivityId.incrementAndGet()
-            imageResolutionJob?.cancel()
             Timber.tag(TAG).i("setActivity: debounced (<2s since last, stateChanged=%s)", stateChanged)
             return
         }
@@ -314,6 +326,7 @@ object DiscordRpcManager {
         currentSongId = songId
         currentIsPlaying = isPlaying
         currentActivityId.incrementAndGet()
+        currentActivityHadImages = !activity.largeImage.isNullOrEmpty() || !activity.smallImage.isNullOrEmpty()
 
         val buttons = buildList {
             if (!activity.button1Label.isNullOrEmpty() && !activity.button1Url.isNullOrEmpty()) {
@@ -432,6 +445,7 @@ object DiscordRpcManager {
         lastActivity = null
         currentSongId = null
         currentIsPlaying = false
+        currentActivityHadImages = false
         currentActivityId.incrementAndGet()
         imageResolutionJob?.cancel()
         try {
@@ -562,6 +576,7 @@ object DiscordRpcManager {
         _authorized = false
         currentSongId = null
         currentIsPlaying = false
+        currentActivityHadImages = false
     }
 
     fun destroy() {
@@ -577,6 +592,7 @@ object DiscordRpcManager {
         lastActivity = null
         currentSongId = null
         currentIsPlaying = false
+        currentActivityHadImages = false
     }
 
     fun logout() {
@@ -589,6 +605,7 @@ object DiscordRpcManager {
         DiscordSuperProperties.reset()
         _lastError.value = null
         lastActivity = null
+        currentActivityHadImages = false
     }
 
     private suspend fun handleGatewayEvent(event: GatewayEvent) {
