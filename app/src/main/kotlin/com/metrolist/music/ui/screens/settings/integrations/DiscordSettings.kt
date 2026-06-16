@@ -186,11 +186,12 @@ fun DiscordSettings(
         val resId = when (key) {
             "discord_error_loopback_unbound" -> R.string.discord_error_loopback_unbound
             "discord_error_loopback_timeout" -> R.string.discord_error_loopback_timeout
+            "discord_error_no_browser" -> R.string.discord_error_no_browser
             "discord_error_token_refresh_failed" -> R.string.discord_error_token_refresh_failed
             "discord_error_invalid_scope" -> R.string.discord_error_invalid_scope
             else -> R.string.discord_error_banner_title
         }
-        context.getString(resId)
+        stringResource(resId)
     }
 
     // init() already auto-rehydrates the persisted token and reconnects.

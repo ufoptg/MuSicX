@@ -3902,6 +3902,7 @@ class MusicService :
             Timber.tag("DiscordSvc").i("onDestroy: disconnecting Discord RPC")
             DiscordRpcManager.disconnect()
         }
+        DiscordRpcManager.destroy()
         connectivityObserver.unregister()
         abandonAudioFocus()
         closeAudioEffectSession()

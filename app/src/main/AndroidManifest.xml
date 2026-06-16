@@ -153,9 +153,11 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
 
-            <!-- Custom scheme for Discord OAuth2 redirect (process-death-safe).
-                 Registered in the Discord Developer Portal as:
-                 discord-1447278780795064401://authorize/callback -->
+            <!-- Custom scheme for Discord OAuth2 redirect is currently unused;
+                 the authorization flow uses a local HTTP loopback server on
+                 127.0.0.1:9384/callback. Keep this block commented until the
+                 Discord Developer Portal redirect URI is switched to the loopback. -->
+            <!--
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -165,6 +167,7 @@
                     android:host="authorize"
                     android:pathPrefix="/callback" />
             </intent-filter>
+            -->
 
             <meta-data
                 android:name="android.app.shortcuts"

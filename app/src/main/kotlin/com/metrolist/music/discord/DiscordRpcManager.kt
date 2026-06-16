@@ -7,11 +7,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import timber.log.Timber
 import java.net.HttpURLConnection
@@ -79,22 +81,6 @@ object DiscordRpcManager {
 
     enum class Status { Disconnected, Authorizing, Connected }
 
-    enum class StatusType(val value: Int) {
-        Online(0),
-        Idle(3),
-        Dnd(4),
-    }
-
-    @JvmStatic
-    fun onNativeStatusChanged(statusCode: Int, ready: Boolean, authorized: Boolean) {
-        Timber.tag(TAG).i(
-            "onNativeStatusChanged: no-op stub (statusCode=%d, ready=%s, authorized=%s)",
-            statusCode,
-            ready,
-            authorized,
-        )
-    }
-
     fun getAccessToken(): String? = accessToken
 
     fun isInitialized(): Boolean = initialized
@@ -118,19 +104,22 @@ object DiscordRpcManager {
         _lastError.value = null
     }
 
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val appId: String = BuildConfigProvider.appId
 
     private val auth: DiscordAuth = DiscordAuth()
 
-    private val gateway: DiscordGateway = DiscordGateway(
-        appId = appId,
-        tokenProvider = { "Bearer ${accessToken ?: ""}" },
-        externalScope = scope,
-    )
+    private var gateway: DiscordGateway = createGateway(scope)
 
-    init {
+    private fun createGateway(scope: CoroutineScope): DiscordGateway =
+        DiscordGateway(
+            appId = appId,
+            tokenProvider = { "Bearer ${accessToken ?: ""}" },
+            externalScope = scope,
+        )
+
+    private fun startEventCollection() {
         scope.launch {
             gateway.events.collect { event -> handleGatewayEvent(event) }
         }
@@ -138,12 +127,18 @@ object DiscordRpcManager {
 
     fun init(context: Context) {
         DiscordTokenStore.init(context.applicationContext)
-        if (initialized) {
-            Timber.tag(TAG).i("init: already initialized, skipping")
+        if (initialized && scope.isActive) {
+            Timber.tag(TAG).i("init: already initialized and active, skipping")
             return
+        }
+        if (!scope.isActive) {
+            Timber.tag(TAG).i("init: recreating scope after previous destroy")
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            gateway = createGateway(scope)
         }
         initialized = true
         _connectionStatus.value = Status.Disconnected
+        startEventCollection()
         Timber.tag(TAG).i("init: token store initialized, scheduling auto-rehydrate")
 
         scope.launch {
@@ -164,11 +159,15 @@ object DiscordRpcManager {
         }
         authorizeInProgress = true
 
+        suspend fun dispatchComplete(success: Boolean) {
+            withContext(Dispatchers.Main) { onComplete(success) }
+        }
+
         // Short-circuit: already authorized and ready
         if (_ready && _authorized) {
             Timber.tag(TAG).d("authorize: short-circuit — already ready and authorized")
             authorizeInProgress = false
-            onComplete(true)
+            scope.launch(Dispatchers.Main) { onComplete(true) }
             return
         }
         // Short-circuit: authorized but not ready — reconnect with existing token
@@ -176,7 +175,7 @@ object DiscordRpcManager {
             Timber.tag(TAG).d("authorize: short-circuit — authorized but not ready, reconnecting")
             authorizeInProgress = false
             reconnectWithToken(accessToken ?: "")
-            onComplete(true)
+            scope.launch(Dispatchers.Main) { onComplete(true) }
             return
         }
 
@@ -199,44 +198,54 @@ object DiscordRpcManager {
                     runCatching { gateway.close(4000, "re-authorizing") }
                     gateway.connect()
                     gateway.identify("Bearer ${result.accessToken}")
-                    onComplete(true)
+                    dispatchComplete(true)
                 } catch (e: Throwable) {
                     Timber.tag(TAG).e(e, "authorize: gateway connect/identify failed")
                     _lastError.value = "discord_error_loopback_timeout"
                     _connectionStatus.value = Status.Disconnected
                     _ready = false
                     _authorized = false
-                    onComplete(false)
+                    dispatchComplete(false)
                 }
             } catch (e: DiscordAuthException.UserCancelled) {
                 Timber.tag(TAG).i("authorize: user cancelled")
                 _lastError.value = "discord_error_loopback_timeout"
                 _connectionStatus.value = Status.Disconnected
-                onComplete(false)
+                dispatchComplete(false)
             } catch (e: DiscordAuthException.StateMismatch) {
                 Timber.tag(TAG).w(e, "authorize: state mismatch")
                 _lastError.value = "discord_error_invalid_scope"
                 _connectionStatus.value = Status.Disconnected
-                onComplete(false)
+                dispatchComplete(false)
             } catch (e: DiscordAuthException.NetworkFailure) {
                 Timber.tag(TAG).e(e, "authorize: network failure")
                 _lastError.value = "discord_error_loopback_timeout"
                 _connectionStatus.value = Status.Disconnected
-                onComplete(false)
+                dispatchComplete(false)
+            } catch (e: DiscordAuthException.NoBrowser) {
+                Timber.tag(TAG).w(e, "authorize: no browser available")
+                _lastError.value = "discord_error_no_browser"
+                _connectionStatus.value = Status.Disconnected
+                dispatchComplete(false)
             } catch (e: DiscordAuthException.InvalidGrant) {
                 Timber.tag(TAG).w(e, "authorize: invalid grant")
                 _lastError.value = "discord_error_token_refresh_failed"
                 _connectionStatus.value = Status.Disconnected
-                onComplete(false)
+                dispatchComplete(false)
             } catch (e: Throwable) {
                 Timber.tag(TAG).e(e, "authorize: unexpected failure")
                 _lastError.value = "discord_error_loopback_timeout"
                 _connectionStatus.value = Status.Disconnected
-                onComplete(false)
+                dispatchComplete(false)
             } finally {
                 authorizeInProgress = false
             }
         }
+    }
+
+    fun cancelAuthorize() {
+        Timber.tag(TAG).i("cancelAuthorize: cancelling active authorization")
+        auth.cancel()
     }
 
     fun fetchCurrentUser(token: String): DiscordUser? {
@@ -411,31 +420,6 @@ object DiscordRpcManager {
         }
     }
 
-    fun setOnlineStatus(status: StatusType) {
-        if (!_ready) {
-            Timber.tag(TAG).w("setOnlineStatus: skipping — not ready (status=%s)", status)
-            return
-        }
-        val presenceStatus = when (status) {
-            StatusType.Online -> PresenceStatus.Online
-            StatusType.Idle -> PresenceStatus.Idle
-            StatusType.Dnd -> PresenceStatus.Dnd
-        }
-        val currentActivities = lastActivity?.let { listOf(it) } ?: emptyList()
-        val onlineJson = DiscordPresence.buildPresenceUpdate(
-            status = presenceStatus,
-            activities = currentActivities,
-        )
-        Timber.tag(TAG).i("setOnlineStatus: body=%s", onlineJson)
-        try {
-            gateway.presenceUpdate(onlineJson)
-        } catch (e: IllegalStateException) {
-            Timber.tag(TAG).w(e, "setOnlineStatus: gateway not open")
-        } catch (e: Throwable) {
-            Timber.tag(TAG).e(e, "setOnlineStatus: send failed")
-        }
-    }
-
     fun clear() {
         if (!_ready) {
             Timber.tag(TAG).w("clear: skipping — not ready")
@@ -469,13 +453,13 @@ object DiscordRpcManager {
             Timber.tag(TAG).w("reconnectWithToken: not initialized, ignoring")
             return
         }
-        accessToken = token
-        _accessTokenFlow.value = token
-        DiscordTokenStore.storeAccessToken(token)
-        _connectionStatus.value = Status.Authorizing
 
         scope.launch {
             reconnectMutex.withLock {
+                accessToken = token
+                _accessTokenFlow.value = token
+                DiscordTokenStore.storeAccessToken(token)
+                _connectionStatus.value = Status.Authorizing
                 try {
                     val refreshToken = DiscordTokenStore.getRefreshToken()
                     val expiresAt = DiscordTokenStore.getExpiresAt()
@@ -531,6 +515,42 @@ object DiscordRpcManager {
                 }
             }
         }
+    }
+
+    private suspend fun refreshAndReconnect() {
+        val refreshToken = DiscordTokenStore.getRefreshToken()
+        if (refreshToken.isNullOrEmpty()) {
+            Timber.tag(TAG).w("refreshAndReconnect: no refresh token available, logging out")
+            _lastError.value = "discord_error_token_refresh_failed"
+            logout()
+            return
+        }
+
+        val refreshed = try {
+            auth.refresh(refreshToken)
+        } catch (e: DiscordAuthException.InvalidGrant) {
+            Timber.tag(TAG).w(e, "refreshAndReconnect: refresh token rejected, logging out")
+            _lastError.value = "discord_error_token_refresh_failed"
+            logout()
+            return
+        } catch (e: Throwable) {
+            Timber.tag(TAG).e(e, "refreshAndReconnect: token refresh failed")
+            _lastError.value = "discord_error_token_refresh_failed"
+            logout()
+            return
+        }
+
+        Timber.tag(TAG).i(
+            "refreshAndReconnect: refresh succeeded (token length=%d, expiresIn=%d), reconnecting",
+            refreshed.accessToken.length,
+            refreshed.expiresInSec,
+        )
+        DiscordTokenStore.storeFull(
+            refreshed.accessToken,
+            refreshed.refreshToken,
+            refreshed.expiresInSec,
+        )
+        reconnectWithToken(refreshed.accessToken)
     }
 
     fun disconnect() {
@@ -620,6 +640,10 @@ object DiscordRpcManager {
                 Timber.tag(TAG).w("gateway: InvalidSession (resumable=%s), closing WS to trigger reconnect", event.resumable)
                 imageResolutionJob?.cancel()
                 imageResolutionJob = null
+            }
+            is GatewayEvent.RefreshToken -> {
+                Timber.tag(TAG).w("gateway: RefreshToken requested, refreshing and reconnecting")
+                scope.launch { refreshAndReconnect() }
             }
             is GatewayEvent.Hello -> Unit
             is GatewayEvent.HeartbeatAck -> Unit

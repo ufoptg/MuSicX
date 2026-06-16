@@ -8,28 +8,46 @@ import io.ktor.server.engine.stop
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeout
 import timber.log.Timber
 import java.io.IOException
+import java.net.ServerSocket
 
 data class AuthCodeResult(val code: String, val state: String)
 
 class LoopbackAuthServer(private val expectedState: String) {
 
-    class PortInUseException(port: Int) : IOException("Port $port is already in use")
-
     private companion object {
         const val TAG = "DiscordSvc"
+        const val DEFAULT_HOST = "127.0.0.1"
+        const val PREFERRED_PORT = 9384
     }
 
     private val deferred = CompletableDeferred<AuthCodeResult>()
 
     private var server: EmbeddedServer<*, *>? = null
 
-    suspend fun start() {
-        Timber.tag(TAG).i("loopback: starting on 127.0.0.1:9384")
-        server = embeddedServer(CIO, port = 9384, host = "127.0.0.1") {
+    var actualPort: Int = -1
+        private set
+
+    private fun findAvailablePort(): Int {
+        return try {
+            val socket = ServerSocket(0)
+            val port = socket.localPort
+            socket.close()
+            port
+        } catch (e: IOException) {
+            Timber.tag(TAG).w(e, "loopback: ServerSocket(0) failed, falling back to preferred port")
+            PREFERRED_PORT
+        }
+    }
+
+    suspend fun start(): Int {
+        val port = findAvailablePort()
+        Timber.tag(TAG).i("loopback: starting on %s:%d", DEFAULT_HOST, port)
+        server = embeddedServer(CIO, port = port, host = DEFAULT_HOST) {
             routing {
                 get("/callback") {
                     val code = call.request.queryParameters["code"]
@@ -66,11 +84,20 @@ class LoopbackAuthServer(private val expectedState: String) {
                 }
             }
         }.start(wait = false)
-        Timber.tag(TAG).i("loopback: started")
+        actualPort = port
+        Timber.tag(TAG).i("loopback: started on port %d", port)
+        return port
     }
 
     suspend fun awaitCode(timeoutMs: Long = 120_000L): AuthCodeResult {
         return withTimeout(timeoutMs) { deferred.await() }
+    }
+
+    fun cancel() {
+        if (!deferred.isCompleted) {
+            Timber.tag(TAG).i("loopback: cancelling authorization")
+            deferred.completeExceptionally(CancellationException("Authorization cancelled by user"))
+        }
     }
 
     fun stop() {

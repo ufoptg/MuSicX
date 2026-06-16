@@ -1,20 +1,9 @@
 package com.metrolist.music.discord
 
-import com.metrolist.music.db.entities.Song
 import timber.log.Timber
 
 object DiscordTemplateRenderer {
     private const val TAG = "DiscordSvc"
-
-    fun render(template: String, song: Song): String {
-        var result = template
-            .replace("{song.name}", song.song.title)
-            .replace("{song.id}", song.song.id)
-            .replace("{artist.name}", song.artists.joinToString { it.name }.ifEmpty { DiscordDefaults.UNKNOWN_ARTIST })
-            .replace("{album.name}", song.album?.title ?: DiscordDefaults.UNKNOWN_ALBUM)
-        Timber.tag(TAG).v("render: template=%s -> result=%s", template, result)
-        return result
-    }
 
     fun render(
         template: String,

@@ -1,11 +1,20 @@
 package com.metrolist.music.discord
 
 import android.content.Context
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKeys
+import android.content.SharedPreferences
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
+import androidx.core.content.edit
 import kotlinx.coroutines.CompletableDeferred
 import timber.log.Timber
+import java.nio.charset.StandardCharsets
+import java.security.KeyStore
 import java.util.UUID
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 
 object DiscordTokenStore {
     private const val PREFS_NAME = "discord_token"
@@ -17,7 +26,7 @@ object DiscordTokenStore {
     private const val TAG = "DiscordSvc"
 
     @Volatile
-    private var prefs: EncryptedSharedPreferences? = null
+    private var prefs: SharedPreferences? = null
 
     private val initDeferred = CompletableDeferred<Unit>()
 
@@ -26,19 +35,33 @@ object DiscordTokenStore {
         synchronized(this) {
             if (prefs != null) return
             try {
-                val masterKey = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
-                prefs = EncryptedSharedPreferences.create(
-                    PREFS_NAME,
-                    masterKey,
-                    context,
-                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-                ) as EncryptedSharedPreferences
+                AesKeystore.getOrCreateKey()
+                prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 initDeferred.complete(Unit)
             } catch (e: Exception) {
                 Timber.e(e, "DiscordTokenStore init failed")
                 initDeferred.completeExceptionally(e)
             }
+        }
+    }
+
+    private fun encrypt(value: String?): String? {
+        if (value == null) return null
+        return try {
+            AesKeystore.encrypt(value)
+        } catch (e: Exception) {
+            Timber.e(e, "DiscordTokenStore: encrypt failed")
+            null
+        }
+    }
+
+    private fun decrypt(value: String?): String? {
+        if (value == null) return null
+        return try {
+            AesKeystore.decrypt(value)
+        } catch (e: Exception) {
+            Timber.e(e, "DiscordTokenStore: decrypt failed")
+            null
         }
     }
 
@@ -56,16 +79,16 @@ object DiscordTokenStore {
     }
 
     fun storeFull(accessToken: String, refreshToken: String, expiresInSec: Long) {
-        val editor = prefs?.edit() ?: return
-        editor.putString(TOKEN_KEY, accessToken)
-        if (refreshToken.isNotEmpty()) {
-            editor.putString(REFRESH_TOKEN_KEY, refreshToken)
+        prefs?.edit {
+            putString(TOKEN_KEY, encrypt(accessToken))
+            if (refreshToken.isNotEmpty()) {
+                putString(REFRESH_TOKEN_KEY, encrypt(refreshToken))
+            }
+            if (expiresInSec > 0L) {
+                val expiresAt = (System.currentTimeMillis() / 1000L) + expiresInSec
+                putLong(EXPIRES_AT_KEY, expiresAt)
+            }
         }
-        if (expiresInSec > 0L) {
-            val expiresAt = (System.currentTimeMillis() / 1000L) + expiresInSec
-            editor.putLong(EXPIRES_AT_KEY, expiresAt)
-        }
-        editor.apply()
         Timber.tag(TAG).d(
             "tokenStore: stored (accessToken length=%d, refreshToken present=%s, expiresIn=%d)",
             accessToken.length,
@@ -75,20 +98,22 @@ object DiscordTokenStore {
     }
 
     fun storeAccessToken(accessToken: String) {
-        val editor = prefs?.edit() ?: return
-        editor.putString(TOKEN_KEY, accessToken)
-        editor.apply()
+        prefs?.edit {
+            putString(TOKEN_KEY, encrypt(accessToken))
+        }
         Timber.tag(TAG).d("tokenStore: access token updated (length=%d)", accessToken.length)
     }
 
     fun retrieve(): String? {
-        val token = prefs?.getString(TOKEN_KEY, null)
+        val encrypted = prefs?.getString(TOKEN_KEY, null)
+        val token = decrypt(encrypted)
         Timber.tag(TAG).d("tokenStore: retrieve (found=%s)", !token.isNullOrEmpty())
         return token
     }
 
     fun getRefreshToken(): String? {
-        val token = prefs?.getString(REFRESH_TOKEN_KEY, null)
+        val encrypted = prefs?.getString(REFRESH_TOKEN_KEY, null)
+        val token = decrypt(encrypted)
         Timber.tag(TAG).d("tokenStore: getRefreshToken (found=%s)", !token.isNullOrEmpty())
         return token
     }
@@ -103,7 +128,9 @@ object DiscordTokenStore {
         val id = prefs?.getString(DEVICE_VENDOR_ID_KEY, null)
         if (id == null) {
             val newId = UUID.randomUUID().toString()
-            prefs?.edit()?.putString(DEVICE_VENDOR_ID_KEY, newId)?.apply()
+            prefs?.edit {
+                putString(DEVICE_VENDOR_ID_KEY, newId)
+            }
             Timber.tag(TAG).d("tokenStore: generated new device_vendor_id")
             return newId
         }
@@ -114,7 +141,9 @@ object DiscordTokenStore {
         val id = prefs?.getString(CLIENT_UUID_KEY, null)
         if (id == null) {
             val newId = UUID.randomUUID().toString()
-            prefs?.edit()?.putString(CLIENT_UUID_KEY, newId)?.apply()
+            prefs?.edit {
+                putString(CLIENT_UUID_KEY, newId)
+            }
             Timber.tag(TAG).d("tokenStore: generated new client_uuid")
             return newId
         }
@@ -122,13 +151,81 @@ object DiscordTokenStore {
     }
 
     fun clear() {
-        prefs?.edit()
-            ?.remove(TOKEN_KEY)
-            ?.remove(REFRESH_TOKEN_KEY)
-            ?.remove(EXPIRES_AT_KEY)
-            ?.remove(DEVICE_VENDOR_ID_KEY)
-            ?.remove(CLIENT_UUID_KEY)
-            ?.apply()
+        prefs?.edit {
+            remove(TOKEN_KEY)
+            remove(REFRESH_TOKEN_KEY)
+            remove(EXPIRES_AT_KEY)
+            remove(DEVICE_VENDOR_ID_KEY)
+            remove(CLIENT_UUID_KEY)
+        }
         Timber.tag(TAG).d("tokenStore: cleared")
+    }
+
+    internal object AesKeystore {
+        private const val ANDROID_KEYSTORE = "AndroidKeyStore"
+        private const val KEY_ALIAS = "metrolist_discord_token_key"
+        private const val TRANSFORMATION = "AES/GCM/NoPadding"
+        private const val GCM_IV_SIZE = 12
+        private const val GCM_TAG_SIZE = 128
+
+        // Delay KeyStore initialization so unit tests can substitute a test key and avoid
+        // touching AndroidKeyStore, which is unavailable on the JVM/Robolectric runtime.
+        private var keyStore: KeyStore? = null
+
+        @Synchronized
+        private fun getKeyStore(): KeyStore {
+            keyStore?.let { return it }
+            val ks = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+            keyStore = ks
+            return ks
+        }
+
+        @Volatile
+        private var testKey: SecretKey? = null
+
+        fun setTestKey(key: SecretKey?) {
+            testKey = key
+        }
+
+        fun getOrCreateKey(): SecretKey {
+            testKey?.let { return it }
+            getKeyStore().getKey(KEY_ALIAS, null)?.let { return it as SecretKey }
+            val spec = KeyGenParameterSpec.Builder(
+                KEY_ALIAS,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setKeySize(256)
+                .setRandomizedEncryptionRequired(true)
+                .build()
+            return KeyGenerator.getInstance("AES", ANDROID_KEYSTORE).apply { init(spec) }.generateKey()
+        }
+
+        fun encrypt(plaintext: String): String {
+            val cipher = Cipher.getInstance(TRANSFORMATION)
+            cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
+            val iv = cipher.iv
+            if (iv.size != GCM_IV_SIZE) {
+                throw IllegalStateException("Unexpected IV size: ${iv.size}")
+            }
+            val ciphertext = cipher.doFinal(plaintext.toByteArray(StandardCharsets.UTF_8))
+            val combined = ByteArray(GCM_IV_SIZE + ciphertext.size)
+            iv.copyInto(combined, destinationOffset = 0, startIndex = 0, endIndex = GCM_IV_SIZE)
+            ciphertext.copyInto(combined, destinationOffset = GCM_IV_SIZE)
+            return Base64.encodeToString(combined, Base64.NO_WRAP)
+        }
+
+        fun decrypt(encrypted: String): String {
+            val combined = Base64.decode(encrypted, Base64.NO_WRAP)
+            if (combined.size < GCM_IV_SIZE) {
+                throw IllegalArgumentException("Encrypted data too short")
+            }
+            val iv = combined.copyOfRange(0, GCM_IV_SIZE)
+            val ciphertext = combined.copyOfRange(GCM_IV_SIZE, combined.size)
+            val cipher = Cipher.getInstance(TRANSFORMATION)
+            cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), GCMParameterSpec(GCM_TAG_SIZE, iv))
+            return String(cipher.doFinal(ciphertext), StandardCharsets.UTF_8)
+        }
     }
 }

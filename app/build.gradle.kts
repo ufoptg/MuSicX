@@ -117,7 +117,7 @@ android {
 
     flavorDimensions += listOf("variant")
     productFlavors {
-        // FOSS - Updater, but no gcast or rpc
+        // FOSS - Updater, but no gcast
         create("foss") {
             dimension = "variant"
             isDefault = true
@@ -125,14 +125,14 @@ android {
             buildConfigField("Boolean", "UPDATER_AVAILABLE", "true")
         }
 
-        // GMS - Updater, gcast, and rpc
+        // GMS - Updater and gcast
         create("gms") {
             dimension = "variant"
             buildConfigField("Boolean", "CAST_AVAILABLE", "true")
             buildConfigField("Boolean", "UPDATER_AVAILABLE", "true")
         }
 
-        // IzzyOnDroid - no gcast, no updater, no rpc - the ONLY F-droid compliant build
+        // IzzyOnDroid - no gcast, no updater - the ONLY F-droid compliant build
         create("izzy") {
             dimension = "variant"
             buildConfigField("Boolean", "CAST_AVAILABLE", "false")
@@ -356,7 +356,6 @@ dependencies {
     implementation(libs.coil)
     implementation(libs.coil.network.okhttp)
     implementation(libs.browser)
-    implementation(libs.security.crypto)
 
     implementation(libs.ucrop)
 
@@ -406,4 +405,8 @@ dependencies {
     coreLibraryDesugaring(libs.desugaring)
 
     implementation(libs.timber)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
 }

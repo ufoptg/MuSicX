@@ -67,7 +67,7 @@ object DiscordExternalAssets {
                 header("User-Agent", DiscordSuperProperties.USER_AGENT)
                 header("X-Super-Properties", DiscordSuperProperties.base64)
                 header("Content-Type", "application/json")
-                setBody("""{"urls":["$imageUrl"]}""")
+                setBody(json.encodeToString(ExternalAssetRequest(listOf(imageUrl))))
             }
 
             val body = response.bodyAsText()
@@ -98,6 +98,11 @@ object DiscordExternalAssets {
         Timber.tag(TAG).d("clearCache: clearing %d entries", cache.size)
         cache.clear()
     }
+
+    @kotlinx.serialization.Serializable
+    private data class ExternalAssetRequest(
+        val urls: List<String>,
+    )
 
     @kotlinx.serialization.Serializable
     private data class ExternalAssetResponse(

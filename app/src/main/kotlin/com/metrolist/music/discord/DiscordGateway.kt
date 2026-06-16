@@ -30,6 +30,7 @@ sealed interface GatewayEvent {
     data class HeartbeatAck(val lastSeq: Int?) : GatewayEvent
     data class InvalidSession(val resumable: Boolean) : GatewayEvent
     data class Disconnected(val code: Int, val reason: String, val remote: Boolean) : GatewayEvent
+    data object RefreshToken : GatewayEvent
     data class TextDispatch(val op: Int, val t: String?, val d: JSONObject) : GatewayEvent
 }
 
@@ -330,9 +331,12 @@ class DiscordGateway(
                 _sessionId = null
                 _currentSeq = 0
             }
-            is ReconnectAction.Resume,
-            is ReconnectAction.ReIdentify,
             is ReconnectAction.RefreshAndReIdentify -> {
+                Timber.tag(TAG).w("RefreshAndReIdentify for closeCode=%d, delegating to manager", code)
+                _events.emit(GatewayEvent.RefreshToken)
+            }
+            is ReconnectAction.Resume,
+            is ReconnectAction.ReIdentify -> {
                 if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
                     Timber.tag(TAG).w("max reconnect attempts reached (%d), giving up", MAX_RECONNECT_ATTEMPTS)
                     _events.emit(
@@ -372,8 +376,7 @@ class DiscordGateway(
                     webSocket?.close(1011, "resume failed")
                 }
             }
-            is ReconnectAction.ReIdentify,
-            is ReconnectAction.RefreshAndReIdentify -> {
+            is ReconnectAction.ReIdentify -> {
                 try {
                     val token = tokenProvider()
                     identify(token)
@@ -383,6 +386,9 @@ class DiscordGateway(
                 }
             }
             is ReconnectAction.SurfaceFatal -> {
+                // Should not happen here; handled in handleClose
+            }
+            is ReconnectAction.RefreshAndReIdentify -> {
                 // Should not happen here; handled in handleClose
             }
         }
