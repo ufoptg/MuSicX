@@ -164,6 +164,7 @@ class DiscordGateway(
         object : WebSocketListener() {
 
             override fun onOpen(webSocket: WebSocket, response: Response) {
+                if (wsId != activeWebSocketId) return
                 Timber.tag(TAG).i("onOpen: response.code=%d, wsId=%d", response.code, wsId)
                 this@DiscordGateway.webSocket = webSocket
                 isOpen = true
@@ -172,6 +173,7 @@ class DiscordGateway(
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
+                if (wsId != activeWebSocketId) return
                 externalScope.launch {
                     try {
                         handleFrame(text)
@@ -198,7 +200,11 @@ class DiscordGateway(
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                if (wsId != activeWebSocketId) return
                 Timber.tag(TAG).e(t, "onFailure: response=%s, wsId=%d", response?.code, wsId)
+                if (!openDeferred.isCompleted) {
+                    openDeferred.completeExceptionally(t)
+                }
                 externalScope.launch {
                     val code = response?.code ?: 4000
                     val retryAfter = response?.header("Retry-After")

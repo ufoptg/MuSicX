@@ -3366,7 +3366,7 @@ class MusicService :
         )
 
         Timber.tag("DiscordSvc").i("updateDiscordRPC: type=%d name=%s state=%s details=%s start=%d end=%d isPlaying=%s",
-            activity.activityType, activity.name, activity.state, activity.details, startTime, endTime, isPlaying)
+            activity.activityType, activity.name, activity.state, activity.details, startTime, endTime ?: 0L, isPlaying)
 
         val statusStr = dataStore.get(DiscordUserStatusKey, DiscordDefaults.USER_STATUS)
         val presenceStatus = when (statusStr) {

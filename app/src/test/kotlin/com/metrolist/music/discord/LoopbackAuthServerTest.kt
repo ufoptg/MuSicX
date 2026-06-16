@@ -1,5 +1,7 @@
 package com.metrolist.music.discord
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -66,8 +68,13 @@ class LoopbackAuthServerTest {
             try {
                 server.awaitCode(timeoutMs = 5_000L)
                 fail("Expected awaitCode to throw after cancel")
+            } catch (e: CancellationException) {
+                assertTrue(
+                    "Expected explicit cancel, not timeout",
+                    e !is TimeoutCancellationException && e.cause !is TimeoutCancellationException,
+                )
             } catch (e: Exception) {
-                assertTrue("Expected cancellation cause", e is kotlinx.coroutines.CancellationException || e.cause is kotlinx.coroutines.CancellationException)
+                fail("Expected CancellationException, got ${e::class.java.simpleName}")
             }
         }
     }

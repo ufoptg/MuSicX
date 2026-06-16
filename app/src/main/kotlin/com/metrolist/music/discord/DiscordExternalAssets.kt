@@ -17,6 +17,7 @@ object DiscordExternalAssets {
 
     private val json = Json { ignoreUnknownKeys = true }
     private val cache = ConcurrentHashMap<String, String>()
+    private const val CACHE_MAX_SIZE = 128
 
     private val client: HttpClient by lazy {
         HttpClient(io.ktor.client.engine.cio.CIO) {
@@ -61,6 +62,7 @@ object DiscordExternalAssets {
                 if (assetPath != null) {
                     val result = "mp:$assetPath"
                     cache[imageUrl] = result
+                    trimCache()
                     Timber.tag(TAG).i("external-assets: resolved %s -> %s", imageUrl.take(60), result)
                     return result
                 } else {
@@ -73,6 +75,13 @@ object DiscordExternalAssets {
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "external-assets: failed for %s", imageUrl.take(60))
             null
+        }
+    }
+
+    private fun trimCache() {
+        if (cache.size > CACHE_MAX_SIZE) {
+            val toRemove = cache.size - CACHE_MAX_SIZE
+            cache.keys.take(toRemove).forEach { cache.remove(it) }
         }
     }
 

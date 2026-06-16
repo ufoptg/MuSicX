@@ -97,6 +97,7 @@ object DiscordPresence {
         obj.put("type", activity.type)
         activity.details?.let { obj.put("details", it) }
         activity.state?.let { obj.put("state", it) }
+        activity.url?.let { obj.put("url", it) }
 
         if (activity.startMs != null || activity.endMs != null) {
             val timestamps = JSONObject()

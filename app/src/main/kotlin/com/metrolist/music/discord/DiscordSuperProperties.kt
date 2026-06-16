@@ -13,7 +13,12 @@ object DiscordSuperProperties {
     private const val CLIENT_BUILD_NUMBER = 314013
     private const val RELEASE_CHANNEL = "googleRelease"
 
-    private val superProperties: JSONObject by lazy {
+    const val USER_AGENT = "Discord-Android/$CLIENT_BUILD_NUMBER;RNA"
+
+    @Volatile
+    private var _superProperties: JSONObject? = null
+
+    private fun buildSuperProperties(): JSONObject {
         val vendorId = DiscordTokenStore.getDeviceVendorId()
             ?: UUID.randomUUID().toString()
         val clientUuid = DiscordTokenStore.getClientUuid()
@@ -24,7 +29,7 @@ object DiscordSuperProperties {
             Build.DEVICE, Build.VERSION.RELEASE, Build.VERSION.SDK_INT, vendorId.take(8),
         )
 
-        JSONObject().apply {
+        return JSONObject().apply {
             put("os", "Android")
             put("browser", "Discord Android")
             put("device", Build.DEVICE)
@@ -42,14 +47,31 @@ object DiscordSuperProperties {
         }
     }
 
-    val base64: String by lazy {
-        val encoded = Base64.encodeToString(
-            superProperties.toString().toByteArray(),
-            Base64.NO_WRAP,
-        )
-        Timber.tag(TAG).d("superProperties: base64 encoded (length=%d)", encoded.length)
-        encoded
-    }
+    val superProperties: JSONObject
+        get() {
+            if (_superProperties == null) {
+                _superProperties = buildSuperProperties()
+            }
+            return _superProperties!!
+        }
 
-    const val USER_AGENT = "Discord-Android/$CLIENT_BUILD_NUMBER;RNA"
+    @Volatile
+    private var _base64: String? = null
+
+    val base64: String
+        get() {
+            if (_base64 == null) {
+                _base64 = Base64.encodeToString(
+                    superProperties.toString().toByteArray(),
+                    Base64.NO_WRAP,
+                )
+                Timber.tag(TAG).d("superProperties: base64 encoded (length=%d)", _base64!!.length)
+            }
+            return _base64!!
+        }
+
+    fun reset() {
+        _superProperties = null
+        _base64 = null
+    }
 }

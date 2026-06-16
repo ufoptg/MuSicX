@@ -296,7 +296,9 @@ object DiscordRpcManager {
             return
         }
 
-        val stateChanged = songId != currentSongId || isPlaying != currentIsPlaying
+        val stateChanged = songId != currentSongId || isPlaying != currentIsPlaying ||
+            (activity.largeImage != null && activity.largeImage != lastActivity?.largeImage) ||
+            (activity.smallImage != null && activity.smallImage != lastActivity?.smallImage)
 
         val now = System.currentTimeMillis()
         if (!stateChanged &&
@@ -534,7 +536,6 @@ object DiscordRpcManager {
         } catch (e: Throwable) {
             Timber.tag(TAG).e(e, "refreshAndReconnect: token refresh failed")
             _lastError.value = "discord_error_token_refresh_failed"
-            logout()
             return
         }
 
@@ -585,6 +586,7 @@ object DiscordRpcManager {
         _accessTokenFlow.value = null
         _currentUser.value = null
         DiscordTokenStore.clear()
+        DiscordSuperProperties.reset()
         _lastError.value = null
         lastActivity = null
     }
@@ -616,16 +618,13 @@ object DiscordRpcManager {
             is GatewayEvent.Disconnected -> {
                 Timber.tag(TAG).i("gateway: Disconnected (code=%d, remote=%s, reason=%s)",
                     event.code, event.remote, event.reason)
+                _ready = false
+                _authorized = false
+                _connectionStatus.value = Status.Disconnected
                 currentSongId = null
                 currentIsPlaying = false
                 imageResolutionJob?.cancel()
                 imageResolutionJob = null
-                if (event.code == 1000 && event.remote) {
-                    _ready = false
-                    _authorized = false
-                    _connectionStatus.value = Status.Disconnected
-                    return
-                }
                 if (event.code in setOf(4001, 4004) && event.reason.contains("max reconnect", ignoreCase = true)) {
                     _lastError.value = when (event.code) {
                         4004 -> "discord_error_token_refresh_failed"

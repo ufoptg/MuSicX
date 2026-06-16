@@ -28,16 +28,8 @@ object DiscordReconnectStrategy {
             4003 -> ReconnectAction.ReIdentify
             4004 -> ReconnectAction.RefreshAndReIdentify
             4005 -> ReconnectAction.ReIdentify
-            4007 -> if (hadSession && sessionId != null) {
-                ReconnectAction.Resume(sessionId, seq)
-            } else {
-                ReconnectAction.ReIdentify
-            }
-            4009 -> if (hadSession && sessionId != null) {
-                ReconnectAction.Resume(sessionId, seq)
-            } else {
-                ReconnectAction.ReIdentify
-            }
+            4007 -> ReconnectAction.ReIdentify
+            4009 -> ReconnectAction.ReIdentify
             4014 -> ReconnectAction.SurfaceFatal
             else -> ReconnectAction.ReIdentify
         }

@@ -52,9 +52,21 @@ class LoopbackAuthServer(private val expectedState: String) {
                 get("/callback") {
                     val code = call.request.queryParameters["code"]
                     val state = call.request.queryParameters["state"]
+                    val error = call.request.queryParameters["error"]
+
+                    if (error != null && state == expectedState) {
+                        Timber.tag(TAG).w("loopback: callback received with error=%s", error)
+                        deferred.completeExceptionally(CancellationException("Authorization denied: $error"))
+                        call.respondText(
+                            "<html><body><h1>Authorization Denied</h1><p>Discord returned: $error</p></body></html>",
+                            ContentType.Text.Html,
+                        )
+                        return@get
+                    }
 
                     if (code == null) {
                         Timber.tag(TAG).w("loopback: callback received with missing code")
+                        deferred.completeExceptionally(DiscordAuthException.InvalidGrant("Missing authorization code"))
                         call.respondText(
                             "<html><body><h1>Authorization Failed</h1><p>Missing authorization code.</p></body></html>",
                             ContentType.Text.Html,
@@ -68,6 +80,7 @@ class LoopbackAuthServer(private val expectedState: String) {
                             expectedState.take(8),
                             state?.take(8),
                         )
+                        deferred.completeExceptionally(DiscordAuthException.StateMismatch())
                         call.respondText(
                             "<html><body><h1>Authorization Failed</h1><p>State validation failed.</p></body></html>",
                             ContentType.Text.Html,

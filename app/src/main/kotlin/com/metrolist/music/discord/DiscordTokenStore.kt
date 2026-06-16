@@ -79,10 +79,19 @@ object DiscordTokenStore {
     }
 
     fun storeFull(accessToken: String, refreshToken: String, expiresInSec: Long) {
+        val encryptedToken = encrypt(accessToken) ?: run {
+            Timber.tag(TAG).w("tokenStore: encryption failed, not persisting access token")
+            return
+        }
         prefs?.edit {
-            putString(TOKEN_KEY, encrypt(accessToken))
+            putString(TOKEN_KEY, encryptedToken)
             if (refreshToken.isNotEmpty()) {
-                putString(REFRESH_TOKEN_KEY, encrypt(refreshToken))
+                val encryptedRefresh = encrypt(refreshToken)
+                if (encryptedRefresh != null) {
+                    putString(REFRESH_TOKEN_KEY, encryptedRefresh)
+                } else {
+                    Timber.tag(TAG).w("tokenStore: refresh token encryption failed, skipping")
+                }
             }
             if (expiresInSec > 0L) {
                 val expiresAt = (System.currentTimeMillis() / 1000L) + expiresInSec
@@ -98,8 +107,12 @@ object DiscordTokenStore {
     }
 
     fun storeAccessToken(accessToken: String) {
+        val encryptedToken = encrypt(accessToken) ?: run {
+            Timber.tag(TAG).w("tokenStore: encryption failed, not persisting access token")
+            return
+        }
         prefs?.edit {
-            putString(TOKEN_KEY, encrypt(accessToken))
+            putString(TOKEN_KEY, encryptedToken)
         }
         Timber.tag(TAG).d("tokenStore: access token updated (length=%d)", accessToken.length)
     }
