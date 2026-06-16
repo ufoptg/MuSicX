@@ -7,14 +7,6 @@ import timber.log.Timber
 import java.util.Locale
 import java.util.UUID
 
-/**
- * Generates Discord Android client properties headers.
- * Used to mimic the official Discord Android client for certain API endpoints
- * (e.g., POST /api/v9/applications/{id}/external-assets).
- *
- * UUIDs (device_vendor_id, client_uuid) are persisted across app launches
- * via DiscordTokenStore so the same device always presents a stable identity.
- */
 object DiscordSuperProperties {
     private const val TAG = "DiscordSvc"
     private const val CLIENT_VERSION = "314.13 - Stable"

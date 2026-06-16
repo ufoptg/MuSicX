@@ -9,15 +9,6 @@ import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * Resolves external image URLs to Discord asset paths for Rich Presence.
- *
- * Calls POST /api/v9/applications/{id}/external-assets to register the URL
- * with Discord's servers. Returns an `mp:external/<hash>` asset reference
- * that can be used in the Gateway PRESENCE_UPDATE `assets.large_image` field.
- *
- * Cache: repeated calls with the same URL return the cached result.
- */
 object DiscordExternalAssets {
 
     private const val TAG = "DiscordSvc"
@@ -27,7 +18,6 @@ object DiscordExternalAssets {
     private val json = Json { ignoreUnknownKeys = true }
     private val cache = ConcurrentHashMap<String, String>()
 
-    // Reuse the same Ktor client as DiscordAuth (but create a lightweight one here)
     private val client: HttpClient by lazy {
         HttpClient(io.ktor.client.engine.cio.CIO) {
             install(io.ktor.client.plugins.HttpTimeout) {
@@ -39,14 +29,6 @@ object DiscordExternalAssets {
         }
     }
 
-    /**
-     * Resolves an image URL to a Discord asset key. Returns null if resolution fails.
-     *
-     * @param imageUrl The absolute URL of the image (e.g., album art thumbnail)
-     * @param appId The Discord Application ID
-     * @param token The OAuth2 Bearer token (with "Bearer " prefix)
-     * @return The asset key (e.g., "mp:external/<hash>") or null
-     */
     suspend fun resolve(
         imageUrl: String,
         appId: String,

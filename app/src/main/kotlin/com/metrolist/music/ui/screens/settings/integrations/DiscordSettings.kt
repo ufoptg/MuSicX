@@ -194,15 +194,12 @@ fun DiscordSettings(
         stringResource(resId)
     }
 
-    // init() already auto-rehydrates the persisted token and reconnects.
-    // Only call it once; do NOT duplicate reconnect logic here.
     LaunchedEffect(Unit) {
         if (!DiscordRpcManager.isInitialized()) {
             DiscordRpcManager.init(context)
         }
     }
 
-    // Sync fetched user info into DataStore so it persists across restarts
     LaunchedEffect(fetchedUser) {
         if (fetchedUser != null) {
             discordUsername = fetchedUser!!.username
@@ -211,7 +208,6 @@ fun DiscordSettings(
         }
     }
 
-    // Load saved token into local state for the UI (avatar, name, etc.)
     LaunchedEffect(Unit) {
         val token = DiscordTokenStore.retrieveSuspend()
         if (token != null) {

@@ -163,14 +163,12 @@ object DiscordRpcManager {
             withContext(Dispatchers.Main) { onComplete(success) }
         }
 
-        // Short-circuit: already authorized and ready
         if (_ready && _authorized) {
             Timber.tag(TAG).d("authorize: short-circuit — already ready and authorized")
             authorizeInProgress = false
             scope.launch(Dispatchers.Main) { onComplete(true) }
             return
         }
-        // Short-circuit: authorized but not ready — reconnect with existing token
         if (_authorized) {
             Timber.tag(TAG).d("authorize: short-circuit — authorized but not ready, reconnecting")
             authorizeInProgress = false

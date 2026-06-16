@@ -385,12 +385,8 @@ class DiscordGateway(
                     webSocket?.close(1011, "identify failed")
                 }
             }
-            is ReconnectAction.SurfaceFatal -> {
-                // Should not happen here; handled in handleClose
-            }
-            is ReconnectAction.RefreshAndReIdentify -> {
-                // Should not happen here; handled in handleClose
-            }
+            is ReconnectAction.SurfaceFatal -> {}
+            is ReconnectAction.RefreshAndReIdentify -> {}
         }
     }
 
@@ -467,7 +463,6 @@ class DiscordGateway(
         val idx = reason.indexOf(prefix)
         if (idx < 0) return 60_000L
         val value = reason.substring(idx + prefix.length).trim()
-        // value is seconds as a double ("5.0")
         val seconds = value.substringBefore(';').substringBefore(',').toDoubleOrNull()
         return if (seconds != null) (seconds * 1000.0).toLong().coerceAtLeast(60_000L) else 60_000L
     }
@@ -491,7 +486,6 @@ class DiscordGateway(
         private const val RECONNECT_BASE_DELAY_MS = 1000L
         private const val RECONNECT_MAX_DELAY_MS = 64_000L
 
-        // Discord gateway opcodes
         private const val DISPATCH = 0
         private const val HEARTBEAT = 1
         private const val IDENTIFY = 2

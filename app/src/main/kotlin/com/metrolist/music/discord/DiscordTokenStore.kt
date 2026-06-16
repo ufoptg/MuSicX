@@ -168,8 +168,6 @@ object DiscordTokenStore {
         private const val GCM_IV_SIZE = 12
         private const val GCM_TAG_SIZE = 128
 
-        // Delay KeyStore initialization so unit tests can substitute a test key and avoid
-        // touching AndroidKeyStore, which is unavailable on the JVM/Robolectric runtime.
         private var keyStore: KeyStore? = null
 
         @Synchronized
