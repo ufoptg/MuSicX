@@ -139,4 +139,19 @@ class DiscordPresenceTest {
         assertEquals("invisible", d.getString("status"))
         assertEquals(0, d.getJSONArray("activities").length())
     }
+
+    @Test
+    fun buildPresenceUpdate_emitsUrlWhenProvided() {
+        val activity = DiscordPresence.buildActivity(
+            name = "Metrolist",
+            type = ActivityType.Streaming,
+            url = "https://example.com/stream",
+        )
+        val json = DiscordPresence.buildPresenceUpdate(
+            status = PresenceStatus.Online,
+            activities = listOf(activity),
+        )
+        val first = JSONObject(json).getJSONObject("d").getJSONArray("activities").getJSONObject(0)
+        assertEquals("https://example.com/stream", first.getString("url"))
+    }
 }

@@ -420,6 +420,7 @@ class MusicService :
     @Volatile private var discordRpcEnabled = false
     @Volatile private var lastDiscordReconnectAttemptAtMs: Long = 0L
     @Volatile private var discordIntentionalDisconnect = false
+    @Volatile private var isScreenOff = false
     private val screenOffHandler = Handler(Looper.getMainLooper())
     private val screenOffTimeout = Runnable {
         Timber.tag("DiscordSvc").i("screenOffTimeout: isPlaying=%s, isReady=%s",
@@ -520,12 +521,14 @@ class MusicService :
             ) {
                 when (intent.action) {
                     Intent.ACTION_SCREEN_OFF -> {
+                        isScreenOff = true
                         Timber.tag("DiscordSvc").i("SCREEN_OFF: cancelling pause timeout, delaying disconnect 10m")
                         screenOffHandler.removeCallbacks(pauseTimeout)
                         screenOffHandler.postDelayed(screenOffTimeout, 600_000)
                     }
 
                     Intent.ACTION_SCREEN_ON -> {
+                        isScreenOff = false
                         Timber.tag("DiscordSvc").i("SCREEN_ON: removing disconnect delay")
                         screenOffHandler.removeCallbacks(screenOffTimeout)
                         screenOffHandler.removeCallbacks(pauseTimeout)
@@ -2544,7 +2547,12 @@ class MusicService :
                 startWidgetUpdates()
             } else {
                 stopWidgetUpdates()
-                screenOffHandler.postDelayed(pauseTimeout, 60_000)
+                if (isScreenOff) {
+                    screenOffHandler.removeCallbacks(screenOffTimeout)
+                    screenOffHandler.postDelayed(screenOffTimeout, 600_000)
+                } else {
+                    screenOffHandler.postDelayed(pauseTimeout, 60_000)
+                }
             }
         }
 
@@ -2654,6 +2662,7 @@ class MusicService :
         if (playbackParameters.speed != lastPlaybackSpeed) {
             Timber.tag("DiscordSvc").d("onPlaybackParametersChanged: speed changed %s -> %s", lastPlaybackSpeed, playbackParameters.speed)
             lastPlaybackSpeed = playbackParameters.speed
+            DiscordRpcManager.notifySettingsChanged()
             scope.launch {
                 delay(1000)
                 if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
@@ -3315,9 +3324,10 @@ class MusicService :
         val adjustedTime = (currentPosition / speed).toLong()
         val now = System.currentTimeMillis()
         val startTime = if (isPlaying) now - adjustedTime else 0L
-        val remainingMs = song.song.duration * 1000L - currentPosition
-        val adjustedRemainingMs = (remainingMs / speed).toLong()
-        val endTime = if (isPlaying) now + adjustedRemainingMs else null
+        val durationMs = song.song.duration.takeIf { it > 0 }?.times(1000L)
+        val remainingMs = durationMs?.minus(currentPosition)?.coerceAtLeast(0L)
+        val adjustedRemainingMs = remainingMs?.let { (it / speed).toLong() }
+        val endTime = if (isPlaying && adjustedRemainingMs != null) now + adjustedRemainingMs else null
 
         val artistName = song.artists.joinToString { it.name }.ifEmpty { DiscordDefaults.UNKNOWN_ARTIST }
         val albumName = song.album?.title
@@ -3396,9 +3406,10 @@ class MusicService :
             val freshAdjustedTime = (freshPosition / freshSpeed).toLong()
             val freshNow = System.currentTimeMillis()
             val freshStartTime = if (freshIsPlaying) freshNow - freshAdjustedTime else 0L
-            val freshRemainingMs = song.song.duration * 1000L - freshPosition
-            val freshAdjustedRemainingMs = (freshRemainingMs / freshSpeed).toLong()
-            val freshEndTime = if (freshIsPlaying) freshNow + freshAdjustedRemainingMs else null
+            val freshDurationMs = fetched.song.duration.takeIf { it > 0 }?.times(1000L)
+            val freshRemainingMs = freshDurationMs?.minus(freshPosition)?.coerceAtLeast(0L)
+            val freshAdjustedRemainingMs = freshRemainingMs?.let { (it / freshSpeed).toLong() }
+            val freshEndTime = if (freshIsPlaying && freshAdjustedRemainingMs != null) freshNow + freshAdjustedRemainingMs else null
 
             val fetchedActivity = DiscordActivityBuilder.build(
                 song = fetched,

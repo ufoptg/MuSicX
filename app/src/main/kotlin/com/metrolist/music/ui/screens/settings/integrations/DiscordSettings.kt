@@ -448,7 +448,7 @@ fun DiscordSettings(
                         OutlinedButton(
                             onClick = {
                                 isBusy = true
-                                val activity = context as? Activity
+                                val activity = findActivity(context)
                                 if (activity == null) {
                                     isBusy = false
                                     Timber.w("DiscordSettings: cannot start authorize without Activity context")
@@ -985,6 +985,16 @@ fun RichPresence(
     } else {
         DiscordDefaults.BUTTON2_LABEL
     }
+    val renderedBtn1Url = if (advancedMode) {
+        DiscordTemplateRenderer.render(btn1Url.ifEmpty { DiscordDefaults.BUTTON1_URL_TEMPLATE }, previewSongTitle, previewArtistName, previewAlbumName, song?.song?.id ?: "")
+    } else {
+        "${DiscordDefaults.YOUTUBE_WATCH_URL}${song?.song?.id.orEmpty()}"
+    }
+    val renderedBtn2Url = if (advancedMode) {
+        DiscordTemplateRenderer.render(btn2Url.ifEmpty { DiscordDefaults.BUTTON2_URL }, previewSongTitle, previewArtistName, previewAlbumName, song?.song?.id ?: "")
+    } else {
+        DiscordDefaults.BUTTON2_URL
+    }
 
     val activityPrefix = when (activityType) {
         "0" -> stringResource(R.string.discord_activity_playing)
@@ -1100,7 +1110,7 @@ fun RichPresence(
                         val intent =
                                 Intent(
                                     Intent.ACTION_VIEW,
-                                    "${DiscordDefaults.YOUTUBE_WATCH_URL}${song?.song?.id}".toUri(),
+                                    renderedBtn1Url.toUri(),
                                 )
                         context.startActivity(intent)
                     },
@@ -1116,7 +1126,7 @@ fun RichPresence(
                         val intent =
                             Intent(
                                 Intent.ACTION_VIEW,
-                                DiscordDefaults.BUTTON2_URL.toUri(),
+                                renderedBtn2Url.toUri(),
                             )
                         context.startActivity(intent)
                     },
@@ -1167,4 +1177,13 @@ fun SongProgressBar(
             )
         }
     }
+}
+
+private fun findActivity(context: android.content.Context): Activity? {
+    var c: android.content.Context? = context
+    while (c is android.content.ContextWrapper) {
+        if (c is Activity) return c
+        c = c.baseContext
+    }
+    return null
 }

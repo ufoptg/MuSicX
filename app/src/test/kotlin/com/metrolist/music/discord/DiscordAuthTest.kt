@@ -7,6 +7,7 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.url
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.utils.io.ByteReadChannel
@@ -42,7 +43,9 @@ class DiscordAuthTest {
               "scope": "rpc"
             }
         """.trimIndent()
-        val client = mockClient {
+        val client = mockClient { request ->
+            assertEquals(HttpMethod.Post, request.method)
+            assertEquals("/api/v10/oauth2/token", request.url.encodedPath)
             respond(
                 content = ByteReadChannel(body),
                 status = HttpStatusCode.OK,
@@ -60,7 +63,9 @@ class DiscordAuthTest {
     @Test
     fun refresh_throwsInvalidGrant_onBadRequest() = runBlocking {
         val body = """{"error": "invalid_grant", "error_description": "refresh token revoked"}"""
-        val client = mockClient {
+        val client = mockClient { request ->
+            assertEquals(HttpMethod.Post, request.method)
+            assertEquals("/api/v10/oauth2/token", request.url.encodedPath)
             respond(
                 content = ByteReadChannel(body),
                 status = HttpStatusCode.BadRequest,
@@ -81,7 +86,9 @@ class DiscordAuthTest {
     @Test
     fun refresh_throwsNetworkFailure_onServerError() = runBlocking {
         val body = """{"error": "server_error"}"""
-        val client = mockClient {
+        val client = mockClient { request ->
+            assertEquals(HttpMethod.Post, request.method)
+            assertEquals("/api/v10/oauth2/token", request.url.encodedPath)
             respond(
                 content = ByteReadChannel(body),
                 status = HttpStatusCode.InternalServerError,

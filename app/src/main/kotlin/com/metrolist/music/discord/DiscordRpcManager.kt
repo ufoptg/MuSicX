@@ -162,6 +162,7 @@ object DiscordRpcManager {
     fun authorize(activity: Activity, onComplete: (Boolean) -> Unit) {
         if (authorizeInProgress) {
             Timber.tag(TAG).w("authorize: already in progress, ignoring double-tap")
+            scope.launch(Dispatchers.Main) { onComplete(false) }
             return
         }
         authorizeInProgress = true
