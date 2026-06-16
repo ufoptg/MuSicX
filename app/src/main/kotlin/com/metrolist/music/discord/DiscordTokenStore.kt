@@ -137,30 +137,18 @@ object DiscordTokenStore {
         return expiresAt
     }
 
-    fun getDeviceVendorId(): String? {
-        val id = prefs?.getString(DEVICE_VENDOR_ID_KEY, null)
-        if (id == null) {
-            val newId = UUID.randomUUID().toString()
-            prefs?.edit {
-                putString(DEVICE_VENDOR_ID_KEY, newId)
-            }
-            Timber.tag(TAG).d("tokenStore: generated new device_vendor_id")
-            return newId
-        }
-        return id
-    }
+    fun getDeviceVendorId(): String? = getOrCreateId(DEVICE_VENDOR_ID_KEY, "device_vendor_id")
 
-    fun getClientUuid(): String? {
-        val id = prefs?.getString(CLIENT_UUID_KEY, null)
-        if (id == null) {
-            val newId = UUID.randomUUID().toString()
-            prefs?.edit {
-                putString(CLIENT_UUID_KEY, newId)
-            }
-            Timber.tag(TAG).d("tokenStore: generated new client_uuid")
-            return newId
-        }
-        return id
+    fun getClientUuid(): String? = getOrCreateId(CLIENT_UUID_KEY, "client_uuid")
+
+    private fun getOrCreateId(key: String, logName: String): String? = synchronized(this) {
+        val p = prefs ?: return null
+        val existing = p.getString(key, null)
+        if (existing != null) return@synchronized existing
+        val newId = UUID.randomUUID().toString()
+        p.edit { putString(key, newId) }
+        Timber.tag(TAG).d("tokenStore: generated new %s", logName)
+        newId
     }
 
     fun clear() {

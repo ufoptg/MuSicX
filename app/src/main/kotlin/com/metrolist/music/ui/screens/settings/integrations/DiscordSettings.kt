@@ -99,7 +99,6 @@ import com.metrolist.music.db.entities.Song
 import com.metrolist.music.discord.DiscordDefaults
 import com.metrolist.music.discord.DiscordRpcManager
 import com.metrolist.music.discord.DiscordTemplateRenderer
-import com.metrolist.music.discord.DiscordTokenStore
 import com.metrolist.music.ui.component.EnumDialog
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.IconButton
@@ -135,7 +134,6 @@ fun DiscordSettings(
     var discordUsername by rememberPreference(DiscordUsernameKey, "")
     var discordName by rememberPreference(DiscordNameKey, "")
     var discordAvatar by rememberPreference(DiscordAvatarKey, "")
-    var discordAccessToken by remember { mutableStateOf<String?>(null) }
     var infoDismissed by rememberPreference(DiscordInfoDismissedKey, false)
 
     val (discordRPC, onDiscordRPCChange) = rememberPreference(EnableDiscordRPCKey, true)
@@ -164,11 +162,12 @@ fun DiscordSettings(
     var showUserStatusDialog by remember { mutableStateOf(false) }
 
     val fetchedUser by DiscordRpcManager.currentUser.collectAsState()
+    val accessToken by DiscordRpcManager.accessTokenFlow.collectAsState()
     val displayUser = fetchedUser
     val displayName = displayUser?.name?.ifEmpty { null } ?: discordName
     val displayUsername = displayUser?.username?.ifEmpty { null } ?: discordUsername
     val displayAvatar = displayUser?.avatar ?: discordAvatar
-    val isLoggedIn = remember(displayName) { displayName.isNotEmpty() }
+    val isLoggedIn = !accessToken.isNullOrEmpty()
     var isBusy by remember { mutableStateOf(false) }
 
     val connectionStatus by DiscordRpcManager.connectionStatus.collectAsState()
@@ -205,13 +204,6 @@ fun DiscordSettings(
             discordUsername = fetchedUser!!.username
             discordName = fetchedUser!!.name
             discordAvatar = fetchedUser!!.avatar ?: ""
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        val token = DiscordTokenStore.retrieveSuspend()
-        if (token != null) {
-            discordAccessToken = token
         }
     }
 
@@ -431,7 +423,6 @@ fun DiscordSettings(
                         discordName = ""
                         discordUsername = ""
                         discordAvatar = ""
-                        discordAccessToken = null
                         coroutineScope.launch(Dispatchers.IO) {
                             try {
                                 DiscordRpcManager.logout()
@@ -471,7 +462,6 @@ fun DiscordSettings(
                                                     val user = DiscordRpcManager.fetchCurrentUser(token)
                                                     if (user != null) {
                                                         withContext(Dispatchers.Main) {
-                                                            discordAccessToken = token
                                                             discordUsername = user.username
                                                             discordName = user.name
                                                             discordAvatar = user.avatar ?: ""

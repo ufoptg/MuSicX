@@ -87,7 +87,7 @@ object DiscordPresence {
         root.put("op", 3)
         root.put("d", d)
         val json = root.toString()
-        Timber.tag(TAG).v("buildPresenceUpdate: %s", json.take(500))
+        Timber.tag(TAG).v("buildPresenceUpdate: activities=%d, status=%s", activities.size, status.wire)
         return json
     }
 

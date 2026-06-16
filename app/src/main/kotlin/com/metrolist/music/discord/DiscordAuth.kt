@@ -46,16 +46,9 @@ sealed class DiscordAuthException(message: String, cause: Throwable? = null) : E
     class NoBrowser(message: String = "No browser available") : DiscordAuthException(message)
 }
 
-class DiscordAuth {
-
-    private val httpClient: HttpClient = HttpClient(CIO) {
-        install(HttpTimeout) {
-            requestTimeoutMillis = 15_000L
-            connectTimeoutMillis = 10_000L
-            socketTimeoutMillis = 15_000L
-        }
-        expectSuccess = false
-    }
+class DiscordAuth(
+    private val httpClient: HttpClient = defaultClient(),
+) {
 
     @Volatile
     private var activeLoopback: LoopbackAuthServer? = null
@@ -97,13 +90,11 @@ class DiscordAuth {
                 throw DiscordAuthException.UserCancelled()
             }
 
-            return withContext(Dispatchers.IO) {
-                exchangeAuthorizationCode(
-                    code = callback.code,
-                    verifier = pkce.verifier,
-                    redirectUri = redirectUri,
-                )
-            }
+            return exchangeAuthorizationCode(
+                code = callback.code,
+                verifier = pkce.verifier,
+                redirectUri = redirectUri,
+            )
         } finally {
             activeLoopback = null
             loopback.stop()
@@ -114,8 +105,11 @@ class DiscordAuth {
         activeLoopback?.cancel()
     }
 
-    suspend fun refresh(refreshToken: String): DiscordAuthResult =
-        withContext(Dispatchers.IO) { refreshAccessToken(refreshToken) }
+    fun close() {
+        runCatching { httpClient.close() }
+    }
+
+    suspend fun refresh(refreshToken: String): DiscordAuthResult = refreshAccessToken(refreshToken)
 
     private suspend fun exchangeAuthorizationCode(
         code: String,
@@ -214,6 +208,15 @@ class DiscordAuth {
 
     companion object {
         private const val TAG = "DiscordSvc"
+
+        private fun defaultClient(): HttpClient = HttpClient(CIO) {
+            install(HttpTimeout) {
+                requestTimeoutMillis = 15_000L
+                connectTimeoutMillis = 10_000L
+                socketTimeoutMillis = 15_000L
+            }
+            expectSuccess = false
+        }
 
         fun generatePkcePair(): PkcePair {
             val bytes = ByteArray(64)

@@ -123,13 +123,12 @@ class DiscordGateway(
             Timber.tag(TAG).w("send: WebSocket not open (ws=%s, isOpen=%s)", ws, isOpen)
             throw IllegalStateException("DiscordGateway: WebSocket is not open")
         }
-        Timber.tag(TAG).d("send: frame (length=%d)", frameJson.length)
+        Timber.tag(TAG).v("send: frame (length=%d)", frameJson.length)
         val ok = ws.send(frameJson)
         if (!ok) {
             Timber.tag(TAG).w("send: WebSocket send returned false (queue full or closing)")
             throw IllegalStateException("DiscordGateway: WebSocket send returned false (queue full or closing)")
         }
-        Timber.tag(TAG).d("send: frame sent successfully (length=%d)", frameJson.length)
     }
 
     suspend fun identify(token: String) {
@@ -139,7 +138,6 @@ class DiscordGateway(
     }
 
     fun presenceUpdate(presenceJson: String) {
-        Timber.tag(TAG).d("presenceUpdate: sending (length=%d)", presenceJson.length)
         send(presenceJson)
     }
 
@@ -158,6 +156,13 @@ class DiscordGateway(
     fun setGatewayUrl(url: String) {
         gatewayUrl = url
         Timber.tag(TAG).i("setGatewayUrl: %s", url)
+    }
+
+    fun closeHttp() {
+        runCatching {
+            httpClient.dispatcher.executorService.shutdown()
+            httpClient.connectionPool.evictAll()
+        }
     }
 
     private fun createListener(openDeferred: CompletableDeferred<Unit>, wsId: Long): WebSocketListener =
@@ -230,8 +235,8 @@ class DiscordGateway(
         val d: JSONObject? = json.optJSONObject("d")
         val t: String? = if (json.has("t")) json.optString("t") else null
 
-        Timber.tag(TAG).v("handleFrame: op=%d t=%s seq=%d body=%s",
-            op, t ?: "", json.optInt("s", 0), text)
+        Timber.tag(TAG).v("handleFrame: op=%d t=%s seq=%d",
+            op, t ?: "", json.optInt("s", 0))
 
         if (json.has("s") && !json.isNull("s")) {
             val seq = json.optInt("s", 0)

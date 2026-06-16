@@ -30,7 +30,6 @@ class LoopbackAuthServerTest {
     fun start_returnsPositivePort() = runBlocking {
         val port = server.start()
         assertTrue("Port must be positive", port > 0)
-        assertEquals(port, server.actualPort)
     }
 
     @Test

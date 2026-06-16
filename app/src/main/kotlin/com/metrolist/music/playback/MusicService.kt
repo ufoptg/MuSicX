@@ -121,6 +121,7 @@ import com.metrolist.music.discord.DiscordDefaults
 import com.metrolist.music.discord.DiscordRpcManager
 import com.metrolist.music.discord.DiscordActivityBuilder
 import com.metrolist.music.discord.DiscordTemplateRenderer
+import com.metrolist.music.discord.PresenceStatus
 import com.metrolist.music.constants.EnableLastFMScrobblingKey
 import com.metrolist.music.constants.EnableSongCacheKey
 import com.metrolist.music.constants.HideExplicitKey
@@ -3370,9 +3371,9 @@ class MusicService :
 
         val statusStr = dataStore.get(DiscordUserStatusKey, DiscordDefaults.USER_STATUS)
         val presenceStatus = when (statusStr) {
-            DiscordDefaults.STATUS_IDLE -> if (advancedMode) com.metrolist.music.discord.PresenceStatus.Idle else com.metrolist.music.discord.PresenceStatus.Online
-            DiscordDefaults.STATUS_DND -> if (advancedMode) com.metrolist.music.discord.PresenceStatus.Dnd else com.metrolist.music.discord.PresenceStatus.Online
-            else -> com.metrolist.music.discord.PresenceStatus.Online
+            DiscordDefaults.STATUS_IDLE -> if (advancedMode) PresenceStatus.Idle else PresenceStatus.Online
+            DiscordDefaults.STATUS_DND -> if (advancedMode) PresenceStatus.Dnd else PresenceStatus.Online
+            else -> PresenceStatus.Online
         }
 
         DiscordRpcManager.setActivity(

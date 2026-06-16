@@ -22,26 +22,22 @@ class LoopbackAuthServer(private val expectedState: String) {
     private companion object {
         const val TAG = "DiscordSvc"
         const val DEFAULT_HOST = "127.0.0.1"
-        const val PREFERRED_PORT = 9384
     }
 
     private val deferred = CompletableDeferred<AuthCodeResult>()
 
     private var server: EmbeddedServer<*, *>? = null
 
-    var actualPort: Int = -1
-        private set
-
     private fun findAvailablePort(): Int {
-        return try {
-            val socket = ServerSocket(0)
-            val port = socket.localPort
-            socket.close()
-            port
+        val socket = try {
+            ServerSocket(0)
         } catch (e: IOException) {
-            Timber.tag(TAG).w(e, "loopback: ServerSocket(0) failed, falling back to preferred port")
-            PREFERRED_PORT
+            Timber.tag(TAG).e(e, "loopback: failed to open ServerSocket(0)")
+            throw e
         }
+        val port = socket.localPort
+        socket.close()
+        return port
     }
 
     suspend fun start(): Int {
@@ -97,7 +93,6 @@ class LoopbackAuthServer(private val expectedState: String) {
                 }
             }
         }.start(wait = false)
-        actualPort = port
         Timber.tag(TAG).i("loopback: started on port %d", port)
         return port
     }

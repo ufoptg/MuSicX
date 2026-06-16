@@ -90,6 +90,10 @@ object DiscordExternalAssets {
         cache.clear()
     }
 
+    fun close() {
+        runCatching { client.close() }
+    }
+
     @kotlinx.serialization.Serializable
     private data class ExternalAssetRequest(
         val urls: List<String>,

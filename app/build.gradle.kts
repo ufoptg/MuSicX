@@ -1,5 +1,6 @@
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
+
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
@@ -409,4 +410,5 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    testImplementation(libs.ktor.client.mock)
 }

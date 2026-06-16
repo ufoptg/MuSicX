@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import timber.log.Timber
 import java.net.HttpURLConnection
@@ -92,14 +91,9 @@ object DiscordRpcManager {
 
     fun isShowingSong(songId: String, isPlaying: Boolean): Boolean {
         if (currentSongId != songId || currentIsPlaying != isPlaying) {
-            Timber.tag(TAG).d(
-                "isShowingSong: false (currentSongId=%s, requestedSongId=%s, currentIsPlaying=%s, requestedIsPlaying=%s)",
-                currentSongId, songId, currentIsPlaying, isPlaying,
-            )
             return false
         }
         if (lastActivity == null) {
-            Timber.tag(TAG).d("isShowingSong: false (no activity)")
             return false
         }
         // If the last activity had images to resolve but none were sent,
@@ -108,7 +102,6 @@ object DiscordRpcManager {
             lastActivity?.largeImage == null && lastActivity?.smallImage == null &&
             (imageResolutionJob == null || imageResolutionJob?.isCompleted == true)
         ) {
-            Timber.tag(TAG).d("isShowingSong: false (images not resolved yet)")
             return false
         }
         return true
@@ -173,8 +166,8 @@ object DiscordRpcManager {
         }
         authorizeInProgress = true
 
-        suspend fun dispatchComplete(success: Boolean) {
-            withContext(Dispatchers.Main) { onComplete(success) }
+        fun completeWith(success: Boolean) {
+            scope.launch(Dispatchers.Main) { onComplete(success) }
         }
 
         if (_ready && _authorized) {
@@ -207,48 +200,50 @@ object DiscordRpcManager {
                 _authorized = true
 
                 try {
-                    runCatching { gateway.close(4000, "re-authorizing") }
-                    gateway.connect()
-                    gateway.identify("Bearer ${result.accessToken}")
-                    dispatchComplete(true)
+                    reconnectMutex.withLock {
+                        runCatching { gateway.close(4000, "re-authorizing") }
+                        gateway.connect()
+                        gateway.identify("Bearer ${result.accessToken}")
+                    }
+                    completeWith(true)
                 } catch (e: Throwable) {
                     Timber.tag(TAG).e(e, "authorize: gateway connect/identify failed")
                     _lastError.value = "discord_error_loopback_timeout"
                     _connectionStatus.value = Status.Disconnected
                     _ready = false
                     _authorized = false
-                    dispatchComplete(false)
+                    completeWith(false)
                 }
             } catch (e: DiscordAuthException.UserCancelled) {
                 Timber.tag(TAG).i("authorize: user cancelled")
                 _lastError.value = "discord_error_loopback_timeout"
                 _connectionStatus.value = Status.Disconnected
-                dispatchComplete(false)
+                completeWith(false)
             } catch (e: DiscordAuthException.StateMismatch) {
                 Timber.tag(TAG).w(e, "authorize: state mismatch")
                 _lastError.value = "discord_error_invalid_scope"
                 _connectionStatus.value = Status.Disconnected
-                dispatchComplete(false)
+                completeWith(false)
             } catch (e: DiscordAuthException.NetworkFailure) {
                 Timber.tag(TAG).e(e, "authorize: network failure")
                 _lastError.value = "discord_error_loopback_timeout"
                 _connectionStatus.value = Status.Disconnected
-                dispatchComplete(false)
+                completeWith(false)
             } catch (e: DiscordAuthException.NoBrowser) {
                 Timber.tag(TAG).w(e, "authorize: no browser available")
                 _lastError.value = "discord_error_no_browser"
                 _connectionStatus.value = Status.Disconnected
-                dispatchComplete(false)
+                completeWith(false)
             } catch (e: DiscordAuthException.InvalidGrant) {
                 Timber.tag(TAG).w(e, "authorize: invalid grant")
                 _lastError.value = "discord_error_token_refresh_failed"
                 _connectionStatus.value = Status.Disconnected
-                dispatchComplete(false)
+                completeWith(false)
             } catch (e: Throwable) {
                 Timber.tag(TAG).e(e, "authorize: unexpected failure")
                 _lastError.value = "discord_error_loopback_timeout"
                 _connectionStatus.value = Status.Disconnected
-                dispatchComplete(false)
+                completeWith(false)
             } finally {
                 authorizeInProgress = false
             }
@@ -289,7 +284,7 @@ object DiscordRpcManager {
             val name = json.optString("global_name", username)
             val avatarHash = json.optString("avatar")
             val avatar = if (avatarHash.isNotEmpty() && avatarHash != "null") {
-                "https://cdn.discordapp.com/avatars/$id/$avatarHash.png?t=${System.currentTimeMillis()}"
+                "https://cdn.discordapp.com/avatars/$id/$avatarHash.png"
             } else null
 
             DiscordUser(id, username, name, avatar)
@@ -318,7 +313,7 @@ object DiscordRpcManager {
         if (!stateChanged &&
             lastActivitySentAtMs > 0L && (now - lastActivitySentAtMs) < 2_000L
         ) {
-            Timber.tag(TAG).i("setActivity: debounced (<2s since last, stateChanged=%s)", stateChanged)
+            Timber.tag(TAG).v("setActivity: debounced (<2s since last, stateChanged=%s)", stateChanged)
             return
         }
         lastActivitySentAtMs = now
@@ -336,8 +331,6 @@ object DiscordRpcManager {
                 add(activity.button2Label to activity.button2Url)
             }
         }
-        Timber.tag(TAG).d("setActivity: built %d buttons", buttons.size)
-
         val payloadNoImages = DiscordPresence.buildActivity(
             name = activity.name.orEmpty(),
             type = activityTypeToEnum(activity.activityType),
@@ -584,6 +577,7 @@ object DiscordRpcManager {
         currentActivityId.incrementAndGet()
         imageResolutionJob?.cancel()
         runCatching { gateway.close(1000, "destroy") }
+        runCatching { gateway.closeHttp() }
         scope.cancel()
         _ready = false
         _authorized = false

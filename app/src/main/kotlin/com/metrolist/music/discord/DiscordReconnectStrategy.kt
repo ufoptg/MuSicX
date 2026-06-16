@@ -19,7 +19,7 @@ object DiscordReconnectStrategy {
         sessionId: String?,
     ): ReconnectAction {
         val action = when (closeCode) {
-            4000 -> if (hadSession && sessionId != null) {
+            4000 -> if (hadSession && sessionId != null && seq > 0) {
                 ReconnectAction.Resume(sessionId, seq)
             } else {
                 ReconnectAction.ReIdentify
