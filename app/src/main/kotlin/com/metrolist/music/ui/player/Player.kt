@@ -365,9 +365,12 @@ fun BottomSheetPlayer(
     val effectiveIsPlaying = if (isCasting) castIsPlaying else isPlaying
 
     // Use State objects for position/duration to pass to MiniPlayer without causing recomposition
-    // These states persist across playback state changes to ensure continuous progress updates
-    val positionState = remember { mutableLongStateOf(0L) }
-    val durationState = remember { mutableLongStateOf(0L) }
+    // These states persist across playback state changes to ensure continuous progress updates.
+    // Seed from the player's current values so re-entering composition on resume shows the real
+    // time immediately instead of flashing 0:00 until the first poll fires. runCatching guards the
+    // player-not-ready race; the poll loop corrects duration if it isn't known yet.
+    val positionState = remember { mutableLongStateOf(runCatching { playerConnection.player.currentPosition }.getOrDefault(0L)) }
+    val durationState = remember { mutableLongStateOf(runCatching { playerConnection.player.duration }.getOrDefault(0L).coerceAtLeast(0L)) }
 
     // Convenience accessors for local use
     var position by positionState
