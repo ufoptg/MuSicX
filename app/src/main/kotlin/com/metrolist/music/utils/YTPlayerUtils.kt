@@ -34,6 +34,8 @@ import com.metrolist.music.utils.cipher.FunctionNameExtractor
 import com.metrolist.music.utils.cipher.PlayerJsFetcher
 import com.metrolist.music.utils.potoken.PoTokenGenerator
 import com.metrolist.music.utils.potoken.PoTokenResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import timber.log.Timber
 
@@ -71,6 +73,29 @@ object YTPlayerUtils {
     /** Client names disabled by the user in Settings → Stream sources. Updated reactively by MusicService. */
     @Volatile
     var disabledStreamClients: Set<String> = emptySet()
+
+    // A stable video id used only to warm the local BotGuard token generator; the token is
+    // discarded. PoToken generation is a local WebView computation (no YouTube /player call), so
+    // this triggers no network request to YouTube for the video itself.
+    private const val POTOKEN_WARMUP_VIDEO_ID = "jNQXAC9IVRw"
+
+    /**
+     * Best-effort warm-up of the cipher WebView and the PoToken/BotGuard generator so the first real
+     * playback doesn't pay their cold-start cost (BotGuard is ~2–5s cold). Safe to call any time;
+     * every failure is swallowed and playback falls back to the existing lazy-init path unchanged.
+     */
+    suspend fun prewarm() {
+        runCatching { CipherDeobfuscator.prewarm() }
+            .onFailure { Timber.tag(TAG).w(it, "Cipher prewarm skipped: ${it.message}") }
+        val sessionId = YouTube.visitorData
+        if (MAIN_CLIENT.useWebPoTokens && sessionId != null) {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    poTokenGenerator.getWebClientPoToken(POTOKEN_WARMUP_VIDEO_ID, sessionId)
+                }
+            }.onFailure { Timber.tag(TAG).w(it, "PoToken prewarm skipped: ${it.message}") }
+        }
+    }
 
     data class PlaybackData(
         val audioConfig: PlayerResponse.PlayerConfig.AudioConfig?,

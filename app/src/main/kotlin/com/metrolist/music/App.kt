@@ -32,12 +32,14 @@ import com.metrolist.music.di.ApplicationScope
 import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.extensions.toInetSocketAddress
 import com.metrolist.music.utils.CrashHandler
+import com.metrolist.music.utils.YTPlayerUtils
 import com.metrolist.music.utils.cipher.CipherDeobfuscator
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.reportException
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -88,6 +90,19 @@ class App :
         // Pre-read Coil cache size on background to avoid runBlocking in newImageLoader
         applicationScope.launch(Dispatchers.IO) {
             cachedCoilCacheSize = dataStore.data.map { it[MaxImageCacheSizeKey] ?: 512 }.first()
+        }
+
+        // Warm the cipher + PoToken/BotGuard WebViews off the first-play critical path so the first
+        // stream resolves fast. Best-effort and delayed so it never competes with app startup; waits
+        // for the session (visitorData) the PoToken warm-up needs. Any failure is harmless.
+        applicationScope.launch(Dispatchers.IO) {
+            delay(2500)
+            var waitedMs = 0
+            while (YouTube.visitorData == null && waitedMs < 12_000) {
+                delay(500)
+                waitedMs += 500
+            }
+            runCatching { YTPlayerUtils.prewarm() }
         }
 
         // تهيئة إعدادات التطبيق عند الإقلاع

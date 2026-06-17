@@ -72,6 +72,18 @@ object CipherDeobfuscator {
     }
 
     /**
+     * Best-effort: create the cipher WebView (fetch player JS + load it) ahead of first playback so
+     * the deobfuscation hot path is already warm. Guarded by the same mutex as deobfuscation, so it
+     * can't race a real request; on failure the WebView is simply created lazily on first use.
+     */
+    suspend fun prewarm() {
+        Timber.tag(TAG).d("Prewarming cipher WebView...")
+        deobfuscateMutex.withLock {
+            getOrCreateWebView(forceRefresh = false)
+        }
+    }
+
+    /**
      * Deobfuscate a signatureCipher stream URL.
      *
      * The signatureCipher is a query string containing:
