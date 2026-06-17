@@ -260,36 +260,28 @@ class MainActivity : ComponentActivity() {
                 service: IBinder?,
             ) {
                 if (service is MusicBinder) {
-                    try {
-                        playerConnection = PlayerConnection(this@MainActivity, service, database, lifecycleScope)
+                    // Create PlayerConnection - it's now non-blocking
+                    playerConnection = PlayerConnection(this@MainActivity, service, database, lifecycleScope)
+                    
+                    // If player is already initialized, set it up immediately
+                    if (playerConnection?.isPlayerInitialized?.value == true) {
                         playerConnectionSnapshot = playerConnection
-                        Timber.tag("MainActivity").d("PlayerConnection created successfully")
-                        // Connect Listen Together manager to player
                         listenTogetherManager.setPlayerConnection(playerConnection)
-                    } catch (e: Exception) {
-                        Timber.tag("MainActivity").e(e, "Failed to create PlayerConnection")
-                        // Retry with exponential backoff - service may still be initializing
+                        Timber.tag("MainActivity").d("PlayerConnection created and ready immediately")
+                    } else {
+                        // Otherwise, wait for initialization asynchronously
                         lifecycleScope.launch {
-                            var retryCount = 0
-                            val maxRetries = 5
-                            var delayMs = 500L
-                            while (retryCount < maxRetries) {
-                                delay(delayMs)
-                                delayMs = (delayMs * 2).coerceAtMost(5000L) // Exponential backoff, max 5s
-                                retryCount++
-                                try {
-                                    Timber.tag("MainActivity").d("Retry $retryCount of $maxRetries for PlayerConnection")
-                                    playerConnection = PlayerConnection(this@MainActivity, service, database, lifecycleScope)
-                                    playerConnectionSnapshot = playerConnection
-                                    listenTogetherManager.setPlayerConnection(playerConnection)
-                                    Timber.tag("MainActivity").d("PlayerConnection created successfully on retry $retryCount")
-                                    break // Success, exit retry loop
-                                } catch (e2: Exception) {
-                                    Timber.tag("MainActivity").e(e2, "Failed to create PlayerConnection on retry $retryCount")
-                                    if (retryCount >= maxRetries) {
-                                        Timber.tag("MainActivity").e("Max retries reached for PlayerConnection")
-                                    }
-                                }
+                            Timber.tag("MainActivity").d("Waiting for PlayerConnection to initialize...")
+                            try {
+                                playerConnection?.isPlayerInitialized
+                                    ?.filter { it }
+                                    ?.first()
+                                // Now ready
+                                playerConnectionSnapshot = playerConnection
+                                listenTogetherManager.setPlayerConnection(playerConnection)
+                                Timber.tag("MainActivity").d("PlayerConnection ready after async initialization")
+                            } catch (e: Exception) {
+                                Timber.tag("MainActivity").e(e, "PlayerConnection initialization failed")
                             }
                         }
                     }

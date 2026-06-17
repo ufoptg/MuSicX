@@ -43,7 +43,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import java.time.LocalDate
@@ -66,86 +65,81 @@ class PlayerConnection(
     private val playerReadinessFlow = service.isPlayerReady
 
     /**
-     * Safe player accessor checks readiness & handles errors.
-     * Should be used by all player access within this class.
-     */
-    private fun getPlayerSafe(): ExoPlayer =
-        try {
-            if (!playerReadinessFlow.value) {
-                Timber.tag(TAG).w("Player accessed before service initialization complete; returning best-effort reference")
-            }
-            service.player
-        } catch (e: UninitializedPropertyAccessException) {
-            Timber.tag(TAG).e(e, "Fatal: player property accessed but not initialized")
-            throw IllegalStateException("MusicService.player not initialized; possible race condition in service startup", e)
-        }
-
-    /**
-     * Public accessor for player. Returns the player captured during initialization.
-     * Callers should check [isPlayerInitialized] before calling, or handle exceptions.
+     * Public accessor for player. Returns the player once available.
+     * Throws IllegalStateException if player is not yet initialized.
+     * Callers should check [isPlayerInitialized] or [isReady] before calling.
      */
     val player: ExoPlayer
-        get() = _player ?: getPlayerSafe()
+        get() = _player ?: throw IllegalStateException(
+            "Player not yet initialized. Check isPlayerInitialized or isReady first."
+        )
 
     /** Tracks whether player initialization completed successfully */
-    private val isPlayerInitialized = MutableStateFlow(service.isPlayerReady.value)
+    val isPlayerInitialized = MutableStateFlow(service.isPlayerReady.value)
 
-    /** Captured player instance for safe access after initialization */
+    /** Returns true when player is fully ready for use */
+    val isReady: Boolean
+        get() = _player != null && isPlayerInitialized.value
+
+    /** Captured player instance - set asynchronously after initialization */
     private var _player: ExoPlayer? = null
 
-    val playbackState: MutableStateFlow<Int>
-    private val playWhenReady: MutableStateFlow<Boolean>
+    val playbackState = MutableStateFlow(Player.STATE_IDLE)
+    private val playWhenReady = MutableStateFlow(false)
     val isPlaying: kotlinx.coroutines.flow.StateFlow<Boolean>
 
     init {
         Timber.tag(TAG).d("PlayerConnection init: playerReady=${playerReadinessFlow.value}")
 
-        // Wait for player to be initialized if not ready yet
-        // This handles the race condition when service is recreated by the system
-        val actualPlayer: ExoPlayer = runBlocking {
-            if (playerReadinessFlow.value) {
-                service.player
-            } else {
-                Timber.tag(TAG).d("Player not ready yet, waiting for initialization...")
-                withTimeoutOrNull(10_000L) {
-                    playerReadinessFlow.first { it }
-                }
-                // Even if timeout occurs, try to get the player - it may have been initialized
-                try {
-                    service.player
-                } catch (e: UninitializedPropertyAccessException) {
-                    Timber.tag(TAG).e(e, "Player still not initialized after timeout")
-                    throw IllegalStateException("MusicService.player not initialized within timeout", e)
-                }
-            }
-        }
-
-        // Store the captured player for safe access
-        _player = actualPlayer
-
-        // Initialize with actual player state
-        playbackState = MutableStateFlow(actualPlayer.playbackState)
-        playWhenReady = MutableStateFlow(actualPlayer.playWhenReady)
         isPlaying =
             combine(playbackState, playWhenReady) { state, ready ->
                 ready && state != STATE_ENDED
             }.stateIn(
                 scope,
                 SharingStarted.Lazily,
-                actualPlayer.playWhenReady && actualPlayer.playbackState != STATE_ENDED,
+                false,
             )
 
-        // Track service readiness changes in background.
-        scope.launch {
-            playerReadinessFlow.collect { ready ->
-                isPlayerInitialized.value = ready
-                if (ready) {
-                    Timber.tag(TAG).d("Service player initialization detected by PlayerConnection")
+        // If player is already ready, initialize immediately
+        if (playerReadinessFlow.value) {
+            initializePlayer()
+        } else {
+            // Otherwise, wait for player to become ready asynchronously
+            scope.launch {
+                Timber.tag(TAG).d("Player not ready yet, waiting for initialization...")
+                try {
+                    withTimeoutOrNull(15_000L) {
+                        playerReadinessFlow.first { it }
+                    }
+                } catch (e: Exception) {
+                    Timber.tag(TAG).e(e, "Error waiting for player readiness")
                 }
+                initializePlayer()
             }
         }
+    }
 
-        Timber.tag(TAG).d("PlayerConnection state flows initialized successfully")
+    /**
+     * Initialize player and attach listeners.
+     * Must be called after player is ready.
+     */
+    private fun initializePlayer() {
+        try {
+            val exoPlayer = service.player
+            _player = exoPlayer
+            isPlayerInitialized.value = true
+
+            // Initialize state from player
+            playbackState.value = exoPlayer.playbackState
+            playWhenReady.value = exoPlayer.playWhenReady
+
+            // Attach listener
+            exoPlayer.addListener(this)
+
+            Timber.tag(TAG).d("PlayerConnection initialized successfully with player: $exoPlayer")
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Failed to initialize player")
+        }
     }
 
     // Effective playing state, considers Cast when active
@@ -159,10 +153,10 @@ class PlayerConnection(
         }.stateIn(
             scope,
             SharingStarted.Lazily,
-            player.playbackState != STATE_ENDED && player.playWhenReady,
+            false,
         )
 
-    val mediaMetadata = MutableStateFlow(player.currentMetadata)
+    val mediaMetadata = MutableStateFlow<com.metrolist.music.db.MediaMetadata?>(null)
     val currentSong =
         mediaMetadata.flatMapLatest {
             database.song(it?.id)
@@ -217,14 +211,17 @@ class PlayerConnection(
             }
             // Initial setup if flow hasn't emitted yet but service is ready
             if (attachedPlayer == null && service.isPlayerReady.value) {
-                updateAttachedPlayer(player)
+                try {
+                    updateAttachedPlayer(service.player)
+                } catch (e: Exception) {
+                    Timber.tag(TAG).w(e, "Player not yet available during init, will retry when ready")
+                }
             }
 
             Timber.tag(TAG).d("PlayerConnection flow observer registered")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Failed to initialize PlayerConnection listener or state")
-            // Propagate the error so MainActivity can retry
-            throw e
+            // Don't throw - allow non-blocking initialization
         }
     }
 
