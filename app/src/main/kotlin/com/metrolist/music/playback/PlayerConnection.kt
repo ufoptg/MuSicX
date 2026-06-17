@@ -239,8 +239,11 @@ class PlayerConnection(
         newPlayer.addListener(this)
         
         // Keep _player in sync with the attached player for isReady getter
-        _player = newPlayer
-        _isPlayerInitialized.value = true
+        // Cast to ExoPlayer since service.playerFlow emits ExoPlayer
+        if (newPlayer is ExoPlayer) {
+            _player = newPlayer
+            _isPlayerInitialized.value = true
+        }
         
         // Refresh all state from new player
         playbackState.value = newPlayer.playbackState
