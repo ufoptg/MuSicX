@@ -25,6 +25,7 @@ import com.metrolist.music.constants.SleepTimerRepeatKey
 import com.metrolist.music.constants.SleepTimerStartTimeKey
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.extensions.currentMetadata
+import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.extensions.getCurrentQueueIndex
 import com.metrolist.music.extensions.getQueueWindows
 import com.metrolist.music.extensions.metadata
@@ -156,7 +157,7 @@ class PlayerConnection(
             false,
         )
 
-    val mediaMetadata = MutableStateFlow<com.metrolist.music.db.MediaMetadata?>(null)
+    val mediaMetadata = MutableStateFlow<MediaMetadata?>(null)
     val currentSong =
         mediaMetadata.flatMapLatest {
             database.song(it?.id)
