@@ -3142,7 +3142,10 @@ class MusicService :
 
         // Clear the cached URL
         songUrlCache.remove(mediaId)
-        Timber.tag(TAG).d("Cleared cached URL for $mediaId")
+        // A 403/410 on GET means the (HEAD-unvalidated) WEB_REMIX stream URL was bad — mark it so the
+        // re-resolution falls through to the fallback clients instead of retrying WEB_REMIX.
+        YTPlayerUtils.markWebRemixFailed(mediaId)
+        Timber.tag(TAG).d("Cleared cached URL for $mediaId, marked WEB_REMIX failed")
 
         // Clear decryption caches
         try {
