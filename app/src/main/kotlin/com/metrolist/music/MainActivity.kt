@@ -262,25 +262,30 @@ class MainActivity : ComponentActivity() {
             ) {
                 if (service is MusicBinder) {
                     // Create PlayerConnection - it's now non-blocking
-                    playerConnection = PlayerConnection(this@MainActivity, service, database, lifecycleScope)
+                    val connection = PlayerConnection(this@MainActivity, service, database, lifecycleScope)
+                    playerConnection = connection
                     
                     // If player is already initialized, set it up immediately
-                    if (playerConnection?.isPlayerInitialized?.value == true) {
-                        playerConnectionSnapshot = playerConnection
-                        listenTogetherManager.setPlayerConnection(playerConnection)
+                    if (connection.isPlayerInitialized.value) {
+                        playerConnectionSnapshot = connection
+                        listenTogetherManager.setPlayerConnection(connection)
                         Timber.tag("MainActivity").d("PlayerConnection created and ready immediately")
                     } else {
                         // Otherwise, wait for initialization asynchronously
                         lifecycleScope.launch {
                             Timber.tag("MainActivity").d("Waiting for PlayerConnection to initialize...")
                             try {
-                                playerConnection?.isPlayerInitialized
-                                    ?.filter { it }
-                                    ?.first()
-                                // Now ready
-                                playerConnectionSnapshot = playerConnection
-                                listenTogetherManager.setPlayerConnection(playerConnection)
-                                Timber.tag("MainActivity").d("PlayerConnection ready after async initialization")
+                                connection.isPlayerInitialized
+                                    .filter { it }
+                                    .first()
+                                // Now ready - check if this is still the current connection
+                                if (connection == playerConnection) {
+                                    playerConnectionSnapshot = connection
+                                    listenTogetherManager.setPlayerConnection(connection)
+                                    Timber.tag("MainActivity").d("PlayerConnection ready after async initialization")
+                                } else {
+                                    Timber.tag("MainActivity").d("PlayerConnection was replaced during initialization, skipping")
+                                }
                             } catch (e: Exception) {
                                 Timber.tag("MainActivity").e(e, "PlayerConnection initialization failed")
                             }

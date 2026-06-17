@@ -39,6 +39,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -76,11 +77,14 @@ class PlayerConnection(
         )
 
     /** Tracks whether player initialization completed successfully */
-    val isPlayerInitialized = MutableStateFlow(service.isPlayerReady.value)
+    private val _isPlayerInitialized = MutableStateFlow(service.isPlayerReady.value)
+
+    /** Read-only state flow for player initialization status */
+    val isPlayerInitialized = _isPlayerInitialized.asStateFlow()
 
     /** Returns true when player is fully ready for use */
     val isReady: Boolean
-        get() = _player != null && isPlayerInitialized.value
+        get() = _player != null && _isPlayerInitialized.value
 
     /** Captured player instance - set asynchronously after initialization */
     private var _player: ExoPlayer? = null
@@ -108,14 +112,17 @@ class PlayerConnection(
             // Otherwise, wait for player to become ready asynchronously
             scope.launch {
                 Timber.tag(TAG).d("Player not ready yet, waiting for initialization...")
-                try {
-                    withTimeoutOrNull(15_000L) {
-                        playerReadinessFlow.first { it }
-                    }
-                } catch (e: Exception) {
-                    Timber.tag(TAG).e(e, "Error waiting for player readiness")
+                val isReady = withTimeoutOrNull(15_000L) {
+                    playerReadinessFlow.first { it }
                 }
-                initializePlayer()
+                // Only initialize if we successfully got readiness (not timeout or cancellation)
+                if (isReady == true) {
+                    initializePlayer()
+                } else {
+                    Timber.tag(TAG).w("Player readiness timeout or cancelled, attempting initialization anyway")
+                    // Try to initialize even on timeout - the service might have become ready
+                    initializePlayer()
+                }
             }
         }
     }
@@ -128,7 +135,7 @@ class PlayerConnection(
         try {
             val exoPlayer = service.player
             _player = exoPlayer
-            isPlayerInitialized.value = true
+            _isPlayerInitialized.value = true
 
             // Initialize state from player
             playbackState.value = exoPlayer.playbackState
@@ -230,6 +237,11 @@ class PlayerConnection(
         attachedPlayer?.removeListener(this)
         attachedPlayer = newPlayer
         newPlayer.addListener(this)
+        
+        // Keep _player in sync with the attached player for isReady getter
+        _player = newPlayer
+        _isPlayerInitialized.value = true
+        
         // Refresh all state from new player
         playbackState.value = newPlayer.playbackState
         playWhenReady.value = newPlayer.playWhenReady
