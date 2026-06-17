@@ -3598,12 +3598,14 @@ class MusicService :
                 }
 
                 if (usePlayerCache && playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)) {
-                    songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let { (url, _) ->
-                        scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
-                        return@Factory dataSpec.withUri(url.toUri())
-                    }
-                    Timber.tag(TAG).w("Ghost cache entry for $mediaId, re-fetching")
-                    playerCache.removeResource(mediaId)
+                    // Serve cached audio straight from disk like the download cache — no URL needed,
+                    // no network re-resolve. On a cold relaunch songUrlCache is always empty, and the
+                    // old "ghost" path here deleted valid cached audio and re-downloaded it every
+                    // relaunch (the main reason relaunch was slow vs. playing from cache instantly).
+                    // CacheDataSource serves by key (mediaId); uncached chunks fall through below and
+                    // resolve a URL on demand. FLAG_IGNORE_CACHE_ON_ERROR covers a genuinely bad file.
+                    scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
+                    return@Factory dataSpec
                 }
 
                 songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
