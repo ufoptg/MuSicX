@@ -3571,14 +3571,9 @@ class MusicService :
                     songUrlCache.remove(mediaId)
                 }
 
-                // Only use cached URL if cache file exists
-                // If cache file was deleted by system (e.g., low memory), we must re-fetch
-                if (usePlayerCache && !playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)) {
-                    // Cache file is missing, don't use cached URL - it may be expired
-                    songUrlCache.remove(mediaId)
-                    Timber.tag(TAG).d("Cache file missing for $mediaId, clearing cached URL")
-                }
-                
+                // Check if cached URL exists and is not expired
+                // Note: We don't evict on normal cache misses - the URL is still valid
+                // even if the cache file is missing (e.g., chunk not yet cached)
                 songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
                     scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                     return@Factory dataSpec.withUri(it.first.toUri())

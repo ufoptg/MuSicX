@@ -77,7 +77,7 @@ class PlayerConnection(
         )
 
     /** Tracks whether player initialization completed successfully */
-    private val _isPlayerInitialized = MutableStateFlow(service.isPlayerReady.value)
+    private val _isPlayerInitialized = MutableStateFlow(false)
 
     /** Read-only state flow for player initialization status */
     val isPlayerInitialized = _isPlayerInitialized.asStateFlow()
@@ -91,6 +91,13 @@ class PlayerConnection(
 
     /** Track players we've attached listeners to, to avoid duplicate listeners */
     private val playerListeners = mutableSetOf<ExoPlayer>()
+
+    /** Flag to prevent re-attachment after disposal */
+    @Volatile
+    private var isDisposed = false
+
+    /** Job for the readiness wait coroutine - can be cancelled on dispose */
+    private var readinessJob: kotlinx.coroutines.Job? = null
 
     val playbackState = MutableStateFlow(Player.STATE_IDLE)
     private val playWhenReady = MutableStateFlow(false)
@@ -114,7 +121,7 @@ class PlayerConnection(
             initializePlayer()
         } else {
             // Otherwise, wait for player to become ready asynchronously
-            scope.launch {
+            readinessJob = scope.launch {
                 Timber.tag(TAG).d("Player not ready yet, waiting for initialization...")
                 try {
                     val isReady = withTimeoutOrNull(15_000L) {
@@ -144,10 +151,15 @@ class PlayerConnection(
      * @return true if initialization succeeded, false otherwise
      */
     private fun initializePlayer(): Boolean {
+        // Guard against re-attachment after disposal
+        if (isDisposed) {
+            Timber.tag(TAG).d("initializePlayer called after disposal, ignoring")
+            return false
+        }
+
         return try {
             val exoPlayer = service.player
             _player = exoPlayer
-            _isPlayerInitialized.value = true
 
             // Initialize state from player
             playbackState.value = exoPlayer.playbackState
@@ -159,6 +171,9 @@ class PlayerConnection(
                 exoPlayer.addListener(this)
                 playerListeners.add(exoPlayer)
             }
+
+            // Only mark as initialized AFTER listener is attached
+            _isPlayerInitialized.value = true
 
             Timber.tag(TAG).d("PlayerConnection initialized successfully with player: $exoPlayer")
             true
@@ -252,9 +267,15 @@ class PlayerConnection(
     }
 
     private fun updateAttachedPlayer(newPlayer: Player) {
+        // Guard against re-attachment after disposal
+        if (isDisposed) {
+            Timber.tag(TAG).d("updateAttachedPlayer called after disposal, ignoring")
+            return
+        }
+
         attachedPlayer?.removeListener(this)
         attachedPlayer = newPlayer
-        
+
         // Keep _player in sync with the attached player for isReady getter
         // Cast to ExoPlayer since service.playerFlow emits ExoPlayer
         if (newPlayer is ExoPlayer) {
@@ -265,17 +286,19 @@ class PlayerConnection(
                     playerListeners.remove(oldPlayer)
                 }
             }
-            
+
             _player = newPlayer
-            _isPlayerInitialized.value = true
-            
+
             // Attach listener only if not already attached
             if (newPlayer !in playerListeners) {
                 newPlayer.addListener(this)
                 playerListeners.add(newPlayer)
             }
+
+            // Only mark as initialized AFTER listener is attached
+            _isPlayerInitialized.value = true
         }
-        
+
         // Refresh all state from new player
         playbackState.value = newPlayer.playbackState
         playWhenReady.value = newPlayer.playWhenReady
@@ -706,14 +729,26 @@ class PlayerConnection(
 
     fun dispose() {
         try {
+            // Mark as disposed first to prevent re-attachment
+            isDisposed = true
+
+            // Cancel the readiness wait coroutine if still running
+            readinessJob?.cancel()
+            readinessJob = null
+
             // Remove listener from all tracked players
             playerListeners.forEach { player ->
                 player.removeListener(this)
             }
             playerListeners.clear()
-            
+
             attachedPlayer?.removeListener(this)
             attachedPlayer = null
+
+            // Clear state to prevent stale references
+            _player = null
+            _isPlayerInitialized.value = false
+
             Timber.tag(TAG).d("PlayerConnection disposed successfully")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error during PlayerConnection disposal")
