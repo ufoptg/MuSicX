@@ -370,7 +370,12 @@ fun BottomSheetPlayer(
     // time immediately instead of flashing 0:00 until the first poll fires. runCatching guards the
     // player-not-ready race; the poll loop corrects duration if it isn't known yet.
     val positionState = remember { mutableLongStateOf(runCatching { playerConnection.player.currentPosition }.getOrDefault(0L)) }
-    val durationState = remember { mutableLongStateOf(runCatching { playerConnection.player.duration }.getOrDefault(0L).coerceAtLeast(0L)) }
+    val durationState = remember {
+        mutableLongStateOf(
+            (mediaMetadata?.duration?.takeIf { it > 0 }?.toLong()?.times(1000L))
+                ?: runCatching { playerConnection.player.duration }.getOrDefault(0L).coerceAtLeast(0L),
+        )
+    }
 
     // Convenience accessors for local use
     var position by positionState
@@ -746,7 +751,8 @@ fun BottomSheetPlayer(
                 delay(100) // Update more frequently for smoother progress bar
                 if (sliderPosition == null) { // Only update if user isn't dragging
                     position = playerConnection.player.currentPosition
-                    duration = playerConnection.player.duration
+                    // Don't clobber a valid (metadata-derived) duration with 0/UNSET mid-resolve.
+                    playerConnection.player.duration.takeIf { it > 0 }?.let { duration = it }
                 }
             }
         }
@@ -756,7 +762,11 @@ fun BottomSheetPlayer(
     LaunchedEffect(playbackState, mediaMetadata?.id) {
         if (!isCasting) {
             position = playerConnection.player.currentPosition
-            duration = playerConnection.player.duration
+            // Prefer the song's known duration (from metadata, available instantly from the restored
+            // queue) so the slider range is right even when restored paused / before the stream
+            // resolves; fall back to the player's duration once it is known.
+            duration = (mediaMetadata?.duration?.takeIf { it > 0 }?.toLong()?.times(1000L))
+                ?: playerConnection.player.duration
         }
     }
 
