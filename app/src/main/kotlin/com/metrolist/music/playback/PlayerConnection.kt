@@ -89,6 +89,9 @@ class PlayerConnection(
     /** Captured player instance - set asynchronously after initialization */
     private var _player: ExoPlayer? = null
 
+    /** Track players we've attached listeners to, to avoid duplicate listeners */
+    private val playerListeners = mutableSetOf<ExoPlayer>()
+
     val playbackState = MutableStateFlow(Player.STATE_IDLE)
     private val playWhenReady = MutableStateFlow(false)
     val isPlaying: kotlinx.coroutines.flow.StateFlow<Boolean>
@@ -101,7 +104,8 @@ class PlayerConnection(
                 ready && state != STATE_ENDED
             }.stateIn(
                 scope,
-                SharingStarted.Lazily,
+                SharingStarted.Eagerly, // Use Eagerly to get immediate initial value
+                // Initial value will be set after player is initialized
                 false,
             )
 
@@ -112,15 +116,22 @@ class PlayerConnection(
             // Otherwise, wait for player to become ready asynchronously
             scope.launch {
                 Timber.tag(TAG).d("Player not ready yet, waiting for initialization...")
-                val isReady = withTimeoutOrNull(15_000L) {
-                    playerReadinessFlow.first { it }
-                }
-                // Only initialize if we successfully got readiness (not timeout or cancellation)
-                if (isReady == true) {
-                    initializePlayer()
-                } else {
-                    Timber.tag(TAG).w("Player readiness timeout or cancelled, attempting initialization anyway")
-                    // Try to initialize even on timeout - the service might have become ready
+                try {
+                    val isReady = withTimeoutOrNull(15_000L) {
+                        playerReadinessFlow.first { it }
+                    }
+                    if (isReady == true) {
+                        initializePlayer()
+                    } else {
+                        Timber.tag(TAG).w("Player readiness timeout")
+                        // Still try to initialize on timeout - service might have become ready
+                        initializePlayer()
+                    }
+                } catch (e: java.util.concurrent.CancellationException) {
+                    Timber.tag(TAG).d("Player readiness wait cancelled")
+                    throw e // Re-throw cancellation
+                } catch (e: Exception) {
+                    Timber.tag(TAG).e(e, "Error waiting for player readiness")
                     initializePlayer()
                 }
             }
@@ -130,9 +141,10 @@ class PlayerConnection(
     /**
      * Initialize player and attach listeners.
      * Must be called after player is ready.
+     * @return true if initialization succeeded, false otherwise
      */
-    private fun initializePlayer() {
-        try {
+    private fun initializePlayer(): Boolean {
+        return try {
             val exoPlayer = service.player
             _player = exoPlayer
             _isPlayerInitialized.value = true
@@ -140,13 +152,19 @@ class PlayerConnection(
             // Initialize state from player
             playbackState.value = exoPlayer.playbackState
             playWhenReady.value = exoPlayer.playWhenReady
+            mediaMetadata.value = exoPlayer.currentMetadata
 
-            // Attach listener
-            exoPlayer.addListener(this)
+            // Attach listener only if not already attached
+            if (exoPlayer !in playerListeners) {
+                exoPlayer.addListener(this)
+                playerListeners.add(exoPlayer)
+            }
 
             Timber.tag(TAG).d("PlayerConnection initialized successfully with player: $exoPlayer")
+            true
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Failed to initialize player")
+            false
         }
     }
 
@@ -236,13 +254,26 @@ class PlayerConnection(
     private fun updateAttachedPlayer(newPlayer: Player) {
         attachedPlayer?.removeListener(this)
         attachedPlayer = newPlayer
-        newPlayer.addListener(this)
         
         // Keep _player in sync with the attached player for isReady getter
         // Cast to ExoPlayer since service.playerFlow emits ExoPlayer
         if (newPlayer is ExoPlayer) {
+            // Remove listener from old player if tracked
+            _player?.let { oldPlayer ->
+                if (oldPlayer in playerListeners) {
+                    oldPlayer.removeListener(this)
+                    playerListeners.remove(oldPlayer)
+                }
+            }
+            
             _player = newPlayer
             _isPlayerInitialized.value = true
+            
+            // Attach listener only if not already attached
+            if (newPlayer !in playerListeners) {
+                newPlayer.addListener(this)
+                playerListeners.add(newPlayer)
+            }
         }
         
         // Refresh all state from new player
@@ -675,6 +706,12 @@ class PlayerConnection(
 
     fun dispose() {
         try {
+            // Remove listener from all tracked players
+            playerListeners.forEach { player ->
+                player.removeListener(this)
+            }
+            playerListeners.clear()
+            
             attachedPlayer?.removeListener(this)
             attachedPlayer = null
             Timber.tag(TAG).d("PlayerConnection disposed successfully")
