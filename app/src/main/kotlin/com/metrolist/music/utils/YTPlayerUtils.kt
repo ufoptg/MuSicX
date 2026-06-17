@@ -80,21 +80,19 @@ object YTPlayerUtils {
     private const val POTOKEN_WARMUP_VIDEO_ID = "jNQXAC9IVRw"
 
     /**
-     * Best-effort warm-up of the cipher WebView and the PoToken/BotGuard generator so the first real
-     * playback doesn't pay their cold-start cost (BotGuard is ~2–5s cold). Safe to call any time;
-     * every failure is swallowed and playback falls back to the existing lazy-init path unchanged.
+     * Best-effort warm-up of the PoToken/BotGuard generator (BotGuard cold-start is ~2–5s) so the
+     * first real playback skips it. Requires a session (visitorData); the caller should gate this on
+     * visitorData being ready. The cipher WebView warm-up is separate (CipherDeobfuscator.prewarm)
+     * since it needs no session. Failure is swallowed; playback falls back to lazy init unchanged.
      */
-    suspend fun prewarm() {
-        runCatching { CipherDeobfuscator.prewarm() }
-            .onFailure { Timber.tag(TAG).w(it, "Cipher prewarm skipped: ${it.message}") }
-        val sessionId = YouTube.visitorData
-        if (MAIN_CLIENT.useWebPoTokens && sessionId != null) {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    poTokenGenerator.getWebClientPoToken(POTOKEN_WARMUP_VIDEO_ID, sessionId)
-                }
-            }.onFailure { Timber.tag(TAG).w(it, "PoToken prewarm skipped: ${it.message}") }
-        }
+    suspend fun prewarmPoToken() {
+        val sessionId = YouTube.visitorData ?: return
+        if (!MAIN_CLIENT.useWebPoTokens) return
+        runCatching {
+            withContext(Dispatchers.IO) {
+                poTokenGenerator.getWebClientPoToken(POTOKEN_WARMUP_VIDEO_ID, sessionId)
+            }
+        }.onFailure { Timber.tag(TAG).w(it, "PoToken prewarm skipped: ${it.message}") }
     }
 
     data class PlaybackData(

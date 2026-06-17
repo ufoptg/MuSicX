@@ -73,14 +73,18 @@ object CipherDeobfuscator {
 
     /**
      * Best-effort: create the cipher WebView (fetch player JS + load it) ahead of first playback so
-     * the deobfuscation hot path is already warm. Guarded by the same mutex as deobfuscation, so it
-     * can't race a real request; on failure the WebView is simply created lazily on first use.
+     * the deobfuscation hot path is already warm. Deliberately lock-free — it never holds
+     * deobfuscateMutex across the player-JS fetch, so it can't block a real deobfuscation request;
+     * it only warms when no WebView exists yet. On failure the WebView is created lazily on first use.
+     *
+     * NOTE: the n-transform path (transformNParamInUrl) is also not under deobfuscateMutex, so cipher
+     * WebView creation has a pre-existing race. Closing that (serialising all getOrCreateWebView
+     * calls) is a separate hot-path change that should go through manual cipher testing.
      */
     suspend fun prewarm() {
+        if (cipherWebView != null) return
         Timber.tag(TAG).d("Prewarming cipher WebView...")
-        deobfuscateMutex.withLock {
-            getOrCreateWebView(forceRefresh = false)
-        }
+        getOrCreateWebView(forceRefresh = false)
     }
 
     /**

@@ -92,9 +92,16 @@ class App :
             cachedCoilCacheSize = dataStore.data.map { it[MaxImageCacheSizeKey] ?: 512 }.first()
         }
 
-        // Warm the cipher + PoToken/BotGuard WebViews off the first-play critical path so the first
-        // stream resolves fast. Best-effort and delayed so it never competes with app startup; waits
-        // for the session (visitorData) the PoToken warm-up needs. Any failure is harmless.
+        // Warm the cipher WebView off the first-play critical path. It needs no session, so kick it
+        // as soon as startup settles (don't gate it behind visitorData — that's the bigger cold
+        // cost). Best-effort; on failure the WebView is created lazily on first play.
+        applicationScope.launch(Dispatchers.IO) {
+            delay(1500)
+            runCatching { CipherDeobfuscator.prewarm() }
+        }
+
+        // Warm the PoToken/BotGuard generator (the ~2-5s cold cost) once a session (visitorData) is
+        // available; gate only this half on it. Best-effort and delayed so it never competes with startup.
         applicationScope.launch(Dispatchers.IO) {
             delay(2500)
             var waitedMs = 0
@@ -102,7 +109,7 @@ class App :
                 delay(500)
                 waitedMs += 500
             }
-            runCatching { YTPlayerUtils.prewarm() }
+            runCatching { YTPlayerUtils.prewarmPoToken() }
         }
 
         // تهيئة إعدادات التطبيق عند الإقلاع

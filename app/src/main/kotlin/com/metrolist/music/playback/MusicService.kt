@@ -1316,12 +1316,12 @@ class MusicService :
                 .setMediaSourceFactory(createMediaSourceFactory())
                 .setRenderersFactory(createRenderersFactory(normalizationProcessor, eqProcessor, silenceProcessor, useAudioTrackPlaybackParams))
                 .setLoadControl(
-                    // ExoPlayer defaults, except start playback once ~750ms is buffered (vs 2500ms)
-                    // so the first audio is audible sooner. Min/max/after-rebuffer stay at defaults
-                    // so buffering/rebuffer stability is unchanged (no stutter regression).
+                    // Start playback once ~750ms is buffered (media3's default is 1000ms) so first
+                    // audio is audible a touch sooner. min/max/after-rebuffer match the media3 1.x
+                    // defaults (50s / 50s / 2000ms) so buffering and post-stall recovery are unchanged.
                     DefaultLoadControl
                         .Builder()
-                        .setBufferDurationsMs(50_000, 50_000, 750, 5_000)
+                        .setBufferDurationsMs(50_000, 50_000, 750, 2_000)
                         .build(),
                 )
                 .setHandleAudioBecomingNoisy(true)
