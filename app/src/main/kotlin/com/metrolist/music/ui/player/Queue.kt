@@ -9,6 +9,7 @@ import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -86,7 +87,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -133,14 +133,14 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.math.roundToInt
 import com.metrolist.music.constants.SleepTimerDefaultKey
+import com.metrolist.music.utils.dataStore
+import androidx.datastore.preferences.core.edit
 import android.widget.Toast
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.runtime.derivedStateOf
 import com.metrolist.music.constants.SleepTimerFadeOutKey
 import com.metrolist.music.constants.SleepTimerStopAfterCurrentSongKey
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.material3.Button
-import androidx.compose.ui.graphics.rememberGraphicsLayer
-import com.metrolist.music.ui.utils.overlayBackdropBlur
 
 
 @SuppressLint("UnrememberedMutableState")
@@ -743,25 +743,6 @@ fun Queue(
             }
         }
 
-        val density = LocalDensity.current
-        val animatedOffset by animateDpAsState(
-            targetValue = if (inSelectMode) 48.dp else 0.dp,
-            label = "animatedOffset"
-        )
-        val queueOverlayTopHeightPx =
-            with(density) {
-                (ListItemHeight + animatedOffset).toPx() +
-                        WindowInsets.systemBars.getTop(this)
-            }
-        val queueOverlayBottomHeightPx =
-            with(density) {
-                ListItemHeight.toPx() +
-                        WindowInsets.systemBars.getBottom(this)
-            }
-        val queueOverlayBlurRadiusPx = with(density) { 24.dp.toPx() }
-        var queueOverlayBackgroundAlpha by remember { mutableFloatStateOf(0.9f) }
-        val queueOverlayBlurLayer = rememberGraphicsLayer()
-
         Box(
             modifier =
                 Modifier
@@ -778,19 +759,15 @@ fun Queue(
                                 bottom = ListItemHeight + 8.dp,
                             ),
                         ).asPaddingValues(),
-                modifier =
-                    Modifier
-                        .overlayBackdropBlur(
-                            topHeightPx = queueOverlayTopHeightPx,
-                            bottomHeightPx = queueOverlayBottomHeightPx,
-                            blurRadiusPx = queueOverlayBlurRadiusPx,
-                            enabled = !pureBlack,
-                            blurLayer = queueOverlayBlurLayer,
-                            onApplied = { queueOverlayBackgroundAlpha = 0.7f }
-                        ).nestedScroll(state.preUpPostDownNestedScrollConnection),
+                modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
             ) {
                 item(key = "queue_top_spacer") {
-                    Spacer(modifier = Modifier.height(animatedOffset))
+                    Spacer(
+                        modifier =
+                            Modifier
+                                .animateContentSize()
+                                .height(if (inSelectMode) 48.dp else 0.dp),
+                    )
                 }
 
                 itemsIndexed(
@@ -815,9 +792,9 @@ fun Queue(
                         LaunchedEffect(dismissBoxState.currentValue) {
                             val dv = dismissBoxState.currentValue
                             if (!processedDismiss && !isListenTogetherGuest && (
-                                    dv == SwipeToDismissBoxValue.StartToEnd ||
-                                        dv == SwipeToDismissBoxValue.EndToStart
-                                )
+                                        dv == SwipeToDismissBoxValue.StartToEnd ||
+                                                dv == SwipeToDismissBoxValue.EndToStart
+                                        )
                             ) {
                                 processedDismiss = true
                                 playerConnection.player.removeMediaItem(currentItem.firstPeriodIndex)
@@ -1065,7 +1042,7 @@ fun Queue(
                         } else {
                             MaterialTheme.colorScheme
                                 .secondaryContainer
-                                .copy(alpha = queueOverlayBackgroundAlpha)
+                                .copy(alpha = 0.90f)
                         },
                     ).windowInsetsPadding(
                         WindowInsets.systemBars
@@ -1211,14 +1188,14 @@ fun Queue(
                         } else {
                             MaterialTheme.colorScheme
                                 .secondaryContainer
-                                .copy(alpha = queueOverlayBackgroundAlpha)
+                                .copy(alpha = 0.90f)
                         },
                     ).fillMaxWidth()
                     .height(
                         ListItemHeight +
-                            WindowInsets.systemBars
-                                .asPaddingValues()
-                                .calculateBottomPadding(),
+                                WindowInsets.systemBars
+                                    .asPaddingValues()
+                                    .calculateBottomPadding(),
                     ).align(Alignment.BottomCenter)
                     .clickable {
                         state.collapseSoft()
@@ -1286,9 +1263,9 @@ fun Queue(
                     .padding(
                         bottom =
                             ListItemHeight +
-                                WindowInsets.systemBars
-                                    .asPaddingValues()
-                                    .calculateBottomPadding(),
+                                    WindowInsets.systemBars
+                                        .asPaddingValues()
+                                        .calculateBottomPadding(),
                     ).align(Alignment.BottomCenter),
         )
     }
