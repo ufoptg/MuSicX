@@ -792,9 +792,9 @@ fun Queue(
                         LaunchedEffect(dismissBoxState.currentValue) {
                             val dv = dismissBoxState.currentValue
                             if (!processedDismiss && !isListenTogetherGuest && (
-                                        dv == SwipeToDismissBoxValue.StartToEnd ||
-                                                dv == SwipeToDismissBoxValue.EndToStart
-                                        )
+                                    dv == SwipeToDismissBoxValue.StartToEnd ||
+                                        dv == SwipeToDismissBoxValue.EndToStart
+                                )
                             ) {
                                 processedDismiss = true
                                 playerConnection.player.removeMediaItem(currentItem.firstPeriodIndex)
@@ -1193,9 +1193,9 @@ fun Queue(
                     ).fillMaxWidth()
                     .height(
                         ListItemHeight +
-                                WindowInsets.systemBars
-                                    .asPaddingValues()
-                                    .calculateBottomPadding(),
+                            WindowInsets.systemBars
+                                .asPaddingValues()
+                                .calculateBottomPadding(),
                     ).align(Alignment.BottomCenter)
                     .clickable {
                         state.collapseSoft()
@@ -1263,9 +1263,9 @@ fun Queue(
                     .padding(
                         bottom =
                             ListItemHeight +
-                                    WindowInsets.systemBars
-                                        .asPaddingValues()
-                                        .calculateBottomPadding(),
+                                WindowInsets.systemBars
+                                    .asPaddingValues()
+                                    .calculateBottomPadding(),
                     ).align(Alignment.BottomCenter),
         )
     }
