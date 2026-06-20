@@ -1611,6 +1611,16 @@ class MusicService :
         )
     }
 
+    /**
+     * Registers / refreshes song metadata (title, duration, isVideo, related songs)
+     * for [mediaId]. Pure metadata bookkeeping only — does NOT touch [dateDownload].
+     *
+     * Looks across player, secondaryPlayer and fadingPlayer so metadata is still
+     * found correctly while a crossfade swap is in progress.
+     *
+     * Safe to call frequently (e.g. on every dataSpec resolution) since it no longer
+     * has any side effect tied to caching completeness.
+     */
     private suspend fun recoverSong(
         mediaId: String,
         playbackData: YTPlayerUtils.PlaybackData? = null,
@@ -1619,10 +1629,15 @@ class MusicService :
         val mediaMetadata =
             withContext(Dispatchers.Main) {
                 player.findNextMediaItemById(mediaId)?.metadata
-            } ?: return
+                    ?: secondaryPlayer?.findNextMediaItemById(mediaId)?.metadata
+                    ?: fadingPlayer?.findNextMediaItemById(mediaId)?.metadata
+            }
+
+        if (mediaMetadata == null && song == null) return
+
         val duration =
             song?.song?.duration?.takeIf { it != -1 }
-                ?: mediaMetadata.duration.takeIf { it != -1 }
+                ?: mediaMetadata?.duration?.takeIf { it != -1 }
                 ?: (
                     playbackData?.videoDetails ?: YTPlayerUtils
                         .playerResponseForMetadata(mediaId)
@@ -1630,31 +1645,25 @@ class MusicService :
                         ?.videoDetails
                 )?.lengthSeconds?.toInt()
                 ?: -1
+
         database.query {
-            if (song == null) {
+            if (song == null && mediaMetadata != null) {
                 insert(mediaMetadata.copy(duration = duration))
-            } else {
+            } else if (song != null) {
                 var updatedSong = song.song
                 if (song.song.duration == -1) {
                     updatedSong = updatedSong.copy(duration = duration)
                 }
                 // Update isVideo flag if it's different from the current value
-                if (song.song.isVideo != mediaMetadata.isVideoSong) {
+                if (mediaMetadata != null && song.song.isVideo != mediaMetadata.isVideoSong) {
                     updatedSong = updatedSong.copy(isVideo = mediaMetadata.isVideoSong)
-                }
-                // Set dateDownload when song is cached during playback
-                // This ensures cached songs appear in the Cache Playlist
-                if (updatedSong.dateDownload == null && updatedSong.isDownloaded == false) {
-                    val contentLength = song.format?.contentLength
-                    if (contentLength != null && playerCache.isCached(mediaId, 0, contentLength)) {
-                        updatedSong = updatedSong.copy(dateDownload = java.time.LocalDateTime.now())
-                    }
                 }
                 if (updatedSong != song.song) {
                     update(updatedSong)
                 }
             }
         }
+
         if (!database.hasRelatedSongs(mediaId)) {
             val relatedEndpoint =
                 YouTube.next(WatchEndpoint(videoId = mediaId)).getOrNull()?.relatedEndpoint
@@ -1671,6 +1680,28 @@ class MusicService :
                         )
                     }.forEach(::insert)
             }
+        }
+    }
+
+    /**
+     * Marks [mediaId] as belonging to the Cache Playlist by setting [dateDownload],
+     * but ONLY if the full file (byte 0 through contentLength) is actually present
+     * in playerCache. This must only be called from a genuine "track finished
+     * naturally" signal (see onMediaItemTransition's AUTO-reason handling) —
+     * never from raw dataSpec/chunk resolution, since the player's background
+     * prefetch can finish downloading a short file in seconds, long before the
+     * user has actually listened to it (or even if they skipped away early).
+     *
+     * No-op if already marked downloaded, or if we don't yet know the file's
+     * contentLength (FormatEntity not fetched yet).
+     */
+    private suspend fun markCachedIfFullyDownloaded(mediaId: String) {
+        val song = database.song(mediaId).first() ?: return
+        if (song.song.dateDownload != null || song.song.isDownloaded) return
+        val contentLength = song.format?.contentLength ?: return
+        if (!playerCache.isCached(mediaId, 0, contentLength)) return
+        database.query {
+            update(song.song.copy(dateDownload = java.time.LocalDateTime.now()))
         }
     }
 
@@ -2364,6 +2395,11 @@ class MusicService :
 
     private var previousMediaItemIndex = C.INDEX_UNSET
     private var previousEpisodeId: String? = null
+
+    // Tracks the mediaId that was playing immediately before the current
+    // onMediaItemTransition call, so we can decide whether IT finished
+    // naturally (and is therefore safe to mark as fully cached).
+    private var lastTransitionedMediaId: String? = null
     private var previousEpisodePosition: Long = 0L
 
     /**
@@ -2404,6 +2440,17 @@ class MusicService :
         mediaItem: MediaItem?,
         reason: Int,
     ) {
+        // The track that was playing before this transition only gets marked as
+        // "fully cached" if it advanced AUTOmatically (i.e. it actually finished),
+        // never on a manual skip/seek. lastTransitionedMediaId must be read BEFORE
+        // it gets overwritten below.
+        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+            lastTransitionedMediaId?.let { previousId ->
+                scope.launch(Dispatchers.IO) { markCachedIfFullyDownloaded(previousId) }
+            }
+        }
+        lastTransitionedMediaId = mediaItem?.mediaId
+
         // Save previous episode position if it was an episode
         previousEpisodeId?.let { episodeId ->
             if (previousEpisodePosition > 0) {
@@ -4623,6 +4670,12 @@ class MusicService :
         } catch (e: Exception) {
             timber.log.Timber.e(e, "Failed to swap player in MediaSession")
         }
+
+        // secondaryPlayer was playing this item silently in the background without
+        // `this` attached as a listener, so its real transition into this item never
+        // reached onMediaItemTransition. Re-fire it manually now that the swap is done
+        // so metadata recovery, cache marking, scrobbling, and normalization all run.
+        onMediaItemTransition(player.currentMediaItem, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
 
         val previousAudioSessionId = fadingPlayer?.audioSessionId ?: C.AUDIO_SESSION_ID_UNSET
 
