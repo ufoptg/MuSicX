@@ -1646,7 +1646,7 @@ class MusicService :
                 // This ensures cached songs appear in the Cache Playlist
                 if (updatedSong.dateDownload == null && updatedSong.isDownloaded == false) {
                     val contentLength = song.format?.contentLength
-                    if (contentLength != null && playerCache.isCached(mediaId, 0, contentLength)) {
+                    if (contentLength != null && playerCache.getCachedSpans(mediaId).isNotEmpty()) {
                         updatedSong = updatedSong.copy(dateDownload = java.time.LocalDateTime.now())
                     }
                 }
