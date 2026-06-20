@@ -4204,7 +4204,7 @@ class MusicService :
     ): Int {
         val requiresForegroundPromotion =
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-                (intent?.action == null || intent.action == ACTION_ALARM_TRIGGER)
+                (intent?.action == ACTION_ALARM_TRIGGER || !::player.isInitialized)
         if (requiresForegroundPromotion && !ensureForegroundWithLatestNotificationOrStop()) {
             return START_NOT_STICKY
         }
