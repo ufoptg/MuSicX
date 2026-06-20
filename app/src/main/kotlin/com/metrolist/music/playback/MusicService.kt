@@ -3647,17 +3647,36 @@ class MusicService :
 
             if (!shouldBypassCache) {
                 val usePlayerCache = dataStore.get(EnableSongCacheKey, true)
-                if (downloadCache.isCached(
-                        mediaId,
-                        dataSpec.position,
-                        if (dataSpec.length >= 0) dataSpec.length else 1,
-                    )
-                ) {
+
+                // How much we actually need to verify depends on what the player asked for.
+                // dataSpec.length is usually C.LENGTH_UNSET (-1) on a seek/initial open — that
+                // means "read to end of file", not "read 1 byte". Checking only a small fixed
+                // window (1 byte, or one CHUNK_LENGTH) from dataSpec.position was the bug: it
+                // can say "cached!" even though there's a gap further along (from partial
+                // crossfade prefetch, or LeastRecentlyUsedCacheEvictor reclaiming old spans).
+                // When the player then reads into that gap mid-stream, CacheDataSource has no
+                // resolved URL to fall back to (we deliberately returned dataSpec bare), so it
+                // fails with a generic IO error that surfaces to the user as "No network
+                // connection" — even with a perfectly fine connection, and even on a fully
+                // "cached" song. Verifying coverage all the way to end-of-file (when we know
+                // contentLength) removes that false positive.
+                val contentLength =
+                    runBlocking(Dispatchers.IO) {
+                        database.song(mediaId).first()?.format?.contentLength
+                    }
+                val requiredLength =
+                    when {
+                        dataSpec.length >= 0 -> dataSpec.length
+                        contentLength != null -> (contentLength - dataSpec.position).coerceAtLeast(1)
+                        else -> CHUNK_LENGTH // contentLength unknown yet — fall back to old probe size
+                    }
+
+                if (downloadCache.isCached(mediaId, dataSpec.position, requiredLength)) {
                     scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                     return@Factory dataSpec
                 }
 
-                if (usePlayerCache && playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)) {
+                if (usePlayerCache && playerCache.isCached(mediaId, dataSpec.position, requiredLength)) {
                     // Serve cached audio straight from disk like the download cache — no URL needed,
                     // no network re-resolve. On a cold relaunch songUrlCache is always empty, and the
                     // old "ghost" path here deleted valid cached audio and re-downloaded it every
