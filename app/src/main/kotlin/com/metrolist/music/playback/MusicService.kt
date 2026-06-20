@@ -4524,29 +4524,57 @@ class MusicService :
     /**
      * Updates all app widgets with current playback state
      */
+    // Tracks whether an updateWidgetUI() coroutine is currently running, and the most
+    // recently requested (isPlaying, isLiked) pair while one is in flight.
+    //
+    // updateWidgetUI() is called from ~10 different sites plus the 200ms polling loop
+    // in startWidgetUpdates(). It previously launched a brand new coroutine on every
+    // single call with no bound on concurrency, so a burst of calls (player state
+    // changing rapidly, or just the routine 200ms tick landing mid-burst) could pile up
+    // several of these in flight at once. updateWidgetUI() doesn't leak memory on its
+    // own, but during any future heap pressure elsewhere, unbounded concurrent launches
+    // like this are exactly the kind of thing that adds more candidates for whichever
+    // tiny allocation ends up being the one that fails. This makes it single-flight: at
+    // most one update runs at a time, and any calls that arrive while it's running are
+    // coalesced into a single follow-up using the latest requested state — no update is
+    // silently dropped, it's just never run more than once concurrently.
+    private var widgetUpdateInFlight = false
+    private var pendingWidgetUpdate: Pair<Boolean, Boolean?>? = null
+
     private fun updateWidgetUI(
         isPlaying: Boolean,
         isLiked: Boolean? = currentSong.value?.song?.let { if (it.isEpisode) it.inLibrary != null else it.liked }
     ) {
+        pendingWidgetUpdate = isPlaying to isLiked
+        if (widgetUpdateInFlight) return
+        widgetUpdateInFlight = true
+
         scope.launch {
             try {
-                val songData = currentSong.value
-                val song = songData?.song
-                val songTitle = song?.title ?: getString(R.string.no_song_playing)
-                 val artistName = songData?.artists?.joinToArtistString(getArtistSeparator(this@MusicService)) { it.name } ?: getString(R.string.tap_to_open)
-                val resolvedIsLiked = isLiked == true
+                while (true) {
+                    val (playing, isLikedRequested) = pendingWidgetUpdate ?: break
+                    pendingWidgetUpdate = null
 
-                widgetManager.updateWidgets(
-                    title = songTitle,
-                    artist = artistName,
-                    artworkUri = song?.thumbnailUrl,
-                    isPlaying = isPlaying,
-                    isLiked = resolvedIsLiked,
-                    duration = if (player.duration != C.TIME_UNSET) player.duration else 0,
-                    currentPosition = player.currentPosition,
-                )
+                    val songData = currentSong.value
+                    val song = songData?.song
+                    val songTitle = song?.title ?: getString(R.string.no_song_playing)
+                    val artistName = songData?.artists?.joinToArtistString(getArtistSeparator(this@MusicService)) { it.name } ?: getString(R.string.tap_to_open)
+                    val resolvedIsLiked = isLikedRequested == true
+
+                    widgetManager.updateWidgets(
+                        title = songTitle,
+                        artist = artistName,
+                        artworkUri = song?.thumbnailUrl,
+                        isPlaying = playing,
+                        isLiked = resolvedIsLiked,
+                        duration = if (player.duration != C.TIME_UNSET) player.duration else 0,
+                        currentPosition = player.currentPosition,
+                    )
+                }
             } catch (e: Exception) {
                 // Widget not added to home screen or other error
+            } finally {
+                widgetUpdateInFlight = false
             }
         }
     }
