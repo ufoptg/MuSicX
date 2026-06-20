@@ -41,7 +41,7 @@ class CachePlaylistViewModel
         val cachedSongs: StateFlow<List<Song>> = _cachedSongs
 
         init {
-            viewModelScope.launch {
+            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                 while (true) {
                     val hideExplicit = context.dataStore.get(HideExplicitKey, false)
                     val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
@@ -59,7 +59,7 @@ class CachePlaylistViewModel
                     val completeSongs =
                         songs.filter {
                             val contentLength = it.format?.contentLength
-                            contentLength != null && playerCache.isCached(it.song.id, 0, contentLength)
+                            contentLength != null && playerCache.getCachedSpans(it.song.id).isNotEmpty()
                         }
 
                     if (completeSongs.isNotEmpty()) {
