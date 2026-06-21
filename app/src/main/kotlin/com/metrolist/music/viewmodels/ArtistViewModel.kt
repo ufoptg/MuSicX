@@ -172,7 +172,8 @@ class ArtistViewModel @Inject constructor(
                     }
 
                     // Fetch song durations from the more endpoint if the first section has songs without duration
-                    val sectionsWithDurations = if (resolvedSections.isNotEmpty()) {
+                    var sectionsWithDurations = resolvedSections
+                    if (resolvedSections.isNotEmpty()) {
                         val needDurations = resolvedSections.first().items.any {
                             it is SongItem && it.duration == null
                         }
@@ -180,28 +181,30 @@ class ArtistViewModel @Inject constructor(
                             val moreEndpoint = resolvedSections.first().moreEndpoint
                             if (moreEndpoint != null) {
                                 try {
-                                    val moreItems = withContext(Dispatchers.IO) {
-                                        YouTube.artistItems(moreEndpoint).getOrNull()
+                                    val moreResult = withContext(Dispatchers.IO) {
+                                        YouTube.artistItems(moreEndpoint)
                                     }
-                                    if (moreItems != null) {
-                                        val durationById = moreItems.items.filterIsInstance<SongItem>()
-                                            .associate { it.id to it.duration }
-                                        if (durationById.isNotEmpty()) {
-                                            listOf(resolvedSections.first().copy(
-                                                items = resolvedSections.first().items.map { item ->
-                                                    if (item is SongItem && item.duration == null) {
-                                                        item.copy(duration = durationById[item.id] ?: item.duration)
-                                                    } else item
-                                                }
-                                            )) + resolvedSections.drop(1)
-                                        } else resolvedSections
-                                    } else resolvedSections
+                                    moreResult
+                                        .onSuccess { moreItems ->
+                                            val durationById = moreItems.items.filterIsInstance<SongItem>()
+                                                .associate { it.id to it.duration }
+                                            if (durationById.isNotEmpty()) {
+                                                sectionsWithDurations = listOf(resolvedSections.first().copy(
+                                                    items = resolvedSections.first().items.map { item ->
+                                                        if (item is SongItem && item.duration == null) {
+                                                            item.copy(duration = durationById[item.id] ?: item.duration)
+                                                        } else item
+                                                    }
+                                                )) + resolvedSections.drop(1)
+                                            }
+                                        }
+                                        .onFailure { e -> reportException(e) }
                                 } catch (e: Exception) {
-                                    resolvedSections
+                                    reportException(e)
                                 }
-                            } else resolvedSections
-                        } else resolvedSections
-                    } else resolvedSections
+                            }
+                        }
+                    }
 
                     val resolvedPage = page.copy(sections = sectionsWithDurations)
                     val filteredSections = resolvedPage.sections
