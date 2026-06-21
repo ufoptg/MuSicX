@@ -1107,13 +1107,12 @@ fun MediaMetadataListItem(
             if (mediaMetadata.explicit) Icon.Explicit()
             Text(
                 text = buildAnnotatedString {
-                    append(
-                        joinByBullet(
-                            mediaMetadata.artists.joinToArtistString(" ${stringResource(R.string.and)} ") { it.name },
-                            makeTimeString(mediaMetadata.duration * 1000L)
-                        )
+                    val base = joinByBullet(
+                        mediaMetadata.artists.joinToArtistString(" ${stringResource(R.string.and)} ") { it.name },
+                        makeTimeString(mediaMetadata.duration * 1000L)
                     )
-                    if (mediaMetadata.suggestedBy != null) {
+                    append(base)
+                    if (mediaMetadata.suggestedBy != null && base.isNotEmpty()) {
                         append(" • ")
                         withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
                             append(mediaMetadata.suggestedBy)
