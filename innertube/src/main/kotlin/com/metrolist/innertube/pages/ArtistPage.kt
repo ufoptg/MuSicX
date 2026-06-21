@@ -16,6 +16,7 @@ import com.metrolist.innertube.models.Run
 import com.metrolist.innertube.models.SectionListRenderer
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
+import com.metrolist.innertube.utils.parseTime
 import com.metrolist.innertube.models.YTItem
 import com.metrolist.innertube.models.filterExplicit
 import com.metrolist.innertube.models.getItems
@@ -116,7 +117,10 @@ data class ArtistPage(
                     ?.text ?: return null,
                 artists = artistRuns ?: return null,
                 album = album,
-                duration = null,
+                duration = renderer.fixedColumns?.firstOrNull()
+                    ?.musicResponsiveListItemFlexColumnRenderer?.text
+                    ?.runs?.firstOrNull()
+                    ?.text?.parseTime(),
                 musicVideoType = renderer.musicVideoType,
                 thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                 explicit = renderer.badges?.find {
