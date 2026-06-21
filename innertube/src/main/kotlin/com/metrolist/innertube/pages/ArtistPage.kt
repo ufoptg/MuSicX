@@ -141,6 +141,7 @@ data class ArtistPage(
                     val artistRuns = expandedRuns.filter { 
                         it.text.isNotBlank() && it.text != "&" && it.text != "," 
                     }
+                    val subtitleGroups = subtitleRuns.splitBySeparator()
                     SongItem(
                         id = renderer.navigationEndpoint.watchEndpoint?.videoId ?: return null,
                         title = renderer.title.runs?.firstOrNull()?.text ?: return null,
@@ -151,7 +152,10 @@ data class ArtistPage(
                             )
                         }.ifEmpty { null } ?: return null,
                         album = null,
-                        duration = null,
+                        duration = subtitleGroups.lastOrNull()
+                            ?.firstOrNull()
+                            ?.takeIf { it.navigationEndpoint == null }
+                            ?.text?.parseTime(),
                         musicVideoType = renderer.musicVideoType,
                         thumbnail = renderer.thumbnailRenderer.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                         explicit = renderer.subtitleBadges?.find {
