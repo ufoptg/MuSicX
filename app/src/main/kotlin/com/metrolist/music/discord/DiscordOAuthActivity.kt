@@ -71,7 +71,7 @@ class DiscordOAuthActivity : Activity() {
         }
 
         Timber.tag(TAG).i("OAuthActivity: received code (length=%d)", code.length)
-        deferred?.complete(AuthCodeResult(code = code, state = state))
+        deferred?.complete(AuthCodeResult(code = code, state = state ?: ""))
         finish()
     }
 }
