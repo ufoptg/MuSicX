@@ -72,12 +72,15 @@ data class ArtistPage(
         }
 
         private fun fromMusicResponsiveListItemRenderer(renderer: MusicResponsiveListItemRenderer): SongItem? {
-            val artistRuns = renderer.flexColumns
+            val subtitleLine = renderer.flexColumns
                 .getOrNull(1)
                 ?.musicResponsiveListItemFlexColumnRenderer
                 ?.text
                 ?.runs
-                ?.splitBySeparator()
+
+            val subtitleGroups = subtitleLine?.splitBySeparator()
+
+            val artistRuns = subtitleGroups
                 ?.getOrNull(0)
                 ?.splitArtistsByConjunction()
                 ?.filter { it.text.isNotBlank() && it.text != "&" && it.text != "," }
@@ -99,6 +102,16 @@ data class ArtistPage(
                     } else null
                 }
 
+            // Duration is in the last group after "•" separator in the subtitle line
+            val durationFromSubtitle = subtitleGroups
+                ?.drop(1)
+                ?.firstOrNull { group ->
+                    group.firstOrNull()?.text?.parseTime() != null
+                }
+                ?.firstOrNull()
+                ?.text
+                ?.parseTime()
+
             val libraryTokens = PageHelper.extractLibraryTokensFromMenuItems(renderer.menu?.menuRenderer?.items)
 
             return SongItem(
@@ -117,10 +130,11 @@ data class ArtistPage(
                     ?.text ?: return null,
                 artists = artistRuns ?: return null,
                 album = album,
-                duration = renderer.fixedColumns?.firstOrNull()
-                    ?.musicResponsiveListItemFlexColumnRenderer?.text
-                    ?.runs?.firstOrNull()
-                    ?.text?.parseTime(),
+                duration = durationFromSubtitle
+                    ?: renderer.fixedColumns?.firstOrNull()
+                        ?.musicResponsiveListItemFlexColumnRenderer?.text
+                        ?.runs?.firstOrNull()
+                        ?.text?.parseTime(),
                 musicVideoType = renderer.musicVideoType,
                 thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                 explicit = renderer.badges?.find {
