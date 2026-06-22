@@ -50,8 +50,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config --global user.name "metrolist-bot"
-          git config --global user.email "bot@metrolist.app"
+          git config --global user.name "mostafaalagamy"
+          git config --global user.email "mostafaalagamy@email.com"
 
           git add app/src/main/assets/player_configs.json app/src/main/assets/player_dates.json
           git commit -m "chore: update player configs from upstream"
