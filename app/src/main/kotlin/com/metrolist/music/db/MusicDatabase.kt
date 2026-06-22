@@ -224,7 +224,30 @@ abstract class InternalDatabase : RoomDatabase() {
                 ).setQueryExecutor(
                     java.util.concurrent.Executors
                         .newFixedThreadPool(4),
+                ).addCallback(
+                    object : RoomDatabase.Callback() {
+                        override fun onCreate(db: SupportSQLiteDatabase) {
+                            super.onCreate(db)
+                            applyPragmaSettings(db)
+                        }
+
+                        override fun onOpen(db: SupportSQLiteDatabase) {
+                            super.onOpen(db)
+                            applyPragmaSettings(db)
+                        }
+                    },
                 ).build()
+
+        private fun applyPragmaSettings(db: SupportSQLiteDatabase) {
+            try {
+                db.query("PRAGMA busy_timeout = 60000").close()
+                db.query("PRAGMA cache_size = -16000").close()
+                db.query("PRAGMA wal_autocheckpoint = 1000").close()
+                db.query("PRAGMA synchronous = NORMAL").close()
+            } catch (e: Exception) {
+                Timber.tag("MusicDatabase").e(e, "Failed to set PRAGMA settings")
+            }
+        }
     }
 }
 

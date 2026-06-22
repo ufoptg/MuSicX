@@ -191,6 +191,13 @@ class BackupRestoreViewModel @Inject constructor(
 
                 if (foundDb) {
                     Timber.tag("RESTORE").i("Temp DB restore complete, triggering migrations")
+
+                    // Delete WAL and SHM files to ensure a clean database open.
+                    // The backup may include stale WAL/SHM files that could cause
+                    // inconsistencies when Room opens the database in WAL mode.
+                    File("$restoreDbPath-wal").delete()
+                    File("$restoreDbPath-shm").delete()
+
                     try {
                         val migratedDb = InternalDatabase.newInternalDatabaseInstance(context, restoreDbName)
                         migratedDb.openHelper.writableDatabase
