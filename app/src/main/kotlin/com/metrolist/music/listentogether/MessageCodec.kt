@@ -240,7 +240,7 @@ class MessageCodec(
             }
             MessageTypes.BUFFER_WAIT -> {
                 val pb = Listentogether.BufferWaitPayload.parseFrom(payloadBytes)
-                BufferWaitPayload(pb.trackId, pb.waitingForListList)
+                BufferWaitPayload(pb.trackId, pb.waitingForList)
             }
             MessageTypes.BUFFER_COMPLETE -> {
                 val pb = Listentogether.BufferCompletePayload.parseFrom(payloadBytes)
