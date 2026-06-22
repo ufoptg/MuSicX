@@ -13,18 +13,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           ref: main
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Fetch latest player_configs.json
         run: |
-          curl -sL "https://raw.githubusercontent.com/ZemerTeam/zemer-cipher/master/library/src/main/assets/player_configs.json" -o /tmp/player_configs_new.json
+          curl -fsSL --retry 3 --retry-all-errors --retry-delay 2 \
+            "https://raw.githubusercontent.com/ZemerTeam/zemer-cipher/master/library/src/main/assets/player_configs.json" \
+            -o /tmp/player_configs_new.json
+          jq empty /tmp/player_configs_new.json
 
       - name: Fetch latest player_dates.json
         run: |
-          curl -sL "https://raw.githubusercontent.com/ZemerTeam/zemer-cipher/master/player_dates.json" -o /tmp/player_dates_new.json
+          curl -fsSL --retry 3 --retry-all-errors --retry-delay 2 \
+            "https://raw.githubusercontent.com/ZemerTeam/zemer-cipher/master/player_dates.json" \
+            -o /tmp/player_dates_new.json
+          jq empty /tmp/player_dates_new.json
 
       - name: Compare and Update
         id: check_sync
