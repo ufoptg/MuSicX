@@ -4132,6 +4132,7 @@ class MusicService :
             } catch (_: Exception) {
             }
             super.onDestroy()
+            shutdownDeferred.complete(Unit)
             return
         }
 
@@ -4142,13 +4143,6 @@ class MusicService :
                 database.updatePlaybackPosition(currentMetadata.id, player.currentPosition)
             }
         }
-
-        // Signal restore flow that the service has fully stopped.
-        // Note: database is NOT closed here — it is a long-lived singleton
-        // managed by Hilt. Closing it would break other components that
-        // need it (e.g. UI, ViewModels). The restore flow handles closing
-        // and swapping itself before restarting the process.
-        shutdownDeferred.complete(Unit)
 
         try {
             unregisterReceiver(screenStateReceiver)
@@ -4184,6 +4178,13 @@ class MusicService :
         player.release()
         scope.cancel()
         super.onDestroy()
+
+        // Signal restore flow only after all service teardown has completed.
+        // Note: database is NOT closed here — it is a long-lived singleton
+        // managed by Hilt. Closing it would break other components that
+        // need it (e.g. UI, ViewModels). The restore flow handles closing
+        // and swapping itself before restarting the process.
+        shutdownDeferred.complete(Unit)
     }
 
     override fun onBind(intent: Intent?) = super.onBind(intent) ?: binder

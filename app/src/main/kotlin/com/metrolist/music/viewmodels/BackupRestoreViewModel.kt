@@ -37,8 +37,9 @@ import com.metrolist.music.extensions.tryOrNull
 import com.metrolist.music.extensions.zipInputStream
 import com.metrolist.music.extensions.zipOutputStream
 import com.metrolist.music.playback.MusicService
+import com.metrolist.music.playback.MusicService.Companion.PERSISTENT_AUTOMIX_FILE
+import com.metrolist.music.playback.MusicService.Companion.PERSISTENT_PLAYER_STATE_FILE
 import com.metrolist.music.playback.MusicService.Companion.PERSISTENT_QUEUE_FILE
-import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -174,6 +175,10 @@ class BackupRestoreViewModel @Inject constructor(
 
                 if (!foundDb && !foundSettings) {
                     Timber.tag("RESTORE").w("No expected entries found in archive")
+                    kotlinx.coroutines.withContext(Dispatchers.Main) {
+                        Toast.makeText(context, R.string.restore_failed, Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
                 }
 
                 var backupDbVersion = -1
@@ -181,7 +186,7 @@ class BackupRestoreViewModel @Inject constructor(
                 if (foundDb) {
                     // Read backup DB version using raw SQLite (no Room involvement)
                     backupDbVersion = InternalDatabase.readDatabaseVersion(restoreDbPath)
-                    if (backupDbVersion < 0) {
+                    if (backupDbVersion <= 0) {
                         Timber.tag("RESTORE").e("Cannot read backup database version")
                         kotlinx.coroutines.withContext(Dispatchers.Main) {
                             Toast.makeText(context, R.string.restore_database_incompatible, Toast.LENGTH_LONG).show()
@@ -206,29 +211,44 @@ class BackupRestoreViewModel @Inject constructor(
 
                 // 1. Stop service first — ensures no pending DB writes during swap
                 context.stopService(Intent(context, MusicService::class.java))
-                if (MusicService.isRunning) {
-                    try {
-                        kotlinx.coroutines.withTimeout(5000) {
-                            MusicService.shutdownDeferred.await()
-                        }
-                    } catch (e: Exception) {
-                        Timber.e(e, "Timeout waiting for MusicService to shutdown")
+                try {
+                    kotlinx.coroutines.withTimeout(5000) {
+                        MusicService.shutdownDeferred.await()
                     }
+                } catch (e: Exception) {
+                    Timber.e(e, "Timeout waiting for MusicService to shutdown")
                 }
 
                 // 2. Close the database — all operations should be done by now
                 database.close()
 
-                // 3. Swap DB files
+                // 3. Swap DB files — staged copy to avoid corrupting the live DB
                 var dbSwapSucceeded = true
                 if (foundDb) {
                     try {
                         val currentFile = File(currentDbPath)
-                        // Delete current WAL/SHM so the database opens clean
+                        val stagedFile = File("$currentDbPath.restore_staged")
+                        val backupFile = File("$currentDbPath.restore_backup")
+
+                        stagedFile.delete()
+                        backupFile.delete()
+
+                        File(restoreDbPath).copyTo(stagedFile, overwrite = true)
+
+                        // Preserve current DB, promote staged, remove backup
+                        if (!currentFile.renameTo(backupFile)) {
+                            error("Failed to preserve current DB before restore")
+                        }
+                        if (!stagedFile.renameTo(currentFile)) {
+                            // Rollback: restore the original
+                            backupFile.renameTo(currentFile)
+                            error("Failed to promote restored DB")
+                        }
+                        backupFile.delete()
+
+                        // Delete stale WAL/SHM so the DB opens clean
                         File("$currentDbPath-wal").delete()
                         File("$currentDbPath-shm").delete()
-                        // Overwrite current DB with the backup
-                        File(restoreDbPath).copyTo(currentFile, overwrite = true)
                     } catch (e: Exception) {
                         Timber.e(e, "Failed to swap DB files")
                         dbSwapSucceeded = false
@@ -237,19 +257,57 @@ class BackupRestoreViewModel @Inject constructor(
 
                 if (dbSwapSucceeded) {
                     if (foundSettings) {
-                        val actualSettings = File(context.filesDir, "datastore/$SETTINGS_FILENAME")
-                        tempSettings.copyTo(actualSettings, overwrite = true)
-                    }
+                        // If auth data needs clearing, strip auth keys from the temp file
+                        // before copying to actualSettings. This avoids issues with
+                        // DataStore's in-memory cache being stale after a raw file swap.
+                        if (clearAuthData) {
+                            runCatching {
+                                // Open a temporary DataStore for the staged settings file
+                                // to remove auth keys before promoting it to the live path.
+                                val stageSettings = File(
+                                    context.filesDir,
+                                    "datastore/$SETTINGS_FILENAME.stage",
+                                )
+                                stageSettings.delete()
+                                tempSettings.copyTo(stageSettings, overwrite = true)
 
-                    if (clearAuthData) {
-                        context.dataStore.edit { preferences ->
-                            preferences.remove(InnerTubeCookieKey)
-                            preferences.remove(VisitorDataKey)
-                            preferences.remove(DataSyncIdKey)
+                                val stageDataStore =
+                                    androidx.datastore.preferences.core.PreferenceDataStoreFactory.create {
+                                        stageSettings
+                                    }
+                                kotlinx.coroutines.runBlocking {
+                                    stageDataStore.edit { prefs ->
+                                        prefs.remove(InnerTubeCookieKey)
+                                        prefs.remove(VisitorDataKey)
+                                        prefs.remove(DataSyncIdKey)
+                                    }
+                                }
+
+                                val actualSettings = File(
+                                    context.filesDir,
+                                    "datastore/$SETTINGS_FILENAME",
+                                )
+                                stageSettings.copyTo(actualSettings, overwrite = true)
+                                stageSettings.delete()
+                            }.onFailure {
+                                Timber.tag("RESTORE").e(it, "Failed to clear auth from restored settings")
+                                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, R.string.restore_failed, Toast.LENGTH_SHORT).show()
+                                }
+                                return@launch
+                            }
+                        } else {
+                            val actualSettings = File(
+                                context.filesDir,
+                                "datastore/$SETTINGS_FILENAME",
+                            )
+                            tempSettings.copyTo(actualSettings, overwrite = true)
                         }
                     }
 
-                    context.filesDir.resolve(MusicService.PERSISTENT_QUEUE_FILE).delete()
+                    context.filesDir.resolve(PERSISTENT_QUEUE_FILE).delete()
+                    context.filesDir.resolve(PERSISTENT_AUTOMIX_FILE).delete()
+                    context.filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).delete()
 
                     // 4. Restart — Room will open the swapped DB and run migrations if needed
                     val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
