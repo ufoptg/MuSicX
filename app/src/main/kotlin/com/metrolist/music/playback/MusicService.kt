@@ -4142,12 +4142,12 @@ class MusicService :
                 database.updatePlaybackPosition(currentMetadata.id, player.currentPosition)
             }
         }
-        
-        try {
-            database.close()
-        } catch (e: Exception) {
-            Timber.e(e, "Error closing database in onDestroy")
-        }
+
+        // Signal restore flow that the service has fully stopped.
+        // Note: database is NOT closed here — it is a long-lived singleton
+        // managed by Hilt. Closing it would break other components that
+        // need it (e.g. UI, ViewModels). The restore flow handles closing
+        // and swapping itself before restarting the process.
         shutdownDeferred.complete(Unit)
 
         try {

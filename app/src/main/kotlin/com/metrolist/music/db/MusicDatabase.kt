@@ -167,6 +167,33 @@ abstract class InternalDatabase : RoomDatabase() {
     companion object {
         const val DB_NAME = "song.db"
 
+        /**
+         * Current Room database version — used to check backup compatibility
+         * without opening the database through Room (avoiding identity-hash checks).
+         */
+        const val CURRENT_VERSION = 38
+
+        /**
+         * Reads the SQLite user_version pragma from a database file without
+         * involving Room. Returns -1 if the file cannot be read.
+         */
+        fun readDatabaseVersion(dbPath: String): Int {
+            return try {
+                val file = File(dbPath)
+                if (!file.exists()) return -1
+                android.database.sqlite.SQLiteDatabase.openDatabase(
+                    dbPath,
+                    null,
+                    android.database.sqlite.SQLiteDatabase.OPEN_READONLY,
+                ).use { rawDb ->
+                    rawDb.version
+                }
+            } catch (e: Exception) {
+                Timber.tag("MusicDatabase").e(e, "Failed to read database version from $dbPath")
+                -1
+            }
+        }
+
         fun newInstance(context: Context): MusicDatabase =
             MusicDatabase(
                 delegate =
@@ -238,36 +265,6 @@ abstract class InternalDatabase : RoomDatabase() {
                         }
                     },
                 ).build()
-
-        /**
-         * Opens a temporary database instance to check if the backup data was preserved
-         * after migration (i.e., a destructive migration was not triggered).
-         */
-        fun hasDataAfterMigration(context: Context, dbName: String): Boolean {
-            return try {
-                val db = newInternalDatabaseInstance(context, dbName)
-                val sqliteDb = db.openHelper.writableDatabase
-                var hasData = false
-                sqliteDb.query("SELECT id FROM song LIMIT 1").use { cursor ->
-                    hasData = cursor.count > 0
-                }
-                if (!hasData) {
-                    sqliteDb.query("SELECT id FROM artist LIMIT 1").use { cursor ->
-                        hasData = cursor.count > 0
-                    }
-                }
-                if (!hasData) {
-                    sqliteDb.query("SELECT id FROM playlist LIMIT 1").use { cursor ->
-                        hasData = cursor.count > 0
-                    }
-                }
-                db.close()
-                hasData
-            } catch (e: Exception) {
-                Timber.tag("MusicDatabase").e(e, "Failed to check data after migration")
-                false
-            }
-        }
 
         private fun applyPragmaSettings(db: SupportSQLiteDatabase) {
             try {
