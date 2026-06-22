@@ -168,12 +168,6 @@ abstract class InternalDatabase : RoomDatabase() {
         const val DB_NAME = "song.db"
 
         /**
-         * Current Room database version — used to check backup compatibility
-         * without opening the database through Room (avoiding identity-hash checks).
-         */
-        const val CURRENT_VERSION = 38
-
-        /**
          * Reads the SQLite user_version pragma from a database file without
          * involving Room. Returns -1 if the file cannot be read.
          */

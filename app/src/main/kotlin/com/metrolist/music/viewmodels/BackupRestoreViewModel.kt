@@ -177,6 +177,7 @@ class BackupRestoreViewModel @Inject constructor(
                 }
 
                 var backupDbVersion = -1
+                var currentDbVersion = -1
                 if (foundDb) {
                     // Read backup DB version using raw SQLite (no Room involvement)
                     backupDbVersion = InternalDatabase.readDatabaseVersion(restoreDbPath)
@@ -187,18 +188,18 @@ class BackupRestoreViewModel @Inject constructor(
                         }
                         return@launch
                     }
-                }
-
-                val canRestore = !foundDb || backupDbVersion <= InternalDatabase.CURRENT_VERSION
-
-                if (!canRestore) {
-                    Timber.tag("RESTORE").w(
-                        "Backup DB version $backupDbVersion > current ${InternalDatabase.CURRENT_VERSION}, incompatible"
-                    )
-                    kotlinx.coroutines.withContext(Dispatchers.Main) {
-                        Toast.makeText(context, R.string.restore_database_incompatible, Toast.LENGTH_LONG).show()
+                    // Read current database version dynamically — this matches whatever Room
+                    // annotation says, even when the schema version changes in future builds.
+                    currentDbVersion = database.openHelper.writableDatabase.version
+                    if (backupDbVersion > currentDbVersion) {
+                        Timber.tag("RESTORE").w(
+                            "Backup DB version $backupDbVersion > current $currentDbVersion, incompatible"
+                        )
+                        kotlinx.coroutines.withContext(Dispatchers.Main) {
+                            Toast.makeText(context, R.string.restore_database_incompatible, Toast.LENGTH_LONG).show()
+                        }
+                        return@launch
                     }
-                    return@launch
                 }
 
                 // === Proceed with restore ===
