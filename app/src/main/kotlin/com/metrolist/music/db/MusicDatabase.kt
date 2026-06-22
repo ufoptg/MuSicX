@@ -224,7 +224,7 @@ abstract class InternalDatabase : RoomDatabase() {
 
                         override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
                             super.onDestructiveMigration(db)
-                            backupDatabase(context, DB_NAME)
+                            backupDatabase(context, dbName)
                         }
                     },
                 ).build()
