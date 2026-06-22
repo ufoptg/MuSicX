@@ -190,43 +190,7 @@ abstract class InternalDatabase : RoomDatabase() {
 
         fun newInstance(context: Context): MusicDatabase =
             MusicDatabase(
-                delegate =
-                    Room
-                        .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
-                        .openHelperFactory(BackupBeforeMigrationFactory(context, DB_NAME))
-                        .addMigrations(
-                            MIGRATION_1_2,
-                            MIGRATION_21_24,
-                            MIGRATION_22_24,
-                            MIGRATION_24_25,
-                        ).fallbackToDestructiveMigration(dropAllTables = true)
-                        .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-                        .setTransactionExecutor(
-                            java.util.concurrent.Executors
-                                .newFixedThreadPool(4),
-                        ).setQueryExecutor(
-                            java.util.concurrent.Executors
-                                .newFixedThreadPool(4),
-                        ).addCallback(
-                            object : RoomDatabase.Callback() {
-                                override fun onOpen(db: SupportSQLiteDatabase) {
-                                    super.onOpen(db)
-                                    try {
-                                        db.query("PRAGMA busy_timeout = 60000").close()
-                                        db.query("PRAGMA cache_size = -16000").close()
-                                        db.query("PRAGMA wal_autocheckpoint = 1000").close()
-                                        db.query("PRAGMA synchronous = NORMAL").close()
-                                    } catch (e: Exception) {
-                                        Timber.tag("MusicDatabase").e(e, "Failed to set PRAGMA settings")
-                                    }
-                                }
-
-                                override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
-                                    super.onDestructiveMigration(db)
-                                    backupDatabase(context, DB_NAME)
-                                }
-                            },
-                        ).build(),
+                delegate = newInternalDatabaseInstance(context),
             )
 
         fun newInternalDatabaseInstance(context: Context, dbName: String = DB_NAME): InternalDatabase =
@@ -256,6 +220,11 @@ abstract class InternalDatabase : RoomDatabase() {
                         override fun onOpen(db: SupportSQLiteDatabase) {
                             super.onOpen(db)
                             applyPragmaSettings(db)
+                        }
+
+                        override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
+                            super.onDestructiveMigration(db)
+                            backupDatabase(context, DB_NAME)
                         }
                     },
                 ).build()
