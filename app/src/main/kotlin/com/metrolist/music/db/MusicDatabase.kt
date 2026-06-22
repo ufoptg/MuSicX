@@ -217,7 +217,8 @@ abstract class InternalDatabase : RoomDatabase() {
                     MIGRATION_21_24,
                     MIGRATION_22_24,
                     MIGRATION_24_25,
-                ).setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+                ).fallbackToDestructiveMigration()
+                .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                 .setTransactionExecutor(
                     java.util.concurrent.Executors
                         .newFixedThreadPool(4),
@@ -237,6 +238,36 @@ abstract class InternalDatabase : RoomDatabase() {
                         }
                     },
                 ).build()
+
+        /**
+         * Opens a temporary database instance to check if the backup data was preserved
+         * after migration (i.e., a destructive migration was not triggered).
+         */
+        fun hasDataAfterMigration(context: Context, dbName: String): Boolean {
+            return try {
+                val db = newInternalDatabaseInstance(context, dbName)
+                val sqliteDb = db.openHelper.writableDatabase
+                var hasData = false
+                sqliteDb.query("SELECT id FROM song LIMIT 1").use { cursor ->
+                    hasData = cursor.count > 0
+                }
+                if (!hasData) {
+                    sqliteDb.query("SELECT id FROM artist LIMIT 1").use { cursor ->
+                        hasData = cursor.count > 0
+                    }
+                }
+                if (!hasData) {
+                    sqliteDb.query("SELECT id FROM playlist LIMIT 1").use { cursor ->
+                        hasData = cursor.count > 0
+                    }
+                }
+                db.close()
+                hasData
+            } catch (e: Exception) {
+                Timber.tag("MusicDatabase").e(e, "Failed to check data after migration")
+                false
+            }
+        }
 
         private fun applyPragmaSettings(db: SupportSQLiteDatabase) {
             try {

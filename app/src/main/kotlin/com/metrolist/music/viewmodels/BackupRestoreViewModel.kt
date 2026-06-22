@@ -199,11 +199,16 @@ class BackupRestoreViewModel @Inject constructor(
                     File("$restoreDbPath-shm").delete()
 
                     try {
-                        val migratedDb = InternalDatabase.newInternalDatabaseInstance(context, restoreDbName)
-                        migratedDb.openHelper.writableDatabase
-                        migratedDb.close()
-                        Timber.tag("RESTORE").i("Migrations completed successfully")
-                        migrationSucceeded = true
+                        // Open and migrate the temp database. If migration fails (e.g. version mismatch),
+                        // Room falls back to destructive migration as a last resort. We then verify
+                        // the data was actually preserved before proceeding with the swap.
+                        if (InternalDatabase.hasDataAfterMigration(context, restoreDbName)) {
+                            Timber.tag("RESTORE").i("Migrations completed successfully, data preserved")
+                            migrationSucceeded = true
+                        } else {
+                            Timber.tag("RESTORE").w("Database opened but contains no backup data - version mismatch likely")
+                            migrationSucceeded = false
+                        }
                     } catch (e: Exception) {
                         Timber.tag("RESTORE").e(e, "Migration failed for restored DB")
                         migrationSucceeded = false
