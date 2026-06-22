@@ -21,7 +21,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,6 +38,7 @@ import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
 import com.metrolist.music.constants.AudioNormalizationKey
 import com.metrolist.music.constants.AudioOffload
+import com.metrolist.music.constants.AudioTrackPlaybackParamsKey
 import com.metrolist.music.constants.AudioQuality
 import com.metrolist.music.constants.AudioQualityKey
 import com.metrolist.music.constants.AutoDownloadOnLikeKey
@@ -46,6 +46,7 @@ import com.metrolist.music.constants.CrossfadeDurationKey
 import com.metrolist.music.constants.CrossfadeEnabledKey
 import com.metrolist.music.constants.CrossfadeGaplessKey
 import com.metrolist.music.constants.AutoLoadMoreKey
+import com.metrolist.music.constants.AutoRadioQueueKey
 import com.metrolist.music.constants.AutoSkipNextOnErrorKey
 import com.metrolist.music.constants.AutoplayKey
 import com.metrolist.music.constants.DisableLoadMoreWhenRepeatAllKey
@@ -137,6 +138,11 @@ fun PlayerSettings(
         defaultValue = false
     )
 
+    val (audioTrackPlaybackParams, onAudioTrackPlaybackParamsChange) = rememberPreference(
+        key = AudioTrackPlaybackParamsKey,
+        defaultValue = true
+    )
+
     val (varispeed, onVarispeedChange) = rememberPreference(
         key = VarispeedKey,
         defaultValue = false
@@ -154,6 +160,10 @@ fun PlayerSettings(
 
     val (autoLoadMore, onAutoLoadMoreChange) = rememberPreference(
         AutoLoadMoreKey,
+        defaultValue = true
+    )
+    val (autoRadioQueue, onAutoRadioQueueChange) = rememberPreference(
+        AutoRadioQueueKey,
         defaultValue = true
     )
     val (disableLoadMoreWhenRepeatAll, onDisableLoadMoreWhenRepeatAllChange) = rememberPreference(
@@ -236,7 +246,6 @@ fun PlayerSettings(
                     AudioQuality.AUTO -> stringResource(R.string.audio_quality_auto)
                     AudioQuality.HIGH -> stringResource(R.string.audio_quality_high)
                     AudioQuality.LOW -> stringResource(R.string.audio_quality_low)
-                    AudioQuality.VERY_HIGH -> stringResource(R.string.audio_quality_very_high)
                 }
             }
         )
@@ -266,28 +275,6 @@ fun PlayerSettings(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
     ) {
-        var showCrossfadeBetaDialog by remember { mutableStateOf(false) }
-
-        if (showCrossfadeBetaDialog) {
-            DefaultDialog(
-                onDismiss = { showCrossfadeBetaDialog = false },
-                title = { Text(stringResource(R.string.crossfade_beta_title)) },
-                buttons = {
-                    TextButton(onClick = { showCrossfadeBetaDialog = false }) {
-                        Text(stringResource(R.string.cancel))
-                    }
-                    TextButton(onClick = {
-                        showCrossfadeBetaDialog = false
-                        onCrossfadeEnabledChange(true)
-                    }) {
-                        Text(stringResource(R.string.enable))
-                    }
-                }
-            ) {
-                Text(stringResource(R.string.crossfade_beta_message))
-            }
-        }
-
         Spacer(
             Modifier.windowInsetsPadding(
                 LocalPlayerAwareWindowInsets.current.only(
@@ -308,7 +295,6 @@ fun PlayerSettings(
                                 AudioQuality.AUTO -> stringResource(R.string.audio_quality_auto)
                                 AudioQuality.HIGH -> stringResource(R.string.audio_quality_high)
                                 AudioQuality.LOW -> stringResource(R.string.audio_quality_low)
-                                AudioQuality.VERY_HIGH -> stringResource(R.string.audio_quality_very_high)
                             }
                         )
                     },
@@ -318,17 +304,10 @@ fun PlayerSettings(
                     icon = painterResource(R.drawable.linear_scale),
                     title = { Text(stringResource(R.string.crossfade)) },
                     description = { Text(stringResource(R.string.crossfade_desc)) },
-                    showBadge = true,
                     trailingContent = {
                         Switch(
                             checked = crossfadeEnabled,
-                            onCheckedChange = {
-                                if (!crossfadeEnabled) {
-                                    showCrossfadeBetaDialog = true
-                                } else {
-                                    onCrossfadeEnabledChange(false)
-                                }
-                            },
+                            onCheckedChange = onCrossfadeEnabledChange,
                             thumbContent = {
                                 Icon(
                                     painter = painterResource(
@@ -340,13 +319,7 @@ fun PlayerSettings(
                             }
                         )
                     },
-                    onClick = {
-                        if (!crossfadeEnabled) {
-                            showCrossfadeBetaDialog = true
-                        } else {
-                            onCrossfadeEnabledChange(false)
-                        }
-                    }
+                    onClick = { onCrossfadeEnabledChange(!crossfadeEnabled) }
                 ))
                 if (crossfadeEnabled) {
                     add(Material3SettingsItem(
@@ -524,6 +497,29 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { onVarispeedChange(!varispeed) }
+                ))
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.speed),
+                    title = { Text(stringResource(R.string.audio_track_playback_params)) },
+                    description = {
+                        Text(stringResource(R.string.audio_track_playback_params_description))
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = audioTrackPlaybackParams,
+                            onCheckedChange = onAudioTrackPlaybackParamsChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (audioTrackPlaybackParams) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onAudioTrackPlaybackParamsChange(!audioTrackPlaybackParams) }
                 ))
                 // Only show Cast setting in GMS builds (not in F-Droid/FOSS)
                 if (BuildConfig.CAST_AVAILABLE) {
@@ -791,6 +787,27 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { onAutoLoadMoreChange(!autoLoadMore) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.radio),
+                    title = { Text(stringResource(R.string.auto_radio_queue)) },
+                    description = { Text(stringResource(R.string.auto_radio_queue_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = autoRadioQueue,
+                            onCheckedChange = onAutoRadioQueueChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (autoRadioQueue) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onAutoRadioQueueChange(!autoRadioQueue) }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.skip_next),

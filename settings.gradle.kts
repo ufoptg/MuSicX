@@ -29,7 +29,7 @@ include(":app")
 include(":innertube")
 include(":kugou")
 include(":lrclib")
-include(":kizzy")
+
 include(":lastfm")
 include(":betterlyrics")
 include(":shazamkit")

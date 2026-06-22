@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
@@ -225,6 +226,7 @@ internal fun LyricsLine(
                     lineHeight = if (item.isBackground) (lyricsTextSize * 0.7f * lyricsLineSpacing).sp else (lyricsTextSize * lyricsLineSpacing).sp,
                     letterSpacing = (-0.5).sp,
                     textAlign = agentTextAlign,
+                    fontFamily = MaterialTheme.typography.bodyLarge.fontFamily,
                     platformStyle = PlatformTextStyle(includeFontPadding = false),
                     lineHeightStyle = LineHeightStyle(
                         alignment = LineHeightStyle.Alignment.Center,
@@ -421,7 +423,7 @@ private fun WordLevelLyrics(
     // mapped to exactly one word slot.
     val charToWordData = remember(mainText, effectiveWords, isBackground, graphemeClusters, clusterCharOffsets) {
         val wordIdxMap = IntArray(clusterCount) { -1 }
-        val charInWordMap = IntArray(clusterCount) { 0 }
+        val charInWordMap = IntArray(clusterCount)
         val wordLenMap = IntArray(clusterCount) { 1 }
         var currentPos = 0
         var clCursor = 0
@@ -511,7 +513,10 @@ private fun WordLevelLyrics(
         Canvas(modifier = Modifier
             .fillMaxWidth()
             .height(with(density) { layoutResult.size.height.toDp() })
-            .graphicsLayer(clip = false)
+            .graphicsLayer(
+                clip = false,
+                compositingStrategy = CompositingStrategy.Offscreen,
+            )
         ) {
             if (mainText.isEmpty()) return@Canvas
             if (!isActiveLine) {

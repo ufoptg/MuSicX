@@ -127,7 +127,7 @@ fun ArtistSongsScreen(
 
             itemsIndexed(
                 items = songs,
-                key = { _, item -> item.id },
+                key = { index, item -> "${item.id}_$index" },
             ) { index, song ->
                 SongListItem(
                     song = song,
@@ -140,7 +140,6 @@ fun ArtistSongsScreen(
                                 menuState.show {
                                     SongMenu(
                                         originalSong = song,
-                                        navController = navController,
                                         onDismiss = menuState::dismiss,
                                     )
                                 }
@@ -174,7 +173,6 @@ fun ArtistSongsScreen(
                                     menuState.show {
                                         SongMenu(
                                             originalSong = song,
-                                            navController = navController,
                                             onDismiss = menuState::dismiss,
                                         )
                                     }

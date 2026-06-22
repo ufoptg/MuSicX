@@ -65,12 +65,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -104,10 +103,12 @@ import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.utils.completed
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalDownloadUtil
+import com.metrolist.music.LocalNavController
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.LocalSyncUtils
@@ -130,6 +131,7 @@ import com.metrolist.music.ui.component.ActionPromptDialog
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.DraggableScrollbar
 import com.metrolist.music.ui.component.EmptyPlaceholder
+import com.metrolist.music.ui.component.ExpandableText
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.component.OverlayEditButton
@@ -174,6 +176,7 @@ fun LocalPlaylistScreen(
 
     val playlist by viewModel.playlist.collectAsStateWithLifecycle()
     val songs by viewModel.playlistSongs.collectAsStateWithLifecycle()
+    val onlinePlaylist by viewModel.onlinePlaylist.collectAsStateWithLifecycle()
     val mutableSongs = remember { mutableStateListOf<PlaylistSong>() }
     val playlistLength =
         remember(songs) {
@@ -222,16 +225,12 @@ fun LocalPlaylistScreen(
         }
     }
 
-    var inSelectMode by rememberSaveable { mutableStateOf(false) }
+    var inSelectMode by remember { mutableStateOf(false) }
     val selection =
-        rememberSaveable(
-            saver =
-                listSaver<MutableList<Int>, Int>(
-                    save = { it.toList() },
-                    restore = { it.toMutableStateList() },
-                ),
-        ) { mutableStateListOf() }
-    var selectionAnchorMapId by rememberSaveable { mutableStateOf<Int?>(null) }
+        remember {
+            mutableStateListOf<Int>()
+        }
+    var selectionAnchorMapId by remember { mutableStateOf<Int?>(null) }
     val onExitSelectionMode = {
         inSelectMode = false
         selection.clear()
@@ -499,6 +498,7 @@ fun LocalPlaylistScreen(
                             LocalPlaylistHeader(
                                 playlist = playlist,
                                 songs = songs,
+                                onlinePlaylist = onlinePlaylist,
                                 onShowEditDialog = { showEditDialog = true },
                                 onShowRemoveDownloadDialog = { showRemoveDownloadDialog = true },
                                 onshowDeletePlaylistDialog = { showDeletePlaylistDialog = true },
@@ -641,7 +641,6 @@ fun LocalPlaylistScreen(
                                                     originalSong = song.song,
                                                     playlistSong = song,
                                                     playlistBrowseId = playlist?.playlist?.browseId,
-                                                    navController = navController,
                                                     onDismiss = menuState::dismiss,
                                                 )
                                             }
@@ -874,6 +873,7 @@ fun LocalPlaylistScreen(
 fun LocalPlaylistHeader(
     playlist: Playlist,
     songs: List<PlaylistSong>,
+    onlinePlaylist: PlaylistItem?,
     onShowEditDialog: () -> Unit,
     onShowRemoveDownloadDialog: () -> Unit,
     onshowDeletePlaylistDialog: () -> Unit,
@@ -881,6 +881,7 @@ fun LocalPlaylistHeader(
     snackbarHostState: SnackbarHostState,
     modifier: Modifier,
 ) {
+    val navController = LocalNavController.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
     val database = LocalDatabase.current
@@ -1243,7 +1244,7 @@ fun LocalPlaylistHeader(
         // Playlist Name
         Text(
             text = playlist.playlist.name,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             maxLines = 2,
@@ -1251,7 +1252,7 @@ fun LocalPlaylistHeader(
             modifier = Modifier.padding(horizontal = 32.dp),
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Metadata - Song Count • Duration
         val songCount =
@@ -1260,18 +1261,66 @@ fun LocalPlaylistHeader(
             } else {
                 playlist.songCount
             }
+        val nSongs = pluralStringResource(R.plurals.n_song, songCount, songCount)
+        val durationText = if (playlistLength > 0) makeTimeString(playlistLength * 1000L) else null
+        val metadataString = buildString {
+            append(nSongs)
+            if (durationText != null) {
+                append(" ")
+                append(durationText)
+            }
+        }
         Text(
-            text =
-                buildString {
-                    append(pluralStringResource(R.plurals.n_song, songCount, songCount))
-                    if (playlistLength > 0) {
-                        append(" • ")
-                        append(makeTimeString(playlistLength * 1000L))
-                    }
-                },
-            style = MaterialTheme.typography.bodyMedium,
+            text = metadataString,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
         )
+
+        val onlineAuthor = onlinePlaylist?.author
+        if (onlineAuthor != null) {
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier =
+                    Modifier.combinedClickable(
+                        onClick = {
+                            if (onlineAuthor.id != null) {
+                                navController.navigate("artist/${onlineAuthor.id}")
+                            }
+                        },
+                    ),
+            ) {
+                if (onlinePlaylist.authorAvatarUrl != null) {
+                    AsyncImage(
+                        model = onlinePlaylist.authorAvatarUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier =
+                            Modifier
+                                .size(24.dp)
+                                .clip(CircleShape),
+                    )
+                }
+                Text(
+                    text = onlineAuthor.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+
+        val description = onlinePlaylist?.description
+        if (!description.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(4.dp))
+
+            ExpandableText(
+                text = description,
+                modifier = Modifier.padding(horizontal = 32.dp),
+                collapsedMaxLines = 3,
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 

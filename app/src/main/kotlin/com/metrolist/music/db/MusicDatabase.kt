@@ -118,7 +118,7 @@ class MusicDatabase(
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 37,
+    version = 38,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -156,6 +156,7 @@ class MusicDatabase(
         AutoMigration(from = 34, to = 35),
         AutoMigration(from = 35, to = 36, spec = Migration35To36::class),
         AutoMigration(from = 36, to = 37),
+        AutoMigration(from = 37, to = 38),
     ],
 )
 @TypeConverters(Converters::class)
@@ -166,46 +167,79 @@ abstract class InternalDatabase : RoomDatabase() {
     companion object {
         const val DB_NAME = "song.db"
 
+        /**
+         * Reads the SQLite user_version pragma from a database file without
+         * involving Room. Returns -1 if the file cannot be read.
+         */
+        fun readDatabaseVersion(dbPath: String): Int {
+            return try {
+                val file = File(dbPath)
+                if (!file.exists()) return -1
+                android.database.sqlite.SQLiteDatabase.openDatabase(
+                    dbPath,
+                    null,
+                    android.database.sqlite.SQLiteDatabase.OPEN_READONLY,
+                ).use { rawDb ->
+                    rawDb.version
+                }
+            } catch (e: Exception) {
+                Timber.tag("MusicDatabase").e(e, "Failed to read database version from $dbPath")
+                -1
+            }
+        }
+
         fun newInstance(context: Context): MusicDatabase =
             MusicDatabase(
-                delegate =
-                    Room
-                        .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
-                        .openHelperFactory(BackupBeforeMigrationFactory(context, DB_NAME))
-                        .addMigrations(
-                            MIGRATION_1_2,
-                            MIGRATION_21_24,
-                            MIGRATION_22_24,
-                            MIGRATION_24_25,
-                        ).fallbackToDestructiveMigration(dropAllTables = true)
-                        .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-                        .setTransactionExecutor(
-                            java.util.concurrent.Executors
-                                .newFixedThreadPool(4),
-                        ).setQueryExecutor(
-                            java.util.concurrent.Executors
-                                .newFixedThreadPool(4),
-                        ).addCallback(
-                            object : RoomDatabase.Callback() {
-                                override fun onOpen(db: SupportSQLiteDatabase) {
-                                    super.onOpen(db)
-                                    try {
-                                        db.query("PRAGMA busy_timeout = 60000").close()
-                                        db.query("PRAGMA cache_size = -16000").close()
-                                        db.query("PRAGMA wal_autocheckpoint = 1000").close()
-                                        db.query("PRAGMA synchronous = NORMAL").close()
-                                    } catch (e: Exception) {
-                                        Timber.tag("MusicDatabase").e(e, "Failed to set PRAGMA settings")
-                                    }
-                                }
-
-                                override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
-                                    super.onDestructiveMigration(db)
-                                    backupDatabase(context, DB_NAME)
-                                }
-                            },
-                        ).build(),
+                delegate = newInternalDatabaseInstance(context),
             )
+
+        fun newInternalDatabaseInstance(context: Context, dbName: String = DB_NAME): InternalDatabase =
+            Room
+                .databaseBuilder(context, InternalDatabase::class.java, dbName)
+                .openHelperFactory(BackupBeforeMigrationFactory(context, dbName))
+                .addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_21_24,
+                    MIGRATION_22_24,
+                    MIGRATION_24_25,
+                ).fallbackToDestructiveMigration()
+                .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+                .setTransactionExecutor(
+                    java.util.concurrent.Executors
+                        .newFixedThreadPool(4),
+                ).setQueryExecutor(
+                    java.util.concurrent.Executors
+                        .newFixedThreadPool(4),
+                ).addCallback(
+                    object : RoomDatabase.Callback() {
+                        override fun onCreate(db: SupportSQLiteDatabase) {
+                            super.onCreate(db)
+                            applyPragmaSettings(db)
+                        }
+
+                        override fun onOpen(db: SupportSQLiteDatabase) {
+                            super.onOpen(db)
+                            applyPragmaSettings(db)
+                        }
+
+                        override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
+                            super.onDestructiveMigration(db)
+                            backupDatabase(context, dbName)
+                        }
+                    },
+                ).build()
+
+    }
+}
+
+private fun applyPragmaSettings(db: SupportSQLiteDatabase) {
+    try {
+        db.query("PRAGMA busy_timeout = 60000").close()
+        db.query("PRAGMA cache_size = -16000").close()
+        db.query("PRAGMA wal_autocheckpoint = 1000").close()
+        db.query("PRAGMA synchronous = NORMAL").close()
+    } catch (e: Exception) {
+        Timber.tag("MusicDatabase").e(e, "Failed to set PRAGMA settings")
     }
 }
 
@@ -258,33 +292,12 @@ private class BackupBeforeMigrationFactory(
 ) : SupportSQLiteOpenHelper.Factory {
     override fun create(configuration: SupportSQLiteOpenHelper.Configuration): SupportSQLiteOpenHelper {
         val wrappedCallback = BackupCallback(context, configuration.callback, dbName)
-        val configClass = SupportSQLiteOpenHelper.Configuration::class.java
-        val constructor = configClass.constructors.first()
-        val wrappedConfig =
-            when (constructor.parameterCount) {
-                4 -> {
-                    constructor.newInstance(
-                        configuration.context,
-                        configuration.name,
-                        wrappedCallback,
-                        configuration.useNoBackupDirectory,
-                    )
-                }
-
-                5 -> {
-                    constructor.newInstance(
-                        configuration.context,
-                        configuration.name,
-                        wrappedCallback,
-                        configuration.useNoBackupDirectory,
-                        configClass.getField("allowDataLossOnRecovery").get(configuration),
-                    )
-                }
-
-                else -> {
-                    throw IllegalStateException("Unexpected Configuration constructor")
-                }
-            } as SupportSQLiteOpenHelper.Configuration
+        val wrappedConfig = SupportSQLiteOpenHelper.Configuration.builder(configuration.context)
+            .name(configuration.name)
+            .callback(wrappedCallback)
+            .noBackupDirectory(configuration.useNoBackupDirectory)
+            .allowDataLossOnRecovery(configuration.allowDataLossOnRecovery)
+            .build()
         return delegate.create(wrappedConfig)
     }
 }
@@ -294,7 +307,10 @@ private class BackupCallback(
     private val delegate: SupportSQLiteOpenHelper.Callback,
     private val dbName: String,
 ) : SupportSQLiteOpenHelper.Callback(delegate.version) {
-    override fun onCreate(db: SupportSQLiteDatabase) = delegate.onCreate(db)
+    override fun onCreate(db: SupportSQLiteDatabase) {
+        applyPragmaSettings(db)
+        delegate.onCreate(db)
+    }
 
     override fun onUpgrade(
         db: SupportSQLiteDatabase,
@@ -316,7 +332,10 @@ private class BackupCallback(
         delegate.onDowngrade(db, oldVersion, newVersion)
     }
 
-    override fun onOpen(db: SupportSQLiteDatabase) = delegate.onOpen(db)
+    override fun onOpen(db: SupportSQLiteDatabase) {
+        applyPragmaSettings(db)
+        delegate.onOpen(db)
+    }
 }
 
 // ===== Migrations =====

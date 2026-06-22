@@ -35,6 +35,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -87,7 +88,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
+import com.metrolist.music.LocalNavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
@@ -109,6 +110,7 @@ import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.constants.AutoRadioQueueKey
 import com.metrolist.music.constants.GridItemSize
 import com.metrolist.music.constants.GridItemsSizeKey
 import com.metrolist.music.constants.GridThumbnailHeight
@@ -157,6 +159,7 @@ import com.metrolist.music.ui.menu.YouTubeSongMenu
 import com.metrolist.music.ui.utils.SnapLayoutInfoProvider
 import com.metrolist.music.ui.utils.resize
 import com.metrolist.music.utils.joinByBullet
+import com.metrolist.music.utils.joinToArtistString
 import com.metrolist.music.utils.makeTimeString
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
@@ -366,7 +369,7 @@ fun CommunityPlaylistCard(
                                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             )
                             Text(
-                                text = song.artists.joinToString(", ") { it.name },
+                                text = song.artists.joinToArtistString(" ${stringResource(R.string.and)} ") { it.name },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                 maxLines = 1,
@@ -495,9 +498,9 @@ fun CommunityPlaylistCard(
 fun DailyDiscoverCard(
     dailyDiscover: com.metrolist.music.viewmodels.DailyDiscoverItem,
     onClick: () -> Unit,
-    navController: NavController,
     modifier: Modifier = Modifier,
 ) {
+    val navController = LocalNavController.current
     val database = LocalDatabase.current
     val playCount by database.getLifetimePlayCount(dailyDiscover.recommendation.id).collectAsStateWithLifecycle(initialValue = 0)
     val menuState = LocalMenuState.current
@@ -519,7 +522,6 @@ fun DailyDiscoverCard(
                             menuState.show {
                                 YouTubeSongMenu(
                                     song = song,
-                                    navController = navController,
                                     onDismiss = { menuState.dismiss() },
                                 )
                             }
@@ -582,9 +584,9 @@ fun DailyDiscoverCard(
                         Text(
                             text =
                                 buildString {
-                                    append((dailyDiscover.recommendation as? SongItem)?.artists?.joinToString(", ") { it.name } ?: "")
+                                    append((dailyDiscover.recommendation as? SongItem)?.artists?.joinToArtistString(" ${stringResource(R.string.and)} ") { it.name } ?: "")
                                     if (playCount > 0) {
-                                        append(" • $playCount $playsString")
+                                        append(" | $playCount $playsString")
                                     }
                                 },
                             style = MaterialTheme.typography.bodyMedium,
@@ -609,7 +611,7 @@ fun DailyDiscoverCard(
                         text =
                             stringResource(
                                 messageRes,
-                                "${dailyDiscover.seed.title} • ${dailyDiscover.seed.artists.joinToString(", ") { it.name }}",
+                                "${dailyDiscover.seed.title} • ${dailyDiscover.seed.artists.joinToArtistString(" ${stringResource(R.string.and)} ") { it.name }}",
                             ),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
@@ -626,10 +628,10 @@ fun DailyDiscoverCard(
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun HomeScreen(
-    navController: NavController,
     snackbarHostState: SnackbarHostState,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
+    val navController = LocalNavController.current
     val menuState = LocalMenuState.current
     val bottomSheetPageState = LocalBottomSheetPageState.current
     val database = LocalDatabase.current
@@ -674,6 +676,9 @@ fun HomeScreen(
     val accountImageUrl by viewModel.accountImageUrl.collectAsStateWithLifecycle()
     val innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
     val (randomizeHomeOrder) = rememberPreference(RandomizeHomeOrderKey, true)
+    val autoRadioQueue by rememberPreference(AutoRadioQueueKey, defaultValue = true)
+
+    LaunchedEffect(Unit) { viewModel.loadHomeData() }
 
     val shouldShowWrappedCard by viewModel.showWrappedCard.collectAsStateWithLifecycle()
     val wrappedState by viewModel.wrappedManager.state.collectAsStateWithLifecycle()
@@ -802,7 +807,14 @@ fun HomeScreen(
                                             playerConnection.togglePlayPause()
                                         } else {
                                             playerConnection.playQueue(
-                                                YouTubeQueue.radio(it.toMediaMetadata()),
+                                                if (autoRadioQueue) {
+                                                    YouTubeQueue.radio(it.toMediaMetadata())
+                                                } else {
+                                                    ListQueue(
+                                                        title = it.title,
+                                                        items = listOf(it.toMediaItem())
+                                                    )
+                                                }
                                             )
                                         }
                                     }
@@ -814,7 +826,6 @@ fun HomeScreen(
                                     menuState.show {
                                         SongMenu(
                                             originalSong = it,
-                                            navController = navController,
                                             onDismiss = menuState::dismiss,
                                         )
                                     }
@@ -843,7 +854,6 @@ fun HomeScreen(
                                     menuState.show {
                                         AlbumMenu(
                                             originalAlbum = it,
-                                            navController = navController,
                                             onDismiss = menuState::dismiss,
                                         )
                                     }
@@ -897,12 +907,19 @@ fun HomeScreen(
                                 is SongItem -> {
                                     if (!isListenTogetherGuest) {
                                         playerConnection.playQueue(
-                                            YouTubeQueue(
-                                                item.endpoint ?: WatchEndpoint(
-                                                    videoId = item.id,
-                                                ),
-                                                item.toMediaMetadata(),
-                                            ),
+                                            if (autoRadioQueue) {
+                                                YouTubeQueue(
+                                                    item.endpoint ?: WatchEndpoint(
+                                                        videoId = item.id,
+                                                    ),
+                                                    item.toMediaMetadata(),
+                                                )
+                                            } else {
+                                                ListQueue(
+                                                    title = item.title,
+                                                    items = listOf(item.toMediaItem())
+                                                )
+                                            }
                                         )
                                     }
                                 }
@@ -942,7 +959,6 @@ fun HomeScreen(
                                     is SongItem -> {
                                         YouTubeSongMenu(
                                             song = item,
-                                            navController = navController,
                                             onDismiss = menuState::dismiss,
                                         )
                                     }
@@ -950,7 +966,6 @@ fun HomeScreen(
                                     is AlbumItem -> {
                                         YouTubeAlbumMenu(
                                             albumItem = item,
-                                            navController = navController,
                                             onDismiss = menuState::dismiss,
                                         )
                                     }
@@ -981,7 +996,6 @@ fun HomeScreen(
                                     is EpisodeItem -> {
                                         YouTubeSongMenu(
                                             song = item.asSongItem(),
-                                            navController = navController,
                                             onDismiss = menuState::dismiss,
                                         )
                                     }
@@ -1211,7 +1225,7 @@ fun HomeScreen(
                                         .only(WindowInsetsSides.Horizontal)
                                         .asPaddingValues(),
                             ) {
-                                items(savedPodcastShows) { podcast ->
+                                items(savedPodcastShows.distinctBy { it.id }, key = { "home_saved_podcast_${it.id}" }) { podcast ->
                                     ytGridItem(podcast)
                                 }
                             }
@@ -1236,7 +1250,7 @@ fun HomeScreen(
                                         .only(WindowInsetsSides.Horizontal)
                                         .asPaddingValues(),
                             ) {
-                                items(episodesForLater) { episode ->
+                                items(episodesForLater.distinctBy { it.id }, key = { "home_episode_later_${it.id}" }) { episode ->
                                     ytGridItem(episode)
                                 }
                             }
@@ -1259,7 +1273,7 @@ fun HomeScreen(
                                         .only(WindowInsetsSides.Horizontal)
                                         .asPaddingValues(),
                             ) {
-                                items(featuredPodcasts) { podcast ->
+                                items(featuredPodcasts.distinctBy { it.id }, key = { "home_featured_podcast_${it.id}" }) { podcast ->
                                     ytGridItem(podcast)
                                 }
                             }
@@ -1331,7 +1345,6 @@ fun HomeScreen(
                                                 }
                                             }
                                         },
-                                    modifier = Modifier.animateItem(),
                                 )
                             }
 
@@ -1342,7 +1355,7 @@ fun HomeScreen(
                                             .only(WindowInsetsSides.Horizontal)
                                             .asPaddingValues(),
                                 ) {
-                                    items(sectionData.items) { item ->
+                                    items(sectionData.items.distinctBy { it.id }, key = { "home_chip_section_${it.id}" }) { item ->
                                         ytGridItem(item)
                                     }
                                 }
@@ -1421,7 +1434,6 @@ fun HomeScreen(
                                 item(key = "speed_dial_title") {
                                     NavigationTitle(
                                         title = stringResource(R.string.speed_dial),
-                                        modifier = Modifier.animateItem(),
                                     )
                                 }
 
@@ -1445,8 +1457,7 @@ fun HomeScreen(
                                     Column(
                                         modifier =
                                             Modifier
-                                                .fillMaxWidth()
-                                                .animateItem(),
+                                                .fillMaxWidth(),
                                     ) {
                                         HorizontalPager(
                                             state = pagerState,
@@ -1489,13 +1500,20 @@ fun HomeScreen(
                                                                                             when (randomItem) {
                                                                                                 is SongItem -> {
                                                                                                     playerConnection.playQueue(
-                                                                                                        YouTubeQueue(
-                                                                                                            randomItem.endpoint
-                                                                                                                ?: WatchEndpoint(
-                                                                                                                    videoId = randomItem.id,
-                                                                                                                ),
-                                                                                                            randomItem.toMediaMetadata(),
-                                                                                                        ),
+                                                                                                        if (autoRadioQueue) {
+                                                                                                            YouTubeQueue(
+                                                                                                                randomItem.endpoint
+                                                                                                                    ?: WatchEndpoint(
+                                                                                                                        videoId = randomItem.id,
+                                                                                                                    ),
+                                                                                                                randomItem.toMediaMetadata(),
+                                                                                                            )
+                                                                                                        } else {
+                                                                                                            ListQueue(
+                                                                                                                title = randomItem.title,
+                                                                                                                items = listOf(randomItem.toMediaItem())
+                                                                                                            )
+                                                                                                        }
                                                                                                     )
                                                                                                 }
 
@@ -1572,13 +1590,20 @@ fun HomeScreen(
                                                                                             is SongItem -> {
                                                                                                 if (!isListenTogetherGuest) {
                                                                                                     playerConnection.playQueue(
-                                                                                                        YouTubeQueue(
-                                                                                                            item.endpoint
-                                                                                                                ?: WatchEndpoint(
-                                                                                                                    videoId = item.id,
-                                                                                                                ),
-                                                                                                            item.toMediaMetadata(),
-                                                                                                        ),
+                                                                                                        if (autoRadioQueue) {
+                                                                                                            YouTubeQueue(
+                                                                                                                item.endpoint
+                                                                                                                    ?: WatchEndpoint(
+                                                                                                                        videoId = item.id,
+                                                                                                                    ),
+                                                                                                                item.toMediaMetadata(),
+                                                                                                            )
+                                                                                                        } else {
+                                                                                                            ListQueue(
+                                                                                                                title = item.title,
+                                                                                                                items = listOf(item.toMediaItem())
+                                                                                                            )
+                                                                                                        }
                                                                                                     )
                                                                                                 }
                                                                                             }
@@ -1641,7 +1666,6 @@ fun HomeScreen(
                                                                                                 is SongItem -> {
                                                                                                     YouTubeSongMenu(
                                                                                                         song = item,
-                                                                                                        navController = navController,
                                                                                                         onDismiss = menuState::dismiss,
                                                                                                     )
                                                                                                 }
@@ -1649,7 +1673,6 @@ fun HomeScreen(
                                                                                                 is AlbumItem -> {
                                                                                                     YouTubeAlbumMenu(
                                                                                                         albumItem = item,
-                                                                                                        navController = navController,
                                                                                                         onDismiss = menuState::dismiss,
                                                                                                     )
                                                                                                 }
@@ -1680,7 +1703,6 @@ fun HomeScreen(
                                                                                                 is EpisodeItem -> {
                                                                                                     YouTubeSongMenu(
                                                                                                         song = item.asSongItem(),
-                                                                                                        navController = navController,
                                                                                                         onDismiss = menuState::dismiss,
                                                                                                     )
                                                                                                 }
@@ -1737,7 +1759,6 @@ fun HomeScreen(
                                     val quickPicksTitle = stringResource(R.string.quick_picks)
                                     NavigationTitle(
                                         title = quickPicksTitle,
-                                        modifier = Modifier.animateItem(),
                                         onPlayAllClick =
                                             if (!isListenTogetherGuest) {
                                                 {
@@ -1766,13 +1787,12 @@ fun HomeScreen(
                                         modifier =
                                             Modifier
                                                 .fillMaxWidth()
-                                                .height(ListItemHeight * 4)
-                                                .animateItem(),
-                                    ) {
-                                        items(
-                                            items = quickPicks.distinctBy { it.id },
-                                            key = { "home_quickpick_${it.id}" },
-                                        ) { originalSong ->
+                                                .height(ListItemHeight * 4),
+                                        ) {
+                                            items(
+                                                items = quickPicks.distinctBy { it.id },
+                                                key = { "home_quickpick_${it.id}" },
+                                            ) { originalSong ->
                                             // fetch song from database to keep updated
                                             val song by database
                                                 .song(originalSong.id)
@@ -1790,7 +1810,6 @@ fun HomeScreen(
                                                             menuState.show {
                                                                 SongMenu(
                                                                     originalSong = song!!,
-                                                                    navController = navController,
                                                                     onDismiss = menuState::dismiss,
                                                                 )
                                                             }
@@ -1812,9 +1831,16 @@ fun HomeScreen(
                                                                         playerConnection.togglePlayPause()
                                                                     } else {
                                                                         playerConnection.playQueue(
-                                                                            YouTubeQueue.radio(
-                                                                                song!!.toMediaMetadata(),
-                                                                            ),
+                                                                            if (autoRadioQueue) {
+                                                                                YouTubeQueue.radio(
+                                                                                    song!!.toMediaMetadata(),
+                                                                                )
+                                                                            } else {
+                                                                                ListQueue(
+                                                                                    title = song!!.title,
+                                                                                    items = listOf(song!!.toMediaItem())
+                                                                                )
+                                                                            }
                                                                         )
                                                                     }
                                                                 }
@@ -1824,7 +1850,6 @@ fun HomeScreen(
                                                                 menuState.show {
                                                                     SongMenu(
                                                                         originalSong = song!!,
-                                                                        navController = navController,
                                                                         onDismiss = menuState::dismiss,
                                                                     )
                                                                 }
@@ -1842,7 +1867,6 @@ fun HomeScreen(
                                 item(key = "community_playlists_title") {
                                     NavigationTitle(
                                         title = stringResource(R.string.from_the_community),
-                                        modifier = Modifier.animateItem(),
                                     )
                                 }
 
@@ -1850,7 +1874,6 @@ fun HomeScreen(
                                     LazyRow(
                                         contentPadding = PaddingValues(horizontal = 16.dp),
                                         horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                        modifier = Modifier.animateItem(),
                                     ) {
                                         items(playlists) { item ->
                                             CommunityPlaylistCard(
@@ -1927,15 +1950,21 @@ fun HomeScreen(
                                                         val mediaMetadata = song?.toMediaMetadata()
                                                         if (mediaMetadata != null) {
                                                             playerConnection.playQueue(
-                                                                YouTubeQueue(
-                                                                    song.endpoint ?: WatchEndpoint(videoId = song.id),
-                                                                    mediaMetadata,
-                                                                ),
+                                                                if (autoRadioQueue) {
+                                                                    YouTubeQueue(
+                                                                        song.endpoint ?: WatchEndpoint(videoId = song.id),
+                                                                        mediaMetadata,
+                                                                    )
+                                                                } else {
+                                                                    ListQueue(
+                                                                        title = song.title,
+                                                                        items = listOf(song.toMediaItem())
+                                                                    )
+                                                                }
                                                             )
                                                         }
                                                     }
                                                 },
-                                                navController = navController,
                                                 modifier = Modifier.maskClip(MaterialTheme.shapes.extraLarge),
                                             )
                                         }
@@ -1949,14 +1978,13 @@ fun HomeScreen(
                                 item(key = "keep_listening_title") {
                                     NavigationTitle(
                                         title = stringResource(R.string.keep_listening),
-                                        modifier = Modifier.animateItem(),
                                     )
                                 }
 
                                 item(key = "keep_listening_list") {
                                     val rows = if (keepListening.size > 6) 2 else 1
                                     LazyHorizontalGrid(
-                                        state = rememberLazyGridState(),
+                                        state = remember("keep_listening_grid") { LazyGridState() },
                                         rows = GridCells.Fixed(rows),
                                         contentPadding =
                                             WindowInsets.systemBars
@@ -1975,9 +2003,9 @@ fun HomeScreen(
                                                                         .toDp() * 2
                                                             }
                                                     ) * rows,
-                                                ).animateItem(),
+                                                ),
                                     ) {
-                                        items(keepListening) {
+                                        items(keepListening.distinctBy { it.id }, key = { "home_keep_listening_${it.id}" }) {
                                             localGridItem(it)
                                         }
                                     }
@@ -2022,7 +2050,6 @@ fun HomeScreen(
                                         onClick = {
                                             navController.navigate("account")
                                         },
-                                        modifier = Modifier.animateItem(),
                                     )
                                 }
 
@@ -2032,7 +2059,6 @@ fun HomeScreen(
                                             WindowInsets.systemBars
                                                 .only(WindowInsetsSides.Horizontal)
                                                 .asPaddingValues(),
-                                        modifier = Modifier.animateItem(),
                                     ) {
                                         items(
                                             items = accountPlaylists.distinctBy { it.id },
@@ -2051,7 +2077,6 @@ fun HomeScreen(
                                     val forgottenFavoritesTitle = stringResource(R.string.forgotten_favorites)
                                     NavigationTitle(
                                         title = forgottenFavoritesTitle,
-                                        modifier = Modifier.animateItem(),
                                         onPlayAllClick =
                                             if (!isListenTogetherGuest) {
                                                 {
@@ -2085,13 +2110,12 @@ fun HomeScreen(
                                         modifier =
                                             Modifier
                                                 .fillMaxWidth()
-                                                .height(ListItemHeight * rows)
-                                                .animateItem(),
-                                    ) {
-                                        items(
-                                            items = forgottenFavorites.distinctBy { it.id },
-                                            key = { "home_forgotten_${it.id}" },
-                                        ) { originalSong ->
+                                                .height(ListItemHeight * rows),
+                                        ) {
+                                            items(
+                                                items = forgottenFavorites.distinctBy { it.id },
+                                                key = { "home_forgotten_${it.id}" },
+                                            ) { originalSong ->
                                             val song by database
                                                 .song(originalSong.id)
                                                 .collectAsStateWithLifecycle(initialValue = originalSong)
@@ -2109,7 +2133,6 @@ fun HomeScreen(
                                                             menuState.show {
                                                                 SongMenu(
                                                                     originalSong = song!!,
-                                                                    navController = navController,
                                                                     onDismiss = menuState::dismiss,
                                                                 )
                                                             }
@@ -2131,9 +2154,16 @@ fun HomeScreen(
                                                                         playerConnection.togglePlayPause()
                                                                     } else {
                                                                         playerConnection.playQueue(
-                                                                            YouTubeQueue.radio(
-                                                                                song!!.toMediaMetadata(),
-                                                                            ),
+                                                                            if (autoRadioQueue) {
+                                                                                YouTubeQueue.radio(
+                                                                                    song!!.toMediaMetadata(),
+                                                                                )
+                                                                            } else {
+                                                                                ListQueue(
+                                                                                    title = song!!.title,
+                                                                                    items = listOf(song!!.toMediaItem())
+                                                                                )
+                                                                            }
                                                                         )
                                                                     }
                                                                 }
@@ -2143,7 +2173,6 @@ fun HomeScreen(
                                                                 menuState.show {
                                                                     SongMenu(
                                                                         originalSong = song!!,
-                                                                        navController = navController,
                                                                         onDismiss = menuState::dismiss,
                                                                     )
                                                                 }
@@ -2201,7 +2230,6 @@ fun HomeScreen(
                                                 is Playlist -> {}
                                             }
                                         },
-                                        modifier = Modifier.animateItem(),
                                     )
                                 }
 
@@ -2211,9 +2239,8 @@ fun HomeScreen(
                                             WindowInsets.systemBars
                                                 .only(WindowInsetsSides.Horizontal)
                                                 .asPaddingValues(),
-                                        modifier = Modifier.animateItem(),
                                     ) {
-                                        items(recommendation.items) { item ->
+                                        items(recommendation.items.distinctBy { it.id }, key = { "home_similar_${it.id}" }) { item ->
                                             ytGridItem(item)
                                         }
                                     }
@@ -2301,7 +2328,6 @@ fun HomeScreen(
                                             } else {
                                                 null
                                             },
-                                        modifier = Modifier.animateItem(),
                                     )
                                 }
 
@@ -2309,7 +2335,7 @@ fun HomeScreen(
                                     // Render songs as a horizontal scrollable list (like Quick picks in YouTube Music)
                                     item(key = "home_section_list_${section.index}") {
                                         LazyHorizontalGrid(
-                                            state = rememberLazyGridState(),
+                                            state = remember("section_${section.index}_grid") { LazyGridState() },
                                             rows = GridCells.Fixed(4),
                                             contentPadding =
                                                 WindowInsets.systemBars
@@ -2318,8 +2344,7 @@ fun HomeScreen(
                                             modifier =
                                                 Modifier
                                                     .fillMaxWidth()
-                                                    .height(ListItemHeight * 4)
-                                                    .animateItem(),
+                                                    .height(ListItemHeight * 4),
                                         ) {
                                             items(
                                                 items = sectionSongs.distinctBy { it.id },
@@ -2336,7 +2361,6 @@ fun HomeScreen(
                                                                 menuState.show {
                                                                     YouTubeSongMenu(
                                                                         song = song,
-                                                                        navController = navController,
                                                                         onDismiss = menuState::dismiss,
                                                                     )
                                                                 }
@@ -2355,10 +2379,17 @@ fun HomeScreen(
                                                                 onClick = {
                                                                     if (!isListenTogetherGuest) {
                                                                         playerConnection.playQueue(
-                                                                            YouTubeQueue(
-                                                                                song.endpoint ?: WatchEndpoint(videoId = song.id),
-                                                                                song.toMediaMetadata(),
-                                                                            ),
+                                                                            if (autoRadioQueue) {
+                                                                                YouTubeQueue(
+                                                                                    song.endpoint ?: WatchEndpoint(videoId = song.id),
+                                                                                    song.toMediaMetadata(),
+                                                                                )
+                                                                            } else {
+                                                                                ListQueue(
+                                                                                    title = song.title,
+                                                                                    items = listOf(song.toMediaItem())
+                                                                                )
+                                                                            }
                                                                         )
                                                                     }
                                                                 },
@@ -2367,7 +2398,6 @@ fun HomeScreen(
                                                                     menuState.show {
                                                                         YouTubeSongMenu(
                                                                             song = song,
-                                                                            navController = navController,
                                                                             onDismiss = menuState::dismiss,
                                                                         )
                                                                     }
@@ -2385,7 +2415,6 @@ fun HomeScreen(
                                                 WindowInsets.systemBars
                                                     .only(WindowInsetsSides.Horizontal)
                                                     .asPaddingValues(),
-                                            modifier = Modifier.animateItem(),
                                         ) {
                                             items(
                                                 items = sectionData.items.distinctBy { it.id },
@@ -2411,7 +2440,6 @@ fun HomeScreen(
                                         onClick = {
                                             navController.navigate("mood_and_genres")
                                         },
-                                        modifier = Modifier.animateItem(),
                                     )
                                 }
                                 item(key = "mood_and_genres_list") {
@@ -2420,10 +2448,9 @@ fun HomeScreen(
                                         contentPadding = PaddingValues(6.dp),
                                         modifier =
                                             Modifier
-                                                .height((MoodAndGenresButtonHeight + 12.dp) * 4 + 12.dp)
-                                                .animateItem(),
+                                                .height((MoodAndGenresButtonHeight + 12.dp) * 4 + 12.dp),
                                     ) {
-                                        items(moodAndGenres) {
+                                        items(moodAndGenres.distinctBy { "${it.title}_${it.endpoint.browseId}_${it.endpoint.params}" }, key = { "${it.title}_${it.endpoint.browseId}_${it.endpoint.params}" }) {
                                             MoodAndGenresButton(
                                                 title = it.title,
                                                 onClick = {
@@ -2448,7 +2475,6 @@ fun HomeScreen(
                 if (isLoading && homePage?.sections.isNullOrEmpty()) {
                     item(key = "loading_shimmer") {
                         ShimmerHost(
-                            modifier = Modifier.animateItem(),
                         ) {
                             repeat(2) {
                                 TextPlaceholder(

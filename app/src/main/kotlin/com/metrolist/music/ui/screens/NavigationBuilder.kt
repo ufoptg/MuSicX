@@ -49,12 +49,12 @@ import com.metrolist.music.ui.screens.settings.AppearanceSettings
 import com.metrolist.music.ui.screens.settings.BackupAndRestore
 import com.metrolist.music.ui.screens.settings.ContentSettings
 import com.metrolist.music.ui.screens.settings.DarkMode
-import com.metrolist.music.ui.screens.settings.DiscordLoginScreen
 import com.metrolist.music.ui.screens.settings.PlayerSettings
 import com.metrolist.music.ui.screens.settings.PrivacySettings
 import com.metrolist.music.ui.screens.settings.RomanizationSettings
 import com.metrolist.music.ui.screens.settings.SettingsScreen
 import com.metrolist.music.ui.screens.settings.StorageSettings
+import com.metrolist.music.ui.screens.settings.StreamSourcesSettings
 import com.metrolist.music.ui.screens.settings.ThemeScreen
 import com.metrolist.music.ui.screens.settings.UpdaterScreen
 import com.metrolist.music.ui.screens.settings.integrations.DiscordSettings
@@ -75,7 +75,7 @@ fun NavGraphBuilder.navigationBuilder(
     snackbarHostState: SnackbarHostState,
 ) {
     composable(Screens.Home.route) {
-        HomeScreen(navController = navController, snackbarHostState = snackbarHostState)
+        HomeScreen(snackbarHostState = snackbarHostState)
     }
 
     composable(Screens.Search.route) { backStackEntry ->
@@ -91,14 +91,13 @@ fun NavGraphBuilder.navigationBuilder(
                 pureBlackEnabled && useDarkTheme
             }
         SearchScreen(
-            navController = navController,
             pureBlack = pureBlack,
             savedStateHandle = backStackEntry.savedStateHandle
         )
     }
 
     composable(Screens.Library.route) {
-        LibraryScreen(navController)
+        LibraryScreen()
     }
 
     composable(Screens.ListenTogether.route) {
@@ -180,7 +179,6 @@ fun NavGraphBuilder.navigationBuilder(
         },
     ) { backStackEntry ->
         OnlineSearchResult(
-            navController = navController,
             savedStateHandle = backStackEntry.savedStateHandle
         )
 
@@ -375,6 +373,10 @@ fun NavGraphBuilder.navigationBuilder(
         PlayerSettings(navController)
     }
 
+    composable("settings/stream_sources") {
+        StreamSourcesSettings(navController)
+    }
+
     composable("settings/storage") {
         StorageSettings(navController)
     }
@@ -392,7 +394,7 @@ fun NavGraphBuilder.navigationBuilder(
     }
 
     composable("settings/integrations/discord") {
-        DiscordSettings(navController, snackbarHostState)
+        DiscordSettings(navController)
     }
 
     composable("settings/integrations/lastfm") {
@@ -401,10 +403,6 @@ fun NavGraphBuilder.navigationBuilder(
 
     composable(route = "settings/integrations/listen_together") {
         ListenTogetherSettings(navController)
-    }
-
-    composable("settings/discord/login") {
-        DiscordLoginScreen(navController)
     }
 
     composable("settings/updater") {
@@ -420,11 +418,11 @@ fun NavGraphBuilder.navigationBuilder(
     }
 
     composable("wrapped") {
-        WrappedScreen(navController)
+        WrappedScreen()
     }
 
     composable("equalizer") {
-        EqScreen(navController = navController)
+        EqScreen()
     }
 
     composable("eq_wizard") {

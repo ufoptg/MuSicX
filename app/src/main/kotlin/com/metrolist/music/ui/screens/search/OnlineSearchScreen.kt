@@ -53,7 +53,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.navigation.NavController
+import com.metrolist.music.LocalNavController
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.EpisodeItem
@@ -63,8 +63,11 @@ import com.metrolist.innertube.models.SongItem
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.constants.AutoRadioQueueKey
 import com.metrolist.music.constants.SuggestionItemHeight
+import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.models.toMediaMetadata
+import com.metrolist.music.playback.queues.ListQueue
 import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.component.YouTubeListItem
@@ -72,6 +75,7 @@ import com.metrolist.music.ui.menu.YouTubeAlbumMenu
 import com.metrolist.music.ui.menu.YouTubeArtistMenu
 import com.metrolist.music.ui.menu.YouTubePlaylistMenu
 import com.metrolist.music.ui.menu.YouTubeSongMenu
+import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.viewmodels.OnlineSearchSuggestionViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.collectLatest
@@ -83,12 +87,12 @@ import kotlinx.coroutines.flow.drop
 fun OnlineSearchScreen(
     query: String,
     onQueryChange: (TextFieldValue) -> Unit,
-    navController: NavController,
     onSearch: (String) -> Unit,
     onDismiss: () -> Unit,
     pureBlack: Boolean,
     viewModel: OnlineSearchSuggestionViewModel = hiltViewModel(),
 ) {
+    val navController = LocalNavController.current
     val database = LocalDatabase.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val menuState = LocalMenuState.current
@@ -102,6 +106,8 @@ fun OnlineSearchScreen(
     val viewState by viewModel.viewState.collectAsStateWithLifecycle()
 
     val lazyListState = rememberLazyListState()
+
+    val autoRadioQueue by rememberPreference(AutoRadioQueueKey, defaultValue = true)
 
     LaunchedEffect(Unit) {
         snapshotFlow { lazyListState.firstVisibleItemScrollOffset }
@@ -163,7 +169,6 @@ fun OnlineSearchScreen(
                                         is SongItem -> {
                                             YouTubeSongMenu(
                                                 song = item,
-                                                navController = navController,
                                                 onDismiss = {
                                                     menuState.dismiss()
                                                     onDismiss()
@@ -174,7 +179,6 @@ fun OnlineSearchScreen(
                                         is AlbumItem -> {
                                             YouTubeAlbumMenu(
                                                 albumItem = item,
-                                                navController = navController,
                                                 onDismiss = {
                                                     menuState.dismiss()
                                                     onDismiss()
@@ -217,7 +221,6 @@ fun OnlineSearchScreen(
                                         is EpisodeItem -> {
                                             YouTubeSongMenu(
                                                 song = item.asSongItem(),
-                                                navController = navController,
                                                 onDismiss = {
                                                     menuState.dismiss()
                                                     onDismiss()
@@ -244,7 +247,14 @@ fun OnlineSearchScreen(
                                                 playerConnection.togglePlayPause()
                                             } else {
                                                 playerConnection.playQueue(
-                                                    YouTubeQueue.radio(item.toMediaMetadata()),
+                                                    if (autoRadioQueue) {
+                                                        YouTubeQueue.radio(item.toMediaMetadata())
+                                                    } else {
+                                                        ListQueue(
+                                                            title = item.title,
+                                                            items = listOf(item.toMediaItem())
+                                                        )
+                                                    }
                                                 )
                                                 onDismiss()
                                             }
@@ -289,7 +299,6 @@ fun OnlineSearchScreen(
                                             is SongItem -> {
                                                 YouTubeSongMenu(
                                                     song = item,
-                                                    navController = navController,
                                                     onDismiss = {
                                                         menuState.dismiss()
                                                         onDismiss()
@@ -300,7 +309,6 @@ fun OnlineSearchScreen(
                                             is AlbumItem -> {
                                                 YouTubeAlbumMenu(
                                                     albumItem = item,
-                                                    navController = navController,
                                                     onDismiss = {
                                                         menuState.dismiss()
                                                         onDismiss()
@@ -343,7 +351,6 @@ fun OnlineSearchScreen(
                                             is EpisodeItem -> {
                                                 YouTubeSongMenu(
                                                     song = item.asSongItem(),
-                                                    navController = navController,
                                                     onDismiss = {
                                                         menuState.dismiss()
                                                         onDismiss()
@@ -435,7 +442,6 @@ fun OnlineSearchScreen(
                                     is SongItem -> {
                                         YouTubeSongMenu(
                                             song = item,
-                                            navController = navController,
                                             onDismiss = {
                                                 menuState.dismiss()
                                                 onDismiss()
@@ -446,7 +452,6 @@ fun OnlineSearchScreen(
                                     is AlbumItem -> {
                                         YouTubeAlbumMenu(
                                             albumItem = item,
-                                            navController = navController,
                                             onDismiss = {
                                                 menuState.dismiss()
                                                 onDismiss()
@@ -489,7 +494,6 @@ fun OnlineSearchScreen(
                                     is EpisodeItem -> {
                                         YouTubeSongMenu(
                                             song = item.asSongItem(),
-                                            navController = navController,
                                             onDismiss = {
                                                 menuState.dismiss()
                                                 onDismiss()
@@ -516,7 +520,14 @@ fun OnlineSearchScreen(
                                             playerConnection.togglePlayPause()
                                         } else {
                                             playerConnection.playQueue(
-                                                YouTubeQueue.radio(item.toMediaMetadata()),
+                                                if (autoRadioQueue) {
+                                                    YouTubeQueue.radio(item.toMediaMetadata())
+                                                } else {
+                                                    ListQueue(
+                                                        title = item.title,
+                                                        items = listOf(item.toMediaItem())
+                                                    )
+                                                }
                                             )
                                             onDismiss()
                                         }
@@ -561,7 +572,6 @@ fun OnlineSearchScreen(
                                         is SongItem -> {
                                             YouTubeSongMenu(
                                                 song = item,
-                                                navController = navController,
                                                 onDismiss = {
                                                     menuState.dismiss()
                                                     onDismiss()
@@ -572,7 +582,6 @@ fun OnlineSearchScreen(
                                         is AlbumItem -> {
                                             YouTubeAlbumMenu(
                                                 albumItem = item,
-                                                navController = navController,
                                                 onDismiss = {
                                                     menuState.dismiss()
                                                     onDismiss()
@@ -615,7 +624,6 @@ fun OnlineSearchScreen(
                                         is EpisodeItem -> {
                                             YouTubeSongMenu(
                                                 song = item.asSongItem(),
-                                                navController = navController,
                                                 onDismiss = {
                                                     menuState.dismiss()
                                                     onDismiss()

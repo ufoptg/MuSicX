@@ -244,7 +244,7 @@ fun AutoPlaylistScreen(
                         val takeFlags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
                         context.contentResolver.takePersistableUriPermission(uri, takeFlags)
                     } catch (e: SecurityException) {
-                        android.util.Log.w("AutoPlaylistScreen", "Could not take persistable permission: ${e.message}")
+                        Timber.w(e, "Could not take persistable permission")
                     }
                 }
                 uploadJob =
@@ -588,7 +588,7 @@ fun AutoPlaylistScreen(
                 if (filteredSongs.isNotEmpty()) {
                     itemsIndexed(
                         items = filteredSongs,
-                        key = { _, song -> song.id },
+                        key = { index, song -> "${song.id}_$index" },
                     ) { index, song ->
                         val onCheckedChange: (Boolean) -> Unit = {
                             if (it) {
@@ -615,7 +615,6 @@ fun AutoPlaylistScreen(
                                             menuState.show {
                                                 SongMenu(
                                                     originalSong = song,
-                                                    navController = navController,
                                                     onDismiss = menuState::dismiss,
                                                 )
                                             }
@@ -912,7 +911,7 @@ private fun AutoPlaylistHeader(
         // Playlist Name
         Text(
             text = name,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             maxLines = 2,
@@ -928,7 +927,7 @@ private fun AutoPlaylistHeader(
                 buildString {
                     append(pluralStringResource(R.plurals.n_song, songs.size, songs.size))
                     if (likeLength > 0) {
-                        append(" • ")
+                        append(" ")
                         append(makeTimeString(likeLength * 1000L))
                     }
                 },

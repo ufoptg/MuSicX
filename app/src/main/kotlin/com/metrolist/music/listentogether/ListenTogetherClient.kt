@@ -311,7 +311,7 @@ class ListenTogetherClient
             ensureNotificationChannel()
             observeAppLifecycle()
             // Load persisted session info asynchronously after construction to avoid calling log() before flows are initialized
-            CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+            scope.launch {
                 loadPersistedSession()
                 observeNetworkChanges()
             }
@@ -669,6 +669,7 @@ class ListenTogetherClient
                 Request
                     .Builder()
                     .url(getServerUrl())
+                    .header("User-Agent", context.packageName)
                     .build()
 
             webSocket =

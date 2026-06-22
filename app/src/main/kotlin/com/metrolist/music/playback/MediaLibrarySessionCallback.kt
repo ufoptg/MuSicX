@@ -46,6 +46,8 @@ import com.metrolist.music.extensions.toggleRepeatMode
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
+import com.metrolist.music.utils.getArtistSeparator
+import com.metrolist.music.utils.joinToArtistString
 import com.metrolist.music.utils.reportException
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -160,6 +162,7 @@ constructor(
         params: MediaLibraryService.LibraryParams?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
         scope.future(Dispatchers.IO) {
+            try {
             LibraryResult.ofItemList(
                 when (parentId) {
                     MusicService.ROOT -> {
@@ -421,8 +424,8 @@ constructor(
                                             .setMediaMetadata(
                                                 MediaMetadata.Builder()
                                                     .setTitle(songItem.title)
-                                                    .setSubtitle(songItem.artists.joinToString(", ") { it.name })
-                                                    .setArtist(songItem.artists.joinToString(", ") { it.name })
+                                                    .setSubtitle(songItem.artists.joinToArtistString(getArtistSeparator(context)) { it.name })
+                                                    .setArtist(songItem.artists.joinToArtistString(getArtistSeparator(context)) { it.name })
                                                     .setArtworkUri(songItem.thumbnail.toUri())
                                                     .setIsPlayable(true)
                                                     .setIsBrowsable(false)
@@ -442,6 +445,10 @@ constructor(
                 },
                 params,
             )
+            } catch (e: Exception) {
+                reportException(e)
+                LibraryResult.ofItemList(emptyList(), params)
+            }
         }
 
     override fun onGetItem(
@@ -450,9 +457,14 @@ constructor(
         mediaId: String,
     ): ListenableFuture<LibraryResult<MediaItem>> =
         scope.future(Dispatchers.IO) {
-            database.song(mediaId).first()?.toMediaItem()?.let {
-                LibraryResult.ofItem(it, null)
-            } ?: LibraryResult.ofError(SessionError.ERROR_UNKNOWN)
+            try {
+                database.song(mediaId).first()?.toMediaItem()?.let {
+                    LibraryResult.ofItem(it, null)
+                } ?: LibraryResult.ofError(SessionError.ERROR_UNKNOWN)
+            } catch (e: Exception) {
+                reportException(e)
+                LibraryResult.ofError(SessionError.ERROR_UNKNOWN)
+            }
         }
 
     override fun onSearch(
@@ -541,8 +553,8 @@ constructor(
                                 .setMediaMetadata(
                                     MediaMetadata.Builder()
                                         .setTitle(songItem.title)
-                                        .setSubtitle(songItem.artists.joinToString(", ") { it.name })
-                                        .setArtist(songItem.artists.joinToString(", ") { it.name })
+                                        .setSubtitle(songItem.artists.joinToArtistString(getArtistSeparator(context)) { it.name })
+                                        .setArtist(songItem.artists.joinToArtistString(getArtistSeparator(context)) { it.name })
                                         .setArtworkUri(songItem.thumbnail.toUri())
                                         .setIsPlayable(true)
                                         .setIsBrowsable(true)
@@ -797,27 +809,31 @@ constructor(
         ).build()
 
     private fun Song.toMediaItem(path: String, isPlayable: Boolean = true, isBrowsable: Boolean = false): MediaItem {
-        val artworkBytes = song.thumbnailUrl?.let { url ->
-            val request = coil3.request.ImageRequest.Builder(context)
-                .data(url)
-                .build()
-            context.imageLoader.enqueue(request)
-
-            context.imageLoader.diskCache?.openSnapshot(url)?.use { snapshot ->
-                snapshot.data.toFile().readBytes()
+        val artworkBytes = try {
+            song.thumbnailUrl?.let { url ->
+                context.imageLoader.enqueue(
+                    coil3.request.ImageRequest.Builder(context)
+                        .data(url)
+                        .build()
+                )
+                context.imageLoader.diskCache?.openSnapshot(url)?.use { snapshot ->
+                    snapshot.data.toFile().readBytes()
+                }
             }
+        } catch (e: Exception) {
+            null
         }
 
         return MediaItem
             .Builder()
             .setMediaId("$path/$id")
             .setMediaMetadata(
-                MediaMetadata
-                    .Builder()
-                    .setTitle(song.title)
-                    .setSubtitle(artists.joinToString { it.name })
-                    .setArtist(artists.joinToString { it.name })
-                    .setArtworkData(artworkBytes, MediaMetadata.PICTURE_TYPE_ILLUSTRATION)
+                 MediaMetadata
+                     .Builder()
+                     .setTitle(song.title)
+                     .setSubtitle(artists.joinToArtistString(getArtistSeparator(context)) { it.name })
+                     .setArtist(artists.joinToArtistString(getArtistSeparator(context)) { it.name })
+                     .setArtworkData(artworkBytes, MediaMetadata.PICTURE_TYPE_ILLUSTRATION)
                     .setIsPlayable(isPlayable)
                     .setIsBrowsable(isBrowsable)
                     .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)

@@ -187,7 +187,8 @@ constructor(
                             it.lastUpdateTime,
                             LocalDateTime.now()
                         ) > Duration.ofDays(10)
-                    }.forEach { artist ->
+                    }.take(5)
+                    .forEach { artist ->
                         YouTube.artist(artist.id).onSuccess { artistPage ->
                             database.query {
                                 update(artist, artistPage)
@@ -248,7 +249,8 @@ constructor(
                 albums
                     .filter {
                         it.album.songCount == 0
-                    }.forEach { album ->
+                    }.take(5)
+                    .forEach { album ->
                         YouTube
                             .album(album.id)
                             .onSuccess { albumPage ->
@@ -257,11 +259,6 @@ constructor(
                                 }
                             }.onFailure {
                                 reportException(it)
-                                if (it.message?.contains("NOT_FOUND") == true) {
-                                    database.query {
-                                        delete(album.album)
-                                    }
-                                }
                             }
                     }
             }
@@ -418,7 +415,8 @@ constructor(
                 albums
                     .filter {
                         it.album.songCount == 0
-                    }.forEach { album ->
+                    }.take(5)
+                    .forEach { album ->
                         YouTube
                             .album(album.id)
                             .onSuccess { albumPage ->
@@ -427,11 +425,6 @@ constructor(
                                 }
                             }.onFailure {
                                 reportException(it)
-                                if (it.message?.contains("NOT_FOUND") == true) {
-                                    database.query {
-                                        delete(album.album)
-                                    }
-                                }
                             }
                     }
             }
@@ -446,7 +439,8 @@ constructor(
                                     it.lastUpdateTime,
                                     LocalDateTime.now(),
                                 ) > Duration.ofDays(10)
-                    }.forEach { artist ->
+                    }.take(5)
+                    .forEach { artist ->
                         YouTube.artist(artist.id).onSuccess { artistPage ->
                             database.query {
                                 update(artist, artistPage)
