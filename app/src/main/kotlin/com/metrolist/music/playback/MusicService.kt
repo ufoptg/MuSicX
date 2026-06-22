@@ -4910,6 +4910,7 @@ class MusicService :
         var isRunning = false
             private set
             
+        @Volatile
         var shutdownDeferred = kotlinx.coroutines.CompletableDeferred<Unit>().apply { complete(Unit) }
     }
 }
