@@ -13,7 +13,10 @@ fun String.resize(
 ): String {
     if (width == null && height == null) return this
 
-    // Support for various Google CDN domains (lh3-6, yt3, etc.)
+    // Support for various Google CDN domains — YouTube migrated music/album art from
+    // lh3.googleusercontent.com to yt3.googleusercontent.com. Both serve the same =wW-hH
+    // resize params; matching only lh3 silently no-ops on the new host, causing the player
+    // to upscale the raw ~60px thumbnail (blurry). We match all googleusercontent subdomains.
     val isGoogleCdn = this.contains("googleusercontent.com") || this.contains("ggpht.com")
     val isYtimg = this.contains("i.ytimg.com")
 
@@ -21,7 +24,7 @@ fun String.resize(
         val w = width ?: height!!
         val h = height ?: width!!
 
-        // Handle wNNN-hNNN pattern often used in path segments
+        // Handle wNNN-hNNN pattern often used in path segments (works for both lh3 and yt3 hosts)
         if (this.contains(Regex("w\\d+-h\\d+"))) {
             return this.replace(Regex("w\\d+-h\\d+"), "w$w-h$h")
         }
