@@ -7,7 +7,6 @@
 package com.metrolist.music.utils
 
 import android.content.Context
-import androidx.datastore.preferences.core.edit
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
@@ -267,7 +266,7 @@ class SyncUtils @Inject constructor(
 
             syncChannel.send(SyncOperation.FullSync)
 
-            context.dataStore.edit { settings ->
+            context.safeDataStoreEdit { settings ->
                 settings[LastFullSyncKey] = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
             }
         }
@@ -1618,7 +1617,7 @@ class SyncUtils @Inject constructor(
             }
 
             // Reset sync timestamp
-            context.dataStore.edit { settings ->
+            context.safeDataStoreEdit { settings ->
                 settings[LastFullSyncKey] = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
             }
 

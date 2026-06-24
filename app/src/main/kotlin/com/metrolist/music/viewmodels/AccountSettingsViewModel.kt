@@ -18,13 +18,13 @@ import com.metrolist.music.constants.InnerTubeCookieKey
 import com.metrolist.music.constants.VisitorDataKey
 import com.metrolist.music.utils.SyncUtils
 import com.metrolist.music.utils.dataStore
+import com.metrolist.music.utils.safeDataStoreEdit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
-import androidx.datastore.preferences.core.edit
 
 @HiltViewModel
 class AccountSettingsViewModel @Inject constructor(
@@ -84,7 +84,7 @@ class AccountSettingsViewModel @Inject constructor(
         accountChannelHandle: String,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
-            context.dataStore.edit { settings ->
+            context.safeDataStoreEdit { settings ->
                 settings[InnerTubeCookieKey] = cookie
                 settings[VisitorDataKey] = visitorData
                 settings[DataSyncIdKey] = dataSyncId
