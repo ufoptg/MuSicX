@@ -152,13 +152,15 @@ fun AccountSettings(
                             scope.launch {
                                 try {
                                     Timber.d("[LOGOUT_CLEAR] Starting clear and logout process")
-                                    accountSettingsViewModel.clearAllLibraryData()
-                                    Timber.d("[LOGOUT_CLEAR] Library data cleared, now logging out")
+                                    // Forget account first (stops all sync), then clear data.
+                                    // This prevents background syncs from re-adding songs.
+                                    accountSettingsViewModel.logoutAndClearLibraryData(context)
+                                    Timber.d("[LOGOUT_CLEAR] Library data cleared and account forgotten")
                                 } catch (e: Exception) {
                                     Timber.e(e, "[LOGOUT_CLEAR] Error clearing library data, proceeding with logout")
                                     reportException(e)
                                 }
-                                accountSettingsViewModel.logoutKeepData(context, onInnerTubeCookieChange)
+                                onInnerTubeCookieChange("")
                                 Timber.d("[LOGOUT_CLEAR] Logout complete")
                                 showLogoutDialog = false
                                 onClose()
