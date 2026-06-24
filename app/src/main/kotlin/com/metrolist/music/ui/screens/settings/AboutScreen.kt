@@ -257,7 +257,7 @@ fun AboutScreen(
                         painter = painterResource(R.drawable.ic_logo_oval),
                         contentDescription = null,
                         colorFilter = ColorFilter.tint(
-                            color = MaterialTheme.colorScheme.primaryContainer,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
                             blendMode = BlendMode.SrcIn,
                         ),
                         modifier = Modifier.size(84.dp)
@@ -266,7 +266,7 @@ fun AboutScreen(
                         painter = painterResource(R.drawable.small_icon),
                         contentDescription = stringResource(R.string.metrolist),
                         colorFilter = ColorFilter.tint(
-                            color = MaterialTheme.colorScheme.primary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             blendMode = BlendMode.SrcIn,
                         ),
                         modifier = Modifier.size(64.dp)
