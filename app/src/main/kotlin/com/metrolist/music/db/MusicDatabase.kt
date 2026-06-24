@@ -89,6 +89,44 @@ class MusicDatabase(
             }
         }
 
+    /**
+     * Clear all user data from every Room-registered table, handling foreign key
+     * constraints by temporarily disabling them. This is more reliable than querying
+     * sqlite_master and deleting individually because Room's schema may include
+     * views, indexes, or internal tables that should be left intact.
+     */
+    fun clearAllUserData() {
+        val db = openHelper.writableDatabase
+        db.execSQL("PRAGMA foreign_keys = OFF")
+        try {
+            // Delete from mapping/child tables first, then parent tables, to
+            // satisfy any remaining foreign key constraints still in effect.
+            db.execSQL("DELETE FROM playlist_song_map")
+            db.execSQL("DELETE FROM song_album_map")
+            db.execSQL("DELETE FROM song_artist_map")
+            db.execSQL("DELETE FROM album_artist_map")
+            db.execSQL("DELETE FROM related_song_map")
+
+            db.execSQL("DELETE FROM event")
+            db.execSQL("DELETE FROM format")
+            db.execSQL("DELETE FROM lyrics")
+            db.execSQL("DELETE FROM play_count")
+            db.execSQL("DELETE FROM recognition_history")
+            db.execSQL("DELETE FROM search_history")
+            db.execSQL("DELETE FROM set_video_id")
+            db.execSQL("DELETE FROM speed_dial_item")
+            db.execSQL("DELETE FROM podcast")
+
+            // Clear song-like entities: song, artist, album, playlist
+            db.execSQL("DELETE FROM song")
+            db.execSQL("DELETE FROM artist")
+            db.execSQL("DELETE FROM album")
+            db.execSQL("DELETE FROM playlist")
+        } finally {
+            db.execSQL("PRAGMA foreign_keys = ON")
+        }
+    }
+
     fun close() = delegate.close()
 }
 
