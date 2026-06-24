@@ -21,7 +21,6 @@ import androidx.room.migration.AutoMigrationSpec
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
-import androidx.sqlite.db.SimpleSQLiteQuery
 import com.metrolist.music.db.daos.SpeedDialDao
 import com.metrolist.music.db.entities.AlbumArtistMap
 import com.metrolist.music.db.entities.AlbumEntity
@@ -89,50 +88,6 @@ class MusicDatabase(
                 }
             }
         }
-
-    /**
-     * Clear all user data from every Room-registered table.
-     *
-     * Uses Room's @RawQuery (database.raw) which properly notifies the
-     * InvalidationTracker so all active Flow queries re-emit with empty results.
-     * Foreign keys are temporarily disabled so that deletes succeed regardless
-     * of the order in which tables are cleared.
-     */
-    fun clearAllUserData() {
-        Timber.i("[DB_CLEAR] Starting full user data wipe")
-
-        val db = openHelper.writableDatabase
-        db.execSQL("PRAGMA foreign_keys = OFF")
-        try {
-            // Mapping/child tables
-            this.raw(SimpleSQLiteQuery("DELETE FROM playlist_song_map"))
-            this.raw(SimpleSQLiteQuery("DELETE FROM song_album_map"))
-            this.raw(SimpleSQLiteQuery("DELETE FROM song_artist_map"))
-            this.raw(SimpleSQLiteQuery("DELETE FROM album_artist_map"))
-            this.raw(SimpleSQLiteQuery("DELETE FROM related_song_map"))
-
-            // Detail/log tables
-            this.raw(SimpleSQLiteQuery("DELETE FROM event"))
-            this.raw(SimpleSQLiteQuery("DELETE FROM format"))
-            this.raw(SimpleSQLiteQuery("DELETE FROM lyrics"))
-            this.raw(SimpleSQLiteQuery("DELETE FROM play_count"))
-            this.raw(SimpleSQLiteQuery("DELETE FROM recognition_history"))
-            this.raw(SimpleSQLiteQuery("DELETE FROM search_history"))
-            this.raw(SimpleSQLiteQuery("DELETE FROM set_video_id"))
-            this.raw(SimpleSQLiteQuery("DELETE FROM speed_dial_item"))
-            this.raw(SimpleSQLiteQuery("DELETE FROM podcast"))
-
-            // Core entities
-            this.raw(SimpleSQLiteQuery("DELETE FROM song"))
-            this.raw(SimpleSQLiteQuery("DELETE FROM artist"))
-            this.raw(SimpleSQLiteQuery("DELETE FROM album"))
-            this.raw(SimpleSQLiteQuery("DELETE FROM playlist"))
-        } finally {
-            db.execSQL("PRAGMA foreign_keys = ON")
-        }
-
-        Timber.i("[DB_CLEAR] All user data wiped successfully")
-    }
 
     fun close() = delegate.close()
 }

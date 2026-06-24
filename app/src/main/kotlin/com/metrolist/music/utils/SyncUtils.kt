@@ -419,15 +419,100 @@ class SyncUtils @Inject constructor(
                 )
             }
 
-            // Clear ALL user data from every Room-registered table.
-            // Handles foreign key constraints by temporarily disabling them.
-            Timber.d("[LOGOUT_CLEAR] Clearing all database tables")
-            database.clearAllUserData()
+            // Disable foreign keys so that DELETE statements succeed regardless
+            // of table order. Room's @RawQuery (used in safeDeleteTable) properly
+            // notifies the InvalidationTracker, but FK constraints can still
+            // silently prevent rows from being deleted.
+            Timber.d("[LOGOUT_CLEAR] Disabling foreign keys for cleanup")
+            database.openHelper.writableDatabase.execSQL("PRAGMA foreign_keys = OFF")
+            try {
+                // Clear podcast data first (subscribed podcasts + saved episodes)
+                Timber.d("[LOGOUT_CLEAR] Clearing podcast data")
+                executeClearPodcastData()
+
+                // Clear history
+                Timber.d("[LOGOUT_CLEAR] Clearing listen history and search history")
+                database.clearListenHistory()
+                database.clearSearchHistory()
+
+                // Get all user tables from the database (auto-detect)
+                val allTables = getAllUserTables()
+                Timber.d("[LOGOUT_CLEAR] Found ${allTables.size} tables: $allTables")
+
+                // Tables to skip (system tables and tables we handle specially)
+                val skipTables = setOf(
+                    "android_metadata",
+                    "room_master_table",
+                    "sqlite_sequence",
+                    "search_history",  // Already cleared above
+                    "listen_history"   // Already cleared above
+                )
+
+                // Tables with foreign key references - delete these first (mapping tables)
+                val mappingTables = listOf(
+                    "playlist_song_map",
+                    "song_album_map",
+                    "song_artist_map",
+                    "album_artist_map",
+                    "related_song_map"
+                )
+
+                // Delete mapping tables first
+                Timber.d("[LOGOUT_CLEAR] Deleting mapping tables")
+                for (table in mappingTables) {
+                    if (table in allTables) {
+                        safeDeleteTable(table)
+                    }
+                }
+
+                // Delete all other tables except song (handled below)
+                Timber.d("[LOGOUT_CLEAR] Deleting remaining tables")
+                for (table in allTables) {
+                    if (table in skipTables || table in mappingTables || table == "song") {
+                        continue
+                    }
+                    safeDeleteTable(table)
+                }
+
+                // Finally, delete ALL songs — including liked songs and library songs.
+                if ("song" in allTables) {
+                    Timber.d("[LOGOUT_CLEAR] Deleting all songs")
+                    safeDeleteTable("song")
+                }
+            } finally {
+                database.openHelper.writableDatabase.execSQL("PRAGMA foreign_keys = ON")
+                Timber.d("[LOGOUT_CLEAR] Foreign keys re-enabled")
+            }
 
             Timber.d("[LOGOUT_CLEAR] All library data cleared successfully")
         } catch (e: Exception) {
             Timber.e(e, "[LOGOUT_CLEAR] Error clearing library data")
             throw e
+        }
+    }
+
+    private fun getAllUserTables(): List<String> {
+        val tables = mutableListOf<String>()
+        try {
+            database.openHelper.writableDatabase.query(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            ).use { cursor ->
+                while (cursor.moveToNext()) {
+                    tables.add(cursor.getString(0))
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "[LOGOUT_CLEAR] Error getting table list")
+        }
+        return tables
+    }
+
+    private fun safeDeleteTable(tableName: String) {
+        try {
+            database.raw(androidx.sqlite.db.SimpleSQLiteQuery("DELETE FROM $tableName"))
+            Timber.d("[LOGOUT_CLEAR] Cleared table: $tableName")
+        } catch (e: Exception) {
+            Timber.w("[LOGOUT_CLEAR] Table $tableName error: ${e.message}")
         }
     }
 
