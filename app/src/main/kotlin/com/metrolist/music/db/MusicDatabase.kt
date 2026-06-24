@@ -188,13 +188,12 @@ abstract class InternalDatabase : RoomDatabase() {
             }
         }
 
-        fun newInstance(context: Context): MusicDatabase =
-            MusicDatabase(
-                delegate = newInternalDatabaseInstance(context),
-            )
-
-        fun newInternalDatabaseInstance(context: Context, dbName: String = DB_NAME): InternalDatabase =
-            Room
+        fun build(
+            context: Context,
+            dbName: String = DB_NAME,
+            withPragmaCallback: Boolean = true,
+        ): InternalDatabase {
+            val builder = Room
                 .databaseBuilder(context, InternalDatabase::class.java, dbName)
                 .openHelperFactory(BackupBeforeMigrationFactory(context, dbName))
                 .addMigrations(
@@ -202,15 +201,17 @@ abstract class InternalDatabase : RoomDatabase() {
                     MIGRATION_21_24,
                     MIGRATION_22_24,
                     MIGRATION_24_25,
-                ).fallbackToDestructiveMigration()
-                .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+                ).setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                 .setTransactionExecutor(
                     java.util.concurrent.Executors
                         .newFixedThreadPool(4),
                 ).setQueryExecutor(
                     java.util.concurrent.Executors
                         .newFixedThreadPool(4),
-                ).addCallback(
+                )
+
+            if (withPragmaCallback) {
+                builder.addCallback(
                     object : RoomDatabase.Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
                             super.onCreate(db)
@@ -227,7 +228,17 @@ abstract class InternalDatabase : RoomDatabase() {
                             backupDatabase(context, dbName)
                         }
                     },
-                ).build()
+                )
+            }
+
+            return builder.build()
+        }
+
+        fun newInstance(context: Context): MusicDatabase =
+            MusicDatabase(delegate = build(context))
+
+        fun newInternalDatabaseInstance(context: Context, dbName: String = DB_NAME): InternalDatabase =
+            build(context, dbName)
 
     }
 }
