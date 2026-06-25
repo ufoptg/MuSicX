@@ -1326,9 +1326,13 @@ class MusicService :
                     // Start playback once ~750ms is buffered (media3's default is 1000ms) so first
                     // audio is audible a touch sooner. min/max/after-rebuffer match the media3 1.x
                     // defaults (50s / 50s / 2000ms) so buffering and post-stall recovery are unchanged.
+                    // targetBufferBytes caps the total in-memory buffer to avoid OOM on devices with
+                    // tight heap limits (128 MB on this device) when the player continues loading
+                    // in the background.
                     DefaultLoadControl
                         .Builder()
                         .setBufferDurationsMs(50_000, 50_000, 750, 2_000)
+                        .setTargetBufferBytes(5 * 1024 * 1024)
                         .build(),
                 )
                 .setHandleAudioBecomingNoisy(true)

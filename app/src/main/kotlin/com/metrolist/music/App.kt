@@ -8,12 +8,14 @@ package com.metrolist.music
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.os.Build
 import android.widget.Toast
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
+import coil3.imageLoader
 import coil3.disk.DiskCache
 import coil3.disk.directory
 import coil3.memory.MemoryCache
@@ -292,6 +294,20 @@ class App :
 
     @Volatile
     private var cachedCoilCacheSize: Int? = null
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_MODERATE) {
+            // Under significant memory pressure, release Coil's image cache.
+            // This frees ~15 % of the heap (~19 MB on a 128 MB heap) so the
+            // player or other components don't crash with OOM while the user
+            // is idle on the library tab.
+            runCatching {
+                imageLoader.memoryCache?.trimToSize(0)
+                timber.log.Timber.d("Coil memory cache cleared on trim level=$level")
+            }
+        }
+    }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
         val cacheSize = cachedCoilCacheSize ?: runBlocking {
