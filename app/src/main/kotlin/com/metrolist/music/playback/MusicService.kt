@@ -415,9 +415,6 @@ class MusicService :
     private var openedAudioEffectSessionId: Int = C.AUDIO_SESSION_ID_UNSET
     private val playerNormalizationProcessors = ConcurrentHashMap<Player, VolumeNormalizationAudioProcessor>()
 
-    private var loudnessSetupJob: Job? = null
-    private var loudnessSetupGeneration: Long = 0L
-
     @Volatile
     private var normalizationEnabledCached: Boolean = false
 
@@ -920,7 +917,10 @@ class MusicService :
         }.collectLatest(scope) { (format, normalizeAudio, loudnessLevel) ->
             normalizationEnabledCached = normalizeAudio
             loudnessLevelCached = loudnessLevel
-            setupAudioNormalization()
+            applyNormalizationFromLoudnessData(
+                format?.loudnessDb,
+                format?.perceptualLoudnessDb,
+            )
         }
 
         combine(
@@ -2293,92 +2293,6 @@ class MusicService :
         }
     }
 
-    private fun setupAudioNormalization() {
-        val requestGeneration = ++loudnessSetupGeneration
-        loudnessSetupJob?.cancel()
-
-        loudnessSetupJob = scope.launch {
-            try {
-                val currentMediaId = withContext(Dispatchers.Main) {
-                    player.currentMediaItem?.mediaId
-                }
-
-                val normalizeAudio = normalizationEnabledCached
-
-                if (normalizeAudio && currentMediaId != null) {
-                    val format = withContext(Dispatchers.IO) {
-                        database.format(currentMediaId).first()
-                    }
-
-                    val targetLufs = loudnessLevelCached.targetLufs
-
-                    Timber.tag(TAG).d("Audio normalization enabled: $normalizeAudio")
-                    
-                    val measuredLufs: Double? = format?.perceptualLoudnessDb
-                        ?: format?.loudnessDb?.let { it + LoudnessLevel.AGGRESSIVE.targetLufs }
-
-                    withContext(Dispatchers.Main) {
-                        if (!isActive || requestGeneration != loudnessSetupGeneration) return@withContext
-                        if (player.currentMediaItem?.mediaId != currentMediaId) return@withContext
-
-                        when {
-                            measuredLufs != null -> {
-                                val loudnessDb = measuredLufs - targetLufs
-                                val targetGain = (-loudnessDb * 100.0).toInt()
-                                val clampedGain = targetGain.coerceIn(MIN_GAIN_MB, MAX_GAIN_MB)
-
-                                cachedNormalizationGainMb = clampedGain
-                                cachedNormalizationEnabled = true
-                                if (isCrossfading) {
-                                    playerNormalizationProcessors[player]?.let {
-                                        it.setTargetGain(clampedGain)
-                                        it.enabled = true
-                                    }
-                                } else {
-                                    playerNormalizationProcessors.values.forEach {
-                                        it.setTargetGain(clampedGain)
-                                        it.enabled = true
-                                    }
-                                }
-                            }
-                            format == null -> {
-                                if (isCrossfading) return@withContext
-                                Timber.tag(TAG).d("Loudness row not ready yet; resetting to neutral")
-                                cachedNormalizationGainMb = 0
-                                cachedNormalizationEnabled = false
-                                playerNormalizationProcessors.values.forEach {
-                                    it.setTargetGain(0)
-                                    it.enabled = false
-                                }
-                            }
-                            else -> {
-                                cachedNormalizationGainMb = 0
-                                cachedNormalizationEnabled = false
-                                if (isCrossfading) return@withContext
-                                playerNormalizationProcessors.values.forEach {
-                                    it.setTargetGain(0)
-                                    it.enabled = false
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        if (!isActive || requestGeneration != loudnessSetupGeneration) return@withContext
-                        cachedNormalizationGainMb = null
-                        cachedNormalizationEnabled = false
-                        playerNormalizationProcessors.values.forEach { it.enabled = false }
-                    }
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                reportException(e)
-                playerNormalizationProcessors.values.forEach { it.enabled = false }
-            }
-        }
-    }
-
     private fun applyNormalizationFromLoudnessData(
         loudnessDb: Double?,
         perceptualLoudnessDb: Double?,
@@ -2439,10 +2353,6 @@ class MusicService :
 
     private fun closeAudioEffectSession(sessionIdOverride: Int? = null, clearNormalizationCache: Boolean = true) {
         val sessionIdToClose = sessionIdOverride ?: openedAudioEffectSessionId
-
-        loudnessSetupGeneration++
-        loudnessSetupJob?.cancel()
-        loudnessSetupJob = null
 
         // Guard: only release/reset state if closing the currently active session
         val isClosingCurrentSession =
@@ -2553,8 +2463,8 @@ class MusicService :
 
         lastPlaybackSpeed = -1.0f // force update song
 
-        applyCachedAudioNormalizationNow()
-        setupAudioNormalization()
+        cachedNormalizationGainMb = null
+        cachedNormalizationEnabled = false
 
         scrobbleManager?.onSongStop()
         if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
