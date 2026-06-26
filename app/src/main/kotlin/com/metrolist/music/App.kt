@@ -275,10 +275,15 @@ class App :
                 val legacyToken = dataStore.data.map { it[legacyKey] }.first()
                 if (!legacyToken.isNullOrBlank()) {
                     if (ListenBrainzTokenStore.store(legacyToken)) {
-                        safeDataStoreEdit { settings ->
+                        val cleared = safeDataStoreEdit { settings ->
                             settings.remove(legacyKey)
                         }
-                        Timber.d("Migrated legacy ListenBrainz token to secure storage successfully")
+                        if (cleared) {
+                            Timber.d("Migrated legacy ListenBrainz token to secure storage successfully")
+                        } else {
+                            Timber.e("Failed to delete legacy ListenBrainz token from DataStore; reverting secure storage migration to prevent duplicate migration.")
+                            ListenBrainzTokenStore.clear()
+                        }
                     } else {
                         Timber.w("Failed to store legacy ListenBrainz token in secure storage, skipping deletion from DataStore")
                     }
