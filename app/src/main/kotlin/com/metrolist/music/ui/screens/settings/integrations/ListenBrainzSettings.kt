@@ -219,6 +219,7 @@ fun ListenBrainzSettings(
                         val invalidTokenMsg = context.getString(R.string.invalid_token)
                         val networkErrorMsg = context.getString(R.string.listenbrainz_network_error)
                         val unexpectedErrorMsg = context.getString(R.string.listenbrainz_unexpected_error)
+                        val secureStorageErrorMsg = context.getString(R.string.listenbrainz_secure_storage_error)
 
                         if (tempToken.isBlank()) {
                             validationError = enterTokenMsg
@@ -233,16 +234,22 @@ fun ListenBrainzSettings(
                                 ListenBrainz.validateToken(tempToken)
                                     .onSuccess { validation ->
                                         if (validation.valid && validation.userName != null) {
-                                            ListenBrainzTokenStore.store(tempToken)
-                                            ListenBrainz.userToken = tempToken
-                                            val username = validation.userName.orEmpty()
+                                            if (ListenBrainzTokenStore.store(tempToken)) {
+                                                ListenBrainz.userToken = tempToken
+                                                val username = validation.userName.orEmpty()
 
-                                            withContext(Dispatchers.Main) {
-                                                listenbrainzToken = tempToken
-                                                listenbrainzUsername = username
-                                                isValidating = false
-                                                showTokenDialog = false
-                                                validationError = null
+                                                withContext(Dispatchers.Main) {
+                                                    listenbrainzToken = tempToken
+                                                    listenbrainzUsername = username
+                                                    isValidating = false
+                                                    showTokenDialog = false
+                                                    validationError = null
+                                                }
+                                            } else {
+                                                withContext(Dispatchers.Main) {
+                                                    isValidating = false
+                                                    validationError = secureStorageErrorMsg
+                                                }
                                             }
                                         } else {
                                             withContext(Dispatchers.Main) {
@@ -320,10 +327,17 @@ fun ListenBrainzSettings(
                     trailingContent = {
                         if (isLoggedIn) {
                             OutlinedButton(onClick = {
-                                listenbrainzToken = ""
-                                listenbrainzUsername = ""
-                                ListenBrainzTokenStore.clear()
-                                ListenBrainz.userToken = null
+                                if (ListenBrainzTokenStore.clear()) {
+                                    listenbrainzToken = ""
+                                    listenbrainzUsername = ""
+                                    ListenBrainz.userToken = null
+                                } else {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        context.getString(R.string.listenbrainz_secure_storage_error),
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                             }) {
                                 Text(stringResource(R.string.action_logout))
                             }

@@ -99,16 +99,27 @@ object ListenBrainzTokenStore {
      * Encrypts and persists the given token in secure storage.
      *
      * @param token The token to store.
+     * @return True if the token was successfully stored, false otherwise.
      */
-    fun store(token: String) {
+    fun store(token: String): Boolean {
+        val p = prefs ?: run {
+            Timber.w("ListenBrainzTokenStore: cannot store, prefs not initialized")
+            return false
+        }
         val encryptedToken = encrypt(token) ?: run {
             Timber.w("ListenBrainzTokenStore: encryption failed, not persisting token")
-            return
+            return false
         }
-        prefs?.edit {
-            putString(TOKEN_KEY, encryptedToken)
+        return try {
+            p.edit {
+                putString(TOKEN_KEY, encryptedToken)
+            }
+            Timber.d("ListenBrainzTokenStore: stored token")
+            true
+        } catch (e: Exception) {
+            Timber.e(e, "ListenBrainzTokenStore: failed to store token")
+            false
         }
-        Timber.d("ListenBrainzTokenStore: stored token")
     }
 
     /**
@@ -123,12 +134,24 @@ object ListenBrainzTokenStore {
 
     /**
      * Clears the stored token from secure storage.
+     *
+     * @return True if the token was successfully cleared, false otherwise.
      */
-    fun clear() {
-        prefs?.edit {
-            remove(TOKEN_KEY)
+    fun clear(): Boolean {
+        val p = prefs ?: run {
+            Timber.w("ListenBrainzTokenStore: cannot clear, prefs not initialized")
+            return false
         }
-        Timber.d("ListenBrainzTokenStore: cleared")
+        return try {
+            p.edit {
+                remove(TOKEN_KEY)
+            }
+            Timber.d("ListenBrainzTokenStore: cleared")
+            true
+        } catch (e: Exception) {
+            Timber.e(e, "ListenBrainzTokenStore: failed to clear token")
+            false
+        }
     }
 
     /**

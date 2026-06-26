@@ -271,9 +271,21 @@ class App :
 
         applicationScope.launch(Dispatchers.IO) {
             try {
+                val legacyKey = androidx.datastore.preferences.core.stringPreferencesKey("listenBrainzToken")
+                val legacyToken = dataStore.data.map { it[legacyKey] }.first()
+                if (!legacyToken.isNullOrBlank()) {
+                    if (ListenBrainzTokenStore.store(legacyToken)) {
+                        safeDataStoreEdit { settings ->
+                            settings.remove(legacyKey)
+                        }
+                        Timber.d("Migrated legacy ListenBrainz token to secure storage successfully")
+                    } else {
+                        Timber.w("Failed to store legacy ListenBrainz token in secure storage, skipping deletion from DataStore")
+                    }
+                }
                 ListenBrainz.userToken = ListenBrainzTokenStore.retrieveSuspend()
             } catch (e: Exception) {
-                Timber.e("Error while loading ListenBrainz token. %s", e.message)
+                Timber.e("Error while loading/migrating ListenBrainz token. %s", e.message)
             }
         }
 
