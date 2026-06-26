@@ -55,7 +55,6 @@ import com.metrolist.listenbrainz.ListenBrainz
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
 import com.metrolist.music.constants.EnableListenBrainzScrobblingKey
-import com.metrolist.music.constants.ListenBrainzTokenKey
 import com.metrolist.music.constants.ListenBrainzUsernameKey
 import com.metrolist.music.constants.ListenBrainzUseNowPlaying
 import com.metrolist.music.constants.ListenBrainzUseSendLikes
@@ -72,16 +71,25 @@ import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.utils.reportException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.metrolist.music.utils.ListenBrainzTokenStore
 import kotlin.math.roundToInt
 
+/**
+ * A Composable screen that displays the configuration and settings for the ListenBrainz integration.
+ * Allows users to enter/validate their token, log out, and configure scrobble timing/preferences.
+ *
+ * @param navController The navigation controller used to navigate between screens.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ListenBrainzSettings(
     navController: NavController
 ) {
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    var listenbrainzToken by rememberPreference(ListenBrainzTokenKey, "")
+    var listenbrainzToken by remember { mutableStateOf(ListenBrainzTokenStore.retrieve() ?: "") }
     var listenbrainzUsername by rememberPreference(ListenBrainzUsernameKey, "")
 
     val isLoggedIn =
@@ -147,7 +155,6 @@ fun ListenBrainzSettings(
                         modifier = Modifier.alpha(0.7f)
                     )
 
-                    val context = LocalContext.current
                     TextButton(
                         onClick = {
                             try {
@@ -208,8 +215,13 @@ fun ListenBrainzSettings(
             confirmButton = {
                 TextButton(
                     onClick = {
+                        val enterTokenMsg = context.getString(R.string.enter_user_token)
+                        val invalidTokenMsg = context.getString(R.string.invalid_token)
+                        val networkErrorMsg = context.getString(R.string.listenbrainz_network_error)
+                        val unexpectedErrorMsg = context.getString(R.string.listenbrainz_unexpected_error)
+
                         if (tempToken.isBlank()) {
-                            validationError = "Please enter a user token"
+                            validationError = enterTokenMsg
                             return@TextButton
                         }
 
@@ -221,34 +233,35 @@ fun ListenBrainzSettings(
                                 ListenBrainz.validateToken(tempToken)
                                     .onSuccess { validation ->
                                         if (validation.valid && validation.userName != null) {
-                                            listenbrainzToken = tempToken
-                                            listenbrainzUsername = validation.userName.orEmpty()
+                                            ListenBrainzTokenStore.store(tempToken)
                                             ListenBrainz.userToken = tempToken
+                                            val username = validation.userName.orEmpty()
 
-                                            // Switch back to main thread to update UI
-                                            coroutineScope.launch(Dispatchers.Main) {
+                                            withContext(Dispatchers.Main) {
+                                                listenbrainzToken = tempToken
+                                                listenbrainzUsername = username
                                                 isValidating = false
                                                 showTokenDialog = false
                                                 validationError = null
                                             }
                                         } else {
-                                            coroutineScope.launch(Dispatchers.Main) {
+                                            withContext(Dispatchers.Main) {
                                                 isValidating = false
-                                                validationError = "Invalid token"
+                                                validationError = invalidTokenMsg
                                             }
                                         }
                                     }
                                     .onFailure { exception ->
-                                        coroutineScope.launch(Dispatchers.Main) {
+                                        withContext(Dispatchers.Main) {
                                             isValidating = false
-                                            validationError = "Network error. Please check your connection."
+                                            validationError = networkErrorMsg
                                         }
                                         reportException(exception)
                                     }
                             } catch (e: Exception) {
-                                coroutineScope.launch(Dispatchers.Main) {
+                                withContext(Dispatchers.Main) {
                                     isValidating = false
-                                    validationError = "Unexpected error occurred"
+                                    validationError = unexpectedErrorMsg
                                 }
                                 reportException(e)
                             }
@@ -309,6 +322,7 @@ fun ListenBrainzSettings(
                             OutlinedButton(onClick = {
                                 listenbrainzToken = ""
                                 listenbrainzUsername = ""
+                                ListenBrainzTokenStore.clear()
                                 ListenBrainz.userToken = null
                             }) {
                                 Text(stringResource(R.string.action_logout))

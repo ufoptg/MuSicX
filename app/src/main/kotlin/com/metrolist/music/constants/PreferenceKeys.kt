@@ -221,7 +221,6 @@ val ScrobbleDelayPercentKey = floatPreferencesKey("scrobbleDelayPercent")
 val ScrobbleMinSongDurationKey = intPreferencesKey("scrobbleMinSongDuration")
 val ScrobbleDelaySecondsKey = intPreferencesKey("scrobbleDelaySeconds")
 
-val ListenBrainzTokenKey = stringPreferencesKey("listenBrainzToken")
 val ListenBrainzUsernameKey = stringPreferencesKey("listenBrainzUsername")
 val EnableListenBrainzScrobblingKey = booleanPreferencesKey("listenBrainzScrobblingEnable")
 val ListenBrainzUseNowPlaying = booleanPreferencesKey("listenBrainzUseNowPlaying")

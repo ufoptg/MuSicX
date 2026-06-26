@@ -37,6 +37,7 @@ import com.metrolist.music.utils.cipher.CipherDeobfuscator
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.safeDataStoreEdit
 import com.metrolist.music.utils.reportException
+import com.metrolist.music.utils.ListenBrainzTokenStore
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -87,6 +88,9 @@ class App :
 
         // Initialize cipher deobfuscator for WEB_REMIX streaming
         CipherDeobfuscator.initialize(this)
+
+        // Initialize ListenBrainzTokenStore
+        ListenBrainzTokenStore.init(this)
 
         // Pre-read Coil cache size on background to avoid runBlocking in newImageLoader
         applicationScope.launch(Dispatchers.IO) {
@@ -266,16 +270,11 @@ class App :
         }
 
         applicationScope.launch(Dispatchers.IO) {
-            dataStore.data
-                .map { it[ListenBrainzTokenKey] }
-                .distinctUntilChanged()
-                .collect { token ->
-                    try {
-                        ListenBrainz.userToken = token
-                    } catch (e: Exception) {
-                        Timber.e("Error while loading ListenBrainz token. %s", e.message)
-                    }
-                }
+            try {
+                ListenBrainz.userToken = ListenBrainzTokenStore.retrieveSuspend()
+            } catch (e: Exception) {
+                Timber.e("Error while loading ListenBrainz token. %s", e.message)
+            }
         }
 
         applicationScope.launch(Dispatchers.IO) {

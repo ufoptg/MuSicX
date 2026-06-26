@@ -429,6 +429,8 @@
     <string name="enter_user_token">Please enter a user token</string>
     <string name="get_token">Get token</string>
     <string name="logging_in">Logging in…</string>
+    <string name="listenbrainz_network_error">Network error. Please check your connection.</string>
+    <string name="listenbrainz_unexpected_error">Unexpected error occurred</string>
 
     <string name="scrobbling_configuration">Scrobbling configuration</string>
     <string name="scrobble_min_track_duration">Scrobble songs longer than (seconds)</string>

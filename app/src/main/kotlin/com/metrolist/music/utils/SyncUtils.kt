@@ -604,42 +604,55 @@ class SyncUtils @Inject constructor(
         }
     }
 
+    /**
+     * Synchronizes a song's liked/unliked status with remote services (YouTube Music, Last.fm, and ListenBrainz).
+     * YouTube operations are guarded by a login check, while Last.fm and ListenBrainz operations run
+     * independently if their respective syncing settings are enabled.
+     *
+     * @param s The song entity whose liked/unliked status is being updated.
+     */
     private suspend fun executeLikeSong(s: SongEntity) = withContext(Dispatchers.IO) {
-        if (!isLoggedIn()) {
-            Timber.w("Skipping likeSong - user not logged in")
-            return@withContext
-        }
-
-        withRetry {
-            YouTube.likeVideo(s.id, s.liked)
-        }.onFailure { e ->
-            Timber.e(e, "Failed to like song on YouTube: ${s.id}")
-        }
-
-        if (lastfmSendLikes) {
-            try {
-                val dbSong = database.song(s.id).firstOrNull()
-                LastFM.setLoveStatus(
-                    artist = dbSong?.artists?.joinToString { a -> a.name } ?: "",
-                    track = s.title,
-                    love = s.liked
-                )
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to update LastFM love status")
+        if (isLoggedIn()) {
+            withRetry {
+                YouTube.likeVideo(s.id, s.liked)
+            }.onFailure { e ->
+                Timber.e(e, "Failed to like song on YouTube: ${s.id}")
             }
+        } else {
+            Timber.w("Skipping YouTube like - user not logged in")
         }
 
-        if (listenbrainzSendLikes) {
+        if (lastfmSendLikes || listenbrainzSendLikes) {
             try {
                 val dbSong = database.song(s.id).firstOrNull()
-                ListenBrainz.setLoveStatus(
-                    artist = dbSong?.artists?.joinToString { a -> a.name } ?: "",
-                    track = s.title,
-                    album = dbSong?.album?.title,
-                    love = s.liked
-                )
+                val artistName = dbSong?.artists?.joinToString { a -> a.name } ?: ""
+
+                if (lastfmSendLikes) {
+                    try {
+                        LastFM.setLoveStatus(
+                            artist = artistName,
+                            track = s.title,
+                            love = s.liked
+                        )
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to update LastFM love status")
+                    }
+                }
+
+                if (listenbrainzSendLikes) {
+                    try {
+                        ListenBrainz.setLoveStatus(
+                            artist = artistName,
+                            track = s.title,
+                            album = dbSong?.album?.title,
+                            love = s.liked
+                        )
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to update ListenBrainz love status")
+                    }
+                }
             } catch (e: Exception) {
-                Timber.e(e, "Failed to update ListenBrainz love status")
+                Timber.e(e, "Failed to retrieve song from database for love status sync")
             }
         }
     }
