@@ -2463,6 +2463,7 @@ class MusicService :
 
         lastPlaybackSpeed = -1.0f // force update song
 
+        applyCachedAudioNormalizationNow()
         cachedNormalizationGainMb = null
         cachedNormalizationEnabled = false
 
