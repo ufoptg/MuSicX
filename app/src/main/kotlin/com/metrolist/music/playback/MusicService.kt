@@ -89,6 +89,7 @@ import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.lastfm.LastFM
+import com.metrolist.listenbrainz.ListenBrainz
 import com.metrolist.music.MainActivity
 import com.metrolist.music.R
 import com.metrolist.music.constants.AndroidAutoTargetPlaylistKey
@@ -131,11 +132,16 @@ import com.metrolist.music.discord.DiscordActivityBuilder
 import com.metrolist.music.discord.DiscordTemplateRenderer
 import com.metrolist.music.discord.PresenceStatus
 import com.metrolist.music.constants.EnableLastFMScrobblingKey
+import com.metrolist.music.constants.EnableListenBrainzScrobblingKey
 import com.metrolist.music.constants.EnableSongCacheKey
 import com.metrolist.music.constants.HideExplicitKey
 import com.metrolist.music.constants.HideVideoSongsKey
 import com.metrolist.music.constants.HistoryDuration
 import com.metrolist.music.constants.LastFMUseNowPlaying
+import com.metrolist.music.constants.ListenBrainzScrobbleDelayPercentKey
+import com.metrolist.music.constants.ListenBrainzScrobbleDelaySecondsKey
+import com.metrolist.music.constants.ListenBrainzScrobbleMinSongDurationKey
+import com.metrolist.music.constants.ListenBrainzUseNowPlaying
 import com.metrolist.music.constants.MediaSessionConstants
 import com.metrolist.music.constants.MediaSessionConstants.CommandAddToTargetPlaylist
 import com.metrolist.music.constants.MediaSessionConstants.CommandToggleLike
@@ -204,6 +210,7 @@ import com.metrolist.music.constants.LoudnessLevelKey
 import com.metrolist.music.utils.CoilBitmapLoader
 import com.metrolist.music.utils.NetworkConnectivityObserver
 import com.metrolist.music.utils.ScrobbleManager
+import com.metrolist.music.utils.ScrobbleProvider
 import com.metrolist.music.utils.SyncUtils
 import com.metrolist.music.utils.getArtistSeparator
 import com.metrolist.music.utils.joinToArtistString
@@ -453,7 +460,8 @@ class MusicService :
     @Volatile
     private var latestMediaNotification: Notification? = null
 
-    private var scrobbleManager: ScrobbleManager? = null
+    private var lastFmScrobbleManager: ScrobbleManager? = null
+    private var listenBrainzScrobbleManager: ScrobbleManager? = null
 
     val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
 
@@ -1083,22 +1091,23 @@ class MusicService :
             .debounce(300)
             .distinctUntilChanged()
             .collect(scope) { enabled ->
-                if (enabled && scrobbleManager == null) {
+                if (enabled && lastFmScrobbleManager == null) {
                     val delayPercent = dataStore.get(ScrobbleDelayPercentKey, LastFM.DEFAULT_SCROBBLE_DELAY_PERCENT)
                     val minSongDuration =
                         dataStore.get(ScrobbleMinSongDurationKey, LastFM.DEFAULT_SCROBBLE_MIN_SONG_DURATION)
                     val delaySeconds = dataStore.get(ScrobbleDelaySecondsKey, LastFM.DEFAULT_SCROBBLE_DELAY_SECONDS)
-                    scrobbleManager =
+                    lastFmScrobbleManager =
                         ScrobbleManager(
-                            scope,
+                            scope = scope,
+                            provider = ScrobbleProvider.LastFm,
                             minSongDuration = minSongDuration,
                             scrobbleDelayPercent = delayPercent,
                             scrobbleDelaySeconds = delaySeconds,
                         )
-                    scrobbleManager?.useNowPlaying = dataStore.get(LastFMUseNowPlaying, false)
-                } else if (!enabled && scrobbleManager != null) {
-                    scrobbleManager?.destroy()
-                    scrobbleManager = null
+                    lastFmScrobbleManager?.useNowPlaying = dataStore.get(LastFMUseNowPlaying, false)
+                } else if (!enabled && lastFmScrobbleManager != null) {
+                    lastFmScrobbleManager?.destroy()
+                    lastFmScrobbleManager = null
                 }
             }
 
@@ -1106,7 +1115,7 @@ class MusicService :
             .map { it[LastFMUseNowPlaying] ?: false }
             .distinctUntilChanged()
             .collectLatest(scope) {
-                scrobbleManager?.useNowPlaying = it
+                lastFmScrobbleManager?.useNowPlaying = it
             }
 
         dataStore.data
@@ -1118,7 +1127,63 @@ class MusicService :
                 )
             }.distinctUntilChanged()
             .collect(scope) { (delayPercent, minSongDuration, delaySeconds) ->
-                scrobbleManager?.let {
+                lastFmScrobbleManager?.let {
+                    it.scrobbleDelayPercent = delayPercent
+                    it.minSongDuration = minSongDuration
+                    it.scrobbleDelaySeconds = delaySeconds
+                }
+            }
+
+        dataStore.data
+            .map { it[EnableListenBrainzScrobblingKey] ?: false }
+            .debounce(300)
+            .distinctUntilChanged()
+            .collect(scope) { enabled ->
+                if (enabled && listenBrainzScrobbleManager == null) {
+                    val delayPercent = dataStore.get(
+                        ListenBrainzScrobbleDelayPercentKey,
+                        ListenBrainz.DEFAULT_SCROBBLE_DELAY_PERCENT,
+                    )
+                    val minSongDuration = dataStore.get(
+                        ListenBrainzScrobbleMinSongDurationKey,
+                        ListenBrainz.DEFAULT_SCROBBLE_MIN_SONG_DURATION,
+                    )
+                    val delaySeconds = dataStore.get(
+                        ListenBrainzScrobbleDelaySecondsKey,
+                        ListenBrainz.DEFAULT_SCROBBLE_DELAY_SECONDS,
+                    )
+                    listenBrainzScrobbleManager =
+                        ScrobbleManager(
+                            scope = scope,
+                            provider = ScrobbleProvider.ListenBrainz,
+                            minSongDuration = minSongDuration,
+                            scrobbleDelayPercent = delayPercent,
+                            scrobbleDelaySeconds = delaySeconds,
+                        )
+                    listenBrainzScrobbleManager?.useNowPlaying = dataStore.get(ListenBrainzUseNowPlaying, false)
+                } else if (!enabled && listenBrainzScrobbleManager != null) {
+                    listenBrainzScrobbleManager?.destroy()
+                    listenBrainzScrobbleManager = null
+                }
+            }
+
+        dataStore.data
+            .map { it[ListenBrainzUseNowPlaying] ?: false }
+            .distinctUntilChanged()
+            .collectLatest(scope) {
+                listenBrainzScrobbleManager?.useNowPlaying = it
+            }
+
+        dataStore.data
+            .map { prefs ->
+                Triple(
+                    prefs[ListenBrainzScrobbleDelayPercentKey] ?: ListenBrainz.DEFAULT_SCROBBLE_DELAY_PERCENT,
+                    prefs[ListenBrainzScrobbleMinSongDurationKey] ?: ListenBrainz.DEFAULT_SCROBBLE_MIN_SONG_DURATION,
+                    prefs[ListenBrainzScrobbleDelaySecondsKey] ?: ListenBrainz.DEFAULT_SCROBBLE_DELAY_SECONDS,
+                )
+            }.distinctUntilChanged()
+            .collect(scope) { (delayPercent, minSongDuration, delaySeconds) ->
+                listenBrainzScrobbleManager?.let {
                     it.scrobbleDelayPercent = delayPercent
                     it.minSongDuration = minSongDuration
                     it.scrobbleDelaySeconds = delaySeconds
@@ -2513,9 +2578,11 @@ class MusicService :
 
         setupAudioNormalization()
 
-        scrobbleManager?.onSongStop()
+        lastFmScrobbleManager?.onSongStop()
+        listenBrainzScrobbleManager?.onSongStop()
         if (player.playWhenReady && player.playbackState == Player.STATE_READY) {
-            scrobbleManager?.onSongStart(player.currentMetadata, duration = player.duration)
+            lastFmScrobbleManager?.onSongStart(player.currentMetadata, duration = player.duration)
+            listenBrainzScrobbleManager?.onSongStart(player.currentMetadata, duration = player.duration)
         }
 
         // Skip if this change was triggered by Cast sync (to prevent loops)
@@ -2616,7 +2683,8 @@ class MusicService :
         }
 
         if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_ENDED) {
-            scrobbleManager?.onSongStop()
+            lastFmScrobbleManager?.onSongStop()
+            listenBrainzScrobbleManager?.onSongStop()
         }
     }
 
@@ -2705,7 +2773,8 @@ class MusicService :
         }
 
         if (events.containsAny(Player.EVENT_IS_PLAYING_CHANGED)) {
-            scrobbleManager?.onPlayerStateChanged(player.isPlaying, player.currentMetadata, duration = player.duration)
+            lastFmScrobbleManager?.onPlayerStateChanged(player.isPlaying, player.currentMetadata, duration = player.duration)
+            listenBrainzScrobbleManager?.onPlayerStateChanged(player.isPlaying, player.currentMetadata, duration = player.duration)
         }
     }
 

@@ -25,6 +25,7 @@ import com.metrolist.innertube.models.ArtistConjunctions
 import com.metrolist.innertube.models.YouTubeLocale
 import com.metrolist.kugou.KuGou
 import com.metrolist.lastfm.LastFM
+import com.metrolist.listenbrainz.ListenBrainz
 import com.metrolist.music.BuildConfig
 import com.metrolist.music.constants.*
 import com.metrolist.music.di.ApplicationScope
@@ -157,6 +158,9 @@ class App :
             secret = BuildConfig.LASTFM_SECRET.takeIf { it.isNotEmpty() } ?: "",
         )
 
+        // Initialize ListenBrainz client version from BuildConfig
+        ListenBrainz.clientVersion = BuildConfig.VERSION_NAME
+
         if (settings[ProxyEnabledKey] == true) {
             val username = settings[ProxyUsernameKey].orEmpty()
             val password = settings[ProxyPasswordKey].orEmpty()
@@ -257,6 +261,19 @@ class App :
                         LastFM.sessionKey = session
                     } catch (e: Exception) {
                         Timber.e("Error while loading last.fm session key. %s", e.message)
+                    }
+                }
+        }
+
+        applicationScope.launch(Dispatchers.IO) {
+            dataStore.data
+                .map { it[ListenBrainzTokenKey] }
+                .distinctUntilChanged()
+                .collect { token ->
+                    try {
+                        ListenBrainz.userToken = token
+                    } catch (e: Exception) {
+                        Timber.e("Error while loading ListenBrainz token. %s", e.message)
                     }
                 }
         }

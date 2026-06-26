@@ -16,8 +16,10 @@ import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.utils.completed
 import com.metrolist.innertube.utils.parseCookieString
 import com.metrolist.lastfm.LastFM
+import com.metrolist.listenbrainz.ListenBrainz
 import com.metrolist.music.constants.InnerTubeCookieKey
 import com.metrolist.music.constants.LastFMUseSendLikes
+import com.metrolist.music.constants.ListenBrainzUseSendLikes
 import com.metrolist.music.constants.LastFullSyncKey
 import com.metrolist.music.constants.SYNC_COOLDOWN
 import com.metrolist.music.db.MusicDatabase
@@ -120,6 +122,7 @@ class SyncUtils @Inject constructor(
     val syncState: StateFlow<SyncState> = _syncState.asStateFlow()
 
     private var lastfmSendLikes = false
+    private var listenbrainzSendLikes = false
     @Volatile private var cachedLastSyncEpoch: Long = 0L
     private val playlistsBeingModified = ConcurrentHashMap<String, AtomicInteger>()
     // Tracks songs currently being added to YouTube — browseId → set of songIds
@@ -150,6 +153,13 @@ class SyncUtils @Inject constructor(
             .distinctUntilChanged()
             .collectLatest(syncScope) {
                 lastfmSendLikes = it
+            }
+
+        context.dataStore.data
+            .map { it[ListenBrainzUseSendLikes] ?: false }
+            .distinctUntilChanged()
+            .collectLatest(syncScope) {
+                listenbrainzSendLikes = it
             }
 
         syncScope.launch {
@@ -616,6 +626,20 @@ class SyncUtils @Inject constructor(
                 )
             } catch (e: Exception) {
                 Timber.e(e, "Failed to update LastFM love status")
+            }
+        }
+
+        if (listenbrainzSendLikes) {
+            try {
+                val dbSong = database.song(s.id).firstOrNull()
+                ListenBrainz.setLoveStatus(
+                    artist = dbSong?.artists?.joinToString { a -> a.name } ?: "",
+                    track = s.title,
+                    album = dbSong?.album?.title,
+                    love = s.liked
+                )
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to update ListenBrainz love status")
             }
         }
     }

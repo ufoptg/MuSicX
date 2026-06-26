@@ -31,6 +31,7 @@ include(":kugou")
 include(":lrclib")
 
 include(":lastfm")
+include(":listenbrainz")
 include(":betterlyrics")
 include(":shazamkit")
 include(":paxsenix")

@@ -418,6 +418,16 @@
     <string name="lastfm_now_playing">Send Now Playing status</string>
     <string name="last_fm_send_likes">Sync Loved and Unloved</string>
     <string name="last_fm_send_likes_description">Love or unlove songs in Last.fm when you like or unlike them in Metrolist</string>
+    <string name="listenbrainz_integration">ListenBrainz integration</string>
+    <string name="listenbrainz_user_token">User token</string>
+    <string name="listenbrainz_token_description">Paste your ListenBrainz user token from ListenBrainz settings</string>
+    <string name="listenbrainz_send_likes">Sync liked and unliked songs</string>
+    <string name="listenbrainz_send_likes_description">Love or clear feedback in ListenBrainz when you like or unlike songs in Metrolist</string>
+    <string name="listenbrainz_now_playing">Send Now Playing status</string>
+    <string name="validate_token">Validate token</string>
+    <string name="invalid_token">Invalid token</string>
+    <string name="enter_user_token">Please enter a user token</string>
+    <string name="get_token">Get token</string>
     <string name="logging_in">Logging in…</string>
 
     <string name="scrobbling_configuration">Scrobbling configuration</string>
