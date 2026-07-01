@@ -1172,6 +1172,9 @@ fun HomeScreen(
                 state = lazylistState,
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
+                // MuSicX Spotify home sections (no-op if disabled / logged out)
+                com.metrolist.music.ui.component.spotify.spotifyHomeSections(navController)
+
                 item {
                     ChipsRow(
                         chips = homePage?.chips?.map { it to it.title } ?: emptyList(),

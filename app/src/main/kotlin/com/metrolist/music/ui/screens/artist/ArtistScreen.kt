@@ -192,6 +192,14 @@ fun ArtistScreen(
             state = lazyListState,
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
         ) {
+            // MuSicX: "Open on Spotify" if any of this artist's local songs has a Spotify match
+            librarySongs.firstOrNull()?.song?.id?.let { seedId ->
+                com.metrolist.music.ui.component.spotify.spotifyEquivalentButton(
+                    seedSongId = seedId,
+                    key = "musicx_spotify_artist_equiv",
+                )
+            }
+
             if (artistPage == null && !showLocal) {
                 item(key = "shimmer") {
                     ShimmerHost(

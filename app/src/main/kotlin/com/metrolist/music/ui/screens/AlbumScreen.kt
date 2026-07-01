@@ -190,6 +190,12 @@ fun AlbumScreen(
     ) {
         val albumWithSongs = albumWithSongs
         if (albumWithSongs != null && albumWithSongs.songs.isNotEmpty()) {
+            // MuSicX: "Open on Spotify" button when a match exists for the album's first song
+            com.metrolist.music.ui.component.spotify.spotifyEquivalentButton(
+                seedSongId = albumWithSongs.songs.first().song.id,
+                key = "musicx_spotify_album_equiv",
+            )
+
             item(key = "album_header") {
                 Column(
                     modifier =

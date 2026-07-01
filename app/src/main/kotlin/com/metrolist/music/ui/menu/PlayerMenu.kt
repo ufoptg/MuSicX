@@ -155,6 +155,27 @@ fun PlayerMenu(
         mutableStateOf(false)
     }
 
+    // MuSicX: Add-to-Spotify-Playlist wiring
+    var showAddToSpotifyDialog by rememberSaveable { mutableStateOf(false) }
+    val musicxSpotifyEnabled by com.metrolist.music.utils.rememberPreference(
+        com.metrolist.music.constants.EnableSpotifyKey,
+        defaultValue = false,
+    )
+    val musicxSpotifySpDc by com.metrolist.music.utils.rememberPreference(
+        com.metrolist.music.constants.SpotifySpDcKey,
+        defaultValue = "",
+    )
+    val musicxSpotifyUri = remember(mediaMetadata.id) {
+        runCatching {
+            database.getSpotifyMatchByYouTubeId(mediaMetadata.id)?.spotifyId?.let { "spotify:track:$it" }
+        }.getOrNull()
+    }
+    com.metrolist.music.ui.component.spotify.SpotifyAddToPlaylistDialog(
+        show = showAddToSpotifyDialog && musicxSpotifyEnabled && musicxSpotifySpDc.isNotEmpty(),
+        spotifyUri = musicxSpotifyUri,
+        onDismiss = { showAddToSpotifyDialog = false },
+    )
+
     var showListenTogetherDialog by rememberSaveable {
         mutableStateOf(false)
     }
@@ -371,6 +392,19 @@ fun PlayerMenu(
                             text = stringResource(R.string.add_to_playlist),
                             onClick = { showChoosePlaylistDialog = true },
                         ),
+                        // MuSicX: Add to Spotify Playlist
+                        NewAction(
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.spotify),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(32.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            },
+                            text = stringResource(R.string.spotify_add_to_playlist),
+                            onClick = { showAddToSpotifyDialog = true },
+                        ).takeIf { musicxSpotifyEnabled },
                         NewAction(
                             icon = {
                                 Icon(

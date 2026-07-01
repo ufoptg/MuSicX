@@ -231,6 +231,28 @@ fun SongMenu(
         mutableStateOf(false)
     }
 
+    // MuSicX: Add-to-Spotify-Playlist wiring
+    var showAddToSpotifyDialog by rememberSaveable { mutableStateOf(false) }
+    val musicxSpotifyEnabled by com.metrolist.music.utils.rememberPreference(
+        com.metrolist.music.constants.EnableSpotifyKey,
+        defaultValue = false,
+    )
+    val musicxSpotifySpDc by com.metrolist.music.utils.rememberPreference(
+        com.metrolist.music.constants.SpotifySpDcKey,
+        defaultValue = "",
+    )
+    // Resolve Spotify URI for this song from the spotify_match table (best-effort).
+    val musicxSpotifyUri = remember(song.id) {
+        runCatching {
+            database.getSpotifyMatchByYouTubeId(song.id)?.spotifyId?.let { "spotify:track:$it" }
+        }.getOrNull()
+    }
+    com.metrolist.music.ui.component.spotify.SpotifyAddToPlaylistDialog(
+        show = showAddToSpotifyDialog && musicxSpotifyEnabled && musicxSpotifySpDc.isNotEmpty(),
+        spotifyUri = musicxSpotifyUri,
+        onDismiss = { showAddToSpotifyDialog = false },
+    )
+
     var showErrorPlaylistAddDialog by rememberSaveable {
         mutableStateOf(false)
     }
@@ -513,7 +535,7 @@ fun SongMenu(
         item {
             NewActionGrid(
                 actions =
-                    listOf(
+                    listOfNotNull(
                         NewAction(
                             icon = {
                                 Icon(
@@ -538,6 +560,19 @@ fun SongMenu(
                             text = stringResource(R.string.add_to_playlist),
                             onClick = { showChoosePlaylistDialog = true },
                         ),
+                        // MuSicX: Add to Spotify Playlist (hidden if Spotify off)
+                        NewAction(
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.spotify),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(28.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            },
+                            text = stringResource(R.string.spotify_add_to_playlist),
+                            onClick = { showAddToSpotifyDialog = true },
+                        ).takeIf { musicxSpotifyEnabled },
                         NewAction(
                             icon = {
                                 Icon(

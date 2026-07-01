@@ -491,6 +491,14 @@ fun OnlineSearchResult(
                     state = lazyListState,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
+                    // MuSicX Spotify search results (no-op if disabled / logged out)
+                    if (searchFilter == null) {
+                        com.metrolist.music.ui.component.spotify.spotifySearchSection(
+                            query = decodedQuery,
+                            navController = navController,
+                        )
+                    }
+
                     if (searchFilter == null) {
                         searchSummary?.summaries?.forEach { summary ->
                             item {

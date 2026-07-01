@@ -411,6 +411,9 @@ fun LibraryPlaylistsScreen(
                     state = lazyListState,
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {
+                    // MuSicX Spotify playlists (no-op if disabled / logged out)
+                    com.metrolist.music.ui.component.spotify.spotifyLibraryPlaylists(navController)
+
                     item(
                         key = "filter",
                         contentType = CONTENT_TYPE_HEADER,
