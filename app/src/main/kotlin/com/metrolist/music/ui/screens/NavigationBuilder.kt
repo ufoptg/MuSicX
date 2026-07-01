@@ -61,6 +61,13 @@ import com.metrolist.music.ui.screens.settings.integrations.DiscordSettings
 import com.metrolist.music.ui.screens.settings.integrations.IntegrationScreen
 import com.metrolist.music.ui.screens.settings.integrations.LastFMSettings
 import com.metrolist.music.ui.screens.settings.integrations.ListenTogetherSettings
+import com.metrolist.music.ui.screens.settings.integrations.SpotifySettings
+import com.metrolist.music.ui.screens.settings.integrations.SpotifyPreloadScreen
+import com.metrolist.music.ui.screens.SpotifyLoginScreen
+import com.metrolist.music.ui.screens.album.SpotifyAlbumScreen
+import com.metrolist.music.ui.screens.playlist.SpotifyPlaylistScreen
+import com.metrolist.music.ui.screens.playlist.SpotifyLikedSongsScreen
+import com.metrolist.music.ui.screens.library.SpotifyFolderScreen
 
 import com.metrolist.music.ui.screens.wrapped.WrappedScreen
 import com.metrolist.music.utils.rememberEnumPreference
@@ -401,8 +408,46 @@ fun NavGraphBuilder.navigationBuilder(
         LastFMSettings(navController)
     }
 
-    composable(route = "settings/integrations/listen_together") {
+    composable("settings/integrations/listen_together") {
         ListenTogetherSettings(navController)
+    }
+
+    // Spotify integration routes (ported from ufoptg/meld)
+    composable("settings/integrations/spotify") {
+        SpotifySettings(navController)
+    }
+
+    composable("settings/integrations/spotify/preload") {
+        SpotifyPreloadScreen(navController)
+    }
+
+    composable("spotify/login") {
+        SpotifyLoginScreen(navController)
+    }
+
+    composable(
+        "spotify/album/{albumId}",
+        arguments = listOf(navArgument("albumId") { type = NavType.StringType }),
+    ) {
+        SpotifyAlbumScreen(navController)
+    }
+
+    composable(
+        "spotify/playlist/{playlistId}",
+        arguments = listOf(navArgument("playlistId") { type = NavType.StringType }),
+    ) {
+        SpotifyPlaylistScreen(navController)
+    }
+
+    composable("spotify/liked") {
+        SpotifyLikedSongsScreen(navController)
+    }
+
+    composable(
+        "spotify/folder/{folderId}",
+        arguments = listOf(navArgument("folderId") { type = NavType.StringType }),
+    ) {
+        SpotifyFolderScreen(navController)
     }
 
     composable("settings/updater") {

@@ -50,6 +50,7 @@ import com.metrolist.music.db.entities.Song
 import com.metrolist.music.db.entities.SongAlbumMap
 import com.metrolist.music.db.entities.SongArtistMap
 import com.metrolist.music.db.entities.SongEntity
+import com.metrolist.music.db.entities.SpotifyMatchEntity
 import com.metrolist.music.db.entities.SongWithStats
 import com.metrolist.music.extensions.reversed
 import com.metrolist.music.extensions.toSQLiteQuery
@@ -1928,4 +1929,17 @@ interface DatabaseDao {
 
     @Delete
     fun delete(podcast: PodcastEntity)
+
+    // Spotify integration (ported from ufoptg/meld)
+    @Query("SELECT * FROM spotify_match WHERE spotifyId = :spotifyId LIMIT 1")
+    fun getSpotifyMatch(spotifyId: String): SpotifyMatchEntity?
+
+    @Query("SELECT * FROM spotify_match WHERE youtubeId = :youtubeId LIMIT 1")
+    fun getSpotifyMatchByYouTubeId(youtubeId: String): SpotifyMatchEntity?
+
+    @Upsert
+    fun upsertSpotifyMatch(match: SpotifyMatchEntity)
+
+    @Query("DELETE FROM spotify_match WHERE spotifyId = :spotifyId")
+    fun deleteSpotifyMatch(spotifyId: String)
 }

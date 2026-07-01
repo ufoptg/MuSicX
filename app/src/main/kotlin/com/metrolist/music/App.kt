@@ -157,6 +157,26 @@ class App :
             secret = BuildConfig.LASTFM_SECRET.takeIf { it.isNotEmpty() } ?: "",
         )
 
+        // Wire up Spotify integration (ported from ufoptg/meld)
+        com.metrolist.spotify.Spotify.logger = { level, message ->
+            when (level) {
+                "E" -> Timber.tag("SpotifyAPI").e(message)
+                "W" -> Timber.tag("SpotifyAPI").w(message)
+                else -> Timber.tag("SpotifyAPI").d(message)
+            }
+        }
+        val spotifyHashSync = com.metrolist.music.utils.SpotifyHashSync(this@App)
+        spotifyHashSync.loadCachedHashes()
+        applicationScope.launch(Dispatchers.IO) { spotifyHashSync.sync() }
+        com.metrolist.spotify.Spotify.onHashExpired = { operationName ->
+            Timber.tag("HashSync").w("Hash expired for %s, forcing remote refresh", operationName)
+            applicationScope.launch(Dispatchers.IO) { spotifyHashSync.forceRefresh() }
+        }
+        com.metrolist.music.utils.SpotifyTokenManager.init(dataStore)
+        applicationScope.launch(Dispatchers.IO) {
+            com.metrolist.music.utils.SpotifyTokenManager.ensureAuthenticated()
+        }
+
         if (settings[ProxyEnabledKey] == true) {
             val username = settings[ProxyUsernameKey].orEmpty()
             val password = settings[ProxyPasswordKey].orEmpty()

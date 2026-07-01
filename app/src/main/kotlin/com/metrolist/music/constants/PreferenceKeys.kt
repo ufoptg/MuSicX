@@ -217,6 +217,31 @@ val LastFMUseNowPlaying = booleanPreferencesKey("lastfmUseNowPlaying")
 
 val LastFMUseSendLikes = booleanPreferencesKey("lastfmUseSendLikes")
 
+// Spotify Integration (ported from ufoptg/meld)
+val EnableSpotifyKey = booleanPreferencesKey("enableSpotify")
+val UseSpotifySearchKey = booleanPreferencesKey("useSpotifySearch")
+val UseSpotifyHomeKey = booleanPreferencesKey("useSpotifyHome")
+val SpotifyHomeOnlyKey = booleanPreferencesKey("spotifyHomeOnly")
+val SpotifySyncLikesKey = booleanPreferencesKey("spotifySyncLikes")
+val SpotifySpDcKey = stringPreferencesKey("spotifySpDc")
+val SpotifySpKeyKey = stringPreferencesKey("spotifySpKey")
+val SpotifyAccessTokenKey = stringPreferencesKey("spotifyAccessToken")
+val SpotifyTokenExpiryKey = longPreferencesKey("spotifyTokenExpiry")
+val SpotifyUsernameKey = stringPreferencesKey("spotifyUsername")
+val SpotifyUserIdKey = stringPreferencesKey("spotifyUserId")
+val SpotifyPlaylistSortTypeKey = stringPreferencesKey("spotifyPlaylistSortType")
+val SpotifyPlaylistSortDescendingKey = booleanPreferencesKey("spotifyPlaylistSortDescending")
+val SpotifyLikedSortTypeKey = stringPreferencesKey("spotifyLikedSortType")
+val SpotifyLikedSortDescendingKey = booleanPreferencesKey("spotifyLikedSortDescending")
+val HideYtmLikedSongsKey = booleanPreferencesKey("hideYtmLikedSongs")
+
+enum class SpotifySortType {
+    ORIGINAL,
+    NAME,
+    ARTIST,
+    DURATION,
+}
+
 val ScrobbleDelayPercentKey = floatPreferencesKey("scrobbleDelayPercent")
 val ScrobbleMinSongDurationKey = intPreferencesKey("scrobbleMinSongDuration")
 val ScrobbleDelaySecondsKey = intPreferencesKey("scrobbleDelaySeconds")
