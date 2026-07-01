@@ -197,7 +197,8 @@ class BottomSheetState(
     fun collapse(animationSpec: AnimationSpec<Dp>) {
         onAnchorChanged(collapsedAnchor)
         coroutineScope.launch {
-            animatable.animateTo(collapsedBound, animationSpec)
+            val target = collapsedBound.coerceIn(animatable.lowerBound, animatable.upperBound)
+            animatable.animateTo(target, animationSpec)
         }
     }
 
@@ -348,27 +349,41 @@ fun rememberBottomSheetState(
     var previousAnchor by rememberSaveable {
         mutableIntStateOf(initialAnchor)
     }
+
     val animatable = remember {
         Animatable(0.dp, Dp.VectorConverter)
     }
 
     return remember(dismissedBound, expandedBound, collapsedBound, coroutineScope) {
-        val initialValue = when (previousAnchor) {
+        val lowerBound = dismissedBound.coerceAtMost(expandedBound)
+        animatable.updateBounds(lowerBound, expandedBound)
+
+        val targetValue = when (previousAnchor) {
             expandedAnchor -> expandedBound
             collapsedAnchor -> collapsedBound
             dismissedAnchor -> dismissedBound
             else -> error("Unknown BottomSheet anchor")
-        }
+        }.coerceIn(lowerBound, expandedBound)
 
-        animatable.updateBounds(dismissedBound.coerceAtMost(expandedBound), expandedBound)
         coroutineScope.launch {
-            animatable.animateTo(initialValue, NavigationBarAnimationSpec)
+            try {
+                animatable.animateTo(targetValue, NavigationBarAnimationSpec)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                // Ignore unexpected animation errors to prevent coroutine scope death
+            }
         }
 
         BottomSheetState(
             draggableState = DraggableState { delta ->
                 coroutineScope.launch {
-                    animatable.snapTo(animatable.value - with(density) { delta.toDp() })
+                    val target = (animatable.value - with(density) { delta.toDp() })
+                        .coerceIn(lowerBound, expandedBound)
+                    try {
+                        animatable.snapTo(target)
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                    }
                 }
             },
             onAnchorChanged = { previousAnchor = it },
