@@ -303,6 +303,10 @@ MuSicX is a fork focused on adding: Spotify integration, SponsorBlock, ANR watch
       <td align="center"><a href="https://github.com/Spotube/Spotube"><strong>Spotube</strong></a></td>
       <td>Inspiration for the cookie-based Spotify auth flow</td>
     </tr>
+    <tr>
+      <td align="center"><a href="https://github.com/ZemerTeam/zemer-cipher"><strong>zemer-cipher</strong></a></td>
+      <td>YouTube cipher deobfuscation and PoToken generation</td>
+    </tr>
   </tbody>
 </table>
 
