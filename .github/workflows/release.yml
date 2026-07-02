@@ -106,8 +106,8 @@ jobs:
       - name: Build and Lint Release APK
         run: ./gradlew --console=plain clean assemble${{ matrix.variantName }}Release :app:lint${{ matrix.variantName }}Release --warning-mode summary
         env:
-          METROLIST_APPLICATION_ID: com.metrolist.music
-          METROLIST_APP_NAME: Metrolist
+          METROLIST_APPLICATION_ID: dev.ufoptg.musicx
+          METROLIST_APP_NAME: MuSicX
           PULL_REQUEST: "false"
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
@@ -137,11 +137,11 @@ jobs:
           fi
 
           if [ "${{ matrix.variant }}" = "gms" ]; then
-            TARGET_NAME="Metrolist-with-Google-Cast.apk"
+            TARGET_NAME="MuSicX-with-Google-Cast.apk"
           elif [ "${{ matrix.variant }}" = "izzy" ]; then
-            TARGET_NAME="Metrolist-izzy.apk"
+            TARGET_NAME="MuSicX-izzy.apk"
           else
-            TARGET_NAME="Metrolist.apk"
+            TARGET_NAME="MuSicX.apk"
           fi
 
           mv "$SIGNED_APK" "$OUTPUT_DIR/out/$TARGET_NAME"
@@ -152,7 +152,7 @@ jobs:
       - name: Upload Signed APKs
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ matrix.variant == 'gms' && 'Metrolist-with-Google-Cast' || matrix.variant == 'izzy' && 'Metrolist-izzy' || 'Metrolist' }}
+          name: ${{ matrix.variant == 'gms' && 'MuSicX-with-Google-Cast' || matrix.variant == 'izzy' && 'MuSicX-izzy' || 'MuSicX' }}
           path: app/build/outputs/apk/${{ matrix.variant }}/release/out/*.apk
 
   create-release:
