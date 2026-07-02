@@ -104,7 +104,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 149
-        versionName = "13.6.0"
+        versionName = "13.6.1"
         resValue("string", "app_name", appNameOverride ?: "MuSicX")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
