@@ -10,14 +10,19 @@ package com.metrolist.music.ui.component.spotify
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.grid.LazyGridScope
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +47,10 @@ import coil3.compose.AsyncImage
 import com.metrolist.music.R
 import com.metrolist.music.constants.EnableSpotifyKey
 import com.metrolist.music.constants.SpotifySpDcKey
+import com.metrolist.music.db.entities.Playlist
+import com.metrolist.music.db.entities.PlaylistEntity
+import com.metrolist.music.ui.component.GridItem
+import com.metrolist.music.ui.component.PlaylistGridItem
 import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.viewmodels.SpotifyViewModel
 
@@ -176,3 +185,152 @@ private fun SpotifyLibraryPlaylistsSection(
         }
     }
 }
+
+// -----------------------------------------------------------------------------
+// GRID version — used by LibraryPlaylistsScreen when LibraryViewType == GRID.
+// Each Spotify entry occupies one grid cell (default 1-column span), matching
+// the visual style of the surrounding auto-playlist / user-playlist tiles.
+//
+// State is observed by the caller via [rememberSpotifyLibraryGridState] so
+// each Spotify tile can be emitted as its own LazyGridScope.item() (Compose
+// LazyGrid requires one item = one cell).
+// -----------------------------------------------------------------------------
+
+/**
+ * Immutable snapshot of Spotify library data used by [spotifyLibraryPlaylistsGrid].
+ * `null` folders / playlists means "not logged in / disabled" and no tiles render.
+ */
+data class SpotifyLibraryGridState(
+    val enabled: Boolean,
+    val folders: List<com.metrolist.spotify.models.SpotifyLibraryFolder>,
+    val playlists: List<com.metrolist.spotify.models.SpotifyPlaylist>,
+    val likedTotal: Int,
+)
+
+/**
+ * Observes the SpotifyViewModel from the caller's @Composable scope, kicks off
+ * the initial data load on first appearance, and returns a stable snapshot for
+ * the grid to render. Must be called from a @Composable.
+ */
+@Composable
+fun rememberSpotifyLibraryGridState(
+    viewModel: SpotifyViewModel = hiltViewModel(),
+): SpotifyLibraryGridState {
+    val enableSpotify by rememberPreference(EnableSpotifyKey, defaultValue = false)
+    val spDc by rememberPreference(SpotifySpDcKey, defaultValue = "")
+    val folders by viewModel.spotifyRootFolders.collectAsStateWithLifecycle()
+    val playlists by viewModel.spotifyRootPlaylists.collectAsStateWithLifecycle()
+    val likedTotal by viewModel.likedSongsTotal.collectAsStateWithLifecycle()
+
+    val enabled = enableSpotify && spDc.isNotEmpty()
+
+    LaunchedEffect(enabled) {
+        if (!enabled) return@LaunchedEffect
+        if (viewModel.spotifyPlaylists.value.isEmpty()) viewModel.loadPlaylists()
+        if (viewModel.likedSongs.value.isEmpty()) viewModel.loadLikedSongs()
+    }
+
+    return SpotifyLibraryGridState(enabled, folders, playlists, likedTotal)
+}
+
+/**
+ * Injects Spotify Liked Songs tile, folder tiles and playlist tiles into a
+ * LazyVerticalGrid. Each Spotify entry becomes its own grid cell. No-op if
+ * `state.enabled == false`.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+fun LazyGridScope.spotifyLibraryPlaylistsGrid(
+    navController: NavController,
+    state: SpotifyLibraryGridState,
+) {
+    if (!state.enabled) return
+
+    item(key = "musicx_spotify_liked_grid_tile") {
+        GridItem(
+            title = stringResource(R.string.spotify_liked_songs),
+            subtitle = if (state.likedTotal > 0) "${state.likedTotal}" else "",
+            thumbnailContent = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFF1DB954)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.spotify),
+                        contentDescription = null,
+                        tint = Color.Black,
+                        modifier = Modifier.size(maxWidth / 2),
+                    )
+                }
+            },
+            fillMaxWidth = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(onClick = { navController.navigate("spotify/liked") }),
+        )
+    }
+
+    items(
+        items = state.folders,
+        key = { folder -> "sp_folder_${folder.uri}" },
+    ) { folder ->
+        val folderId = folder.uri.substringAfterLast(":")
+        GridItem(
+            title = folder.name,
+            subtitle = "",
+            thumbnailContent = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.folder),
+                        contentDescription = null,
+                        modifier = Modifier.size(maxWidth / 2),
+                    )
+                }
+            },
+            fillMaxWidth = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(onClick = {
+                    navController.navigate("spotify/folder/$folderId")
+                }),
+        )
+    }
+
+    items(
+        items = state.playlists,
+        key = { pl -> "sp_playlist_${pl.id}" },
+    ) { sp ->
+        val thumb = sp.images.firstOrNull()?.url
+        val synthetic = Playlist(
+            playlist = PlaylistEntity(
+                id = "spotify_${sp.id}",
+                name = sp.name,
+                thumbnailUrl = thumb,
+                remoteSongCount = sp.tracks?.total,
+                isEditable = false,
+            ),
+            songCount = 0,
+            songThumbnails = listOfNotNull(thumb),
+        )
+        PlaylistGridItem(
+            playlist = synthetic,
+            fillMaxWidth = true,
+            badges = { /* no download-state indicator for remote Spotify playlists */ },
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(onClick = {
+                    navController.navigate("spotify/playlist/${sp.id}")
+                }),
+        )
+    }
+}
+
+

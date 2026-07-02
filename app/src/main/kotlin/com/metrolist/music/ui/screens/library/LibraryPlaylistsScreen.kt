@@ -57,7 +57,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.metrolist.innertube.utils.parseCookieString
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
+import com.metrolist.music.ui.component.spotify.rememberSpotifyLibraryGridState
 import com.metrolist.music.ui.component.spotify.spotifyLibraryPlaylists
+import com.metrolist.music.ui.component.spotify.spotifyLibraryPlaylistsGrid
 import com.metrolist.music.constants.CONTENT_TYPE_HEADER
 import com.metrolist.music.constants.CONTENT_TYPE_PLAYLIST
 import com.metrolist.music.constants.GridItemSize
@@ -129,6 +131,9 @@ fun LibraryPlaylistsScreen(
     val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
 
     val playlists by viewModel.allPlaylists.collectAsStateWithLifecycle()
+
+    // MuSicX: state snapshot for Spotify grid injection (no-op if disabled/logged out)
+    val spotifyGridState = rememberSpotifyLibraryGridState()
 
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
@@ -497,6 +502,9 @@ fun LibraryPlaylistsScreen(
                     ) {
                         headerContent()
                     }
+
+                    // MuSicX Spotify tiles (Liked Songs + folders + playlists)
+                    spotifyLibraryPlaylistsGrid(navController, spotifyGridState)
 
                     if (visibleResults.isEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
