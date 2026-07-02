@@ -52,7 +52,6 @@ import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.viewmodels.SpotifyViewModel
 import com.metrolist.spotify.SpotifyMapper
 import com.metrolist.spotify.models.SpotifyLibraryItem
-import java.net.URLEncoder
 
 /**
  * Renders one level of the user's Spotify library tree. Reached by tapping a folder
@@ -120,14 +119,13 @@ fun SpotifyFolderScreen(
                     items(items!!.size, key = { idx -> items!![idx].uri }, contentType = { CONTENT_TYPE_PLAYLIST }) { index ->
                         when (val item = items!![index]) {
                             is SpotifyLibraryItem.Folder -> {
-                                val encoded = URLEncoder.encode(item.folder.uri, Charsets.UTF_8.name())
-                                val encodedName = URLEncoder.encode(item.folder.name, Charsets.UTF_8.name())
+                                val folderIdOnly = item.folder.uri.substringAfterLast(":")
                                 SpotifyFolderListItem(
                                     folder = item.folder,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable {
-                                            navController.navigate("spotify_folder/$encoded?name=$encodedName")
+                                            navController.navigate("spotify/folder/$folderIdOnly")
                                         },
                                 )
                             }
@@ -148,7 +146,7 @@ fun SpotifyFolderScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable {
-                                            navController.navigate("spotify_playlist/${pl.id}")
+                                            navController.navigate("spotify/playlist/${pl.id}")
                                         },
                                 )
                             }

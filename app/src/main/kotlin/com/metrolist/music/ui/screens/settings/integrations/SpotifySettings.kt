@@ -150,7 +150,7 @@ fun SpotifySettings(
                     }
                 } else {
                     OutlinedButton(
-                        onClick = { navController.navigate("settings/spotify/login") },
+                        onClick = { navController.navigate("spotify/login") },
                     ) {
                         Text(stringResource(R.string.action_login))
                     }
