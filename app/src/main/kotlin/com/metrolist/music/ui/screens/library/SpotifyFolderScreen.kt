@@ -56,7 +56,7 @@ import com.metrolist.spotify.models.SpotifyLibraryItem
 /**
  * Renders one level of the user's Spotify library tree. Reached by tapping a folder
  * in [LibraryPlaylistsScreen] or another [SpotifyFolderScreen] (folders can contain
- * sub-folders). Tapping a playlist navigates to the existing `spotify_playlist`
+ * sub-folders). Tapping a playlist navigates to the existing `spotify/playlist`
  * route; tapping a sub-folder pushes another instance of this screen.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
