@@ -1,3 +1,39 @@
+---v13.6.3
+# MuSicX 13.6.3 — First MuSicX-branded release 🎉
+
+This is the first release under the **MuSicX** brand, a maintained fork of Metrolist with new integrations and reliability improvements.
+
+## Major additions
+- **Spotify integration** — Log in with your own Spotify account via in-app WebView (uses `sp_dc` cookie, no client secret required). Home, Library, Search and Now-Playing hooks bridge Spotify tracks to YouTube Music equivalents for playback.
+- **SponsorBlock** — Auto-skip sponsor / intro / outro segments in music videos, powered by the sponsor.ajay.app community API.
+- **ANR Watchdog** — Detects UI freezes ≥ 5s and captures diagnostic stack dumps.
+- **Crash reporter** — Unhandled crashes are packaged (sanitized stack + device/version info) and opened as GitHub Issues automatically.
+
+## Rebrand
+- App fully renamed **Metrolist → MuSicX** across UI, build files, CI artifact names (`MuSicX.apk`, `MuSicX-with-Google-Cast.apk`, `MuSicX-izzy.apk`, `MuSicX-Nightly.apk`), 343 Kotlin copyright headers, and store icons.
+- New app icon set across all mipmap densities (adaptive icon with dark `#0a0a0a` background).
+- Package id: `dev.ufoptg.musicx`.
+
+## Fixes
+- Spotify login button no longer crashes with `IllegalArgumentException: Navigation destination that matches route settings/spotify/login cannot be found` — route mismatch fixed.
+- Spotify folder / playlist navigation from within a folder now resolves (legacy underscore routes `spotify_folder/…` / `spotify_playlist/…` replaced with the registered slash routes).
+- Library → Playlists tab now actually shows your Spotify playlists and Liked Songs after login (previous build subscribed to StateFlows but never triggered the data load).
+- Added a dedicated **Liked Songs** entry that navigates to the Spotify liked-songs screen (was previously unreachable).
+- Fixed release build failure caused by leftover `R.drawable.ic_launcher_foreground` reference in ConclusionPage after the icon migration.
+
+## Under the hood
+- New `:spotify` Gradle module.
+- Room DB migration `38 → 39` — adds `spotify_match` table mapping Spotify track IDs to local track IDs.
+- GitHub Actions workflows refreshed: PR / nightly / quick-test / release builds all now emit MuSicX-branded artifacts.
+
+## Coming soon (roadmap)
+- Music-Recognition Widget (Shazam)
+- LyricsPlus / ExperimentalLyrics
+- Podcasts
+- Qobuz integration
+- New Player Design
+
+
 ---v13.5.0
 # MAINTENANCE MODE
 Metrolist is currently in maintenance mode. This means we will only be fixing bugs and making minor improvements. Please do not submit PRs for new features or major changes, as they will not be accepted.
