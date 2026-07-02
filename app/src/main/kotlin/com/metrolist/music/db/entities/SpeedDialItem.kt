@@ -129,5 +129,19 @@ data class SpeedDialItem(
                 )
             }
         }
+
+        /**
+         * Build a SpeedDialItem for a Spotify playlist (ported from meld).
+         * ID is prefixed with "spotify:" so we can dispatch it to the Spotify
+         * navigation flow when the user taps it in Speed Dial.
+         */
+        fun fromSpotifyPlaylist(playlist: com.metrolist.spotify.models.SpotifyPlaylist): SpeedDialItem =
+            SpeedDialItem(
+                id = "spotify:${playlist.id}",
+                title = playlist.name,
+                subtitle = playlist.owner?.displayName,
+                thumbnailUrl = playlist.images.firstOrNull()?.url,
+                type = "PLAYLIST",
+            )
     }
 }

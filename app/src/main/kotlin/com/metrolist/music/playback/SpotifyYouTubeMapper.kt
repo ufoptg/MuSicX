@@ -223,7 +223,7 @@ class SpotifyYouTubeMapper(
                 MediaMetadata.Album(id = it.id, title = it.name)
             },
             explicit = spotifyTrack.explicit,
-            isrc = spotifyTrack.isrc,
+            // isrc field not present in MuSicX main's MediaMetadata; dropped.
         )
     }
 

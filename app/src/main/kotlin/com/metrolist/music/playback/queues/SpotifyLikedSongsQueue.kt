@@ -101,7 +101,8 @@ class SpotifyLikedSongsQueue(
         }
     }
 
-    override suspend fun getFullStatus(): Queue.Status? = withContext(Dispatchers.IO) {
+    // Optional API used by MuSicX Spotify screens (not part of Queue interface).
+    suspend fun getFullStatus(): Queue.Status? = withContext(Dispatchers.IO) {
         try {
             // Build full list from scratch so we always include tracks 0..N (not just from startIndex onwards)
             allTracks.clear()
@@ -139,7 +140,8 @@ class SpotifyLikedSongsQueue(
         }
     }
 
-    override suspend fun shuffleRemainingTracks() = withContext(Dispatchers.IO) {
+    // Optional API used by MuSicX Spotify screens (not part of Queue interface).
+    suspend fun shuffleRemainingTracks() = withContext(Dispatchers.IO) {
         while (apiHasMore) {
             fetchNextApiPage()
         }

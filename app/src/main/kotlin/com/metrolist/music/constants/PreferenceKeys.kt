@@ -237,7 +237,7 @@ val SPONSORBLOCK_ALL_CATEGORIES = listOf(
 )
 
 // Spotify Integration (ported from ufoptg/meld)
-val EnableSpotifyKey = booleanPreferencesKey("enableSpotify") = booleanPreferencesKey("enableSpotify")
+val EnableSpotifyKey = booleanPreferencesKey("enableSpotify")
 val UseSpotifySearchKey = booleanPreferencesKey("useSpotifySearch")
 val UseSpotifyHomeKey = booleanPreferencesKey("useSpotifyHome")
 val SpotifyHomeOnlyKey = booleanPreferencesKey("spotifyHomeOnly")

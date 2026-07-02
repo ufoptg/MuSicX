@@ -70,10 +70,12 @@ private fun SpotifyLibraryPlaylistsSection(
     )
 
     folders.take(20).forEach { folder ->
+        // Spotify folder URIs look like "spotify:folder:<id>"; extract the tail.
+        val folderId = folder.uri.substringAfterLast(":")
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { navController.navigate("spotify/folder/${folder.id}") }
+                .clickable { navController.navigate("spotify/folder/$folderId") }
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

@@ -32,6 +32,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -86,9 +87,8 @@ import java.time.LocalDateTime
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SpotifySettings(
-    navController: NavController,
-    scrollBehavior: TopAppBarScrollBehavior,
-) {
+    navController: NavController,) {
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     var spotifyUsername by rememberPreference(SpotifyUsernameKey, "")
     var spotifyAccessToken by rememberPreference(SpotifyAccessTokenKey, "")
     var spotifySpDc by rememberPreference(SpotifySpDcKey, "")

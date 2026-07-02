@@ -452,8 +452,13 @@ fun NavGraphBuilder.navigationBuilder(
     composable(
         "spotify/folder/{folderId}",
         arguments = listOf(navArgument("folderId") { type = NavType.StringType }),
-    ) {
-        SpotifyFolderScreen(navController)
+    ) { backStackEntry ->
+        val folderId = backStackEntry.arguments?.getString("folderId").orEmpty()
+        SpotifyFolderScreen(
+            navController = navController,
+            folderUri = "spotify:folder:$folderId",
+            folderName = null,
+        )
     }
 
     composable("settings/updater") {

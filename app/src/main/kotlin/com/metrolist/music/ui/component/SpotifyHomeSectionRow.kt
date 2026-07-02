@@ -200,7 +200,8 @@ fun SpotifyAlbumSectionRow(
                 item = albumItem,
                 isActive = false,
                 isPlaying = false,
-                onPlayClick = onAlbumPlay?.let { cb -> { cb(album) } },
+                // MuSicX main's YouTubeGridItem has no onPlayClick param; play is
+                // handled via combinedClickable below.
                 modifier = Modifier
                     .width(GridThumbnailHeight + 24.dp)
                     .padding(horizontal = 6.dp)
