@@ -250,6 +250,7 @@ fun LazyGridScope.spotifyLibraryPlaylistsGrid(
             title = stringResource(R.string.spotify_liked_songs),
             subtitle = if (state.likedTotal > 0) "${state.likedTotal}" else "",
             thumbnailContent = {
+                val iconSize = maxWidth / 2
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -261,7 +262,7 @@ fun LazyGridScope.spotifyLibraryPlaylistsGrid(
                         painter = painterResource(R.drawable.spotify),
                         contentDescription = null,
                         tint = Color.Black,
-                        modifier = Modifier.size(maxWidth / 2),
+                        modifier = Modifier.size(iconSize),
                     )
                 }
             },
@@ -281,6 +282,7 @@ fun LazyGridScope.spotifyLibraryPlaylistsGrid(
             title = folder.name,
             subtitle = "",
             thumbnailContent = {
+                val iconSize = maxWidth / 2
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -291,7 +293,7 @@ fun LazyGridScope.spotifyLibraryPlaylistsGrid(
                     Icon(
                         painter = painterResource(R.drawable.folder),
                         contentDescription = null,
-                        modifier = Modifier.size(maxWidth / 2),
+                        modifier = Modifier.size(iconSize),
                     )
                 }
             },
