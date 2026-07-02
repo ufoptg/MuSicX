@@ -100,6 +100,9 @@ import com.metrolist.music.ui.component.PlaylistListItem
 import com.metrolist.music.ui.component.SongGridItem
 import com.metrolist.music.ui.component.SongListItem
 import com.metrolist.music.ui.component.SortHeader
+import com.metrolist.music.ui.component.spotify.rememberSpotifyLibraryGridState
+import com.metrolist.music.ui.component.spotify.spotifyLibraryPlaylists
+import com.metrolist.music.ui.component.spotify.spotifyLibraryPlaylistsGrid
 import com.metrolist.music.ui.menu.AlbumMenu
 import com.metrolist.music.ui.menu.ArtistMenu
 import com.metrolist.music.ui.menu.PlaylistMenu
@@ -237,6 +240,9 @@ fun LibraryMixScreen(
     val artist = viewModel.artists.collectAsStateWithLifecycle()
     val songs = viewModel.songs.collectAsStateWithLifecycle()
     val playlist = viewModel.playlists.collectAsStateWithLifecycle()
+
+    // MuSicX: state snapshot for Spotify library injection (no-op if disabled/logged out)
+    val spotifyGridState = rememberSpotifyLibraryGridState()
 
     var allItems = albums.value + artist.value + playlist.value
     val locale = LocalLocale.current.platformLocale
@@ -474,6 +480,9 @@ fun LibraryMixScreen(
                     ) {
                         headerContent()
                     }
+
+                    // MuSicX Spotify playlists (Liked Songs + folders + playlists)
+                    spotifyLibraryPlaylists(navController)
 
                     if (showLikedPlaylist) {
                         item(
@@ -804,6 +813,9 @@ fun LibraryMixScreen(
                     ) {
                         headerContent()
                     }
+
+                    // MuSicX Spotify tiles (Liked Songs + folders + playlists)
+                    spotifyLibraryPlaylistsGrid(navController, spotifyGridState)
 
                     if (showLikedPlaylist) {
                         item(
