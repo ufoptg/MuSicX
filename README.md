@@ -55,7 +55,6 @@ Features added on top of Metrolist upstream:
 | 🟢 **SponsorBlock** | Shipped | Auto-skip sponsor segments and non-music intros/outros in videos, powered by the [SponsorBlock](https://sponsor.ajay.app) community API. |
 | 🟢 **Crash reporting to GitHub Issues** | Shipped | Unhandled crashes are packaged (device info + sanitized stacktrace) and opened as GitHub Issues automatically, so bugs never get lost. |
 | 🟢 **ANR Watchdog** | Shipped | Detects UI freezes ≥ 5s and captures a stack dump for diagnostics — inspired by meld. |
-| 🟢 **Rebrand to MuSicX** | Shipped | Full app, CI artifact and copyright-header rename. Package id `dev.ufoptg.musicx`. |
 
 <br/>
 
