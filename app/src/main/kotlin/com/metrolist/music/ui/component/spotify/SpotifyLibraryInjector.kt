@@ -2,8 +2,9 @@
  * MuSicX Spotify Library Playlists Injector
  *
  * Provides a LazyListScope extension that lists the user's Spotify playlists
- * and a Liked Songs entry inline in LibraryPlaylistsScreen. Guarded so it's a
- * no-op when Spotify is disabled or the user is not logged in.
+ * and a Liked Songs entry inline in LibraryPlaylistsScreen, plus a
+ * LazyGridScope extension for GRID view. Guarded so both are a no-op when
+ * Spotify is disabled or the user is not logged in.
  */
 
 package com.metrolist.music.ui.component.spotify
