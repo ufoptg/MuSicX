@@ -4,7 +4,7 @@
 
 # MuSicX
 
-### YouTube Music client for Android — supercharged.
+### YouTube Music client with Spotify Intergration for Android — supercharged.
 
 <br/>
 
