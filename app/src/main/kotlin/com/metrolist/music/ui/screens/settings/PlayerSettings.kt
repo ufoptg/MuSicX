@@ -394,6 +394,14 @@ fun PlayerSettings(
                     },
                     onClick = { onSkipSilenceChange(!skipSilence) }
                 ))
+
+                // MuSicX SponsorBlock entry (ported from meld)
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.fast_forward),
+                    title = { Text(stringResource(R.string.sponsorblock)) },
+                    description = { Text(stringResource(R.string.sponsorblock_desc)) },
+                    onClick = { navController.navigate("settings/player/sponsorblock") }
+                ))
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.skip_next),
                     title = { Text(stringResource(R.string.skip_silence_instant)) },

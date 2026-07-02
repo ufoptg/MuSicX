@@ -220,6 +220,22 @@ val LastFMUseSendLikes = booleanPreferencesKey("lastfmUseSendLikes")
 // Crash Reporting → GitHub Issues (ported from meld)
 val CrashReportingEnabledKey = booleanPreferencesKey("crashReportingEnabled")
 
+// SponsorBlock (ported from meld)
+val SponsorBlockEnabledKey = booleanPreferencesKey("sponsorBlockEnabled")
+val SponsorBlockCategoriesKey = stringPreferencesKey("sponsorBlockCategories")
+val SponsorBlockShowToastKey = booleanPreferencesKey("sponsorBlockShowToast")
+const val SPONSORBLOCK_DEFAULT_CATEGORIES = "music_offtopic"
+val SPONSORBLOCK_ALL_CATEGORIES = listOf(
+    "sponsor",
+    "selfpromo",
+    "interaction",
+    "intro",
+    "outro",
+    "preview",
+    "music_offtopic",
+    "filler",
+)
+
 // Spotify Integration (ported from ufoptg/meld)
 val EnableSpotifyKey = booleanPreferencesKey("enableSpotify") = booleanPreferencesKey("enableSpotify")
 val UseSpotifySearchKey = booleanPreferencesKey("useSpotifySearch")

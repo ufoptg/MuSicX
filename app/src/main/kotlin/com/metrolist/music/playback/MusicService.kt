@@ -154,6 +154,10 @@ import com.metrolist.music.constants.ResumeOnBluetoothConnectKey
 import com.metrolist.music.constants.ScrobbleDelayPercentKey
 import com.metrolist.music.constants.ScrobbleDelaySecondsKey
 import com.metrolist.music.constants.ScrobbleMinSongDurationKey
+import com.metrolist.music.constants.SPONSORBLOCK_DEFAULT_CATEGORIES
+import com.metrolist.music.constants.SponsorBlockCategoriesKey
+import com.metrolist.music.constants.SponsorBlockEnabledKey
+import com.metrolist.music.constants.SponsorBlockShowToastKey
 import com.metrolist.music.constants.ShowLyricsKey
 import com.metrolist.music.constants.ShuffleModeKey
 import com.metrolist.music.constants.ShufflePlaylistFirstKey
@@ -300,6 +304,10 @@ class MusicService :
     private var crossfadeDuration = 5000f
     private var crossfadeGapless = true
     private var crossfadeTriggerJob: Job? = null
+
+    // SponsorBlock: per-track job that fetches skip segments and polls playback
+    // position to seek past them (ported from meld).
+    private var sponsorBlockJob: Job? = null
 
     private val secondaryPlayerListener =
         object : Player.Listener {
@@ -2509,6 +2517,9 @@ class MusicService :
         }
         previousMediaItemIndex = player.currentMediaItemIndex
 
+        // Restart SponsorBlock for the new track (no-op when disabled).
+        startSponsorBlockForCurrentTrack()
+
         lastPlaybackSpeed = -1.0f // force update song
 
         setupAudioNormalization()
@@ -4020,6 +4031,7 @@ class MusicService :
 
     override fun onDestroy() {
         isRunning = false
+        sponsorBlockJob?.cancel()
 
         if (!::player.isInitialized) {
             try {
@@ -4531,6 +4543,60 @@ class MusicService :
     ) {
         if (reason == Player.DISCONTINUITY_REASON_SEEK) {
             scheduleCrossfade()
+        }
+    }
+
+    /**
+     * Restarts the SponsorBlock segment-skipper for the currently-playing track
+     * (ported from meld). Cancels any previous job, then (if enabled) launches
+     * a coroutine that fetches segments and polls playback position to seek
+     * past them. Failures are silent — SponsorBlock should never disrupt playback.
+     */
+    private fun startSponsorBlockForCurrentTrack() {
+        sponsorBlockJob?.cancel()
+        sponsorBlockJob = null
+
+        val enabled = dataStore.get(SponsorBlockEnabledKey, false)
+        if (!enabled) return
+
+        val rawCategories = dataStore.get(SponsorBlockCategoriesKey, SPONSORBLOCK_DEFAULT_CATEGORIES)
+        val categories = rawCategories.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        if (categories.isEmpty()) return
+
+        val mediaId = player.currentMediaItem?.mediaId ?: return
+        // Episodes (podcasts) aren't on SponsorBlock; MuSicX main doesn't have
+        // podcasts yet but keep the guard for forward-compatibility.
+        if (player.currentMediaItem?.metadata?.isEpisode == true) return
+
+        val showToast = dataStore.get(SponsorBlockShowToastKey, false)
+
+        sponsorBlockJob = scope.launch {
+            val segments = withContext(Dispatchers.IO) {
+                runCatching { SponsorBlockManager.fetchSegments(mediaId, categories) }
+                    .getOrDefault(emptyList())
+            }
+            if (segments.isEmpty()) return@launch
+            if (player.currentMediaItem?.mediaId != mediaId) return@launch
+
+            while (isActive && player.currentMediaItem?.mediaId == mediaId) {
+                val pos = player.currentPosition
+                segments.forEach { segment ->
+                    if (pos in segment.startMs..(segment.endMs - 200)) {
+                        Timber.tag(TAG).d(
+                            "SponsorBlock: skipping ${segment.category} ${segment.startMs}..${segment.endMs}ms"
+                        )
+                        player.seekTo(segment.endMs)
+                        if (showToast) {
+                            Toast.makeText(
+                                this@MusicService,
+                                getString(R.string.sponsorblock_segment_skipped, segment.category),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    }
+                }
+                delay(250)
+            }
         }
     }
 
