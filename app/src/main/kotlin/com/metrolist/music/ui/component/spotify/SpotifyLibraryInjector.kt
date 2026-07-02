@@ -11,6 +11,7 @@ package com.metrolist.music.ui.component.spotify
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -83,7 +85,7 @@ private fun SpotifyLibraryPlaylistsSection(
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         color = MaterialTheme.colorScheme.onSurface,
-        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+        fontWeight = FontWeight.SemiBold,
     )
 
     // --- Liked Songs entry ---
@@ -109,7 +111,7 @@ private fun SpotifyLibraryPlaylistsSection(
             )
         }
         Spacer(Modifier.size(12.dp))
-        androidx.compose.foundation.layout.Column {
+        Column {
             Text(
                 text = stringResource(R.string.liked_songs),
                 maxLines = 1,
