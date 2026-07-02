@@ -481,9 +481,6 @@ fun LibraryMixScreen(
                         headerContent()
                     }
 
-                    // MuSicX Spotify playlists (Liked Songs + folders + playlists)
-                    spotifyLibraryPlaylists(navController)
-
                     if (showLikedPlaylist) {
                         item(
                             key = "likedPlaylist",
@@ -575,6 +572,9 @@ fun LibraryMixScreen(
                             )
                         }
                     }
+
+                    // MuSicX Spotify playlists (Liked Songs + folders + playlists) — after auto-playlists
+                    spotifyLibraryPlaylists(navController)
 
                     items(
                         items = filteredItems,
@@ -814,9 +814,6 @@ fun LibraryMixScreen(
                         headerContent()
                     }
 
-                    // MuSicX Spotify tiles (Liked Songs + folders + playlists)
-                    spotifyLibraryPlaylistsGrid(navController, spotifyGridState)
-
                     if (showLikedPlaylist) {
                         item(
                             key = "likedPlaylist",
@@ -921,6 +918,9 @@ fun LibraryMixScreen(
                             )
                         }
                     }
+
+                    // MuSicX Spotify tiles (Liked Songs + folders + playlists) — after auto-playlists
+                    spotifyLibraryPlaylistsGrid(navController, spotifyGridState)
 
                     items(
                         items = filteredItems,
