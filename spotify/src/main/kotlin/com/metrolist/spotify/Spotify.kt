@@ -1056,6 +1056,24 @@ object Spotify {
             }
         }
 
+    // ── Recently Played (REST — cursor-paginated, no GQL equivalent) ────
+
+    /**
+     * Returns the user's most recently played Spotify tracks (up to 50 per call).
+     * Backed by the REST endpoint `/me/player/recently-played`. Duplicates (same
+     * track played multiple times) are stripped so the home row stays clean.
+     */
+    suspend fun recentlyPlayed(limit: Int = 20): Result<List<SpotifyTrack>> =
+        runCatching {
+            val resp: com.metrolist.spotify.models.SpotifyRecentlyPlayedResponse =
+                authenticatedGet("me/player/recently-played", failFastOn429 = true) {
+                    parameter("limit", limit.coerceIn(1, 50))
+                }
+            resp.items
+                .mapNotNull { it.track }
+                .distinctBy { it.id }
+        }
+
     // ── Top Artists (REST fallback — no GQL equivalent) ─────────────────
 
     suspend fun topArtists(

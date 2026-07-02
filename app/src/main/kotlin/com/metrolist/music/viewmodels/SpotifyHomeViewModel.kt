@@ -72,6 +72,24 @@ class SpotifyHomeViewModel @Inject constructor(
     private suspend fun loadSections(hideExplicit: Boolean) {
         val out = mutableListOf<SpotifyHomeSection>()
 
+        // Section 0: recently played (from Spotify /me/player/recently-played)
+        try {
+            Spotify.recentlyPlayed(limit = 20).onSuccess { recent ->
+                val filtered = if (hideExplicit) recent.filter { !it.explicit } else recent
+                if (filtered.isNotEmpty()) {
+                    out.add(
+                        SpotifyHomeSection(
+                            title = "spotify_recently_played",
+                            type = SectionType.TRACKS,
+                            tracks = filtered,
+                        ),
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "SpotifyHomeViewModel: recently-played section failed")
+        }
+
         // Section 1: your top tracks (from profile cache)
         try {
             val profileTracks = SpotifyProfileCache.getTopTracks(context, database, limit = 20)

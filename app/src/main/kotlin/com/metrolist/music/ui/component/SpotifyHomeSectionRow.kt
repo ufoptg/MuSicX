@@ -72,6 +72,7 @@ fun resolveSpotifySectionTitle(section: SpotifyHomeSection): String {
             stringResource(R.string.spotify_because_you_like, artistName)
         }
         title == "spotify_top_tracks" -> stringResource(R.string.spotify_top_tracks)
+        title == "spotify_recently_played" -> stringResource(R.string.spotify_recently_played)
         title == "spotify_top_artists" -> stringResource(R.string.spotify_top_artists)
         title == "spotify_made_for_you" -> stringResource(R.string.spotify_made_for_you)
         title == "spotify_discover" -> stringResource(R.string.spotify_discover)

@@ -1061,6 +1061,7 @@
     <string name="spotify_home_only">Spotify-only home</string>
     <string name="spotify_home_only_description">Show only Spotify content on the home screen. When disabled, local content like Speed Dial and Quick Picks will also appear.</string>
     <string name="spotify_top_tracks">Your Top Tracks</string>
+    <string name="spotify_recently_played">Recently Played</string>
     <string name="spotify_top_artists">Your Top Artists</string>
     <string name="spotify_made_for_you">All-Time Favorites</string>
     <string name="spotify_discover">More Artists You Love</string>
