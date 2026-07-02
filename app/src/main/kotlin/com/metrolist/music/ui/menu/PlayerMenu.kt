@@ -85,6 +85,7 @@ import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.ui.component.spotify.SpotifyAddToPlaylistDialog
 import com.metrolist.music.constants.ListItemHeight
 import com.metrolist.music.constants.VarispeedKey
 import com.metrolist.music.listentogether.ConnectionState
@@ -170,7 +171,7 @@ fun PlayerMenu(
             database.getSpotifyMatchByYouTubeId(mediaMetadata.id)?.spotifyId?.let { "spotify:track:$it" }
         }.getOrNull()
     }
-    com.metrolist.music.ui.component.spotify.SpotifyAddToPlaylistDialog(
+    SpotifyAddToPlaylistDialog(
         show = showAddToSpotifyDialog && musicxSpotifyEnabled && musicxSpotifySpDc.isNotEmpty(),
         spotifyUri = musicxSpotifyUri,
         onDismiss = { showAddToSpotifyDialog = false },

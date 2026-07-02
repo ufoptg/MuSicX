@@ -26,7 +26,16 @@ class CrashHandler private constructor(
         try {
             val crashLog = buildCrashLog(throwable)
             Timber.e(throwable, "App crashed")
-            
+
+            // MuSicX: also fire off a synchronous GitHub Issues report if the user
+            // opted in AND the build supplies a CRASH_REPORT_TOKEN. Bounded to a
+            // few seconds so a slow network never delays the crash activity.
+            try {
+                CrashReporter.reportFatal(throwable)
+            } catch (_: Throwable) {
+                // Reporter must never derail the crash flow.
+            }
+
             // Launch crash activity
             val intent = Intent(applicationContext, CrashActivity::class.java).apply {
                 putExtra(EXTRA_CRASH_LOG, crashLog)

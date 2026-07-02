@@ -56,6 +56,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.metrolist.innertube.utils.parseCookieString
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
+import com.metrolist.music.ui.component.spotify.spotifyLibraryPlaylists
 import com.metrolist.music.constants.CONTENT_TYPE_HEADER
 import com.metrolist.music.constants.CONTENT_TYPE_PLAYLIST
 import com.metrolist.music.constants.GridItemSize
@@ -412,7 +413,7 @@ fun LibraryPlaylistsScreen(
                     contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
                 ) {
                     // MuSicX Spotify playlists (no-op if disabled / logged out)
-                    com.metrolist.music.ui.component.spotify.spotifyLibraryPlaylists(navController)
+                    spotifyLibraryPlaylists(navController)
 
                     item(
                         key = "filter",

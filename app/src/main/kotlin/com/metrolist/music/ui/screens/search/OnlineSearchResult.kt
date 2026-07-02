@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import com.metrolist.music.LocalNavController
+import com.metrolist.music.ui.component.spotify.spotifySearchSection
 import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_ALBUM
 import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_ARTIST
 import com.metrolist.innertube.YouTube.SearchFilter.Companion.FILTER_COMMUNITY_PLAYLIST
@@ -493,7 +494,7 @@ fun OnlineSearchResult(
                 ) {
                     // MuSicX Spotify search results (no-op if disabled / logged out)
                     if (searchFilter == null) {
-                        com.metrolist.music.ui.component.spotify.spotifySearchSection(
+                        spotifySearchSection(
                             query = decodedQuery,
                             navController = navController,
                         )

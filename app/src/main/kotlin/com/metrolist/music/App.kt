@@ -70,6 +70,18 @@ class App :
         // Install crash handler first
         CrashHandler.install(this)
 
+        // Initialize CrashReporter (opt-in remote reporting to GitHub Issues).
+        // No-op unless the user enables it in Settings AND CRASH_REPORT_TOKEN
+        // is populated at build time.
+        com.metrolist.music.utils.CrashReporter.init(this)
+
+        // Install ANR watchdog (ported from meld). Logs when main-thread blocks
+        // for >5s so long-running foreground work becomes visible in logcat.
+        // Routes reports to CrashReporter when GitHub reporting is configured.
+        if (BuildConfig.DEBUG) {
+            com.metrolist.music.utils.AnrWatchdog.start()
+        }
+
         // preferencesDataStore uses filesDir/datastore; proactive mkdir reduces failures on odd ROM states
         try {
             val datastoreDir = File(filesDir, "datastore")

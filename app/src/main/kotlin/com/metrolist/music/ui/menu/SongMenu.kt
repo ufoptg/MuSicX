@@ -74,6 +74,7 @@ import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.LocalSyncUtils
 import com.metrolist.music.R
+import com.metrolist.music.ui.component.spotify.SpotifyAddToPlaylistDialog
 import com.metrolist.music.constants.ListItemHeight
 import com.metrolist.music.constants.ListThumbnailSize
 import com.metrolist.music.db.entities.ArtistEntity
@@ -241,13 +242,12 @@ fun SongMenu(
         com.metrolist.music.constants.SpotifySpDcKey,
         defaultValue = "",
     )
-    // Resolve Spotify URI for this song from the spotify_match table (best-effort).
     val musicxSpotifyUri = remember(song.id) {
         runCatching {
             database.getSpotifyMatchByYouTubeId(song.id)?.spotifyId?.let { "spotify:track:$it" }
         }.getOrNull()
     }
-    com.metrolist.music.ui.component.spotify.SpotifyAddToPlaylistDialog(
+    SpotifyAddToPlaylistDialog(
         show = showAddToSpotifyDialog && musicxSpotifyEnabled && musicxSpotifySpDc.isNotEmpty(),
         spotifyUri = musicxSpotifyUri,
         onDismiss = { showAddToSpotifyDialog = false },

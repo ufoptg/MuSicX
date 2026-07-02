@@ -91,6 +91,7 @@ import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.ui.component.spotify.spotifyEquivalentButton
 import com.metrolist.music.constants.AppBarHeight
 import com.metrolist.music.constants.HideExplicitKey
 import com.metrolist.music.constants.ShowArtistDescriptionKey
@@ -194,7 +195,7 @@ fun ArtistScreen(
         ) {
             // MuSicX: "Open on Spotify" if any of this artist's local songs has a Spotify match
             librarySongs.firstOrNull()?.song?.id?.let { seedId ->
-                com.metrolist.music.ui.component.spotify.spotifyEquivalentButton(
+                spotifyEquivalentButton(
                     seedSongId = seedId,
                     key = "musicx_spotify_artist_equiv",
                 )

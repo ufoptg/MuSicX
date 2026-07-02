@@ -89,6 +89,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.metrolist.music.LocalNavController
+import com.metrolist.music.ui.component.spotify.spotifyHomeSections
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
@@ -1173,7 +1174,7 @@ fun HomeScreen(
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
                 // MuSicX Spotify home sections (no-op if disabled / logged out)
-                com.metrolist.music.ui.component.spotify.spotifyHomeSections(navController)
+                spotifyHomeSections(navController)
 
                 item {
                     ChipsRow(

@@ -217,8 +217,11 @@ val LastFMUseNowPlaying = booleanPreferencesKey("lastfmUseNowPlaying")
 
 val LastFMUseSendLikes = booleanPreferencesKey("lastfmUseSendLikes")
 
+// Crash Reporting → GitHub Issues (ported from meld)
+val CrashReportingEnabledKey = booleanPreferencesKey("crashReportingEnabled")
+
 // Spotify Integration (ported from ufoptg/meld)
-val EnableSpotifyKey = booleanPreferencesKey("enableSpotify")
+val EnableSpotifyKey = booleanPreferencesKey("enableSpotify") = booleanPreferencesKey("enableSpotify")
 val UseSpotifySearchKey = booleanPreferencesKey("useSpotifySearch")
 val UseSpotifyHomeKey = booleanPreferencesKey("useSpotifyHome")
 val SpotifyHomeOnlyKey = booleanPreferencesKey("spotifyHomeOnly")

@@ -77,6 +77,7 @@ import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.ui.component.spotify.spotifyEquivalentButton
 import com.metrolist.music.constants.HideExplicitKey
 import com.metrolist.music.constants.HideVideoSongsKey
 import com.metrolist.music.db.entities.Album
@@ -191,7 +192,7 @@ fun AlbumScreen(
         val albumWithSongs = albumWithSongs
         if (albumWithSongs != null && albumWithSongs.songs.isNotEmpty()) {
             // MuSicX: "Open on Spotify" button when a match exists for the album's first song
-            com.metrolist.music.ui.component.spotify.spotifyEquivalentButton(
+            spotifyEquivalentButton(
                 seedSongId = albumWithSongs.songs.first().song.id,
                 key = "musicx_spotify_album_equiv",
             )

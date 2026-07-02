@@ -122,6 +122,13 @@ android {
         buildConfigField("String", "LASTFM_SECRET", "\"$lastFmSecret\"")
         buildConfigField("String", "ARCHITECTURE", "\"universal\"")
         buildConfigField("Long", "DISCORD_APP_ID", "1447278780795064401L")
+
+        // Crash reporting → GitHub Issues (opt-in). Populate CRASH_REPORT_TOKEN and
+        // CRASH_REPORT_REPO in local.properties or as env vars to enable remote reports.
+        val crashReportToken = localProperties.getProperty("CRASH_REPORT_TOKEN") ?: System.getenv("CRASH_REPORT_TOKEN") ?: ""
+        val crashReportRepo = localProperties.getProperty("CRASH_REPORT_REPO") ?: System.getenv("CRASH_REPORT_REPO") ?: "ufoptg/MuSicX"
+        buildConfigField("String", "CRASH_REPORT_TOKEN", "\"$crashReportToken\"")
+        buildConfigField("String", "CRASH_REPORT_REPO", "\"$crashReportRepo\"")
     }
 
     flavorDimensions += listOf("variant")
