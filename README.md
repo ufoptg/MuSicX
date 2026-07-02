@@ -11,7 +11,7 @@
 [![Latest release](https://img.shields.io/github/v/release/ufoptg/MuSicX?style=for-the-badge&labelColor=0d1117)](https://github.com/ufoptg/MuSicX/releases)
 [![License](https://img.shields.io/github/license/ufoptg/MuSicX?style=for-the-badge)](https://github.com/ufoptg/MuSicX/blob/main/LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/ufoptg/MuSicX/total?style=for-the-badge)](https://github.com/ufoptg/MuSicX/releases)
-
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/TrueSaiyan)
 <br/>
 
 [**Download**](#download-now) · [**Features**](#features) · [**What's New**](#whats-new-in-musicx) · [**Roadmap**](#roadmap) · [**FAQ**](#faq)
