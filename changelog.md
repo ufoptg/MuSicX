@@ -1,3 +1,11 @@
+---v13.6.4
+# MuSicX 13.6.4 — Updater + repo-link fixes
+
+## Fixed
+- **In-app updater now correctly points to the MuSicX repo** — previous builds were checking `MetrolistGroup/Metrolist` releases and offering that as an update. Now uses `ufoptg/MuSicX/releases`, and also recognizes the new `MuSicX.apk` / `MuSicX-with-Google-Cast.apk` / `MuSicX-izzy.apk` asset naming (with backward compatibility for old Metrolist-named assets).
+- **Spotify playlists now appear in Library GRID view** — previous fix only wired the injector into LIST view, so users on the default GRID view saw no Spotify content. Grid view now shows a green Spotify Liked Songs tile plus each Spotify playlist as a proper grid tile with its cover art.
+- Repo links across the app (About screen, Discord Rich Presence button, OpenRouter HTTP-Referer, 30 localized `github_releases_url` strings) updated from `MetrolistGroup/Metrolist` → `ufoptg/MuSicX`.
+
 ---v13.6.3
 # MuSicX 13.6.3 — First MuSicX-branded release 🎉
 

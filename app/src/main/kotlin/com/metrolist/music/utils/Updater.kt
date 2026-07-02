@@ -40,7 +40,7 @@ object Updater {
     private var cachedAllReleases: List<ReleaseInfo> = emptyList()
     
     private const val CHECK_INTERVAL_MILLIS = 2 * 60 * 60 * 1000L // 2 hours
-    private const val GITHUB_API_BASE = "https://api.github.com/repos/MetrolistGroup/Metrolist"
+    private const val GITHUB_API_BASE = "https://api.github.com/repos/ufoptg/MuSicX"
 
     /**
      * Compares two version strings.
@@ -97,6 +97,10 @@ object Updater {
             
             // Parse architecture and variant from filename
             val (arch, variant) = when {
+                name == "MuSicX.apk" -> "universal" to "foss"
+                name == "MuSicX-with-Google-Cast.apk" -> "universal" to "gms"
+                name == "MuSicX-izzy.apk" -> "universal" to "izzy"
+                // Backward compatibility: older Metrolist-branded releases
                 name == "Metrolist.apk" -> "universal" to "foss"
                 name == "Metrolist-with-Google-Cast.apk" -> "universal" to "gms"
                 name.startsWith("app-") && name.endsWith("-release.apk") -> {
