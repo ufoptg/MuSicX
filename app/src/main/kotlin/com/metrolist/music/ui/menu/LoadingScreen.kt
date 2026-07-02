@@ -1,6 +1,7 @@
 @file:OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 /**
- * Metrolist Project (C) 2026
+ * MuSicX Project (C) 2026
+ * Credits to Metrolist Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
