@@ -2,28 +2,34 @@
  * MuSicX Spotify Library Playlists Injector
  *
  * Provides a LazyListScope extension that lists the user's Spotify playlists
- * inline in LibraryPlaylistsScreen. Guarded so it's a no-op when Spotify is
- * disabled or the user is not logged in.
+ * and a Liked Songs entry inline in LibraryPlaylistsScreen. Guarded so it's a
+ * no-op when Spotify is disabled or the user is not logged in.
  */
 
 package com.metrolist.music.ui.component.spotify
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -38,7 +44,7 @@ import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.viewmodels.SpotifyViewModel
 
 /**
- * Injects a "Your Spotify Playlists" section at the top of a LazyColumn.
+ * Injects a "Your Spotify Library" section at the top of a LazyColumn.
  * Call from within a LazyColumn scope inside LibraryPlaylistsScreen.
  */
 fun LazyListScope.spotifyLibraryPlaylists(
@@ -60,15 +66,67 @@ private fun SpotifyLibraryPlaylistsSection(
 ) {
     val playlists by viewModel.spotifyRootPlaylists.collectAsStateWithLifecycle()
     val folders by viewModel.spotifyRootFolders.collectAsStateWithLifecycle()
+    val likedTotal by viewModel.likedSongsTotal.collectAsStateWithLifecycle()
 
-    if (playlists.isEmpty() && folders.isEmpty()) return
+    // Trigger the initial data load exactly once when the section first appears
+    // (viewModel is scoped to the enclosing NavBackStackEntry, so this survives
+    // list recompositions but re-runs on true re-mount).
+    LaunchedEffect(Unit) {
+        if (viewModel.spotifyPlaylists.value.isEmpty()) viewModel.loadPlaylists()
+        if (viewModel.likedSongs.value.isEmpty()) viewModel.loadLikedSongs()
+    }
 
     Text(
         text = stringResource(R.string.spotify_playlists),
         style = MaterialTheme.typography.titleMedium,
         modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        color = MaterialTheme.colorScheme.onSurface,
+        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
     )
 
+    // --- Liked Songs entry ---
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { navController.navigate("spotify/liked") }
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(Color(0xFF1DB954)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.favorite),
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+        Spacer(Modifier.size(12.dp))
+        androidx.compose.foundation.layout.Column {
+            Text(
+                text = stringResource(R.string.liked_songs),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            if (likedTotal > 0) {
+                Text(
+                    text = "$likedTotal",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+
+    // --- Folders (top-level) ---
     folders.take(20).forEach { folder ->
         // Spotify folder URIs look like "spotify:folder:<id>"; extract the tail.
         val folderId = folder.uri.substringAfterLast(":")
@@ -79,22 +137,23 @@ private fun SpotifyLibraryPlaylistsSection(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            androidx.compose.foundation.layout.Box(
+            Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .padding(4.dp),
+                    .clip(RoundedCornerShape(4.dp)),
+                contentAlignment = Alignment.Center,
             ) {
-                androidx.compose.material3.Icon(
-                    painter = androidx.compose.ui.res.painterResource(R.drawable.folder),
+                Icon(
+                    painter = painterResource(R.drawable.folder),
                     contentDescription = null,
                 )
             }
-            androidx.compose.foundation.layout.Spacer(Modifier.size(12.dp))
+            Spacer(Modifier.size(12.dp))
             Text(text = folder.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 
+    // --- Root-level playlists ---
     playlists.take(50).forEach { playlist ->
         Row(
             modifier = Modifier
@@ -110,7 +169,7 @@ private fun SpotifyLibraryPlaylistsSection(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.size(48.dp).clip(RoundedCornerShape(4.dp)),
             )
-            androidx.compose.foundation.layout.Spacer(Modifier.size(12.dp))
+            Spacer(Modifier.size(12.dp))
             Text(text = playlist.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
