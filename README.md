@@ -9,8 +9,8 @@
 <br/>
 
 [![Latest release](https://img.shields.io/github/v/release/ufoptg/MuSicX?style=for-the-badge&labelColor=0d1117)](https://github.com/ufoptg/MuSicX/releases)
-[![License](https://img.shields.io/github/license/ufoptg/MuSicX?style=for-the-badge&labelColor=0d1117)](https://github.com/ufoptg/MuSicX/blob/main/LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/ufoptg/MuSicX/total?style=for-the-badge&labelColor=0d1117)](https://github.com/ufoptg/MuSicX/releases)
+[![License](https://img.shields.io/github/license/ufoptg/MuSicX?style=for-the-badge)](https://github.com/ufoptg/MuSicX/blob/main/LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/ufoptg/MuSicX/total?style=for-the-badge)](https://github.com/ufoptg/MuSicX/releases)
 
 <br/>
 
