@@ -117,6 +117,9 @@ import com.metrolist.music.constants.GridItemSize
 import com.metrolist.music.constants.GridItemsSizeKey
 import com.metrolist.music.constants.GridThumbnailHeight
 import com.metrolist.music.constants.InnerTubeCookieKey
+import com.metrolist.music.constants.EnableSpotifyKey
+import com.metrolist.music.constants.SpotifySpDcKey
+import com.metrolist.music.constants.UseSpotifyHomeKey
 import com.metrolist.music.constants.ListItemHeight
 import com.metrolist.music.constants.ListThumbnailSize
 import com.metrolist.music.constants.RandomizeHomeOrderKey
@@ -683,6 +686,14 @@ fun HomeScreen(
     val innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
     val (randomizeHomeOrder) = rememberPreference(RandomizeHomeOrderKey, true)
     val autoRadioQueue by rememberPreference(AutoRadioQueueKey, defaultValue = true)
+    // Spotify integration prefs — used to decide whether the local Recently
+    // Played row should be slotted INSIDE the Spotify sections (right below
+    // "Your Top Tracks") or into the local sections list (as a fallback when
+    // Spotify home is disabled / logged out).
+    val enableSpotify by rememberPreference(EnableSpotifyKey, defaultValue = false)
+    val useSpotifyHome by rememberPreference(UseSpotifyHomeKey, defaultValue = true)
+    val spotifySpDc by rememberPreference(SpotifySpDcKey, defaultValue = "")
+    val spotifyHomeActive = enableSpotify && useSpotifyHome && spotifySpDc.isNotEmpty()
 
     LaunchedEffect(Unit) { viewModel.loadHomeData() }
 
@@ -1021,6 +1032,7 @@ fun HomeScreen(
             quickPicks,
             recentlyPlayed,
             mediaMetadata?.id,
+            spotifyHomeActive,
             dailyDiscover,
             keepListening,
             accountPlaylists,
@@ -1035,7 +1047,7 @@ fun HomeScreen(
 
             if (!chipActive && speedDialItems.isNotEmpty()) list.add(HomeSection.SpeedDial)
             if (!chipActive && quickPicks?.isNotEmpty() == true) list.add(HomeSection.QuickPicks)
-            if (!chipActive && (recentlyPlayed?.isNotEmpty() == true || mediaMetadata != null)) list.add(HomeSection.RecentlyPlayed)
+            if (!chipActive && (recentlyPlayed?.isNotEmpty() == true || mediaMetadata != null) && !spotifyHomeActive) list.add(HomeSection.RecentlyPlayed)
             if (!chipActive && communityPlaylists?.isNotEmpty() == true) list.add(HomeSection.FromTheCommunity)
             if (!chipActive && dailyDiscover?.isNotEmpty() == true) list.add(HomeSection.DailyDiscover)
             if (!chipActive && keepListening?.isNotEmpty() == true) list.add(HomeSection.KeepListening)
@@ -1208,6 +1220,112 @@ fun HomeScreen(
                 }
             }
 
+            // Reusable Recently Played row (Column-based so it works both inside
+            // spotifyHomeSections' Column AND as a standalone LazyColumn item).
+            // Rendered as the postTopTracks slot when Spotify home is active, or
+            // via HomeSection.RecentlyPlayed otherwise.
+            val recentlyPlayedContent: @Composable () -> Unit = {
+                if (effectiveRecentlyPlayed.isNotEmpty()) {
+                    val recent = effectiveRecentlyPlayed
+                    val recentTitle = stringResource(R.string.recently_played)
+                    Column {
+                        NavigationTitle(
+                            title = recentTitle,
+                            onPlayAllClick =
+                                if (!isListenTogetherGuest) {
+                                    {
+                                        playerConnection.playQueue(
+                                            ListQueue(
+                                                title = recentTitle,
+                                                items = recent.distinctBy { it.id }.map { it.toMediaItem() },
+                                            ),
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
+                        )
+                        val rows = if (recent.size > 6) 2 else 1
+                        LazyHorizontalGrid(
+                            state = recentlyPlayedLazyGridState,
+                            rows = GridCells.Fixed(rows),
+                            contentPadding =
+                                WindowInsets.systemBars
+                                    .only(WindowInsetsSides.Horizontal)
+                                    .asPaddingValues(),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(ListItemHeight * rows),
+                        ) {
+                            items(
+                                items = recent.distinctBy { it.id },
+                                key = { "home_recent_${it.id}" },
+                            ) { originalSong ->
+                                val song by database
+                                    .song(originalSong.id)
+                                    .collectAsStateWithLifecycle(initialValue = originalSong)
+
+                                SongListItem(
+                                    song = song!!,
+                                    showInLibraryIcon = true,
+                                    isActive = song!!.id == mediaMetadata?.id,
+                                    isPlaying = isPlaying,
+                                    isSwipeable = false,
+                                    trailingContent = {
+                                        IconButton(
+                                            onClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                menuState.show {
+                                                    SongMenu(
+                                                        originalSong = song!!,
+                                                        onDismiss = menuState::dismiss,
+                                                    )
+                                                }
+                                            },
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.more_vert),
+                                                contentDescription = null,
+                                            )
+                                        }
+                                    },
+                                    modifier =
+                                        Modifier
+                                            .width(horizontalLazyGridItemWidth)
+                                            .combinedClickable(
+                                                onClick = {
+                                                    if (!isListenTogetherGuest) {
+                                                        if (song!!.id == mediaMetadata?.id) {
+                                                            playerConnection.togglePlayPause()
+                                                        } else {
+                                                            playerConnection.playQueue(
+                                                                ListQueue(
+                                                                    title = recentTitle,
+                                                                    items = recent.map { it.toMediaItem() },
+                                                                    startIndex = recent.indexOfFirst { it.id == song!!.id }.coerceAtLeast(0),
+                                                                ),
+                                                            )
+                                                        }
+                                                    }
+                                                },
+                                                onLongClick = {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    menuState.show {
+                                                        SongMenu(
+                                                            originalSong = song!!,
+                                                            onDismiss = menuState::dismiss,
+                                                        )
+                                                    }
+                                                },
+                                            ),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             LazyColumn(
                 state = lazylistState,
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
@@ -1327,8 +1445,9 @@ fun HomeScreen(
                     }
                 }
 
-                // MuSicX Spotify home sections (no-op if disabled / logged out)
-                spotifyHomeSections(navController)
+                // MuSicX Spotify home sections (no-op if disabled / logged out).
+                // Slot the local Recently Played row directly below "Your Top Tracks".
+                spotifyHomeSections(navController, postTopTracks = recentlyPlayedContent)
 
                 item {
                     ChipsRow(
@@ -2021,107 +2140,12 @@ fun HomeScreen(
                         }
 
                         HomeSection.RecentlyPlayed -> {
-                            effectiveRecentlyPlayed.takeIf { it.isNotEmpty() }?.let { recent ->
-                                item(key = "recently_played_title") {
-                                    val recentTitle = stringResource(R.string.recently_played)
-                                    NavigationTitle(
-                                        title = recentTitle,
-                                        onPlayAllClick =
-                                            if (!isListenTogetherGuest) {
-                                                {
-                                                    playerConnection.playQueue(
-                                                        ListQueue(
-                                                            title = recentTitle,
-                                                            items = recent.distinctBy { it.id }.map { it.toMediaItem() },
-                                                        ),
-                                                    )
-                                                }
-                                            } else {
-                                                null
-                                            },
-                                    )
-                                }
-
-                                item(key = "recently_played_list") {
-                                    val listQueueTitle = stringResource(R.string.recently_played)
-                                    val rows = if (recent.size > 6) 2 else 1
-                                    LazyHorizontalGrid(
-                                        state = recentlyPlayedLazyGridState,
-                                        rows = GridCells.Fixed(rows),
-                                        contentPadding =
-                                            WindowInsets.systemBars
-                                                .only(WindowInsetsSides.Horizontal)
-                                                .asPaddingValues(),
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .height(ListItemHeight * rows),
-                                    ) {
-                                        items(
-                                            items = recent.distinctBy { it.id },
-                                            key = { "home_recent_${it.id}" },
-                                        ) { originalSong ->
-                                            val song by database
-                                                .song(originalSong.id)
-                                                .collectAsStateWithLifecycle(initialValue = originalSong)
-
-                                            SongListItem(
-                                                song = song!!,
-                                                showInLibraryIcon = true,
-                                                isActive = song!!.id == mediaMetadata?.id,
-                                                isPlaying = isPlaying,
-                                                isSwipeable = false,
-                                                trailingContent = {
-                                                    IconButton(
-                                                        onClick = {
-                                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                            menuState.show {
-                                                                SongMenu(
-                                                                    originalSong = song!!,
-                                                                    onDismiss = menuState::dismiss,
-                                                                )
-                                                            }
-                                                        },
-                                                    ) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.more_vert),
-                                                            contentDescription = null,
-                                                        )
-                                                    }
-                                                },
-                                                modifier =
-                                                    Modifier
-                                                        .width(horizontalLazyGridItemWidth)
-                                                        .combinedClickable(
-                                                            onClick = {
-                                                                if (!isListenTogetherGuest) {
-                                                                    if (song!!.id == mediaMetadata?.id) {
-                                                                        playerConnection.togglePlayPause()
-                                                                    } else {
-                                                                        playerConnection.playQueue(
-                                                                            ListQueue(
-                                                                                title = listQueueTitle,
-                                                                                items = recent.map { it.toMediaItem() },
-                                                                                startIndex = recent.indexOfFirst { it.id == song!!.id }.coerceAtLeast(0),
-                                                                            ),
-                                                                        )
-                                                                    }
-                                                                }
-                                                            },
-                                                            onLongClick = {
-                                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                                menuState.show {
-                                                                    SongMenu(
-                                                                        originalSong = song!!,
-                                                                        onDismiss = menuState::dismiss,
-                                                                    )
-                                                                }
-                                                            },
-                                                        ),
-                                            )
-                                        }
-                                    }
-                                }
+                            // Fallback path — only reached when Spotify home is NOT active
+                            // (list.add(...) is gated on !spotifyHomeActive). When Spotify
+                            // is active, the same content is slotted below Your Top Tracks
+                            // via the postTopTracks callback on spotifyHomeSections().
+                            item(key = "recently_played_inline") {
+                                recentlyPlayedContent()
                             }
                         }
 

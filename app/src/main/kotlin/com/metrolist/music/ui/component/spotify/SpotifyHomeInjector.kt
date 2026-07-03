@@ -44,6 +44,11 @@ import com.metrolist.music.viewmodels.SpotifyHomeViewModel
  * Injects Spotify home sections into a LazyColumn. Call from within a LazyColumn
  * scope. No-op unless Spotify is enabled + home injection enabled + logged in.
  *
+ * @param postTopTracks Optional composable rendered immediately after the
+ *   "Your Top Tracks" section (matched by title key "spotify_top_tracks").
+ *   Useful for slotting the local Recently Played row directly under Top Tracks
+ *   so it never gets shuffled to the bottom by the randomize-home-order feature.
+ *
  * Usage inside HomeScreen.kt:
  *     LazyColumn(...) {
  *         spotifyHomeSections(navController)
@@ -52,6 +57,7 @@ import com.metrolist.music.viewmodels.SpotifyHomeViewModel
  */
 fun LazyListScope.spotifyHomeSections(
     navController: NavController,
+    postTopTracks: (@Composable () -> Unit)? = null,
 ) {
     item(key = "musicx_spotify_home_gate") {
         val enableSpotify by rememberPreference(EnableSpotifyKey, defaultValue = false)
@@ -60,13 +66,14 @@ fun LazyListScope.spotifyHomeSections(
 
         if (!enableSpotify || !useSpotifyHome || spDc.isEmpty()) return@item
 
-        SpotifyHomeSectionsContent(navController)
+        SpotifyHomeSectionsContent(navController, postTopTracks)
     }
 }
 
 @Composable
 private fun SpotifyHomeSectionsContent(
     navController: NavController,
+    postTopTracks: (@Composable () -> Unit)? = null,
     viewModel: SpotifyHomeViewModel = hiltViewModel(),
 ) {
     val sections by viewModel.sections.collectAsStateWithLifecycle()
@@ -74,6 +81,12 @@ private fun SpotifyHomeSectionsContent(
     Column {
         sections.forEach { section ->
             SpotifySectionBlock(section, navController)
+            // Slot custom content (e.g. local Recently Played) right below the
+            // "Your Top Tracks" row so ordering stays predictable regardless of
+            // the randomize-home-order shuffle applied to the local sections.
+            if (section.title == "spotify_top_tracks" && postTopTracks != null) {
+                postTopTracks()
+            }
         }
     }
 }

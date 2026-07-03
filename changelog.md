@@ -1,3 +1,11 @@
+---v13.6.9
+# MuSicX 13.6.9 — Recently Played slotted under Your Top Tracks
+
+## Fixed
+- **Recently Played now renders directly under "Your Top Tracks"** (inside the Spotify sections block), not above Quick Picks. Added a `postTopTracks` composable slot to `spotifyHomeSections` — the injector renders any provided content immediately after it emits the Top Tracks row (matched by title key `spotify_top_tracks`). HomeScreen passes the same Recently Played row as this slot when Spotify home is active, and falls back to a normal `HomeSection.RecentlyPlayed` entry (at the top of the local sections list) when Spotify is disabled / logged out.
+- **Deduplicated Recently Played rendering** — extracted the title + horizontal grid into a single reusable `recentlyPlayedContent` lambda so both call sites share one implementation.
+
+
 ---v13.6.8
 # MuSicX 13.6.8 — Continue Listening card + Recently Played polish
 
