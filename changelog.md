@@ -1,3 +1,10 @@
+---v13.7.0
+# MuSicX 13.7.0 — SponsorBlock entry moved to Misc
+
+## Fixed
+- **SponsorBlock settings entry is now visible under Player Settings → Misc**, matching meld's layout. It was previously nested inside the Player section (between the Skip Silence toggles) and was easy to miss. Same behaviour — tapping still opens the SponsorBlock category picker where you can toggle it on and choose which segment types (sponsor / intro / outro / self-promo / interaction / preview / music-offtopic / filler) to auto-skip.
+
+
 ---v13.6.9
 # MuSicX 13.6.9 — Recently Played slotted under Your Top Tracks
 

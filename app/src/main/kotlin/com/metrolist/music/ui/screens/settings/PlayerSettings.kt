@@ -396,13 +396,6 @@ fun PlayerSettings(
                     onClick = { onSkipSilenceChange(!skipSilence) }
                 ))
 
-                // MuSicX SponsorBlock entry (ported from meld)
-                add(Material3SettingsItem(
-                    icon = painterResource(R.drawable.fast_forward),
-                    title = { Text(stringResource(R.string.sponsorblock)) },
-                    description = { Text(stringResource(R.string.sponsorblock_desc)) },
-                    onClick = { navController.navigate("settings/player/sponsorblock") }
-                ))
                 add(Material3SettingsItem(
                     icon = painterResource(R.drawable.skip_next),
                     title = { Text(stringResource(R.string.skip_silence_instant)) },
@@ -1094,6 +1087,15 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { onKeepScreenOnChange(!keepScreenOn) }
+                ),
+                // MuSicX SponsorBlock entry (ported from meld — sits at the
+                // end of the Misc group so it matches meld's Player Settings
+                // layout: sponsor/intro/outro segment skipping).
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.fast_forward),
+                    title = { Text(stringResource(R.string.sponsorblock)) },
+                    description = { Text(stringResource(R.string.sponsorblock_desc)) },
+                    onClick = { navController.navigate("settings/player/sponsorblock") }
                 )
             )
         )
