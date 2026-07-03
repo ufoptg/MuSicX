@@ -1,3 +1,14 @@
+---v13.6.8
+# MuSicX 13.6.8 — Continue Listening card + Recently Played polish
+
+## Added
+- **Continue Listening hero card** at the very top of Home — big thumbnail + title + artist + a large play/pause button. Pulls from the currently-loaded player metadata, or falls back to your most recent play from `database.events()` when the app is fresh. One tap resumes/toggles playback; long-press opens the song menu. Perfect for jumping straight back into what you were listening to on app relaunch.
+
+## Fixed
+- **Recently Played now includes the currently-playing song at position 0** — previously the row could feel stale because events are only written to the DB after ≥30s of playtime, so an in-progress song never appeared. We now merge the live `mediaMetadata` id (deduped) so the most recent track is always first.
+- **Recently Played is now pinned to the top of the local sections list** — appears immediately under Spotify's "Your Top Tracks" row instead of getting shuffled beneath Quick Picks / Daily Discover by the randomize-order feature. Weight bumped to 10 000 (fixed, non-randomized) so it never gets reordered.
+
+
 ---v13.6.7
 # MuSicX 13.6.7 — Recently Played row + upstream sync
 

@@ -1020,6 +1020,7 @@ fun HomeScreen(
             speedDialItems,
             quickPicks,
             recentlyPlayed,
+            mediaMetadata?.id,
             dailyDiscover,
             keepListening,
             accountPlaylists,
@@ -1034,7 +1035,7 @@ fun HomeScreen(
 
             if (!chipActive && speedDialItems.isNotEmpty()) list.add(HomeSection.SpeedDial)
             if (!chipActive && quickPicks?.isNotEmpty() == true) list.add(HomeSection.QuickPicks)
-            if (!chipActive && recentlyPlayed?.isNotEmpty() == true) list.add(HomeSection.RecentlyPlayed)
+            if (!chipActive && (recentlyPlayed?.isNotEmpty() == true || mediaMetadata != null)) list.add(HomeSection.RecentlyPlayed)
             if (!chipActive && communityPlaylists?.isNotEmpty() == true) list.add(HomeSection.FromTheCommunity)
             if (!chipActive && dailyDiscover?.isNotEmpty() == true) list.add(HomeSection.DailyDiscover)
             if (!chipActive && keepListening?.isNotEmpty() == true) list.add(HomeSection.KeepListening)
@@ -1064,9 +1065,12 @@ fun HomeScreen(
                     // All "main" sections start closer together
                     val base =
                         when (section) {
+                            // Recently Played is pinned to the very top of local sections
+                            // (right below Spotify's Your Top Tracks). No randomization.
+                            HomeSection.RecentlyPlayed -> 10_000
+
                             HomeSection.SpeedDial,
                             HomeSection.QuickPicks,
-                            HomeSection.RecentlyPlayed,
                             HomeSection.DailyDiscover,
                             -> 500
 
@@ -1085,11 +1089,13 @@ fun HomeScreen(
 
                     val modifier =
                         when (section) {
+                            // Recently Played is never shuffled — always first.
+                            HomeSection.RecentlyPlayed -> 0
+
                             // Top tier: High variance to allow shuffling among themselves
                             // Range: [500-200, 500+400] = [300, 900]
                             HomeSection.SpeedDial,
                             HomeSection.QuickPicks,
-                            HomeSection.RecentlyPlayed,
                             HomeSection.DailyDiscover,
                             -> sectionRandom.nextInt(-200, 400)
 
@@ -1110,9 +1116,9 @@ fun HomeScreen(
             } else {
                 val defaultOrder =
                     mapOf(
+                        HomeSection.RecentlyPlayed to 1000,
                         HomeSection.SpeedDial to 100,
                         HomeSection.QuickPicks to 90,
-                        HomeSection.RecentlyPlayed to 85,
                         HomeSection.FromTheCommunity to 80,
                         HomeSection.DailyDiscover to 70,
                         HomeSection.KeepListening to 60,
@@ -1187,6 +1193,126 @@ fun HomeScreen(
                 state = lazylistState,
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
+                // Continue Listening hero card — pinned to the very top of Home.
+                // Sources the current player metadata if a song is loaded, otherwise
+                // falls back to the most recent play from database.events(). Tap plays
+                // (or toggles play/pause if it's already the loaded song).
+                val heroCurrentId = mediaMetadata?.id
+                val fallbackSong = recentlyPlayed?.firstOrNull()
+                val heroSongId = heroCurrentId ?: fallbackSong?.id
+                if (heroSongId != null && !isListenTogetherGuest) {
+                    item(key = "continue_listening_hero") {
+                        val heroSong by remember(heroSongId) {
+                            database.song(heroSongId)
+                        }.collectAsStateWithLifecycle(initialValue = fallbackSong)
+                        heroSong?.let { song ->
+                            val isCurrent = mediaMetadata?.id == song.id
+                            val subtitle = if (isCurrent && isPlaying) {
+                                stringResource(R.string.now_playing)
+                            } else {
+                                stringResource(R.string.continue_listening)
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 12.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                                        .combinedClickable(
+                                            onClick = {
+                                                if (isCurrent) {
+                                                    playerConnection.togglePlayPause()
+                                                } else {
+                                                    playerConnection.playQueue(
+                                                        ListQueue(
+                                                            title = song.song.title,
+                                                            items = listOf(song.toMediaItem()),
+                                                        ),
+                                                    )
+                                                }
+                                            },
+                                            onLongClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                menuState.show {
+                                                    SongMenu(
+                                                        originalSong = song,
+                                                        onDismiss = menuState::dismiss,
+                                                    )
+                                                }
+                                            },
+                                        )
+                                        .padding(10.dp),
+                            ) {
+                                AsyncImage(
+                                    model = song.song.thumbnailUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier =
+                                        Modifier
+                                            .size(72.dp)
+                                            .clip(RoundedCornerShape(ThumbnailCornerRadius)),
+                                )
+                                Spacer(Modifier.width(14.dp))
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 4.dp),
+                                ) {
+                                    Text(
+                                        text = subtitle,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.72f),
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = song.song.title,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        text = song.artists.joinToString { it.name },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.72f),
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        if (isCurrent) {
+                                            playerConnection.togglePlayPause()
+                                        } else {
+                                            playerConnection.playQueue(
+                                                ListQueue(
+                                                    title = song.song.title,
+                                                    items = listOf(song.toMediaItem()),
+                                                ),
+                                            )
+                                        }
+                                    },
+                                    modifier =
+                                        Modifier
+                                            .size(52.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary),
+                                ) {
+                                    Icon(
+                                        painter = painterResource(
+                                            if (isCurrent && isPlaying) R.drawable.pause else R.drawable.play,
+                                        ),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // MuSicX Spotify home sections (no-op if disabled / logged out)
                 spotifyHomeSections(navController)
 
@@ -1881,7 +2007,27 @@ fun HomeScreen(
                         }
 
                         HomeSection.RecentlyPlayed -> {
-                            recentlyPlayed?.takeIf { it.isNotEmpty() }?.let { recent ->
+                            // Prepend the currently-playing song (if any) so users always
+                            // see "the last song I listened to" at position 0, even when
+                            // it hasn't crossed the 30s play-time threshold that triggers
+                            // an Event row insert in the DB.
+                            val currentPlayingSong by remember(mediaMetadata?.id) {
+                                val currentId = mediaMetadata?.id
+                                if (currentId == null) kotlinx.coroutines.flow.flowOf(null)
+                                else database.song(currentId)
+                            }.collectAsStateWithLifecycle(initialValue = null)
+
+                            val effectiveRecent = remember(recentlyPlayed, currentPlayingSong) {
+                                val base = recentlyPlayed.orEmpty()
+                                val current = currentPlayingSong
+                                if (current != null) {
+                                    listOf(current) + base.filterNot { it.id == current.id }
+                                } else {
+                                    base
+                                }
+                            }
+
+                            effectiveRecent.takeIf { it.isNotEmpty() }?.let { recent ->
                                 item(key = "recently_played_title") {
                                     val recentTitle = stringResource(R.string.recently_played)
                                     NavigationTitle(

@@ -69,6 +69,7 @@
     <string name="link_copied">Link copied to clipboard</string>
     <string name="starting_radio">Starting radio…</string>
     <string name="now_playing">Now Playing</string>
+    <string name="continue_listening">Continue Listening</string>
 
     <string name="lyrics">Lyrics</string>
     <string name="close">Close</string>
