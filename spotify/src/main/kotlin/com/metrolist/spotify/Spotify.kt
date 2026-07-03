@@ -1060,18 +1060,24 @@ object Spotify {
 
     /**
      * Returns the user's most recently played Spotify tracks (up to 50 per call).
-     * Backed by the REST endpoint `/me/player/recently-played`. Duplicates (same
-     * track played multiple times) are stripped so the home row stays clean.
+     * Backed by the REST endpoint `/me/player/recently-played`. Duplicates are
+     * dropped by (id, uri) so replays don't show as duplicate tiles, but we
+     * fetch the full 50-item window so heavy replay users still see a decent
+     * number of unique tracks.
      */
     suspend fun recentlyPlayed(limit: Int = 20): Result<List<SpotifyTrack>> =
         runCatching {
+            // Always request the max window from Spotify (50), then dedupe and
+            // trim to the caller-requested limit. This mitigates the "one tile"
+            // bug when a user has repeatedly played a small set of tracks.
             val resp: com.metrolist.spotify.models.SpotifyRecentlyPlayedResponse =
                 authenticatedGet("me/player/recently-played", failFastOn429 = true) {
-                    parameter("limit", limit.coerceIn(1, 50))
+                    parameter("limit", 50)
                 }
             resp.items
                 .mapNotNull { it.track }
-                .distinctBy { it.id }
+                .distinctBy { it.uri ?: it.id }
+                .take(limit.coerceIn(1, 50))
         }
 
     // ── Top Artists (REST fallback — no GQL equivalent) ─────────────────

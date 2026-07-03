@@ -470,6 +470,21 @@ object SpotifyProfileCache {
                 if (tracks.isEmpty() && localSongs.isNotEmpty()) {
                     Timber.d("$TAG: No GQL/REST data — using ${localSongs.size} local songs as sole source")
                     for (song in localSongs) {
+                        val thumbUrl = song.song.thumbnailUrl
+                        val syntheticAlbum = if (!thumbUrl.isNullOrEmpty()) {
+                            com.metrolist.spotify.models.SpotifySimpleAlbum(
+                                id = song.album?.id ?: song.song.albumId ?: "",
+                                name = song.album?.title ?: "",
+                                images = listOf(
+                                    com.metrolist.spotify.models.SpotifyImage(
+                                        url = thumbUrl,
+                                        width = 300,
+                                        height = 300,
+                                    )
+                                ),
+                            )
+                        } else null
+
                         tracks.add(
                             SpotifyTrack(
                                 id = song.song.id,
@@ -480,6 +495,7 @@ object SpotifyProfileCache {
                                         name = it.name,
                                     )
                                 },
+                                album = syntheticAlbum,
                                 durationMs = (song.song.duration * 1000),
                             )
                         )
