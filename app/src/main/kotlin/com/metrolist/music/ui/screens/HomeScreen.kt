@@ -1189,29 +1189,44 @@ fun HomeScreen(
                     )
                 }
 
+            // Reactive current-playing song from the DB, used by both the Continue
+            // Listening hero card and the Recently Played row. Hoisted here so all
+            // @Composable calls stay in a composable scope (LazyListScope is NOT).
+            val currentPlayingSong by remember(mediaMetadata?.id) {
+                val currentId = mediaMetadata?.id
+                if (currentId == null) kotlinx.coroutines.flow.flowOf(null)
+                else database.song(currentId)
+            }.collectAsStateWithLifecycle(initialValue = null)
+
+            val effectiveRecentlyPlayed = remember(recentlyPlayed, currentPlayingSong) {
+                val base = recentlyPlayed.orEmpty()
+                val current = currentPlayingSong
+                if (current != null) {
+                    listOf(current) + base.filterNot { it.id == current.id }
+                } else {
+                    base
+                }
+            }
+
             LazyColumn(
                 state = lazylistState,
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
                 // Continue Listening hero card — pinned to the very top of Home.
-                // Sources the current player metadata if a song is loaded, otherwise
-                // falls back to the most recent play from database.events(). Tap plays
-                // (or toggles play/pause if it's already the loaded song).
-                val heroCurrentId = mediaMetadata?.id
-                val fallbackSong = recentlyPlayed?.firstOrNull()
-                val heroSongId = heroCurrentId ?: fallbackSong?.id
-                if (heroSongId != null && !isListenTogetherGuest) {
+                // Uses the reactive currentPlayingSong (from the DB, tracks mediaMetadata),
+                // and falls back to the most recent play from database.events() when the
+                // app is fresh with nothing loaded. Tap plays (or toggles play/pause if
+                // it's already the loaded song).
+                val heroSong = currentPlayingSong ?: recentlyPlayed?.firstOrNull()
+                if (heroSong != null && !isListenTogetherGuest) {
                     item(key = "continue_listening_hero") {
-                        val heroSong by remember(heroSongId) {
-                            database.song(heroSongId)
-                        }.collectAsStateWithLifecycle(initialValue = fallbackSong)
-                        heroSong?.let { song ->
-                            val isCurrent = mediaMetadata?.id == song.id
-                            val subtitle = if (isCurrent && isPlaying) {
-                                stringResource(R.string.now_playing)
-                            } else {
-                                stringResource(R.string.continue_listening)
-                            }
+                        val song = heroSong
+                        val isCurrent = mediaMetadata?.id == song.id
+                        val subtitle = if (isCurrent && isPlaying) {
+                            stringResource(R.string.now_playing)
+                        } else {
+                            stringResource(R.string.continue_listening)
+                        }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier =
@@ -1309,7 +1324,6 @@ fun HomeScreen(
                                     )
                                 }
                             }
-                        }
                     }
                 }
 
@@ -2007,27 +2021,7 @@ fun HomeScreen(
                         }
 
                         HomeSection.RecentlyPlayed -> {
-                            // Prepend the currently-playing song (if any) so users always
-                            // see "the last song I listened to" at position 0, even when
-                            // it hasn't crossed the 30s play-time threshold that triggers
-                            // an Event row insert in the DB.
-                            val currentPlayingSong by remember(mediaMetadata?.id) {
-                                val currentId = mediaMetadata?.id
-                                if (currentId == null) kotlinx.coroutines.flow.flowOf(null)
-                                else database.song(currentId)
-                            }.collectAsStateWithLifecycle(initialValue = null)
-
-                            val effectiveRecent = remember(recentlyPlayed, currentPlayingSong) {
-                                val base = recentlyPlayed.orEmpty()
-                                val current = currentPlayingSong
-                                if (current != null) {
-                                    listOf(current) + base.filterNot { it.id == current.id }
-                                } else {
-                                    base
-                                }
-                            }
-
-                            effectiveRecent.takeIf { it.isNotEmpty() }?.let { recent ->
+                            effectiveRecentlyPlayed.takeIf { it.isNotEmpty() }?.let { recent ->
                                 item(key = "recently_played_title") {
                                     val recentTitle = stringResource(R.string.recently_played)
                                     NavigationTitle(
