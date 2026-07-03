@@ -1,0 +1,210 @@
+name: Sync Upstream Metrolist
+
+# Nightly job (+ manual trigger) that opens a PR whenever
+# MetrolistGroup/Metrolist@main is ahead of ufoptg/MuSicX@main.
+# Prevents drift; also surfaces upstream conflicts early so MuSicX
+# can adopt fixes without a big-bang rebase.
+#
+# Behaviour:
+#   1. Fetch upstream/main.
+#   2. If zero commits behind → exit 0 (no-op).
+#   3. If already an OPEN sync PR → exit 0 (idempotent).
+#   4. Create branch chore/sync-upstream-<yyyymmdd-hhmm> on top of main,
+#      merge upstream/main with a merge commit.
+#      * clean merge → push branch, open PR.
+#      * conflicting merge → keep conflict markers, push branch, open
+#        PR with a bold "MANUAL RESOLUTION REQUIRED" header + file list.
+
+on:
+  schedule:
+    # 06:00 UTC daily (offset from sync-player-configs @ 00:00 & 12:00)
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-upstream-metrolist
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      UPSTREAM_URL: https://github.com/MetrolistGroup/Metrolist.git
+      UPSTREAM_BRANCH: main
+      LOCAL_BASE: main
+      SYNC_BRANCH_PREFIX: chore/sync-upstream
+
+    steps:
+      - name: Checkout repository (full history)
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.LOCAL_BASE }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure git identity
+        run: |
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream + fetch
+        run: |
+          git remote add upstream "$UPSTREAM_URL" || \
+            git remote set-url upstream "$UPSTREAM_URL"
+          git fetch upstream "$UPSTREAM_BRANCH" --tags
+
+      - name: Compute divergence
+        id: diff
+        run: |
+          behind=$(git rev-list --count "$LOCAL_BASE..upstream/$UPSTREAM_BRANCH")
+          ahead=$(git rev-list --count "upstream/$UPSTREAM_BRANCH..$LOCAL_BASE")
+          echo "behind=$behind" >> "$GITHUB_OUTPUT"
+          echo "ahead=$ahead"   >> "$GITHUB_OUTPUT"
+          echo "MuSicX/main is behind upstream by $behind commits, ahead by $ahead."
+          if [[ "$behind" == "0" ]]; then
+            echo "Already up to date. Nothing to sync."
+          fi
+
+      - name: Short-circuit if up to date
+        if: steps.diff.outputs.behind == '0'
+        run: echo "::notice::Nothing to sync. Exiting successfully."
+
+      - name: Skip if an open sync PR already exists
+        if: steps.diff.outputs.behind != '0'
+        id: existing_pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          existing=$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state open \
+            --search "head:${SYNC_BRANCH_PREFIX}- in:title Sync upstream Metrolist" \
+            --json number,headRefName,title \
+            --jq '.[0].number // empty')
+          if [[ -n "$existing" ]]; then
+            echo "An open sync PR already exists (#$existing). Skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create sync branch + attempt merge
+        if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true'
+        id: merge
+        run: |
+          stamp=$(date -u +%Y%m%d-%H%M)
+          branch="${SYNC_BRANCH_PREFIX}-${stamp}"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+          git checkout -b "$branch" "$LOCAL_BASE"
+
+          set +e
+          git merge --no-ff "upstream/$UPSTREAM_BRANCH" \
+            -m "chore: sync upstream MetrolistGroup/Metrolist@main"
+          status=$?
+          set -e
+
+          if [[ "$status" -eq 0 ]]; then
+            echo "clean_merge=true" >> "$GITHUB_OUTPUT"
+            echo "conflicting_files=" >> "$GITHUB_OUTPUT"
+          else
+            echo "clean_merge=false" >> "$GITHUB_OUTPUT"
+            # Capture conflict list before committing the marked-up files.
+            conflicts=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
+            {
+              echo "conflicting_files<<CONFLICT_EOF"
+              git diff --name-only --diff-filter=U
+              echo "CONFLICT_EOF"
+            } >> "$GITHUB_OUTPUT"
+
+            # Commit the conflict markers so the PR is reviewable.
+            git add -A
+            git commit --no-verify -m "chore: sync upstream MetrolistGroup/Metrolist@main (CONFLICTS)" \
+                                    -m "The following files require manual resolution: $conflicts"
+          fi
+
+      - name: Collect PR body content
+        if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true'
+        id: body
+        run: |
+          commits_md=$(git log --oneline --no-decorate \
+            "$LOCAL_BASE..upstream/$UPSTREAM_BRANCH" | \
+            sed 's/^/- /')
+          files_md=$(git diff --stat "$LOCAL_BASE..upstream/$UPSTREAM_BRANCH" | tail -n 40)
+
+          {
+            echo "body<<PR_BODY_EOF"
+            if [[ "${{ steps.merge.outputs.clean_merge }}" == "false" ]]; then
+              echo "> [!WARNING]"
+              echo "> **MANUAL RESOLUTION REQUIRED** — the automated merge encountered conflicts."
+              echo "> The following files contain conflict markers and need to be resolved before merging:"
+              echo ""
+              for f in ${{ steps.merge.outputs.conflicting_files }}; do
+                echo "> - \`$f\`"
+              done
+              echo ""
+              echo "---"
+              echo ""
+            fi
+            echo "## What"
+            echo "Auto-generated PR to bring **ufoptg/MuSicX@\`$LOCAL_BASE\`** up to date with **MetrolistGroup/Metrolist@\`$UPSTREAM_BRANCH\`**."
+            echo ""
+            echo "- **Behind by:** ${{ steps.diff.outputs.behind }} commits"
+            echo "- **Ahead by:** ${{ steps.diff.outputs.ahead }} MuSicX-only commits (preserved)"
+            echo ""
+            echo "## Upstream commits included"
+            echo ""
+            echo '```'
+            printf '%s\n' "$commits_md"
+            echo '```'
+            echo ""
+            echo "## File-level diff (upstream ↔ MuSicX baseline)"
+            echo ""
+            echo '```'
+            printf '%s\n' "$files_md"
+            echo '```'
+            echo ""
+            echo "## Reviewer checklist"
+            echo "- [ ] Verify no MuSicX-specific features were regressed (Spotify integration, SponsorBlock, ANR Watchdog, Music Recognition, Podcasts, LyricsPlus)"
+            echo "- [ ] Confirm rebrand markers (icons, strings, package IDs) are intact"
+            echo "- [ ] Check CI is green on all 4 build variants"
+            echo "- [ ] Bump versionCode / versionName in \`app/build.gradle.kts\` if release-worthy"
+            echo ""
+            echo "_Generated by \`.github/workflows/sync-upstream-metrolist.yml\`._"
+            echo "PR_BODY_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Push sync branch
+        if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true'
+        run: |
+          git push origin "${{ steps.merge.outputs.branch }}"
+
+      - name: Open Pull Request
+        if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Ensure labels exist (idempotent — silently succeeds if already there).
+          gh label create upstream-sync --color 0E8A16 --description "Automated upstream Metrolist sync" 2>/dev/null || true
+          gh label create needs-manual-resolution --color D93F0B --description "Merge conflicts require human review" 2>/dev/null || true
+
+          title_prefix="chore: sync upstream Metrolist"
+          if [[ "${{ steps.merge.outputs.clean_merge }}" == "false" ]]; then
+            title="$title_prefix (${{ steps.diff.outputs.behind }} commits, CONFLICTS)"
+            labels="upstream-sync,needs-manual-resolution"
+          else
+            title="$title_prefix (${{ steps.diff.outputs.behind }} commits)"
+            labels="upstream-sync"
+          fi
+
+          gh pr create \
+            --repo "$GITHUB_REPOSITORY" \
+            --base "$LOCAL_BASE" \
+            --head "${{ steps.merge.outputs.branch }}" \
+            --title "$title" \
+            --body "${{ steps.body.outputs.body }}" \
+            --label "$labels"
