@@ -1,3 +1,18 @@
+---v13.6.7
+# MuSicX 13.6.7 — Recently Played row + upstream sync
+
+## Fixed
+- **Home now shows a real "Recently Played" row** — ported meld's local play-history section. The row was previously overtaken by Spotify's own GQL "Recently played" tile (which surfaced random playlists like *Happy Hits!* instead of the tracks you actually played). Now driven by `database.events()`: horizontal grid of the last 40 tracks you played on-device, deduped by song id, with tap-to-play, long-press menu, and play-all button — same UX as meld's screenshot.
+- **Duplicate "Recently played" row from Spotify home feed removed** — `SpotifyHomeViewModel.convertHomeSection` now skips Spotify's own "Recently played" GQL section (case-insensitive), since the native local row already covers that intent.
+- **Spotify REST recently-played row renamed to "Recently Played on Spotify"** — disambiguates from the new native row when both are available.
+
+## Chores
+- Synced upstream `MetrolistGroup/Metrolist` (up to `ae4f1e4e`) — added zemer-cipher credit in README. Player configs / dates were already at parity.
+
+## Previously undocumented (v13.6.5 – v13.6.6)
+- v13.6.6: Recently Played + Your Top Tracks Spotify home rows; like-sync between local library and Spotify.
+- v13.6.5: `LibraryMixScreen` Spotify tile ordering fix (Spotify tiles now render after local auto-playlists).
+
 ---v13.6.4
 # MuSicX 13.6.4 — Updater + repo-link fixes
 
