@@ -139,6 +139,14 @@ class SpotifyHomeViewModel @Inject constructor(
 
     private fun convertHomeSection(feedSection: SpotifyHomeFeedSection): SpotifyHomeSection? {
         val title = feedSection.title ?: return null
+        // Skip Spotify's own "Recently played" row — MuSicX now has a native
+        // local Recently Played section fed by database.events(), and showing
+        // both is confusing (Spotify's row tends to surface playlists like
+        // "Happy Hits!" rather than the individual tracks the user expects).
+        if (title.equals("Recently played", ignoreCase = true) ||
+            title.equals("Recently Played", ignoreCase = true)) {
+            return null
+        }
         val playlists = feedSection.items.filterIsInstance<SpotifyHomeFeedItem.Playlist>()
         val albums = feedSection.items.filterIsInstance<SpotifyHomeFeedItem.Album>()
         val artists = feedSection.items.filterIsInstance<SpotifyHomeFeedItem.Artist>()

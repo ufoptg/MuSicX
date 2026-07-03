@@ -94,6 +94,7 @@ class HomeViewModel @Inject constructor(
     }.distinctUntilChanged()
 
     val quickPicks = MutableStateFlow<List<Song>?>(null)
+    val recentlyPlayed = MutableStateFlow<List<Song>?>(null)
     val dailyDiscover = MutableStateFlow<List<DailyDiscoverItem>?>(null)
     val forgottenFavorites = MutableStateFlow<List<Song>?>(null)
     val keepListening = MutableStateFlow<List<LocalItem>?>(null)
@@ -468,6 +469,17 @@ class HomeViewModel @Inject constructor(
         // isLoading is set to false as soon as all Phase 1 tasks complete so the UI appears quickly.
         coroutineScope {
             launch(Dispatchers.IO) { getQuickPicks() }
+
+            launch(Dispatchers.IO) {
+                // Local play history — mirror meld's Recently Played section.
+                // events() is ordered by rowId DESC (newest first); dedupe by song id
+                // so replays don't fill the row with duplicates, then take 40.
+                recentlyPlayed.value = database.events().first()
+                    .distinctBy { it.song.id }
+                    .take(40)
+                    .map { it.song }
+                    .filterVideoSongs(hideVideoSongs)
+            }
 
             launch(Dispatchers.IO) {
                 forgottenFavorites.value = database.forgottenFavorites().first()
