@@ -1,3 +1,14 @@
+---v13.8.1
+# MuSicX 13.8.1 — Critical hotfix for v13.8.0 crash on launch
+
+## Fixed
+- **App no longer crashes on launch after upgrading from v13.7.0 → v13.8.0**. The v13.8.0 Qobuz migration created the `qobuz_match` table with every column declared `NOT NULL`, but the `QobuzMatchEntity` marks `bitDepth`, `samplingRateKhz` (both nullable) and `hires` (defaults to `0`) with default values. Room's post-migration schema validator rejected the mismatch on every launch with `IllegalStateException: Migration didn't properly handle: qobuz_match`, hard-crashing before the home screen could render.
+- **DB bumped to v41 with a recovery migration (40 → 41)** that DROPs and recreates `qobuz_match` with the correct schema — safe because it's a search-result cache; the table refills naturally on next playback. Users upgrading from v13.7.0 straight to v13.8.1 also get the fixed 39 → 40 migration, so both upgrade paths land at the same correct schema.
+
+## Notes for anyone on v13.8.0
+If for some reason auto-update didn't push v13.8.1, **manually install v13.8.1 from GitHub Releases** and the app will self-repair on the next launch. No data loss. If it still crashes for some reason, clearing app data will reset the DB completely as a last resort.
+
+
 ---v13.8.0
 # MuSicX 13.8.0 — Qobuz lossless streaming (experimental)
 

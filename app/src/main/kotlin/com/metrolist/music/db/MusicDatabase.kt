@@ -123,7 +123,7 @@ class MusicDatabase(
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 40,
+    version = 41,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -203,6 +203,16 @@ abstract class InternalDatabase : RoomDatabase() {
         /**
          * Manual 39 → 40 migration: adds the `qobuz_match` cache table
          * and the `song.isrc` column used by the Qobuz matcher.
+         *
+         * NOTE: The initial v13.8.0 release shipped this migration with
+         * every column declared NOT NULL, but the entity marks
+         * `bitDepth` (Int?) and `samplingRateKhz` (Double?) as nullable
+         * with `defaultValue = "NULL"`, and `hires` (Boolean) with
+         * `defaultValue = "0"`. Room's post-migration schema validator
+         * therefore refused to open the DB with an
+         * `IllegalStateException: Migration didn't properly handle:
+         * qobuz_match` on every launch after upgrading. The SQL below
+         * has been corrected to match the entity annotations exactly.
          */
         val MIGRATION_39_40 = object : androidx.room.migration.Migration(39, 40) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
@@ -214,9 +224,45 @@ abstract class InternalDatabase : RoomDatabase() {
                     CREATE TABLE IF NOT EXISTS `qobuz_match` (
                         `youtubeId` TEXT NOT NULL,
                         `qobuzTrackId` TEXT NOT NULL,
-                        `hires` INTEGER NOT NULL,
-                        `bitDepth` INTEGER NOT NULL,
-                        `samplingRateKhz` REAL NOT NULL,
+                        `hires` INTEGER NOT NULL DEFAULT 0,
+                        `bitDepth` INTEGER DEFAULT NULL,
+                        `samplingRateKhz` REAL DEFAULT NULL,
+                        `matchedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`youtubeId`)
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
+        /**
+         * Manual 40 → 41 migration: recovery migration for users who
+         * installed the broken v13.8.0 release. The v13.8.0 MIGRATION_39_40
+         * created `qobuz_match` with every column NOT NULL and no
+         * defaults, which Room rejected — but because Room applies
+         * migrations inside the same connection as validation, the ALTER
+         * TABLE for `song.isrc` may have already been committed even
+         * though the migration was declared failed. Some users therefore
+         * ended up at DB version 40 with a corrupt `qobuz_match` schema.
+         *
+         * This migration DROPs and recreates the table with the correct
+         * schema. `qobuz_match` is a search-result cache, so losing rows
+         * is harmless — the table refills naturally on next playback. For
+         * users who never hit v13.8.0 (i.e. jumped from v39 straight to
+         * v13.8.1) the DROP is a safe no-op because MIGRATION_39_40 above
+         * has already created the table with the correct schema.
+         */
+        val MIGRATION_40_41 = object : androidx.room.migration.Migration(40, 41) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS `qobuz_match`")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `qobuz_match` (
+                        `youtubeId` TEXT NOT NULL,
+                        `qobuzTrackId` TEXT NOT NULL,
+                        `hires` INTEGER NOT NULL DEFAULT 0,
+                        `bitDepth` INTEGER DEFAULT NULL,
+                        `samplingRateKhz` REAL DEFAULT NULL,
                         `matchedAt` INTEGER NOT NULL,
                         PRIMARY KEY(`youtubeId`)
                     )
@@ -261,6 +307,7 @@ abstract class InternalDatabase : RoomDatabase() {
                     MIGRATION_24_25,
                     MIGRATION_38_39,
                     MIGRATION_39_40,
+                    MIGRATION_40_41,
                 ).fallbackToDestructiveMigration()
                 .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                 .setTransactionExecutor(

@@ -1,23 +1,48 @@
-Material 3 YouTube Music client for Android
+MuSicX is a Material 3 YouTube Music client — a maintained fork of Metrolist with Spotify login, SponsorBlock, Shazam-style music recognition, podcasts, karaoke-style lyrics, and experimental FLAC / Hi-Res streaming via Qobuz.
 
-Features:
+Playback
+• Stream any song or video from YouTube Music
+• Background playback
+• Download & cache songs for offline listening
+• Skip silence, tempo & pitch control, equalizer
+• Sleep timer
+• SponsorBlock — auto-skip sponsor / intro / outro segments in videos
+• Qobuz FLAC / Hi-Res streaming (experimental) — CD-quality 16-bit / 44.1 kHz up to Hi-Res 24-bit / 192 kHz, silent fallback to YouTube on failure
+• Continue Listening hero card on Home for one-tap resume
+• Audio normalization
 
-- Play any song or video from YT Music
-- Background playback 
-- Personalized quick picks 
-- Library management 
-- Download and cache songs for offline playback
-- Search for songs, albums, artists, videos and playlists
-- Live lyrics 
-- YouTube Music account login support
-- Syncing of songs, artists, albums and playlists, from and to your account
-- Skip silence 
-- Import playlists 
-- Audio normalization 
-- Adjust tempo/pitch 
-- Local playlist management
-- Reorder songs in playlist or queue 
-- Light - Dark - black - Dynamic theme
-- Sleep timer
-- Material 3 
-- etc.
+Discovery & Lyrics
+• Personalized quick picks and Home recommendations
+• Local Recently Played row on Home
+• LyricsPlus / Experimental Lyrics — word-timed karaoke-style synced lyrics
+• AI-powered lyrics translation
+• Music Recognition (Shazam-style) — home widget + Quick Settings tile
+• Search songs, albums, artists, videos, playlists, podcasts and episodes
+
+Library & Account
+• Full library management + local playlists + playlist import
+• Reorder songs in playlist or queue
+• YouTube Music account login
+• Spotify login — sync liked songs, playlists, top tracks and recently played
+• Podcasts library — subscribed shows + saved episodes with two tabs
+
+Social
+• Listen Together — real-time synced playback with friends
+
+Interface
+• Material 3 with Light / Dark / Black / Dynamic themes
+• Dynamic color + 19 preset color palettes
+• Home screen widget
+
+Reliability
+• ANR Watchdog auto-detects UI freezes (≥ 5 s)
+• Crash reporter opens sanitized crash reports to GitHub Issues
+• Automated nightly sync with upstream Metrolist
+
+MuSicX is community-driven and 100% free — no ads, no trackers, no accounts required. Some integrations (Qobuz resolvers) are community-run third-party services and marked experimental; playback automatically falls back to YouTube when a resolver is offline or a track isn't matched.
+
+Requirements
+• Android 6.0 or higher
+• YouTube Music available in your region (a VPN or proxy may be needed otherwise)
+
+Source & issue tracker: https://github.com/ufoptg/MuSicX
