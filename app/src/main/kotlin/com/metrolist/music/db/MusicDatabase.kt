@@ -162,8 +162,6 @@ class MusicDatabase(
         AutoMigration(from = 35, to = 36, spec = Migration35To36::class),
         AutoMigration(from = 36, to = 37),
         AutoMigration(from = 37, to = 38),
-        AutoMigration(from = 38, to = 39),
-        AutoMigration(from = 39, to = 40),
     ],
 )
 @TypeConverters(Converters::class)
@@ -173,6 +171,59 @@ abstract class InternalDatabase : RoomDatabase() {
 
     companion object {
         const val DB_NAME = "song.db"
+
+        /**
+         * Manual 38 → 39 migration: adds the `spotify_match` cache table.
+         * This was previously modelled as an AutoMigration, but Room's KSP
+         * processor needs a committed schema JSON file for every version
+         * that's referenced as a migration endpoint. MuSicX has never
+         * committed `39.json` (Room used to generate it at build time when
+         * the current DB version was 39), so bumping to v40 broke the
+         * AutoMigration chain. Manual migrations sidestep the requirement.
+         */
+        val MIGRATION_38_39 = object : androidx.room.migration.Migration(38, 39) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `spotify_match` (
+                        `spotifyId` TEXT NOT NULL,
+                        `youtubeId` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `artist` TEXT NOT NULL,
+                        `matchScore` REAL NOT NULL,
+                        `cachedAt` INTEGER NOT NULL,
+                        `isManualOverride` INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(`spotifyId`)
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
+        /**
+         * Manual 39 → 40 migration: adds the `qobuz_match` cache table
+         * and the `song.isrc` column used by the Qobuz matcher.
+         */
+        val MIGRATION_39_40 = object : androidx.room.migration.Migration(39, 40) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `song` ADD COLUMN `isrc` TEXT DEFAULT NULL",
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `qobuz_match` (
+                        `youtubeId` TEXT NOT NULL,
+                        `qobuzTrackId` TEXT NOT NULL,
+                        `hires` INTEGER NOT NULL,
+                        `bitDepth` INTEGER NOT NULL,
+                        `samplingRateKhz` REAL NOT NULL,
+                        `matchedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`youtubeId`)
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
 
         /**
          * Reads the SQLite user_version pragma from a database file without
@@ -208,6 +259,8 @@ abstract class InternalDatabase : RoomDatabase() {
                     MIGRATION_21_24,
                     MIGRATION_22_24,
                     MIGRATION_24_25,
+                    MIGRATION_38_39,
+                    MIGRATION_39_40,
                 ).fallbackToDestructiveMigration()
                 .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                 .setTransactionExecutor(
