@@ -55,6 +55,11 @@ import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
 import com.metrolist.music.constants.EnableSpotifyKey
+import com.metrolist.music.constants.EnableQobuzKey
+import com.metrolist.music.constants.QobuzAudioQuality
+import com.metrolist.music.constants.QobuzAudioQualityKey
+import com.metrolist.music.constants.QobuzBackend
+import com.metrolist.music.constants.QobuzBackendKey
 import com.metrolist.music.constants.SpotifyAccessTokenKey
 import com.metrolist.music.constants.SpotifySpDcKey
 import com.metrolist.music.constants.SpotifySpKeyKey
@@ -307,6 +312,105 @@ fun SpotifySettings(
                     }
                 },
             )
+
+            PreferenceGroupTitle(
+                title = stringResource(R.string.qobuz_audio_quality_section),
+            )
+
+            val (enableQobuz, onEnableQobuzChange) = rememberPreference(
+                key = EnableQobuzKey,
+                defaultValue = false,
+            )
+
+            SwitchPreference(
+                title = { Text(stringResource(R.string.qobuz_enable)) },
+                description = stringResource(R.string.qobuz_enable_description),
+                checked = enableQobuz,
+                onCheckedChange = onEnableQobuzChange,
+            )
+
+            if (enableQobuz) {
+                var qobuzQuality by rememberEnumPreference(
+                    QobuzAudioQualityKey,
+                    defaultValue = QobuzAudioQuality.CD_QUALITY,
+                )
+                var qobuzBackend by rememberEnumPreference(
+                    QobuzBackendKey,
+                    defaultValue = QobuzBackend.MONOKENNY,
+                )
+
+                var showQobuzQualityDialog by remember { mutableStateOf(false) }
+                var showQobuzBackendDialog by remember { mutableStateOf(false) }
+
+                if (showQobuzQualityDialog) {
+                    EnumDialog(
+                        onDismiss = { showQobuzQualityDialog = false },
+                        onSelect = {
+                            qobuzQuality = it
+                            showQobuzQualityDialog = false
+                        },
+                        title = stringResource(R.string.qobuz_quality),
+                        current = qobuzQuality,
+                        values = QobuzAudioQuality.entries.toList(),
+                        valueText = {
+                            when (it) {
+                                QobuzAudioQuality.AAC_320 -> stringResource(R.string.qobuz_quality_aac_320)
+                                QobuzAudioQuality.CD_QUALITY -> stringResource(R.string.qobuz_quality_cd)
+                                QobuzAudioQuality.HI_RES_LOSSLESS -> stringResource(R.string.qobuz_quality_hires)
+                            }
+                        },
+                        valueDescription = {
+                            when (it) {
+                                QobuzAudioQuality.AAC_320 -> stringResource(R.string.qobuz_quality_aac_320_desc)
+                                QobuzAudioQuality.CD_QUALITY -> stringResource(R.string.qobuz_quality_cd_desc)
+                                QobuzAudioQuality.HI_RES_LOSSLESS -> stringResource(R.string.qobuz_quality_hires_desc)
+                            }
+                        },
+                    )
+                }
+
+                PreferenceEntry(
+                    title = { Text(stringResource(R.string.qobuz_quality)) },
+                    description = when (qobuzQuality) {
+                        QobuzAudioQuality.AAC_320 -> stringResource(R.string.qobuz_quality_aac_320)
+                        QobuzAudioQuality.CD_QUALITY -> stringResource(R.string.qobuz_quality_cd)
+                        QobuzAudioQuality.HI_RES_LOSSLESS -> stringResource(R.string.qobuz_quality_hires)
+                    },
+                    onClick = { showQobuzQualityDialog = true },
+                )
+
+                if (showQobuzBackendDialog) {
+                    EnumDialog(
+                        onDismiss = { showQobuzBackendDialog = false },
+                        onSelect = {
+                            qobuzBackend = it
+                            showQobuzBackendDialog = false
+                        },
+                        title = stringResource(R.string.qobuz_backend),
+                        current = qobuzBackend,
+                        values = QobuzBackend.entries.toList(),
+                        valueText = {
+                            when (it) {
+                                QobuzBackend.MONOKENNY -> stringResource(R.string.qobuz_backend_monokenny)
+                                QobuzBackend.JUMO -> stringResource(R.string.qobuz_backend_jumo)
+                                QobuzBackend.SQUID -> stringResource(R.string.qobuz_backend_squid)
+                                QobuzBackend.TRYPT -> stringResource(R.string.qobuz_backend_trypt)
+                            }
+                        },
+                    )
+                }
+
+                PreferenceEntry(
+                    title = { Text(stringResource(R.string.qobuz_backend)) },
+                    description = when (qobuzBackend) {
+                        QobuzBackend.MONOKENNY -> stringResource(R.string.qobuz_backend_monokenny)
+                        QobuzBackend.JUMO -> stringResource(R.string.qobuz_backend_jumo)
+                        QobuzBackend.SQUID -> stringResource(R.string.qobuz_backend_squid)
+                        QobuzBackend.TRYPT -> stringResource(R.string.qobuz_backend_trypt)
+                    },
+                    onClick = { showQobuzBackendDialog = true },
+                )
+            }
 
             PreferenceGroupTitle(
                 title = stringResource(R.string.information),

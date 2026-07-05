@@ -1,3 +1,26 @@
+---v13.8.0
+# MuSicX 13.8.0 — Qobuz lossless streaming (experimental)
+
+## Added
+- **Qobuz FLAC / Hi-Res streaming** (ported from meld). When enabled, MuSicX resolves each YouTube track against the Qobuz catalog and, if a match is found, streams from Qobuz instead — falling back silently to YouTube on any failure. Uses Spotify ISRC when available for tighter matching.
+- **Settings → Spotify Integration → Audio quality (experimental)**:
+  - `Use Qobuz for lossless playback` — master toggle
+  - `Stream quality` — AAC 320 / CD (FLAC 16-bit 44.1 kHz) / Hi-Res (up to 24-bit / 192 kHz)
+  - `Resolver backend` — Monokenny / Jumo / Squid / TrypT HiFi
+  - Country fallback: `US` (adjustable in a follow-up)
+- **DB schema v40** — new `qobuz_match` cache table (per-YouTube match with hires flag, bit depth, sampling rate) + new `song.isrc` column. AutoMigration 39→40.
+- **QobuzMatchOverrideDialog** — manual "pick the right Qobuz track" UI for when the automatic matcher gets it wrong.
+- **MusicService integration**:
+  - `qobuzMissUntilMs` in-memory negative cache (24h TTL) so non-Qobuz tracks skip the search cascade
+  - Cross-backend fallback cascade for known-Qobuz tracks (2 alt backends before giving up)
+  - Persisted matches short-circuit future plays (no re-search)
+  - Source-selection observer reloads the current stream when the user toggles Qobuz / changes quality / backend / country — no app restart
+
+## Notes
+- Third-party resolvers (not run by MuSicX). Playback falls back to YouTube if a backend is offline or the track isn't on Qobuz.
+- Lossless streams use 3–10× more data + storage than YouTube's default AAC — mind your mobile-data allowance.
+
+
 ---v13.7.0
 # MuSicX 13.7.0 — SponsorBlock entry moved to Misc
 

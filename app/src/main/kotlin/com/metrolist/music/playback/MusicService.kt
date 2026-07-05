@@ -133,6 +133,17 @@ import com.metrolist.music.discord.DiscordTemplateRenderer
 import com.metrolist.music.discord.PresenceStatus
 import com.metrolist.music.constants.EnableLastFMScrobblingKey
 import com.metrolist.music.constants.EnableSongCacheKey
+import com.metrolist.music.constants.EnableQobuzKey
+import com.metrolist.music.constants.QobuzAudioQuality
+import com.metrolist.music.constants.QobuzAudioQualityKey
+import com.metrolist.music.constants.QobuzBackend
+import com.metrolist.music.constants.QobuzBackendKey
+import com.metrolist.music.constants.QobuzCountryKey
+import com.metrolist.music.constants.QobuzMatchOverridesKey
+import com.metrolist.music.qobuz.QobuzAudioProvider
+import com.metrolist.music.qobuz.QobuzMatchOverride
+import com.metrolist.music.qobuz.QobuzMatchOverrides
+import com.metrolist.music.db.entities.QobuzMatchEntity
 import com.metrolist.music.constants.HideExplicitKey
 import com.metrolist.music.constants.HideVideoSongsKey
 import com.metrolist.music.constants.HistoryDuration
@@ -249,6 +260,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import androidx.datastore.preferences.core.edit
 import okhttp3.OkHttpClient
 import timber.log.Timber
 import java.io.ObjectInputStream
@@ -828,6 +841,60 @@ class MusicService :
                     // Set bypass flag so resolver skips cache checks
                     bypassCacheForQualityChange.add(mediaId)
                     Timber.tag(TAG).d("Set bypass cache flag for $mediaId")
+
+                    player.stop()
+                    player.seekTo(currentIndex, currentPosition)
+                    player.prepare()
+                    if (wasPlaying) {
+                        player.play()
+                    }
+                }
+        }
+
+        // Watch for Qobuz source-selection changes. Toggling on/off, switching
+        // backend, country, or quality should take effect on the next track
+        // boundary without requiring a full app restart — reload the current
+        // item so it picks up the new source immediately.
+        var isFirstQobuzEmit = true
+        scope.launch {
+            dataStore.data
+                .map {
+                    listOf(
+                        it[EnableQobuzKey]?.toString().orEmpty(),
+                        it[QobuzAudioQualityKey].orEmpty(),
+                        it[QobuzBackendKey].orEmpty(),
+                        it[QobuzCountryKey].orEmpty(),
+                    ).joinToString("|")
+                }.distinctUntilChanged()
+                .collect {
+                    if (isFirstQobuzEmit) {
+                        isFirstQobuzEmit = false
+                        return@collect
+                    }
+                    val mediaId = player.currentMediaItem?.mediaId ?: return@collect
+                    val currentPosition = player.currentPosition
+                    val wasPlaying = player.isPlaying
+                    val currentIndex = player.currentMediaItemIndex
+
+                    Timber.tag(TAG).i(
+                        "QOBUZ SETTING CHANGED, reloading current stream for $mediaId",
+                    )
+
+                    songUrlCache.remove(mediaId)
+                    // Toggling Qobuz settings is an explicit user retry signal —
+                    // wipe the negative cache so previously-missed tracks get a
+                    // fresh resolve attempt instead of silently falling through
+                    // to YouTube again.
+                    qobuzMissUntilMs.clear()
+                    withContext(Dispatchers.IO) {
+                        try {
+                            playerCache.removeResource(mediaId)
+                            downloadCache.removeResource(mediaId)
+                        } catch (e: Exception) {
+                            Timber.tag(TAG).e(e, "Failed to clear cache on Qobuz toggle for $mediaId")
+                        }
+                    }
+                    bypassCacheForQualityChange.add(mediaId)
 
                     player.stop()
                     player.seekTo(currentIndex, currentPosition)
@@ -3652,11 +3719,285 @@ class MusicService :
         }
     }
 
+    // ─── Qobuz support (ported from meld) ─────────────────────────────────────
+    // In-memory negative cache for Qobuz: tracks that recently failed to resolve
+    // are skipped for QOBUZ_MISS_TTL_MS to avoid burning the search budget on
+    // every playback of a non-Qobuz track. Cleared when the user toggles Qobuz
+    // settings (see the qobuz source observer below).
+    private val QOBUZ_MISS_TTL_MS = 24 * 60 * 60 * 1000L
+    private val qobuzMissUntilMs = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    private fun qobuzCacheKey(mediaId: String, qualityCode: Int) =
+        "qobuz:$qualityCode:$mediaId"
+
+    private fun stripQobuzCacheKeyPrefix(key: String): String {
+        if (!key.startsWith("qobuz:")) return key
+        val parts = key.split(":", limit = 3)
+        return if (parts.size == 3) parts[2] else key
+    }
+
+    private fun buildQobuzQuery(
+        mediaId: String,
+        spotifyTrack: com.metrolist.spotify.models.SpotifyTrack?,
+        dbSong: com.metrolist.music.db.entities.Song?,
+        quality: QobuzAudioQuality,
+    ): QobuzAudioProvider.Query? {
+        val title = spotifyTrack?.name
+            ?: dbSong?.song?.title
+            ?: return null
+        val artists = spotifyTrack?.artists?.map { it.name }
+            ?.takeIf { it.isNotEmpty() }
+            ?: dbSong?.artists?.map { it.name }?.takeIf { it.isNotEmpty() }
+            ?: emptyList()
+        if (artists.isEmpty()) return null
+        val album = spotifyTrack?.album?.name
+            ?: dbSong?.song?.albumName
+            ?: dbSong?.album?.title
+        val durationMs = spotifyTrack?.durationMs?.takeIf { it > 0 }?.toLong()
+            ?: dbSong?.song?.duration?.takeIf { it > 0 }?.toLong()?.times(1000L)
+        val isrc = spotifyTrack?.isrc?.takeIf { it.isNotBlank() }
+            ?: dbSong?.song?.isrc?.takeIf { it.isNotBlank() }
+
+        val backendPref = dataStore.get(QobuzBackendKey).toEnum(QobuzBackend.MONOKENNY)
+        val country = dataStore.get(QobuzCountryKey, "US")
+            .trim()
+            .uppercase()
+            .takeIf { it.matches(Regex("[A-Z]{2}")) }
+            ?: "US"
+        val resolverBackend = when (backendPref) {
+            QobuzBackend.MONOKENNY -> QobuzAudioProvider.ResolverBackend.MONOKENNY
+            QobuzBackend.JUMO -> QobuzAudioProvider.ResolverBackend.JUMO
+            QobuzBackend.SQUID -> QobuzAudioProvider.ResolverBackend.SQUID
+            QobuzBackend.TRYPT -> QobuzAudioProvider.ResolverBackend.TRYPT
+        }
+        return QobuzAudioProvider.Query(
+            mediaId = mediaId,
+            title = title,
+            artists = artists,
+            album = album,
+            isrc = isrc,
+            durationMs = durationMs,
+            countryCode = country,
+            backend = resolverBackend,
+            qualityCode = QobuzAudioProvider.qualityCodeFor(quality),
+        )
+    }
+
+    /**
+     * Returns the manual Qobuz-track override the user has pinned for [mediaId],
+     * or null when none exists. Used by [QobuzMatchOverrideDialog] to pre-fill the
+     * override picker and show whether the current stream is auto-matched or manual.
+     */
+    suspend fun getQobuzMatchOverride(mediaId: String): QobuzMatchOverride? =
+        withContext(Dispatchers.IO) {
+            QobuzMatchOverrides.decode(dataStore.get(QobuzMatchOverridesKey, ""))[mediaId]
+        }
+
+    /**
+     * Persists (or clears with [override] = null) a manual Qobuz-track override for
+     * [mediaId]. Also invalidates the in-memory resolver cache so the next play
+     * picks up the new override immediately.
+     */
+    fun setQobuzMatchOverride(
+        mediaId: String,
+        override: QobuzMatchOverride?,
+    ) {
+        scope.launch(Dispatchers.IO) {
+            dataStore.edit { prefs ->
+                val current = QobuzMatchOverrides.decode(prefs[QobuzMatchOverridesKey])
+                if (override == null) current.remove(mediaId) else current[mediaId] = override
+                prefs[QobuzMatchOverridesKey] = QobuzMatchOverrides.encode(current)
+            }
+            QobuzAudioProvider.invalidate(mediaId)
+            // Also drop any cached Qobuz stream so the next play uses the new match.
+            try {
+                for (code in intArrayOf(5, 6, 7, 27)) {
+                    val key = qobuzCacheKey(mediaId, code)
+                    playerCache.removeResource(key)
+                    downloadCache.removeResource(key)
+                }
+                database.query { deleteQobuzMatch(mediaId) }
+                qobuzMissUntilMs.remove(mediaId)
+            } catch (e: Exception) {
+                Timber.tag(TAG).w(e, "Failed to clear caches on Qobuz override for $mediaId")
+            }
+        }
+    }
+
+    /**
+     * Synchronous candidate search for the manual override UI. Runs the same
+     * search pipeline as [QobuzAudioProvider.resolve] but returns lightweight
+     * metadata for every candidate found across all backends.
+     */
+    suspend fun searchQobuzCandidates(
+        mediaId: String,
+        title: String,
+        artists: List<String>,
+        album: String?,
+        isrc: String?,
+        durationMs: Long?,
+    ): List<QobuzAudioProvider.CandidateMetadata> = withContext(Dispatchers.IO) {
+        val backendPref = dataStore.get(QobuzBackendKey).toEnum(QobuzBackend.MONOKENNY)
+        val country = dataStore.get(QobuzCountryKey, "US")
+            .trim()
+            .uppercase()
+            .takeIf { it.matches(Regex("[A-Z]{2}")) }
+            ?: "US"
+        val resolverBackend = when (backendPref) {
+            QobuzBackend.MONOKENNY -> QobuzAudioProvider.ResolverBackend.MONOKENNY
+            QobuzBackend.JUMO -> QobuzAudioProvider.ResolverBackend.JUMO
+            QobuzBackend.SQUID -> QobuzAudioProvider.ResolverBackend.SQUID
+            QobuzBackend.TRYPT -> QobuzAudioProvider.ResolverBackend.TRYPT
+        }
+        val qualityEnum = dataStore.get(QobuzAudioQualityKey).toEnum(QobuzAudioQuality.CD_QUALITY)
+        val query = QobuzAudioProvider.Query(
+            mediaId = mediaId,
+            title = title,
+            artists = artists,
+            album = album,
+            isrc = isrc,
+            durationMs = durationMs,
+            countryCode = country,
+            backend = resolverBackend,
+            qualityCode = QobuzAudioProvider.qualityCodeFor(qualityEnum),
+        )
+        runCatching { QobuzAudioProvider.searchCandidates(query) }.getOrDefault(emptyList())
+    }
+    // ─── End Qobuz helpers ─────────────────────────────────────────────────────
+
     private fun createDataSourceFactory(): DataSource.Factory {
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
-            val mediaId = dataSpec.key ?: error("No media id")
+            val mediaId = stripQobuzCacheKeyPrefix(dataSpec.key ?: error("No media id"))
 
             val shouldBypassCache = bypassCacheForQualityChange.contains(mediaId)
+
+            // ─── Qobuz lossless attempt (ported from meld) ─────────────────────────
+            // When the toggle is on, try Qobuz for every track. Uses Spotify metadata
+            // (with ISRC) when available — registered by SpotifyYouTubeMapper for
+            // Spotify-sourced tracks — otherwise falls back to DB title/artist/album
+            // for YT-native tracks. Silently falls through to the YouTube path on
+            // any failure. Falls through to MuSicX's standard cache-check + fetch
+            // pipeline below when Qobuz is disabled or returns null.
+            val qobuzEnabled = dataStore.get(EnableQobuzKey, false)
+            if (qobuzEnabled) {
+                val qobuzQualityEnum = dataStore.get(QobuzAudioQualityKey)
+                    .toEnum(QobuzAudioQuality.CD_QUALITY)
+                val qualityCode = QobuzAudioProvider.qualityCodeFor(qobuzQualityEnum)
+                val qobuzKey = qobuzCacheKey(mediaId, qualityCode)
+                val usePlayerCache = dataStore.get(EnableSongCacheKey, true)
+
+                if (!shouldBypassCache &&
+                    (downloadCache.isCached(qobuzKey, dataSpec.position,
+                        if (dataSpec.length >= 0) dataSpec.length else 1) ||
+                        (usePlayerCache && playerCache.isCached(qobuzKey, dataSpec.position, CHUNK_LENGTH)))
+                ) {
+                    return@Factory dataSpec.buildUpon().setKey(qobuzKey).build()
+                }
+
+                val spotifyTrack = SpotifyMetadataRegistry.get(mediaId)
+                val dbSong = runBlocking(Dispatchers.IO) { database.getSongById(mediaId) }
+                val qobuzQuery = buildQobuzQuery(mediaId, spotifyTrack, dbSong, qobuzQualityEnum)
+
+                if (qobuzQuery != null) {
+                    val manualOverride = runBlocking(Dispatchers.IO) {
+                        QobuzMatchOverrides
+                            .decode(dataStore.get(QobuzMatchOverridesKey, ""))[mediaId]
+                    }
+                    val savedMatch = runBlocking(Dispatchers.IO) {
+                        database.getQobuzMatch(mediaId)
+                    }
+                    val negativeMissDeadline = qobuzMissUntilMs[mediaId]
+                    val skipQobuzForMiss = manualOverride == null && savedMatch == null &&
+                        negativeMissDeadline != null && negativeMissDeadline > System.currentTimeMillis()
+                    if (skipQobuzForMiss) {
+                        val remainingMin = ((negativeMissDeadline ?: 0L) -
+                            System.currentTimeMillis()) / 60_000
+                        Timber.tag(TAG).d(
+                            "Skipping Qobuz cascade for $mediaId (negative cache valid for ${remainingMin}m)"
+                        )
+                    }
+                    var effectiveQuery = qobuzQuery
+                    val overrideHiresCdGuard = manualOverride?.let { !it.hires } ?: false
+                    if ((savedMatch != null && !savedMatch.hires || overrideHiresCdGuard) &&
+                        qobuzQuery.qualityCode > 6) {
+                        effectiveQuery = effectiveQuery.copy(qualityCode = 6)
+                    }
+                    if (manualOverride != null) {
+                        effectiveQuery = effectiveQuery.copy(mediaId = manualOverride.providerMediaId())
+                    }
+                    if (savedMatch != null && manualOverride == null) {
+                        QobuzAudioProvider.primeKnownTrack(
+                            query = effectiveQuery,
+                            trackId = savedMatch.qobuzTrackId,
+                            hires = savedMatch.hires,
+                            bitDepth = savedMatch.bitDepth,
+                            samplingRateKhz = savedMatch.samplingRateKhz,
+                            isrc = effectiveQuery.isrc,
+                        )
+                    }
+
+                    var qobuzResolved = if (skipQobuzForMiss) null else runCatching {
+                        runBlocking(Dispatchers.IO) {
+                            withTimeout(10_000L) {
+                                QobuzAudioProvider.resolve(effectiveQuery)
+                            }
+                        }
+                    }.getOrNull()
+
+                    val knownOnQobuz = manualOverride != null || savedMatch != null
+                    if (qobuzResolved == null && knownOnQobuz && !skipQobuzForMiss) {
+                        val altBackends = QobuzAudioProvider.ResolverBackend.entries
+                            .filter { it != effectiveQuery.backend }
+                            .take(2)
+                        for (altBackend in altBackends) {
+                            val altQuery = effectiveQuery.copy(backend = altBackend)
+                            qobuzResolved = runCatching {
+                                runBlocking(Dispatchers.IO) {
+                                    withTimeout(5_000L) {
+                                        QobuzAudioProvider.resolve(altQuery)
+                                    }
+                                }
+                            }.getOrNull()
+                            if (qobuzResolved != null) break
+                        }
+                    }
+
+                    if (qobuzResolved == null && !knownOnQobuz) {
+                        qobuzMissUntilMs[mediaId] = System.currentTimeMillis() + QOBUZ_MISS_TTL_MS
+                    }
+
+                    if (qobuzResolved != null) {
+                        Timber.tag(TAG).i(
+                            "Using Qobuz stream for $mediaId: ${qobuzResolved.label}",
+                        )
+                        val resolvedIsrc = qobuzResolved.isrc?.takeIf { it.isNotBlank() }
+                            ?: spotifyTrack?.isrc?.takeIf { it.isNotBlank() }
+                        val previousIsrc = dbSong?.song?.isrc?.takeIf { it.isNotBlank() }
+                        scope.launch(Dispatchers.IO) {
+                            database.query {
+                                upsertQobuzMatch(
+                                    QobuzMatchEntity(
+                                        youtubeId = mediaId,
+                                        qobuzTrackId = qobuzResolved.trackId,
+                                        hires = qobuzResolved.hires,
+                                        bitDepth = qobuzResolved.bitDepth,
+                                        samplingRateKhz = qobuzResolved.samplingRateKhz,
+                                    ),
+                                )
+                                if (resolvedIsrc != null && resolvedIsrc != previousIsrc) {
+                                    setSongIsrc(mediaId, resolvedIsrc)
+                                }
+                            }
+                        }
+                        return@Factory dataSpec
+                            .buildUpon()
+                            .setUri(qobuzResolved.mediaUri.toUri())
+                            .setKey(qobuzKey)
+                            .build()
+                    }
+                }
+            }
+            // ─── End Qobuz block ────────────────────────────────────────────────────
 
             if (!shouldBypassCache) {
                 val usePlayerCache = dataStore.get(EnableSongCacheKey, true)

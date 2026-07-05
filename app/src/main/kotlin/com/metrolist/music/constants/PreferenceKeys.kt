@@ -225,6 +225,28 @@ val CrashReportingEnabledKey = booleanPreferencesKey("crashReportingEnabled")
 val SponsorBlockEnabledKey = booleanPreferencesKey("sponsorBlockEnabled")
 val SponsorBlockCategoriesKey = stringPreferencesKey("sponsorBlockCategories")
 val SponsorBlockShowToastKey = booleanPreferencesKey("sponsorBlockShowToast")
+
+// Qobuz hi-res streaming (ported from meld). Uses third-party resolver backends
+// (Monokenny / Jumo / Squid / Trypt) to fetch FLAC / Hi-Res streams for YouTube
+// tracks that also exist on Qobuz. Silently falls back to YouTube on any failure.
+val EnableQobuzKey = booleanPreferencesKey("enableQobuz")
+val QobuzAudioQualityKey = stringPreferencesKey("qobuzAudioQuality")
+val QobuzBackendKey = stringPreferencesKey("qobuzBackend")
+val QobuzCountryKey = stringPreferencesKey("qobuzCountry")
+val QobuzMatchOverridesKey = stringPreferencesKey("qobuzMatchOverrides")
+
+enum class QobuzAudioQuality {
+    AAC_320,
+    CD_QUALITY,
+    HI_RES_LOSSLESS,
+}
+
+enum class QobuzBackend {
+    MONOKENNY,
+    JUMO,
+    SQUID,
+    TRYPT,
+}
 const val SPONSORBLOCK_DEFAULT_CATEGORIES = "music_offtopic"
 val SPONSORBLOCK_ALL_CATEGORIES = listOf(
     "sponsor",

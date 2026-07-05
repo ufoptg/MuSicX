@@ -50,6 +50,7 @@ import com.metrolist.music.R
 import com.metrolist.music.constants.ListItemHeight
 import com.metrolist.music.constants.ListThumbnailSize
 import com.metrolist.music.constants.ThumbnailCornerRadius
+import com.metrolist.music.constants.EnableQobuzKey
 import com.metrolist.music.playback.SpotifyYouTubeMapper
 import com.metrolist.music.ui.component.ListDialog
 import com.metrolist.music.ui.component.Material3MenuGroup
@@ -89,7 +90,7 @@ fun SpotifyTrackMenu(
     var showAddToPlaylistDialog by rememberSaveable { mutableStateOf(false) }
     var showSelectArtistDialog by rememberSaveable { mutableStateOf(false) }
 
-    val qobuzEnabled = false // Qobuz not available in MuSicX main
+    val (qobuzEnabled) = rememberPreference(EnableQobuzKey, defaultValue = false)
 
     fun resolveAndNavigateToArtist(artistName: String) {
         coroutineScope.launch {
