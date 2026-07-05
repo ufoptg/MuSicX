@@ -4,7 +4,7 @@
 
 # MuSicX
 
-### YouTube Music client with Spotify Intergration for Android — supercharged.
+### YouTube Music client with Spotify integration & FLAC hi-res streaming for Android — supercharged.
 
 <br/>
 
@@ -19,7 +19,7 @@
 </div>
 
 > [!NOTE]
-> **MuSicX** is a maintained fork of [Metrolist](https://github.com/MetrolistGroup/Metrolist) with additional integrations (Spotify, SponsorBlock, crash reporting) and feature ports from [meld](https://github.com/AudreyProject/meld). Same great UX, more music sources, more resilience.
+> **MuSicX** is a maintained fork of [Metrolist](https://github.com/MetrolistGroup/Metrolist) with additional integrations (Spotify, SponsorBlock, Music Recognition, Podcasts, LyricsPlus, and now experimental FLAC / Hi-Res streaming via Qobuz), crash reporting, and an automated nightly upstream sync. Same great UX, more music sources, more resilience.
 
 > [!WARNING]
 > **Regional Restriction** — If YouTube Music is unavailable in your region, this app will not work without a **VPN or proxy** connecting to a supported region.
@@ -52,9 +52,14 @@ Features added on top of Metrolist upstream:
 | Feature | Status | Notes |
 |---|---|---|
 | 🟢 **Spotify integration** | Shipped | Log in with your own Spotify account via in-app WebView (uses `sp_dc` cookie — no client secret needed). Home, Library, Search & Now-Playing hooks bridge tracks to YouTube Music equivalents. |
-| 🟢 **SponsorBlock** | Shipped | Auto-skip sponsor segments and non-music intros/outros in videos, powered by the [SponsorBlock](https://sponsor.ajay.app) community API. |
+| 🟢 **SponsorBlock** | Shipped | Auto-skip sponsor segments and non-music intros/outros in videos, powered by the [SponsorBlock](https://sponsor.ajay.app) community API. Settings live under Player Settings → Misc. |
 | 🟢 **Crash reporting to GitHub Issues** | Shipped | Unhandled crashes are packaged (device info + sanitized stacktrace) and opened as GitHub Issues automatically, so bugs never get lost. |
 | 🟢 **ANR Watchdog** | Shipped | Detects UI freezes ≥ 5s and captures a stack dump for diagnostics — inspired by meld. |
+| 🟢 **Recently Played + Continue Listening** | Shipped v13.6.9 | Native local Recently Played row on Home (fed by `database.events()`), pinned directly under Spotify's *Your Top Tracks*. New **Continue Listening** hero card at the very top of Home for one-tap resume of the last track. |
+| 🟢 **LyricsPlus / ExperimentalLyrics** | Shipped | Fluid karaoke-style synced lyrics with word-level timing, translation-friendly rendering, and better lifecycle awareness than the original meld implementation. Toggle: *Settings → Content → Enable LyricsPlus* + *Settings → Appearance → Experimental Lyrics*. |
+| 🟢 **Music-Recognition Widget** (Shazam) | Shipped | Home-screen widget + Quick Settings tile for instant Shazam-style recognition. Full recognition screen at *Library → Recognize Music*. No API key required. |
+| 🟢 **Podcasts** | Shipped | Full podcast browsing, subscriptions, episode player, and library sync. Discover via *Search → Podcasts chip*, *Home → Podcasts chip*, or manage subscriptions at *Library → Podcasts*. |
+| 🟢 **Qobuz hi-res streaming** ✨ new | Shipped v13.8.0 | Experimental FLAC / Hi-Res playback via third-party Qobuz resolvers (Monokenny / Jumo / Squid / TrypT HiFi). AAC 320 → CD (16-bit / 44.1 kHz) → Hi-Res (up to 24-bit / 192 kHz). Falls back silently to YouTube on failure. Uses Spotify ISRC when available for tighter matching. Toggle at *Settings → Spotify Integration → Audio quality (experimental)*. |
 
 <br/>
 
@@ -68,11 +73,10 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
 
 | Planned Feature | Priority | Description |
 |---|---|---|
-| 🎵 **Music-Recognition Widget** | P1 — Next | Shazam-powered home-screen widget + alarm-time recognition. |
-| 📝 **LyricsPlus / ExperimentalLyrics** | P1 | Richer lyric providers, karaoke-style word timing, translation overlays. |
-| 🎙️ **Podcasts** | P1 | Native podcast browsing, subscriptions, episode player + progress sync. |
-| 💿 **Qobuz** | P2 | Hi-res streaming integration (bring-your-own account). |
-| 🎨 **New Player Design** | P2 | Redesigned Now-Playing screen with minimal / immersive variants. |
+| 🎨 **New Player Design** | P2 — Next | Redesigned Now-Playing screen with animated blur backdrops, refined gesture handling, and minimal / immersive variants. |
+| 🌐 **Wrapped / Year-in-review** | P3 | End-of-year listening summary — top tracks, top artists, listening minutes, shareable card exports. |
+| 🎧 **Cross-device queue sync** | P3 | Sync the current queue and playback position to other MuSicX installs via Emergent-managed cloud (or self-hosted). |
+| 🌍 **Better offline mode** | P3 | Smart queue pre-fetch, richer download management, per-playlist auto-download rules. |
 
 > Want a feature bumped? Open an issue or vote on existing ones.
 
@@ -93,6 +97,8 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
 - Skip silence
 - Sleep timer
 - **SponsorBlock — skip sponsor/intro segments** ✨
+- **Qobuz FLAC / Hi-Res streaming** ✨ new
+- **Continue Listening hero card** on Home ✨ new
 
 </td>
     <td width="50%" valign="top">
@@ -101,6 +107,8 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
 - Audio normalization
 - Tempo & pitch control
 - Equalizer
+- **Lossless FLAC 16-bit / 44.1 kHz (CD)** ✨ new
+- **Hi-Res FLAC up to 24-bit / 192 kHz** ✨ new
 
 </td>
   </tr>
@@ -109,9 +117,12 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
 
 #### Lyrics & Discovery
 - Live synced lyrics
+- **LyricsPlus / Experimental Lyrics — word-timed karaoke** ✨
 - AI-powered lyrics translation
 - Personalized quick picks
-- Search songs, albums, artists, videos, and playlists
+- **Local Recently Played row** on Home ✨ new
+- **Music Recognition (Shazam-style)** — home widget + Quick Settings tile ✨
+- Search songs, albums, artists, videos, playlists, **podcasts & episodes** ✨
 
 </td>
     <td width="50%" valign="top">
@@ -123,6 +134,7 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
 - Reorder songs in playlist or queue
 - YouTube Music account login
 - **Spotify login — sync liked songs, playlists & recent tracks** ✨
+- **Podcasts library — episodes + channels** ✨
 - Sync songs, artists, albums, and playlists
 
 </td>
@@ -150,16 +162,16 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
 #### Reliability ✨
 - **ANR Watchdog** — auto-detects UI freezes
 - **Crash reporter** — one-tap submit to GitHub Issues
+- **Nightly upstream Metrolist sync** — automated PR when upstream diverges
 
 </td>
     <td width="50%" valign="top">
 
 #### Coming Soon
-- Music-Recognition Widget
-- Podcasts
-- Qobuz (hi-res)
-- LyricsPlus / ExperimentalLyrics
-- New Player Design
+- New Player Design (P2)
+- Wrapped / Year-in-review (P3)
+- Cross-device queue sync (P3)
+- Smarter offline mode (P3)
 
 </td>
   </tr>
@@ -234,8 +246,23 @@ Only when a crash occurs and you tap "Report": sanitized stacktrace, app version
 </details>
 
 <details>
+<summary><strong>Is Qobuz hi-res streaming free?</strong></summary>
+Yes — MuSicX resolves tracks via public third-party resolver services (Monokenny / Jumo / Squid / TrypT HiFi). No Qobuz subscription or account needed on your side. That said, these are community-run services that can go offline at any time; MuSicX automatically falls back to standard YouTube playback whenever a resolver fails or a track isn't on Qobuz. It's marked *experimental* for that reason.
+</details>
+
+<details>
+<summary><strong>How much extra data does lossless use?</strong></summary>
+Roughly 3–10× a standard YouTube AAC stream. CD-quality FLAC is ~1 MB per minute; Hi-Res 24-bit / 192 kHz can hit ~6 MB per minute. If you're on mobile data, either stick to AAC 320 in the Qobuz settings or leave Qobuz off.
+</details>
+
+<details>
+<summary><strong>How do I find podcasts?</strong></summary>
+Three ways: (1) <strong>Search</strong> → type any podcast name → tap the "Podcasts" chip in the results chip row; (2) <strong>Home</strong> → tap the "Podcasts" chip in the top chip row for recommendations; (3) <strong>Library → Podcasts</strong> for shows you've already subscribed to (Episodes / Channels tabs).
+</details>
+
+<details>
 <summary><strong>How is MuSicX different from Metrolist?</strong></summary>
-MuSicX is a fork focused on adding: Spotify integration, SponsorBlock, ANR watchdog, crash reporting, and (in progress) music recognition widget, podcasts, Qobuz, new lyric providers, and a redesigned player. Upstream Metrolist features are preserved and merges are kept clean.
+MuSicX is a fork that adds: full Spotify integration (login, home, library, search bridging), SponsorBlock, ANR watchdog, GitHub-issue crash reporting, Music Recognition (Shazam-style widget + Quick Settings tile), Podcasts library, LyricsPlus/ExperimentalLyrics with word-timed karaoke, and now Qobuz hi-res streaming (experimental). Upstream Metrolist commits are automatically synced on top, so no fixes get lost.
 </details>
 
 </div>
@@ -264,7 +291,7 @@ MuSicX is a fork focused on adding: Spotify integration, SponsorBlock, ANR watch
     </tr>
     <tr>
       <td align="center"><strong><a href="https://github.com/AudreyProject/meld">meld</a></strong></td>
-      <td align="center">Feature ports (Spotify hooks, SponsorBlock, ANR, CrashReporter, upcoming podcasts/Qobuz/new player)</td>
+      <td align="center">Feature ports (Spotify hooks, SponsorBlock, ANR, CrashReporter, Music Recognition, Podcasts, LyricsPlus, Qobuz)</td>
     </tr>
     <tr>
       <td align="center"><strong>InnerTune</strong></td>
@@ -297,7 +324,11 @@ MuSicX is a fork focused on adding: Spotify integration, SponsorBlock, ANR watch
     </tr>
     <tr>
       <td align="center"><a href="https://github.com/aleksey-saenko/MusicRecognizer"><strong>MusicRecognizer</strong></a></td>
-      <td>Music recognition feature & Shazam API integration (upcoming)</td>
+      <td>Shazam-style audio recognition — home widget + Quick Settings tile</td>
+    </tr>
+    <tr>
+      <td align="center"><strong>Qobuz resolver services</strong></td>
+      <td>Monokenny / Jumo / Squid / TrypT HiFi — community-run public endpoints powering the experimental FLAC / Hi-Res streaming</td>
     </tr>
     <tr>
       <td align="center"><a href="https://github.com/Spotube/Spotube"><strong>Spotube</strong></a></td>
