@@ -60,6 +60,8 @@ import com.metrolist.music.constants.QobuzAudioQuality
 import com.metrolist.music.constants.QobuzAudioQualityKey
 import com.metrolist.music.constants.QobuzBackend
 import com.metrolist.music.constants.QobuzBackendKey
+import com.metrolist.music.constants.QobuzCountryKey
+import com.metrolist.music.qobuz.QobuzBackendHealthChecker
 import com.metrolist.music.constants.SpotifyAccessTokenKey
 import com.metrolist.music.constants.SpotifySpDcKey
 import com.metrolist.music.constants.SpotifySpKeyKey
@@ -410,6 +412,60 @@ fun SpotifySettings(
                     },
                     onClick = { showQobuzBackendDialog = true },
                 )
+
+                // Country code — editable text via a simple dialog. Two-letter
+                // ISO code (e.g. US, IT, FR). Affects Qobuz catalog and
+                // availability. Defaults to "US" if the user clears it.
+                var qobuzCountry by rememberPreference(
+                    QobuzCountryKey,
+                    defaultValue = "US",
+                )
+                var showQobuzCountryDialog by remember { mutableStateOf(false) }
+
+                if (showQobuzCountryDialog) {
+                    var textFieldValue by remember(qobuzCountry) {
+                        mutableStateOf(qobuzCountry)
+                    }
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { showQobuzCountryDialog = false },
+                        title = { Text(stringResource(R.string.qobuz_country)) },
+                        text = {
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.qobuz_country_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                androidx.compose.material3.OutlinedTextField(
+                                    value = textFieldValue,
+                                    onValueChange = { textFieldValue = it.uppercase().take(2) },
+                                    singleLine = true,
+                                    modifier = Modifier.padding(top = 12.dp),
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            androidx.compose.material3.TextButton(onClick = {
+                                qobuzCountry = textFieldValue.ifBlank { "US" }
+                                showQobuzCountryDialog = false
+                            }) { Text(stringResource(android.R.string.ok)) }
+                        },
+                        dismissButton = {
+                            androidx.compose.material3.TextButton(onClick = { showQobuzCountryDialog = false }) {
+                                Text(stringResource(android.R.string.cancel))
+                            }
+                        },
+                    )
+                }
+
+                PreferenceEntry(
+                    title = { Text(stringResource(R.string.qobuz_country)) },
+                    description = "${qobuzCountry.uppercase()} — ${stringResource(R.string.qobuz_country_description)}",
+                    onClick = { showQobuzCountryDialog = true },
+                )
+
+                // Live reachability probe for every Qobuz resolver.
+                QobuzBackendHealthSection(currentBackend = qobuzBackend)
             }
 
             PreferenceGroupTitle(
@@ -542,5 +598,115 @@ internal suspend fun runInitialSpotifyLikeSync(
         withContext(Dispatchers.Main) { onError(e) }
     } finally {
         SpotifyLikeSyncState.isSyncing.value = false
+    }
+}
+
+
+/**
+ * Live reachability probe for every Qobuz resolver backend. Runs on first
+ * composition and refresh-button taps. Ported verbatim (minus package
+ * differences) from meld/SpotifySettings.kt so the settings screen matches
+ * meld's Qobuz block 1:1.
+ */
+@Composable
+private fun QobuzBackendHealthSection(currentBackend: QobuzBackend) {
+    val coroutineScope = rememberCoroutineScope()
+    var results by remember { mutableStateOf<List<QobuzBackendHealthChecker.Result>>(emptyList()) }
+    var loading by remember { mutableStateOf(false) }
+
+    val refresh: () -> Unit = {
+        if (!loading) {
+            loading = true
+            coroutineScope.launch {
+                results = QobuzBackendHealthChecker.checkAll()
+                loading = false
+            }
+        }
+    }
+
+    androidx.compose.runtime.LaunchedEffect(Unit) { refresh() }
+
+    PreferenceGroupTitle(title = stringResource(R.string.qobuz_provider_health))
+
+    PreferenceEntry(
+        title = {
+            Text(
+                text = stringResource(R.string.qobuz_provider_health_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+        description = null,
+        trailingContent = {
+            androidx.compose.material3.OutlinedButton(
+                onClick = refresh,
+                enabled = !loading,
+            ) {
+                if (loading) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Text(stringResource(R.string.qobuz_provider_health_refresh))
+                }
+            }
+        },
+    )
+
+    val activeResolverBackend = when (currentBackend) {
+        QobuzBackend.MONOKENNY -> com.metrolist.music.qobuz.QobuzAudioProvider.ResolverBackend.MONOKENNY
+        QobuzBackend.JUMO -> com.metrolist.music.qobuz.QobuzAudioProvider.ResolverBackend.JUMO
+        QobuzBackend.SQUID -> com.metrolist.music.qobuz.QobuzAudioProvider.ResolverBackend.SQUID
+        QobuzBackend.TRYPT -> com.metrolist.music.qobuz.QobuzAudioProvider.ResolverBackend.TRYPT
+    }
+
+    if (results.isEmpty() && loading) {
+        PreferenceEntry(
+            title = { Text(stringResource(R.string.qobuz_provider_health_checking)) },
+            description = null,
+            icon = {
+                androidx.compose.material3.CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                )
+            },
+        )
+    } else {
+        results.forEach { result ->
+            val color = when (result.status) {
+                QobuzBackendHealthChecker.Status.ONLINE -> androidx.compose.ui.graphics.Color(0xFF2ECC71)
+                QobuzBackendHealthChecker.Status.REACHABLE -> androidx.compose.ui.graphics.Color(0xFFF1C40F)
+                QobuzBackendHealthChecker.Status.OFFLINE -> androidx.compose.ui.graphics.Color(0xFFE74C3C)
+            }
+            val statusLabel = when (result.status) {
+                QobuzBackendHealthChecker.Status.ONLINE -> stringResource(R.string.qobuz_provider_health_online)
+                QobuzBackendHealthChecker.Status.REACHABLE -> stringResource(R.string.qobuz_provider_health_reachable)
+                QobuzBackendHealthChecker.Status.OFFLINE -> stringResource(R.string.qobuz_provider_health_offline)
+            }
+            val isActive = result.target.backend == activeResolverBackend
+            val nameSuffix = if (isActive) "  •" else ""
+            val latency = result.latencyMs?.let {
+                stringResource(R.string.qobuz_provider_health_latency, it.toInt())
+            }
+            PreferenceEntry(
+                title = {
+                    Text(
+                        text = result.target.name + nameSuffix,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    )
+                },
+                description = listOfNotNull(statusLabel, latency, result.message)
+                    .joinToString(" • "),
+                icon = {
+                    androidx.compose.foundation.layout.Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(color = color, shape = androidx.compose.foundation.shape.CircleShape),
+                    )
+                },
+            )
+        }
     }
 }

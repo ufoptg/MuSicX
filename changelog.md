@@ -1,3 +1,13 @@
+---v13.8.2
+# MuSicX 13.8.2 — Qobuz settings parity with meld
+
+## Added
+- **Country code editor** in the Qobuz settings — was previously hard-coded to `US`. Tap the entry to change it via a two-letter ISO code (US, IT, FR, JP, DE, …). Affects the Qobuz catalog and track availability. Falls back to `US` if you clear the field.
+- **Backend Status section** with live reachability probes of every resolver (Monokenny / Jumo / Squid / TrypT HiFi). Runs on first open of the settings page and on the **Refresh** button — colour-coded dot (green = online, yellow = reachable-but-degraded, red = offline) + status label + HTTP code + latency in ms. The currently-selected backend gets a small `•` marker and a primary-tint title so you can see at a glance whether the one you picked is up.
+
+Ports the two Qobuz sections meld's SpotifySettings had that MuSicX v13.8.1 was still missing.
+
+
 ---v13.8.1
 # MuSicX 13.8.1 — Critical hotfix for v13.8.0 crash on launch
 
