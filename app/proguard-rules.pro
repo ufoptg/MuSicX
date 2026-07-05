@@ -211,3 +211,42 @@
 -keepclasseswithmembers class com.metrolist.shazamkit.models.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+## Qobuz Hi-Res Streaming (v13.8.x)
+# Keep the Qobuz resolver/provider classes and their inner data classes. These
+# are hit from a ResolvingDataSource callback via runBlocking, and any R8
+# stripping / member renaming that produces a runtime NoClassDefFoundError or
+# ClassCastException inside the loader thread aborts playback for that
+# request. Playing it safe here — this code path is only ever exercised when
+# the user has EnableQobuzKey turned on, so keep-cost is negligible.
+-keep class com.metrolist.music.qobuz.** { *; }
+-keepclassmembers class com.metrolist.music.qobuz.** { *; }
+-keep class com.metrolist.music.db.entities.QobuzMatchEntity { *; }
+-keepclassmembers class com.metrolist.music.db.entities.QobuzMatchEntity { *; }
+
+## Spotify data models (used by SpotifyMetadataRegistry from the loader thread)
+# @Serializable data classes read via kotlinx.serialization — keep them and
+# their generated $Companion + serializer() symbols to avoid release-only
+# JSON deserialization failures on release APKs.
+-keep class com.metrolist.spotify.models.** { *; }
+-keepclassmembers class com.metrolist.spotify.models.** { *; }
+-if @kotlinx.serialization.Serializable class com.metrolist.spotify.models.**
+-keepclasseswithmembers class <1> {
+    static <1>$Companion Companion;
+    kotlinx.serialization.KSerializer serializer(...);
+}
+
+## Room manual Migration objects
+# Anonymous `object : Migration(...)` instances registered via
+# .addMigrations(...) are keepable through the addMigrations call chain, but
+# their inner execSQL string constants and inherited migrate() must not be
+# renamed/removed. Room ships consumer proguard rules that cover most of
+# this, but pinning the whole package guarantees the manual 38→39, 39→40,
+# 40→41 migrations survive R8 shrinking for release builds — otherwise
+# users upgrading from older installs can end up with a wiped/half-migrated
+# DB and broken playback.
+-keep class androidx.room.migration.** { *; }
+-keep class * extends androidx.room.migration.Migration { *; }
+-keepclassmembers class * extends androidx.room.migration.Migration {
+    void migrate(androidx.sqlite.db.SupportSQLiteDatabase);
+}
