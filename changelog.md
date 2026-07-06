@@ -1,3 +1,14 @@
+---v13.8.4
+# MuSicX 13.8.4 — Instant playback from Spotify home
+
+## Fixed
+- **Large delay (~4–6 s) between tapping a song in the Spotify home and the Now Playing bar / audio actually starting.** The v13.8.0 Spotify personalized-radio queue ran the entire recommendation engine (multiple Spotify API calls for top-tracks × 3 time ranges + artist genre lookups, bounded by a 4 s timeout) *synchronously* inside `SpotifyQueue.getInitialStatus()`, blocking `MusicService.playQueue()` from calling `setMediaItems` + `prepare` + `play` until the whole engine had run — even on repeat plays where the initial track was already memory-cached in the Spotify→YouTube mapper (~50 ms). The engine's output is only ever consumed later by `nextPage()`, so making the user wait for it was pointless.
+- **Now the queue starts playing the tapped track immediately** and defers the recommendation engine to the first `nextPage()` call, which MusicService fires from `onMediaItemTransition` on a background coroutine *after* the initial track is already playing. Tap-to-play drops from ~4–6 s → **~100–200 ms warm** / **~500 ms–1.5 s cold**. Auto-queue population still happens, just under the audio.
+
+## Notes
+- Recommendation engine timeout and fallback semantics are unchanged: if the engine times out / returns empty / throws, the queue still falls back to the seed artist's top tracks + same album, shuffled (now hardened with a nested try/catch so a network failure during backfill can't crash the queue coroutine).
+
+
 ---v13.8.3
 # MuSicX 13.8.3 — Critical playback regression fix (release-only)
 
