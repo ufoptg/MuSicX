@@ -114,3 +114,9 @@ app/src/main/cpp/coverart/
 .opencode
 .cursor*
 .codeium
+
+# Emergent platform artifacts (do not publish)
+.emergent/
+memory/
+test_reports/
+test_result.md
