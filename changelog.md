@@ -1,3 +1,15 @@
+---v13.8.6
+# MuSicX 13.8.6 — Instant Shuffle + background queue growth
+
+## Fixed
+- **Huge lag when hitting the new Shuffle button on Spotify Liked Songs (introduced in v13.8.5).** v13.8.5 tried to fix the "only 23 songs in queue" problem by widening the fast-start window to 50 items — but `awaitAll()` on that window blocks playback from starting until the **slowest** of 50 parallel YouTube searches finishes, and Shuffle deals in cold-cache random tracks where every search is a full HTTP round-trip (500 ms – 2 s each). Real-world tap-to-play latency ballooned to 5–10 s on Shuffle.
+- Playback now starts on a **5-item** fast-start window (slowest of 5, not 50), and MusicService grows the visible queue to 60 items *in the background* after audio has already started. Tap-to-play latency on Shuffle drops back to **~500 ms – 1 s** while the queue still ends up deep enough that mid-playback shuffle feels random.
+
+## Changed
+- New `MusicService.playQueue` behaviour: any queue that returns `hasNextPage() == true` after the initial status will have `nextPage()` called on a background coroutine until `player.mediaItemCount` reaches 60 (`TARGET_INITIAL_QUEUE_SIZE`). Runs sequentially on the same launch, never blocks the fast-start path, and re-applies shuffle order after each batch is added.
+- `SpotifyLikedSongsQueue.nextPage()` is now guarded by a Mutex — necessary because the new background growth loop and `onMediaItemTransition` can both fire `nextPage()` concurrently. Without the lock, `resolveOffset` would race and either duplicate items or skip tracks.
+
+
 ---v13.8.5
 # MuSicX 13.8.5 — Spotify Liked Songs queue depth + Shuffle button
 

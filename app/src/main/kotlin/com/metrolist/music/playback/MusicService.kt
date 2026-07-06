@@ -1944,6 +1944,60 @@ class MusicService :
                 val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
                 applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
             }
+
+            // ---- Background initial-queue growth ----
+            //
+            // Queues that lazy-resolve (SpotifyLikedSongsQueue, SpotifyPlaylistQueue,
+            // SpotifyQueue) return only a small fast-start window from
+            // getInitialStatus() to keep tap-to-play latency low — every uncached
+            // YouTube search costs 500 ms – 2 s and awaitAll() on the fast-start
+            // window is what blocks playback from starting.
+            //
+            // With just a fast-start window the visible player queue would be tiny
+            // (~5 items) and MusicService's onMediaItemTransition-driven growth
+            // (line 2654: `mediaItemCount - currentIndex <= 5`) would only trigger
+            // near the end of what's loaded — meaning the queue view stays
+            // "empty-looking" for a long time and mid-playback shuffle only
+            // randomises 5 items.
+            //
+            // Fix: after audio has started, eagerly call queue.nextPage() a few
+            // times to grow the visible queue to a comfortable initial depth.
+            // This runs on the same MusicService.scope coroutine, sequentially,
+            // and never blocks the getInitialStatus fast path — audio is already
+            // playing throughout. The mutex inside the queue's nextPage() serializes
+            // with any onMediaItemTransition-driven calls that may fire concurrently.
+            if (queue.hasNextPage()) {
+                val hideExplicit = dataStore.get(HideExplicitKey, false)
+                val hideVideoSongs = dataStore.get(HideVideoSongsKey, false)
+                while (
+                    currentQueue === queue &&
+                    player.mediaItemCount < TARGET_INITIAL_QUEUE_SIZE &&
+                    queue.hasNextPage()
+                ) {
+                    val moreItems = withContext(Dispatchers.IO) {
+                        try {
+                            queue
+                                .nextPage()
+                                .filterExplicit(hideExplicit)
+                                .filterVideoSongs(hideVideoSongs)
+                        } catch (e: Exception) {
+                            Timber.tag(TAG).w(e, "Background queue growth: nextPage() failed")
+                            emptyList()
+                        }
+                    }
+                    if (moreItems.isEmpty()) break
+                    if (currentQueue !== queue) break
+                    player.addMediaItems(moreItems)
+                    if (player.shuffleModeEnabled) {
+                        val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
+                        applyShuffleOrder(
+                            player.currentMediaItemIndex,
+                            player.mediaItemCount,
+                            shufflePlaylistFirst,
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -5239,6 +5293,13 @@ class MusicService :
         private const val MIN_GAIN_MB = -1500 // Minimum gain in millibels (-15 dB)
 
         private const val TAG = "MusicService"
+
+        /** Target visible player-queue depth to grow to after [playQueue]
+         *  starts playback. See the "Background initial-queue growth" block
+         *  in [playQueue] for the full rationale. Set high enough that a
+         *  mid-playback shuffle toggle actually feels random, low enough
+         *  that we don't hammer YouTube search on every playQueue call. */
+        private const val TARGET_INITIAL_QUEUE_SIZE = 60
 
         @Volatile
         var isRunning = false

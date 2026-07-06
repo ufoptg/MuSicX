@@ -15,6 +15,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 
@@ -43,17 +45,11 @@ class SpotifyLikedSongsQueue(
     companion object {
         private const val SPOTIFY_PAGE_SIZE = 50
         private const val RESOLVE_BATCH_SIZE = 20
-        /** Resolve only the target + a few neighbors for instant playback start on the
-         *  API-paginated path. */
+        /** Resolve only the target + a few neighbors for instant playback start.
+         *  Kept small — awaitAll() blocks on the SLOWEST YouTube search of the
+         *  window, and shuffled/cold-cache resolves can take 500 ms – 2 s each. */
         private const val FAST_START_BEFORE = 0
-        private const val FAST_START_AFTER = 2
-        /** When tracks are preloaded (no Spotify API cost to reach them) we can afford
-         *  to resolve a much bigger initial window in parallel. This is what stops the
-         *  visible queue getting stuck at 23 items when the user hits Play on a 5000-
-         *  song Liked Songs list. Playback still starts as soon as the first item in
-         *  the awaitAll completes (Media3 buffers ahead-of-time), so the perceived
-         *  tap-to-play latency stays low. */
-        private const val FAST_START_AFTER_PRELOADED = 49
+        private const val FAST_START_AFTER = 4
     }
 
     // All Spotify tracks fetched so far (may span multiple API pages)
@@ -66,6 +62,13 @@ class SpotifyLikedSongsQueue(
     private var apiFetchOffset = 0
     private var apiTotal = 0
     private var apiHasMore = true
+
+    /** Serializes concurrent [nextPage] invocations. MusicService's initial-queue
+     *  growth loop and its `onMediaItemTransition` handler can both call
+     *  [nextPage] concurrently; without this mutex they race on [resolveOffset]
+     *  and end up either double-resolving the same batch (duplicates in the
+     *  visible queue) or skipping tracks entirely. */
+    private val pageMutex = Mutex()
 
     override suspend fun getInitialStatus(): Queue.Status = withContext(Dispatchers.IO) {
         try {
@@ -92,16 +95,13 @@ class SpotifyLikedSongsQueue(
 
             val targetIndex = startIndex.coerceIn(0, (allTracks.size - 1).coerceAtLeast(0))
 
-            // Fast-start window. Wider when we're preloaded so the visible queue reflects
-            // more of the underlying list right from the start (fixes "queue only has 23
-            // songs even though the playlist is 5000").
-            val fastStartAfter = if (preloadedTracks.isNotEmpty()) {
-                FAST_START_AFTER_PRELOADED
-            } else {
-                FAST_START_AFTER
-            }
+            // Fast-start window — keep small. awaitAll() on this window is what
+            // gates playback start, and every uncached YouTube search costs
+            // 500 ms – 2 s. MusicService.playQueue then grows the visible queue
+            // in the background *after* audio has started, so the queue depth
+            // ends up around 60 within a few seconds without blocking startup.
             val windowStart = (targetIndex - FAST_START_BEFORE).coerceAtLeast(0)
-            val windowEnd = (targetIndex + fastStartAfter + 1).coerceAtMost(allTracks.size)
+            val windowEnd = (targetIndex + FAST_START_AFTER + 1).coerceAtMost(allTracks.size)
             val windowTracks = allTracks.subList(windowStart, windowEnd)
 
             val resolvedItems = coroutineScope {
@@ -194,27 +194,34 @@ class SpotifyLikedSongsQueue(
         resolveOffset < allTracks.size || apiHasMore
 
     override suspend fun nextPage(): List<MediaItem> = withContext(Dispatchers.IO) {
-        // If we've resolved all fetched tracks but the API has more, fetch another page
-        if (resolveOffset >= allTracks.size && apiHasMore) {
-            fetchNextApiPage()
-        }
+        // Serialize concurrent callers (see [pageMutex] docstring). This is
+        // essential now that MusicService.playQueue eagerly calls nextPage()
+        // in a background growth loop while `onMediaItemTransition` may also
+        // fire it — without the lock we'd race on resolveOffset and either
+        // duplicate items or drop them.
+        pageMutex.withLock {
+            // If we've resolved all fetched tracks but the API has more, fetch another page
+            if (resolveOffset >= allTracks.size && apiHasMore) {
+                fetchNextApiPage()
+            }
 
-        if (resolveOffset >= allTracks.size) {
-            return@withContext emptyList()
-        }
+            if (resolveOffset >= allTracks.size) {
+                return@withLock emptyList()
+            }
 
-        // Resolve the next batch
-        val end = (resolveOffset + RESOLVE_BATCH_SIZE).coerceAtMost(allTracks.size)
-        val batch = allTracks.subList(resolveOffset, end)
-        resolveOffset = end
+            // Resolve the next batch
+            val end = (resolveOffset + RESOLVE_BATCH_SIZE).coerceAtMost(allTracks.size)
+            val batch = allTracks.subList(resolveOffset, end).toList()
+            resolveOffset = end
 
-        Timber.d("SpotifyLikedSongsQueue: Resolving batch of ${batch.size} tracks " +
-            "(offset=$resolveOffset/${allTracks.size}, apiTotal=$apiTotal)")
+            Timber.d("SpotifyLikedSongsQueue: Resolving batch of ${batch.size} tracks " +
+                "(offset=$resolveOffset/${allTracks.size}, apiTotal=$apiTotal)")
 
-        coroutineScope {
-            batch.map { track -> async { mapper.resolveToMediaItem(track) } }
-                .awaitAll()
-                .filterNotNull()
+            coroutineScope {
+                batch.map { track -> async { mapper.resolveToMediaItem(track) } }
+                    .awaitAll()
+                    .filterNotNull()
+            }
         }
     }
 
