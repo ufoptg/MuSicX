@@ -34,9 +34,15 @@ import timber.log.Timber
  * If the engine fails (e.g. network issues), falls back to a basic queue
  * built from the seed artist's top tracks.
  *
- * Optimized for fast playback start: only the initial track is resolved in
- * [getInitialStatus]. Subsequent tracks are resolved progressively in
- * [nextPage] batches.
+ * Optimized for fast playback start:
+ * - [getInitialStatus] resolves ONLY the initial track and returns
+ *   immediately. Playback begins as soon as the first track is available
+ *   (~50 ms warm, ~500 ms–1.5 s cold via YouTube search).
+ * - The (~2–4 s) recommendation engine is deferred to the first call to
+ *   [nextPage], which MusicService fires from `onMediaItemTransition` on a
+ *   background coroutine after playback has already started — so the user
+ *   never feels the cost.
+ * - Subsequent tracks are resolved progressively in [nextPage] batches.
  */
 class SpotifyQueue(
     private val initialTrack: SpotifyTrack,
@@ -54,7 +60,20 @@ class SpotifyQueue(
     private val queuedTracks = mutableListOf<SpotifyTrack>()
     private var resolveOffset = 0
 
+    /**
+     * Whether the recommendation engine has already been consulted for this
+     * queue. Guarded so [hasNextPage] reports `true` on the very first check
+     * (before we've had a chance to populate [queuedTracks]) — otherwise
+     * MusicService would see an empty queue and never call [nextPage].
+     */
+    private var engineRan = false
+
     override suspend fun getInitialStatus(): Queue.Status = withContext(Dispatchers.IO) {
+        // Fast start: resolve ONLY the initial track and return. The
+        // recommendation engine — which used to block here for up to 4s —
+        // is now deferred to the first [nextPage] call, so playback can
+        // begin the instant the first track is resolved (~50 ms warm,
+        // ~500 ms–1.5 s cold via YouTube search).
         val initialMediaItem = mapper.resolveToMediaItem(initialTrack)
 
         if (initialMediaItem == null) {
@@ -66,37 +85,9 @@ class SpotifyQueue(
             )
         }
 
-        try {
-            val recommendations = withTimeoutOrNull(RECOMMENDATION_TIMEOUT_MS) {
-                SpotifyRecommendationEngine.getRecommendations(
-                    seedTrack = initialTrack,
-                    context = context,
-                    database = database,
-                )
-            }
-
-            if (recommendations != null && recommendations.isNotEmpty()) {
-                queuedTracks.addAll(recommendations)
-                Timber.d(
-                    "SpotifyQueue: Engine produced ${recommendations.size} recommendations " +
-                        "for '${initialTrack.name}'"
-                )
-            } else {
-                if (recommendations == null) {
-                    Timber.w("SpotifyQueue: Engine timed out, falling back to basic queue")
-                } else {
-                    Timber.w("SpotifyQueue: Engine returned empty, falling back to basic queue")
-                }
-                buildFallbackQueue()
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "SpotifyQueue: Engine failed, falling back to basic queue")
-            buildFallbackQueue()
-        }
-
         Timber.d(
-            "SpotifyQueue: Resolved initial track '${initialTrack.name}' instantly, " +
-                "${queuedTracks.size} tracks queued for resolution"
+            "SpotifyQueue: Fast-start resolved '${initialTrack.name}' — " +
+                "recommendation engine deferred to nextPage()"
         )
 
         Queue.Status(
@@ -137,10 +128,58 @@ class SpotifyQueue(
         queuedTracks.shuffle()
     }
 
-    override fun hasNextPage(): Boolean =
-        resolveOffset < queuedTracks.size
+    override fun hasNextPage(): Boolean {
+        // Advertise "more tracks available" until the engine has actually run
+        // at least once. This is what causes MusicService.onMediaItemTransition
+        // to call [nextPage] after playback of the initial track begins, which
+        // is where we now run the (formerly blocking) recommendation engine.
+        if (!engineRan) return true
+        return resolveOffset < queuedTracks.size
+    }
 
     override suspend fun nextPage(): List<MediaItem> = withContext(Dispatchers.IO) {
+        // First invocation: consult the recommendation engine to populate the
+        // rest of the queue. This is the ~2–4 s cost that used to be paid
+        // synchronously in [getInitialStatus] — but it now runs on the
+        // background coroutine that MusicService fires in `onMediaItemTransition`,
+        // AFTER playback of the initial track has already started. The user
+        // never feels it.
+        if (!engineRan) {
+            try {
+                val recommendations = withTimeoutOrNull(RECOMMENDATION_TIMEOUT_MS) {
+                    SpotifyRecommendationEngine.getRecommendations(
+                        seedTrack = initialTrack,
+                        context = context,
+                        database = database,
+                    )
+                }
+
+                if (recommendations != null && recommendations.isNotEmpty()) {
+                    queuedTracks.addAll(recommendations)
+                    Timber.d(
+                        "SpotifyQueue: Engine produced ${recommendations.size} recommendations " +
+                            "for '${initialTrack.name}' (deferred)"
+                    )
+                } else {
+                    if (recommendations == null) {
+                        Timber.w("SpotifyQueue: Engine timed out, falling back to basic queue")
+                    } else {
+                        Timber.w("SpotifyQueue: Engine returned empty, falling back to basic queue")
+                    }
+                    buildFallbackQueue()
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "SpotifyQueue: Engine failed, falling back to basic queue")
+                try {
+                    buildFallbackQueue()
+                } catch (fe: Exception) {
+                    Timber.e(fe, "SpotifyQueue: Fallback queue also failed")
+                }
+            } finally {
+                engineRan = true
+            }
+        }
+
         if (resolveOffset >= queuedTracks.size) {
             return@withContext emptyList()
         }
