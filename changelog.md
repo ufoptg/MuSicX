@@ -1,3 +1,16 @@
+---v13.8.5
+# MuSicX 13.8.5 — Spotify Liked Songs queue depth + Shuffle button
+
+## Fixed
+- **Only 23 songs ended up in the queue when starting playback from a Spotify Liked Songs list with thousands of tracks, even after hitting shuffle.** The Play button was constructing a fresh `SpotifyLikedSongsQueue` that ignored the ViewModel's already-loaded track list and re-paginated the Spotify API from scratch — so `getInitialStatus` returned only a 3-item fast-start window, `nextPage()` grew it to 23, and MusicService's auto-load-more threshold (`mediaItemCount - currentIndex ≤ 5`) then refused to grow the queue further until the user had almost finished playing what was loaded. Toggling shuffle on top of a 23-item queue only randomised those same 23 songs.
+- **Latent bug: tapping a track when the list was sorted by Name / Artist / Duration played the wrong song**, because the queue re-fetched Spotify's date-added order and used the visible-order index as the start index — a completely different track. Now the visible order IS the queue.
+
+## Changed
+- `SpotifyLikedSongsQueue` now accepts an optional `preloadedTracks` list (mirrors the same param on `SpotifyPlaylistQueue`) and skips the Spotify API pagination entirely when supplied. The screen passes its already-loaded list, so the queue reflects the actual visible tracks.
+- The initial fast-start window is widened from 3 → 50 tracks when preloaded — playback still starts as soon as the first parallel `mapToYouTube` completes, but the visible queue no longer looks empty.
+- **New Shuffle button** on the Liked Songs screen (next to Play). It ships a pre-shuffled ordering as the queue's backing list, which means shuffle randomises across ALL loaded tracks — not just whatever tiny window the shuffle toggle happened to catch mid-playback. If the ViewModel is still paging in tracks when you tap it, a `loaded / total` progress hint appears next to the buttons.
+
+
 ---v13.8.4
 # MuSicX 13.8.4 — Instant playback from Spotify home
 

@@ -222,13 +222,17 @@ fun SpotifyLikedSongsScreen(
 
                     if (!isLoading && tracks.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        Row {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
+                        ) {
                             androidx.compose.material3.Button(
                                 onClick = {
                                     playerConnection.playQueue(
                                         SpotifyLikedSongsQueue(
                                             startIndex = 0,
                                             mapper = viewModel.mapper,
+                                            preloadedTracks = sortedTracks,
                                         )
                                     )
                                 },
@@ -240,6 +244,43 @@ fun SpotifyLikedSongsScreen(
                                 )
                                 Spacer(modifier = Modifier.size(8.dp))
                                 Text(stringResource(R.string.play))
+                            }
+                            androidx.compose.material3.OutlinedButton(
+                                onClick = {
+                                    // Ship a pre-shuffled ordering as the queue's backing list.
+                                    // Because the queue plays through its ordering in-order,
+                                    // this randomizes across all currently loaded tracks —
+                                    // NOT just the tiny fast-start window MusicService would
+                                    // otherwise shuffle when the shuffle toggle is flipped
+                                    // mid-playback. Fixes "only 23 songs in queue after
+                                    // Play+Shuffle on a 5000-song list".
+                                    playerConnection.playQueue(
+                                        SpotifyLikedSongsQueue(
+                                            startIndex = 0,
+                                            mapper = viewModel.mapper,
+                                            preloadedTracks = sortedTracks.shuffled(),
+                                        )
+                                    )
+                                },
+                            ) {
+                                Icon(
+                                    painterResource(R.drawable.shuffle),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Spacer(modifier = Modifier.size(8.dp))
+                                Text(stringResource(R.string.shuffle))
+                            }
+                            // Show progress while the ViewModel is still paging through
+                            // the Spotify API. Tapping Play/Shuffle before this reaches
+                            // total ships whatever is loaded (still far better than 23),
+                            // but the user knows more is coming.
+                            if (tracks.size < total) {
+                                Text(
+                                    text = "${tracks.size} / $total",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
                         }
                     }
@@ -351,10 +392,16 @@ fun SpotifyLikedSongsScreen(
                         .fillMaxWidth()
                         .combinedClickable(
                             onClick = {
+                                // Pass sortedTracks as preloaded so the queue actually
+                                // reflects the visible order the user sees (previously
+                                // the queue re-fetched Spotify's date-added order and
+                                // used originalIndex, playing the wrong song when sort
+                                // was set to Name/Artist/Duration).
                                 playerConnection.playQueue(
                                     SpotifyLikedSongsQueue(
                                         startIndex = originalIndex,
                                         mapper = viewModel.mapper,
+                                        preloadedTracks = sortedTracks,
                                     )
                                 )
                             },

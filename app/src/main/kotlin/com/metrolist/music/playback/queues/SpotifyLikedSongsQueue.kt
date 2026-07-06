@@ -21,23 +21,39 @@ import timber.log.Timber
 /**
  * Queue implementation for Spotify Liked Songs (saved tracks).
  *
- * Optimized for fast playback start: only the selected track is resolved
- * during [getInitialStatus], while the remaining tracks are resolved
- * progressively in [nextPage] batches as the player approaches the end of
- * the currently loaded queue.
+ * Optimized for fast playback start: only a small window around the selected
+ * track is resolved during [getInitialStatus], while the remaining tracks are
+ * resolved progressively in [nextPage] batches as the player approaches the
+ * end of the currently loaded queue.
+ *
+ * @param preloadedTracks If non-empty, the queue uses this list as the full
+ *   backing collection and skips the Spotify API pagination entirely. This
+ *   is how the [com.metrolist.music.ui.screens.playlist.SpotifyLikedSongsScreen]
+ *   avoids re-fetching the ~5000-track liked list that its ViewModel has
+ *   already loaded, and how the Shuffle button ships a pre-shuffled ordering
+ *   so shuffle randomizes across the entire liked-songs set.
  */
 class SpotifyLikedSongsQueue(
     private val startIndex: Int = 0,
     private val mapper: SpotifyYouTubeMapper,
+    private val preloadedTracks: List<SpotifyTrack> = emptyList(),
     override val preloadItem: MediaMetadata? = null,
 ) : Queue {
 
     companion object {
         private const val SPOTIFY_PAGE_SIZE = 50
         private const val RESOLVE_BATCH_SIZE = 20
-        /** Resolve only the target + a few neighbors for instant playback start. */
+        /** Resolve only the target + a few neighbors for instant playback start on the
+         *  API-paginated path. */
         private const val FAST_START_BEFORE = 0
         private const val FAST_START_AFTER = 2
+        /** When tracks are preloaded (no Spotify API cost to reach them) we can afford
+         *  to resolve a much bigger initial window in parallel. This is what stops the
+         *  visible queue getting stuck at 23 items when the user hits Play on a 5000-
+         *  song Liked Songs list. Playback still starts as soon as the first item in
+         *  the awaitAll completes (Media3 buffers ahead-of-time), so the perceived
+         *  tap-to-play latency stays low. */
+        private const val FAST_START_AFTER_PRELOADED = 49
     }
 
     // All Spotify tracks fetched so far (may span multiple API pages)
@@ -53,23 +69,39 @@ class SpotifyLikedSongsQueue(
 
     override suspend fun getInitialStatus(): Queue.Status = withContext(Dispatchers.IO) {
         try {
-            val result = Spotify.likedSongs(limit = SPOTIFY_PAGE_SIZE, offset = 0).getOrThrow()
-            apiTotal = result.total
-            val fetched = result.items.map { it.track }.filter { !it.isLocal }
-            allTracks.addAll(fetched)
-            apiFetchOffset = result.items.size
-            apiHasMore = apiFetchOffset < apiTotal
+            if (preloadedTracks.isNotEmpty()) {
+                // Fast path: the caller (e.g. SpotifyLikedSongsScreen) already has the
+                // full list of liked tracks in memory. Skip the ~105-request Spotify
+                // pagination and use the preloaded list as the source of truth.
+                allTracks.addAll(preloadedTracks)
+                apiTotal = preloadedTracks.size
+                apiFetchOffset = apiTotal
+                apiHasMore = false
+            } else {
+                val result = Spotify.likedSongs(limit = SPOTIFY_PAGE_SIZE, offset = 0).getOrThrow()
+                apiTotal = result.total
+                val fetched = result.items.map { it.track }.filter { !it.isLocal }
+                allTracks.addAll(fetched)
+                apiFetchOffset = result.items.size
+                apiHasMore = apiFetchOffset < apiTotal
 
-            while (startIndex >= allTracks.size && apiHasMore) {
-                fetchNextApiPage()
+                while (startIndex >= allTracks.size && apiHasMore) {
+                    fetchNextApiPage()
+                }
             }
 
             val targetIndex = startIndex.coerceIn(0, (allTracks.size - 1).coerceAtLeast(0))
 
-            // Fast-start: resolve only a tiny window (target + 2 next) for instant playback.
-            // The rest of the queue is populated via nextPage() in the background.
+            // Fast-start window. Wider when we're preloaded so the visible queue reflects
+            // more of the underlying list right from the start (fixes "queue only has 23
+            // songs even though the playlist is 5000").
+            val fastStartAfter = if (preloadedTracks.isNotEmpty()) {
+                FAST_START_AFTER_PRELOADED
+            } else {
+                FAST_START_AFTER
+            }
             val windowStart = (targetIndex - FAST_START_BEFORE).coerceAtLeast(0)
-            val windowEnd = (targetIndex + FAST_START_AFTER + 1).coerceAtMost(allTracks.size)
+            val windowEnd = (targetIndex + fastStartAfter + 1).coerceAtMost(allTracks.size)
             val windowTracks = allTracks.subList(windowStart, windowEnd)
 
             val resolvedItems = coroutineScope {
@@ -89,7 +121,8 @@ class SpotifyLikedSongsQueue(
                 .coerceIn(0, (resolvedItems.size - 1).coerceAtLeast(0))
 
             Timber.d("SpotifyLikedSongsQueue: Fast-start resolved ${resolvedItems.size} tracks " +
-                "(window $windowStart..$windowEnd, target=$targetIndex, total=$apiTotal)")
+                "(window $windowStart..$windowEnd, target=$targetIndex, total=$apiTotal, " +
+                "preloaded=${preloadedTracks.isNotEmpty()})")
 
             Queue.Status(
                 title = null,
