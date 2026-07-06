@@ -1,3 +1,14 @@
+---v13.8.3
+# MuSicX 13.8.3 — Critical playback regression fix (release-only)
+
+## Fixed
+- **Songs failing to play after upgrading to v13.8.x on release builds**, even for users who never turned Qobuz on. The v13.8.0 Qobuz integration added a code path in the ExoPlayer resolver (`createDataSourceFactory`) and a preference observer that could — under R8 code shrinking (release builds only) — abort playback when the Qobuz block threw, or trigger a spurious `player.stop()` on cold start. Debug/test builds skip R8 entirely so the bug was invisible there.
+- **Hardened the Qobuz observer**: only reloads the current stream when the master `EnableQobuzKey` toggle is currently ON. Users who never opted into Qobuz can no longer have their playback interrupted by preference writes. Switched from a fragile `isFirstQobuzEmit` sentinel to `flow.drop(1)` + an explicit last-projection guard.
+- **Wrapped the Qobuz block in `createDataSourceFactory` in try/catch** so any failure inside the Qobuz path (DataStore read, DB lookup, resolver network / JSON / timeout, R8-stripped symbol, …) silently degrades to the YouTube pipeline instead of aborting the ResolvingDataSource callback.
+- **Extracted the Qobuz resolve pipeline into its own `resolveQobuzDataSpec` function** so the try/catch actually covers the entire code path.
+- **Added ProGuard keep rules** for `com.metrolist.music.qobuz.**`, `QobuzMatchEntity`, `com.metrolist.spotify.models.**` (used by SpotifyMetadataRegistry from the loader thread), and Room `Migration` subclasses. Prevents R8 from renaming/stripping members that are hit reflectively during resolve or during DB migration.
+
+
 ---v13.8.2
 # MuSicX 13.8.2 — Qobuz settings parity with meld
 
