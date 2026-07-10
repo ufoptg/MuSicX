@@ -715,6 +715,43 @@ private fun OnlinePlaylistHeader(
                 }
             }
 
+            // Shuffle Button — mirrors the Spotify Liked Songs pattern
+            // (v13.8.5+). Ships a pre-shuffled ordering of the currently
+            // loaded songs as the queue's backing list, so shuffle randomises
+            // across everything the ViewModel has paged in — not just the
+            // fast-start window MusicService would otherwise randomise mid-
+            // playback. `initialContinuation` is intentionally dropped so
+            // the queue doesn't append the next page in original order after
+            // the shuffled block.
+            Surface(
+                onClick = {
+                    if (!isListenTogetherGuest && songs.isNotEmpty()) {
+                        playerConnection.playQueue(
+                            YouTubePlaylistQueue(
+                                playlistId = playlist.id,
+                                playlistTitle = playlist.title,
+                                initialSongs = songs.shuffled(),
+                                initialContinuation = null,
+                            ),
+                        )
+                    }
+                },
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.size(48.dp),
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.shuffle),
+                        contentDescription = stringResource(R.string.shuffle),
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+            }
+
             // Menu Button - Smaller secondary button
             Surface(
                 onClick = {

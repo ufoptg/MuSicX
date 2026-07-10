@@ -1,3 +1,15 @@
+---v13.8.7
+# MuSicX 13.8.7 — Shuffle button on all playlist screens + Listen Together orbs artwork
+
+## Added
+- **Shuffle button on Spotify playlists (`SpotifyPlaylistScreen`)** — was only ever showing a Play button. Now sits next to Play using the same OutlinedButton pattern as the Liked Songs screen, and ships `sortedItems.mapNotNull { it.track }.shuffled()` as `initialTracks` to `SpotifyPlaylistQueue`. Same "shuffle across everything loaded, not just the fast-start window" behaviour v13.8.5+ established for Liked Songs.
+- **Shuffle button on YouTube Music playlists (`OnlinePlaylistScreen`)** — sits between the Play and Menu circular buttons. Ships `songs.shuffled()` to `YouTubePlaylistQueue` and intentionally drops `initialContinuation` so the queue can't append the next page in original order after the shuffled block.
+- Every playlist screen now has a working Shuffle affordance: Spotify Liked Songs, Spotify user playlists, Spotify albums, YouTube Music playlists, and local Auto / Top / Cache / user-created playlists. Shuffle in all of them randomises across the tracks currently loaded into the screen — not just the tiny fast-start window ExoPlayer's shuffle toggle would randomise mid-playback.
+
+## Changed
+- **Listen Together header art** — the two-people icon at the top of the Listen Together screen is replaced with a dedicated three-orbs artwork (`R.drawable.listen_together_orbs`, 512×512 WebP-90, ~17 KB). Hero size bumped 80.dp → 96.dp; primary-container tint dropped since the artwork carries its own color.
+
+
 ---v13.8.6
 # MuSicX 13.8.6 — Instant Shuffle + background queue growth
 

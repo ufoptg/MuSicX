@@ -306,7 +306,10 @@ fun SpotifyPlaylistScreen(
 
                     if (!isLoading && tracks.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        Row {
+                        Row(
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             // Play all button
                             androidx.compose.material3.Button(
                                 onClick = {
@@ -327,6 +330,32 @@ fun SpotifyPlaylistScreen(
                                 )
                                 Spacer(modifier = Modifier.size(8.dp))
                                 Text(stringResource(R.string.play))
+                            }
+                            // Shuffle button — mirrors the Spotify Liked Songs pattern
+                            // (v13.8.5+): ships a pre-shuffled ordering as the queue's
+                            // backing list so shuffle randomises across every loaded
+                            // track, not just the fast-start window.
+                            androidx.compose.material3.OutlinedButton(
+                                onClick = {
+                                    val shuffled = sortedItems.mapNotNull { it.track }.shuffled()
+                                    if (shuffled.isEmpty()) return@OutlinedButton
+                                    playerConnection.playQueue(
+                                        SpotifyPlaylistQueue(
+                                            playlistId = viewModel.playlistId,
+                                            initialTracks = shuffled,
+                                            startIndex = 0,
+                                            mapper = viewModel.mapper,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Icon(
+                                    painterResource(R.drawable.shuffle),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Spacer(modifier = Modifier.size(8.dp))
+                                Text(stringResource(R.string.shuffle))
                             }
                         }
                     }
