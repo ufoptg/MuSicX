@@ -19,7 +19,7 @@
 </div>
 
 > [!NOTE]
-> **MuSicX** is a maintained fork of [Metrolist](https://github.com/MetrolistGroup/Metrolist) with additional integrations (Spotify, SponsorBlock, Music Recognition, Podcasts, LyricsPlus, and experimental FLAC / Hi-Res streaming via Qobuz), crash reporting, and a hardened playback pipeline. Same great UX, more music sources, more resilience.
+> **MuSicX** is a maintained fork of [Metrolist](https://github.com/MetrolistGroup/Metrolist) with additional integrations (Spotify, SponsorBlock, Music Recognition, Podcasts, LyricsPlus, and experimental FLAC / Hi-Res streaming via Qobuz), crash reporting, and an automated nightly upstream sync. Same great UX, more music sources, more resilience.
 
 > [!WARNING]
 > **Regional Restriction** — If YouTube Music is unavailable in your region, this app will not work without a **VPN or proxy** connecting to a supported region.
@@ -167,6 +167,7 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
 #### Reliability ✨
 - **ANR Watchdog** — auto-detects UI freezes
 - **Crash reporter** — one-tap submit to GitHub Issues
+- **Nightly upstream Metrolist sync** — automated PR when upstream diverges
 - **R8-safe Qobuz code path** — v13.8.3 hardened the resolver so a Qobuz failure can never abort the ExoPlayer callback and kill playback
 
 </td>
