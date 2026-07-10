@@ -19,7 +19,7 @@
 </div>
 
 > [!NOTE]
-> **MuSicX** is a maintained fork of [Metrolist](https://github.com/MetrolistGroup/Metrolist) with additional integrations (Spotify, SponsorBlock, Music Recognition, Podcasts, LyricsPlus, and now experimental FLAC / Hi-Res streaming via Qobuz), crash reporting, and an automated nightly upstream sync. Same great UX, more music sources, more resilience.
+> **MuSicX** is a maintained fork of [Metrolist](https://github.com/MetrolistGroup/Metrolist) with additional integrations (Spotify, SponsorBlock, Music Recognition, Podcasts, LyricsPlus, and experimental FLAC / Hi-Res streaming via Qobuz), crash reporting, and a hardened playback pipeline. Same great UX, more music sources, more resilience.
 
 > [!WARNING]
 > **Regional Restriction** — If YouTube Music is unavailable in your region, this app will not work without a **VPN or proxy** connecting to a supported region.
@@ -59,7 +59,11 @@ Features added on top of Metrolist upstream:
 | 🟢 **LyricsPlus / ExperimentalLyrics** | Shipped | Fluid karaoke-style synced lyrics with word-level timing, translation-friendly rendering, and better lifecycle awareness than the original meld implementation. Toggle: *Settings → Content → Enable LyricsPlus* + *Settings → Appearance → Experimental Lyrics*. |
 | 🟢 **Music-Recognition Widget** (Shazam) | Shipped | Home-screen widget + Quick Settings tile for instant Shazam-style recognition. Full recognition screen at *Library → Recognize Music*. No API key required. |
 | 🟢 **Podcasts** | Shipped | Full podcast browsing, subscriptions, episode player, and library sync. Discover via *Search → Podcasts chip*, *Home → Podcasts chip*, or manage subscriptions at *Library → Podcasts*. |
-| 🟢 **Qobuz hi-res streaming** ✨ new | Shipped v13.8.0 | Experimental FLAC / Hi-Res playback via third-party Qobuz resolvers (Monokenny / Jumo / Squid / TrypT HiFi). AAC 320 → CD (16-bit / 44.1 kHz) → Hi-Res (up to 24-bit / 192 kHz). Falls back silently to YouTube on failure. Uses Spotify ISRC when available for tighter matching. Toggle at *Settings → Spotify Integration → Audio quality (experimental)*. |
+| 🟢 **Qobuz hi-res streaming** | Shipped v13.8.0 | Experimental FLAC / Hi-Res playback via third-party Qobuz resolvers (Monokenny / Jumo / Squid / TrypT HiFi). AAC 320 → CD (16-bit / 44.1 kHz) → Hi-Res (up to 24-bit / 192 kHz). Falls back silently to YouTube on failure. Uses Spotify ISRC when available for tighter matching. Toggle at *Settings → Spotify Integration → Audio quality (experimental)*. Country code editor + live Backend Status section added in v13.8.2. R8/release-build playback regression fixed in v13.8.3. |
+| 🟢 **Instant playback from Spotify home** | Shipped v13.8.4 | The Spotify personalized-radio queue used to run its entire recommendation engine synchronously before the first note played — tap-to-play latency was 4–6 s. Now the engine is deferred to `nextPage()` and runs on a background coroutine after audio is already playing. Tap-to-play drops to ~100–500 ms warm / ~1 s cold. |
+| 🟢 **Spotify Liked Songs queue depth + Shuffle** | Shipped v13.8.5 / v13.8.6 | Playing a big Liked Songs list used to cap the queue at 23 songs — shuffle only randomised those 23. Now the queue accepts the ViewModel's already-loaded track list, and `MusicService` grows the queue to 60 items in the background *after* audio starts (5-item fast-start window so Shuffle stays near-instant). New **Shuffle button** on the Liked Songs screen ships a pre-shuffled ordering so the shuffle randomises across every loaded track. |
+| 🟢 **Shuffle button on every playlist screen** ✨ new | Shipped v13.8.7 | The v13.8.5 "pre-shuffled backing list" trick is now on Spotify user playlists, YouTube Music playlists, Spotify albums, and every local playlist (Liked / Auto / Top / Cache / user-created). Shuffle randomises across all loaded tracks — not just the fast-start window ExoPlayer's shuffle toggle would randomise mid-playback. |
+| 🟢 **Listen Together — orbs artwork** ✨ new | Shipped v13.8.7 | The Listen Together screen header now uses a dedicated three-orbs artwork (`R.drawable.listen_together_orbs`, 17 KB WebP) instead of the plain two-people icon. |
 
 <br/>
 
@@ -97,8 +101,9 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
 - Skip silence
 - Sleep timer
 - **SponsorBlock — skip sponsor/intro segments** ✨
-- **Qobuz FLAC / Hi-Res streaming** ✨ new
-- **Continue Listening hero card** on Home ✨ new
+- **Qobuz FLAC / Hi-Res streaming** ✨
+- **Continue Listening hero card** on Home ✨
+- **Shuffle across every loaded track** on all playlist screens ✨ new
 
 </td>
     <td width="50%" valign="top">
@@ -107,8 +112,8 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
 - Audio normalization
 - Tempo & pitch control
 - Equalizer
-- **Lossless FLAC 16-bit / 44.1 kHz (CD)** ✨ new
-- **Hi-Res FLAC up to 24-bit / 192 kHz** ✨ new
+- **Lossless FLAC 16-bit / 44.1 kHz (CD)** ✨
+- **Hi-Res FLAC up to 24-bit / 192 kHz** ✨
 
 </td>
   </tr>
@@ -120,7 +125,7 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
 - **LyricsPlus / Experimental Lyrics — word-timed karaoke** ✨
 - AI-powered lyrics translation
 - Personalized quick picks
-- **Local Recently Played row** on Home ✨ new
+- **Local Recently Played row** on Home ✨
 - **Music Recognition (Shazam-style)** — home widget + Quick Settings tile ✨
 - Search songs, albums, artists, videos, playlists, **podcasts & episodes** ✨
 
@@ -162,7 +167,7 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
 #### Reliability ✨
 - **ANR Watchdog** — auto-detects UI freezes
 - **Crash reporter** — one-tap submit to GitHub Issues
-- **Nightly upstream Metrolist sync** — automated PR when upstream diverges
+- **R8-safe Qobuz code path** — v13.8.3 hardened the resolver so a Qobuz failure can never abort the ExoPlayer callback and kill playback
 
 </td>
     <td width="50%" valign="top">
