@@ -1,3 +1,12 @@
+---v13.8.8
+# MuSicX 13.8.8 — About screen reflects the MuSicX maintainer
+
+## Changed
+- **Settings → About** now attributes MuSicX to **ufoptg** (Lead developer) with a single "GitHub" social button (matches meld's About screen layout for Francesco Grazioso). The "Buy me a coffee" button in the hero card now links to [buymeacoffee.com/TrueSaiyan](https://buymeacoffee.com/TrueSaiyan).
+- The Metrolist upstream team (Mo Agamy — Lead developer, Adriel O'Connel, Nyx) is now grouped under a new **Original Project** section directly below the ufoptg hero card, with a short description explaining the fork relationship: *"MuSicX is based on Metrolist, an open-source YouTube Music client."* Each member retains their avatar, coffee/sponsor link, and GitHub link.
+- The About-screen title now renders `MuSicX` instead of the pre-rebrand `Metrolist` text (the `<string name="metrolist">` resource is now literal `MuSicX`, and the About header renders it directly without the previous `.lowercase().titlecase()` transform).
+
+
 ---v13.8.7
 # MuSicX 13.8.7 — Shuffle button on all playlist screens + Listen Together orbs artwork
 

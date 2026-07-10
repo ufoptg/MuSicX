@@ -83,7 +83,6 @@ import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.utils.backToMain
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import java.util.Locale
 
 private data class Contributor(
     val name: String,
@@ -104,17 +103,43 @@ private data class CommunityLink(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private val leadDeveloper = Contributor(
-    name = "Mo Agamy",
+    name = "ufoptg",
     roleRes = R.string.credits_lead_developer,
-    githubHandle = "mostafaalagamy",
+    githubHandle = "ufoptg",
+    sponsorUrl = "https://buymeacoffee.com/TrueSaiyan",
     polygon = MaterialShapes.Cookie9Sided,
-    favoriteSongVideoId = "Mh2JWGWvy_Y"
+    favoriteSongVideoId = null
 )
 
+// Metrolist upstream team — MuSicX is a fork of Metrolist and this
+// section attributes the original project on the About screen (matches
+// the "Original Project" list meld's About screen shows).
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-private val collaborators = listOf(
-    Contributor(name = "Adriel O'Connel", roleRes = R.string.credits_collaborator, githubHandle = "adrielGGmotion", sponsorUrl = "https://github.com/sponsors/adrielGGmotion", polygon = MaterialShapes.Cookie4Sided, favoriteSongVideoId = "m2zUrruKjDQ"),
-    Contributor(name = "Nyx", roleRes = R.string.credits_collaborator, githubHandle = "nyxiereal", sponsorUrl = "https://github.com/sponsors/nyxiereal", polygon = MaterialShapes.Cookie12Sided, favoriteSongVideoId = "zselaN6zPXw"),
+private val originalProjectContributors = listOf(
+    Contributor(
+        name = "Mo Agamy",
+        roleRes = R.string.credits_lead_developer,
+        githubHandle = "mostafaalagamy",
+        sponsorUrl = "https://buymeacoffee.com/mostafaalagamy",
+        polygon = MaterialShapes.Cookie9Sided,
+        favoriteSongVideoId = "Mh2JWGWvy_Y"
+    ),
+    Contributor(
+        name = "Adriel O'Connel",
+        roleRes = R.string.credits_collaborator,
+        githubHandle = "adrielGGmotion",
+        sponsorUrl = "https://github.com/sponsors/adrielGGmotion",
+        polygon = MaterialShapes.Cookie4Sided,
+        favoriteSongVideoId = "m2zUrruKjDQ"
+    ),
+    Contributor(
+        name = "Nyx",
+        roleRes = R.string.credits_collaborator,
+        githubHandle = "nyxiereal",
+        sponsorUrl = "https://github.com/sponsors/nyxiereal",
+        polygon = MaterialShapes.Cookie12Sided,
+        favoriteSongVideoId = "zselaN6zPXw"
+    ),
 )
 
 private val communityLinks = listOf(
@@ -187,28 +212,17 @@ private fun ContributorAvatar(
 private fun DeveloperSocials(
     uriHandler: androidx.compose.ui.platform.UriHandler
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    // ufoptg doesn't publish a personal website or Instagram, so this
+    // just surfaces the GitHub profile as a single wide button — matches
+    // the "GitHub" single-button treatment on meld's About screen for
+    // Francesco Grazioso.
+    FilledTonalButton(
+        onClick = { uriHandler.openUri("https://github.com/ufoptg") },
+        modifier = Modifier.fillMaxWidth().height(48.dp)
     ) {
-        FilledTonalButton(
-            onClick = { uriHandler.openUri("https://metrolist.cc") },
-            modifier = Modifier.weight(1f).height(48.dp)
-        ) {
-            Icon(painterResource(R.drawable.language), contentDescription = null)
-        }
-        FilledTonalButton(
-            onClick = { uriHandler.openUri("https://github.com/mostafaalagamy") },
-            modifier = Modifier.weight(1f).height(48.dp)
-        ) {
-            Icon(painterResource(R.drawable.github), contentDescription = null)
-        }
-        FilledTonalButton(
-            onClick = { uriHandler.openUri("https://www.instagram.com/mostafaalagamy") },
-            modifier = Modifier.weight(1f).height(48.dp)
-        ) {
-            Icon(painterResource(R.drawable.instagram), contentDescription = null)
-        }
+        Icon(painterResource(R.drawable.github), contentDescription = null)
+        Spacer(Modifier.width(8.dp))
+        Text(stringResource(R.string.credits_github))
     }
 }
 
@@ -277,12 +291,8 @@ fun AboutScreen(
                 Spacer(Modifier.width(20.dp))
         
                 Column {
-                    val metrolistName = stringResource(R.string.metrolist)
-                        .lowercase(Locale.getDefault())
-                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-
                     Text(
-                        text = metrolistName,
+                        text = stringResource(R.string.metrolist),
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -402,7 +412,7 @@ fun AboutScreen(
                 Spacer(Modifier.height(16.dp))
                 
                 Button(
-                    onClick = { uriHandler.openUri("https://buymeacoffee.com/mostafaalagamy") },
+                    onClick = { uriHandler.openUri("https://buymeacoffee.com/TrueSaiyan") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
@@ -418,11 +428,34 @@ fun AboutScreen(
         }
 
         Spacer(Modifier.height(32.dp))
-        
-        // Collaborators section - back to Material3SettingsGroup
+
+        // Original Project — attributes the upstream Metrolist team.
+        // Matches meld's About screen "Original Project" section: a short
+        // description at the top explaining the fork relationship, then
+        // the upstream lead developer + collaborators listed together
+        // in one group.
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Text(
+                text = stringResource(R.string.credits_original_project),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+            )
+            Text(
+                text = stringResource(R.string.credits_original_project_description),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 12.dp)
+            )
+        }
+
         Material3SettingsGroup(
-            title = stringResource(R.string.credits_collaborators_section),
-            items = collaborators.map { contributor ->
+            title = null,
+            items = originalProjectContributors.map { contributor ->
                 Material3SettingsItem(
                     leadingContent = {
                         var clickCount by remember(contributor.name) { mutableIntStateOf(0) }
