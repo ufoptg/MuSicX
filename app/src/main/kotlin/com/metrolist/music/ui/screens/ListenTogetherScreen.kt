@@ -17,6 +17,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -480,16 +481,14 @@ private fun HeaderSection(isInRoom: Boolean = false) {
         Box(
             modifier =
                 Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                    .size(96.dp)
+                    .clip(CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                painter = painterResource(R.drawable.group_outlined),
+            Image(
+                painter = painterResource(R.drawable.listen_together_orbs),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(96.dp),
             )
         }
         Spacer(modifier = Modifier.height(16.dp))
