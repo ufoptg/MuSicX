@@ -113,4 +113,60 @@ object SpotifyTokenManager {
     fun clearReLoginFlag() {
         _needsReLogin.value = false
     }
+
+    /**
+     * Forcibly refresh the Spotify access token via the sp_dc cookie,
+     * ignoring any local expiry timestamp. Called by Spotify.kt's 401
+     * auto-recovery path when the server rejects our cached token — this
+     * typically means the local expiry says the token is valid but Spotify
+     * revoked/rotated it (cleared browser cookies, device clock skew,
+     * server-side session flush).
+     *
+     * Serialised via [refreshMutex] with [ensureAuthenticated] so only one
+     * refresh happens at a time app-wide, even if 30 in-flight Spotify
+     * calls each 401 simultaneously.
+     */
+    suspend fun forceRefresh(): Boolean {
+        return refreshMutex.withLock {
+            val settings = dataStore.data.first()
+            val spDc = settings[SpotifySpDcKey] ?: ""
+            val spKey = settings[SpotifySpKeyKey] ?: ""
+            if (spDc.isEmpty()) {
+                Timber.w("SpotifyTokenManager: forceRefresh — no sp_dc cookie available")
+                _needsReLogin.value = true
+                return@withLock false
+            }
+            Timber.d("SpotifyTokenManager: forceRefresh — refreshing token via cookie")
+
+            SpotifyAuth.fetchAccessToken(spDc, spKey).fold(
+                onSuccess = { token ->
+                    Spotify.accessToken = token.accessToken
+                    dataStore.edit { prefs ->
+                        prefs[SpotifyAccessTokenKey] = token.accessToken
+                        prefs[SpotifyTokenExpiryKey] = token.accessTokenExpirationTimestampMs
+                    }
+                    _needsReLogin.value = false
+                    Timber.d("SpotifyTokenManager: forceRefresh — success")
+                    true
+                },
+                onFailure = { e ->
+                    Timber.e(e, "SpotifyTokenManager: forceRefresh — FAILED")
+                    val isCookieExpired = e.message?.contains("anonymous") == true ||
+                        e.message?.contains("expired") == true
+                    if (isCookieExpired) {
+                        Timber.w("SpotifyTokenManager: forceRefresh — cookie expired, clearing session")
+                        dataStore.edit { prefs ->
+                            prefs.remove(SpotifyAccessTokenKey)
+                            prefs.remove(SpotifySpDcKey)
+                            prefs.remove(SpotifySpKeyKey)
+                            prefs.remove(SpotifyTokenExpiryKey)
+                        }
+                        Spotify.accessToken = null
+                        _needsReLogin.value = true
+                    }
+                    false
+                },
+            )
+        }
+    }
 }

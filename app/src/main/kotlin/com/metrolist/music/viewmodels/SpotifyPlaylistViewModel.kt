@@ -88,6 +88,15 @@ constructor(
     private suspend fun loadPlaylistInternal() {
         _error.value = null
 
+        // Proactively ensure the token is fresh. Complements the reactive
+        // 401 auto-refresh hook in Spotify.graphqlPost — cheaper to check
+        // locally first than to make a failing call and recover from 401.
+        if (!com.metrolist.music.utils.SpotifyTokenManager.ensureAuthenticated()) {
+            _error.value = "Spotify session expired. Please log in again."
+            _isLoading.value = false
+            return
+        }
+
         Spotify.playlist(playlistId).onSuccess { pl ->
             _playlist.value = pl
         }.onFailure { e ->

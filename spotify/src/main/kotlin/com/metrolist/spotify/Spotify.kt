@@ -173,9 +173,27 @@ object Spotify {
     @Volatile
     var onHashExpired: ((operationName: String) -> Unit)? = null
 
+    /**
+     * Callback invoked when the server returns HTTP 401 despite [accessToken]
+     * being non-null — typically means our local expiry timestamp says the
+     * token is valid but Spotify actually revoked/rotated it (user cleared
+     * browser cookies, device clock skew, or a server-side session flush).
+     *
+     * The app module installs this to route through SpotifyTokenManager
+     * .forceRefresh(). Returns true if the token was successfully renewed,
+     * in which case the failed GQL call is retried once with the new token.
+     * Returns false to surface the 401 to the caller normally.
+     *
+     * A single call can only trigger ONE refresh attempt (see [graphqlPost])
+     * to avoid infinite loops on genuinely-invalid cookies.
+     */
+    @Volatile
+    var onTokenExpiredHandler: (suspend () -> Boolean)? = null
+
     private suspend fun graphqlPost(
         operationName: String,
         variables: JsonObject = buildJsonObject {},
+        _isRetryAfterRefresh: Boolean = false,
     ): JsonObject {
         val token =
             accessToken ?: throw SpotifyException(401, "Not authenticated").also {
@@ -192,7 +210,30 @@ object Spotify {
 
         for ((hashIdx, sha256Hash) in hashCandidates.withIndex()) {
             val body = buildGqlBody(operationName, sha256Hash, variables)
-            val result = executeGqlWithRetries(operationName, token, body)
+            val result = try {
+                executeGqlWithRetries(operationName, token, body)
+            } catch (e: SpotifyException) {
+                // Auto-refresh on 401: our local token cache said the token
+                // was valid but the server disagreed. Ask the app to force a
+                // refresh via sp_dc cookie, then retry the WHOLE graphqlPost
+                // once with the new token. The _isRetryAfterRefresh flag
+                // prevents infinite loops if the refresh itself fails or if
+                // the newly-issued token still gets 401'd.
+                if (e.statusCode == 401 && !_isRetryAfterRefresh) {
+                    val handler = onTokenExpiredHandler
+                    if (handler != null) {
+                        log("W", "GQL $operationName got 401; attempting auto-refresh")
+                        val refreshed = handler.invoke()
+                        if (refreshed) {
+                            log("I", "GQL $operationName auto-refresh succeeded; retrying")
+                            return graphqlPost(operationName, variables, _isRetryAfterRefresh = true)
+                        } else {
+                            log("W", "GQL $operationName auto-refresh failed; surfacing 401")
+                        }
+                    }
+                }
+                throw e
+            }
 
             if (result.isPersistedQueryNotFound) {
                 if (hashIdx < hashCandidates.lastIndex) {

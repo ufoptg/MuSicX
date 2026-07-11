@@ -57,6 +57,14 @@ constructor(
             _isLoading.value = true
             _error.value = null
 
+            // Proactively ensure the token is fresh. Complements the reactive
+            // 401 auto-refresh hook in Spotify.graphqlPost.
+            if (!com.metrolist.music.utils.SpotifyTokenManager.ensureAuthenticated()) {
+                _error.value = "Spotify session expired. Please log in again."
+                _isLoading.value = false
+                return@launch
+            }
+
             Spotify.album(albumId).onSuccess { album ->
                 _album.value = album
                 _tracks.value = album.tracks?.items?.filter { !it.isLocal } ?: emptyList()

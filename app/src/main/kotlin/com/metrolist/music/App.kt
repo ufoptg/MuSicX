@@ -186,6 +186,13 @@ class App :
             applicationScope.launch(Dispatchers.IO) { spotifyHashSync.forceRefresh() }
         }
         com.metrolist.music.utils.SpotifyTokenManager.init(dataStore)
+        // Wire the 401 auto-recovery hook: when Spotify's server rejects
+        // our cached token, force a refresh via sp_dc cookie and let the
+        // failed call retry. Fixes v13.8.x "Token invalid — Retry" popup
+        // where the retry button would re-use the same expired token.
+        com.metrolist.spotify.Spotify.onTokenExpiredHandler = {
+            com.metrolist.music.utils.SpotifyTokenManager.forceRefresh()
+        }
         applicationScope.launch(Dispatchers.IO) {
             com.metrolist.music.utils.SpotifyTokenManager.ensureAuthenticated()
         }

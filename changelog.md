@@ -1,3 +1,12 @@
+---v13.8.12
+# MuSicX 13.8.12 — Automatic Spotify token refresh on 401
+
+## Fixed
+- **"Token invalid — Retry" popup where Retry did nothing.** Three of MuSicX's Spotify screens (`SpotifyPlaylistScreen`, `SpotifyAlbumScreen`, `SpotifyLikedSongsScreen`) called `Spotify.playlist()` / `Spotify.album()` / `Spotify.likedSongs()` directly without ever running `SpotifyTokenManager.ensureAuthenticated()` first — so when the cached token was expired, the load would 401, show the popup, and tapping Retry would silently re-use the same stale token and 401 again. Added `ensureAuthenticated()` to the top of each loader; on failure the error now reads *"Spotify session expired. Please log in again."*
+- **Reactive 401 auto-recovery on ANY Spotify GraphQL call.** Even with proactive refresh in place, the server can still 401 an "unexpired" token if Spotify rotates/revokes it (user cleared browser cookies, device clock skew, server-side session flush). `Spotify.graphqlPost` now catches `SpotifyException(401)`, invokes a new `onTokenExpiredHandler` (wired to `SpotifyTokenManager.forceRefresh()`), and — if the refresh succeeds — retries the failed call once with the new token. Loops are prevented by a one-shot flag: if the retry also 401s the exception is surfaced normally.
+- New `SpotifyTokenManager.forceRefresh()` bypasses the local expiry cache and always refreshes via `sp_dc` cookie. Serialised through the existing `refreshMutex` so 30 in-flight Spotify calls each hitting 401 simultaneously only trigger ONE refresh.
+
+
 ---v13.8.11
 # MuSicX 13.8.11 — HOTFIX: uncached Spotify playback stalled behind hydrator
 

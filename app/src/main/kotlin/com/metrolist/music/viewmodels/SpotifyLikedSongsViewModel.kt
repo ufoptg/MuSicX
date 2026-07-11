@@ -71,6 +71,14 @@ constructor(
     private suspend fun loadLikedSongsInternal() {
         _error.value = null
 
+        // Proactively ensure the token is fresh. Complements the reactive
+        // 401 auto-refresh hook in Spotify.graphqlPost.
+        if (!com.metrolist.music.utils.SpotifyTokenManager.ensureAuthenticated()) {
+            _error.value = "Spotify session expired. Please log in again."
+            _isLoading.value = false
+            return
+        }
+
         Spotify.likedSongs(limit = PAGE_SIZE, offset = 0).onSuccess { paging ->
             val firstPage = paging.items
                 .map { it.track }
