@@ -61,9 +61,11 @@ class SpotifyPlaylistQueue(
                 apiFetchOffset = apiTotal
                 apiHasMore = false
             } else {
-                val result = Spotify.playlistTracks(
-                    playlistId, limit = SPOTIFY_PAGE_SIZE, offset = 0
-                ).getOrThrow()
+                val result = com.metrolist.spotify.SpotifyPriorityGate.withPlaybackPriority {
+                    Spotify.playlistTracks(
+                        playlistId, limit = SPOTIFY_PAGE_SIZE, offset = 0
+                    ).getOrThrow()
+                }
                 apiTotal = result.total
                 val fetched = result.items.mapNotNull { it.track?.takeIf { t -> !t.isLocal } }
                 allTracks.addAll(fetched)
@@ -126,9 +128,11 @@ class SpotifyPlaylistQueue(
             } else {
                 apiFetchOffset = 0
                 apiHasMore = true
-                val result = Spotify.playlistTracks(
-                    playlistId, limit = SPOTIFY_PAGE_SIZE, offset = 0
-                ).getOrThrow()
+                val result = com.metrolist.spotify.SpotifyPriorityGate.withPlaybackPriority {
+                    Spotify.playlistTracks(
+                        playlistId, limit = SPOTIFY_PAGE_SIZE, offset = 0
+                    ).getOrThrow()
+                }
                 apiTotal = result.total
                 val fetched = result.items.mapNotNull { it.track?.takeIf { t -> !t.isLocal } }
                 allTracks.addAll(fetched)
@@ -205,9 +209,11 @@ class SpotifyPlaylistQueue(
     private suspend fun fetchNextApiPage() {
         if (!apiHasMore) return
         try {
-            val result = Spotify.playlistTracks(
-                playlistId, limit = SPOTIFY_PAGE_SIZE, offset = apiFetchOffset,
-            ).getOrThrow()
+            val result = com.metrolist.spotify.SpotifyPriorityGate.withPlaybackPriority {
+                Spotify.playlistTracks(
+                    playlistId, limit = SPOTIFY_PAGE_SIZE, offset = apiFetchOffset,
+                ).getOrThrow()
+            }
             val fetched = result.items.mapNotNull { it.track?.takeIf { t -> !t.isLocal } }
             allTracks.addAll(fetched)
             apiFetchOffset += result.items.size

@@ -263,8 +263,15 @@ class SpotifyYouTubeMapper(
         val query = if (artist.isBlank()) title else "$artist $title"
         Timber.d("Reverse lookup: searching Spotify for '$query'")
 
-        val results = Spotify.search(query, types = listOf("track"), limit = 5)
-            .getOrNull()?.tracks?.items
+        // Playback-critical: signals SpotifyPriorityGate so background jobs
+        // (library playlist-count hydrator, prefetchers, etc.) yield the
+        // Spotify API lane. Prevents the v13.8.10 regression where the
+        // hydrator's back-to-back calls saturated the rate limiter and left
+        // an uncached track stuck resolving indefinitely.
+        val results = com.metrolist.spotify.SpotifyPriorityGate.withPlaybackPriority {
+            Spotify.search(query, types = listOf("track"), limit = 5)
+                .getOrNull()?.tracks?.items
+        }
         if (results.isNullOrEmpty()) {
             Timber.w("Reverse lookup: no Spotify results for '$query'")
             return@withContext null

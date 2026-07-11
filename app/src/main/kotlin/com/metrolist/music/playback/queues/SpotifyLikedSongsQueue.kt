@@ -81,7 +81,9 @@ class SpotifyLikedSongsQueue(
                 apiFetchOffset = apiTotal
                 apiHasMore = false
             } else {
-                val result = Spotify.likedSongs(limit = SPOTIFY_PAGE_SIZE, offset = 0).getOrThrow()
+                val result = com.metrolist.spotify.SpotifyPriorityGate.withPlaybackPriority {
+                    Spotify.likedSongs(limit = SPOTIFY_PAGE_SIZE, offset = 0).getOrThrow()
+                }
                 apiTotal = result.total
                 val fetched = result.items.map { it.track }.filter { !it.isLocal }
                 allTracks.addAll(fetched)
@@ -144,7 +146,9 @@ class SpotifyLikedSongsQueue(
             apiHasMore = true
             while (apiFetchOffset == 0 || apiHasMore) {
                 if (apiFetchOffset == 0) {
-                    val result = Spotify.likedSongs(limit = SPOTIFY_PAGE_SIZE, offset = 0).getOrThrow()
+                    val result = com.metrolist.spotify.SpotifyPriorityGate.withPlaybackPriority {
+                        Spotify.likedSongs(limit = SPOTIFY_PAGE_SIZE, offset = 0).getOrThrow()
+                    }
                     apiTotal = result.total
                     val fetched = result.items.map { it.track }.filter { !it.isLocal }
                     allTracks.addAll(fetched)
@@ -228,10 +232,12 @@ class SpotifyLikedSongsQueue(
     private suspend fun fetchNextApiPage() {
         if (!apiHasMore) return
         try {
-            val result = Spotify.likedSongs(
-                limit = SPOTIFY_PAGE_SIZE,
-                offset = apiFetchOffset,
-            ).getOrThrow()
+            val result = com.metrolist.spotify.SpotifyPriorityGate.withPlaybackPriority {
+                Spotify.likedSongs(
+                    limit = SPOTIFY_PAGE_SIZE,
+                    offset = apiFetchOffset,
+                ).getOrThrow()
+            }
             val fetched = result.items.map { it.track }.filter { !it.isLocal }
             allTracks.addAll(fetched)
             apiFetchOffset += result.items.size

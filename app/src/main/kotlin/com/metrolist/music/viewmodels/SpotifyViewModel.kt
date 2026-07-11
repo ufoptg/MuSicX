@@ -287,17 +287,35 @@ constructor(
     /**
      * Fills in the missing `tracks.total` field for every currently-loaded
      * Spotify playlist by calling `Spotify.playlist(id)` in the background
-     * with a small throttle. Updates both _spotifyPlaylists and
+     * with a slow throttle. Updates both _spotifyPlaylists and
      * _spotifyRootPlaylists in place (StateFlow diffing means the library
      * grid re-renders each affected tile), and re-persists the cache so the
      * count is available immediately on next app launch.
      *
-     * Skips playlists that already have a count (from cache) and swallows
-     * per-playlist failures — the goal is best-effort progressive fill, a
-     * single 429 or malformed response must not stop the whole hydration.
+     * IMPORTANT — playback protection (v13.8.11 hotfix):
+     *   * Kicks off only after a 30-second initial delay so the user has
+     *     time to start playing something before the hydrator monopolises
+     *     the Spotify API lane.
+     *   * Calls `SpotifyPriorityGate.awaitIdle()` before EVERY per-playlist
+     *     fetch so playback-critical calls (SpotifyYouTubeMapper.search,
+     *     SpotifyPlaylistQueue.playlistTracks, SpotifyLikedSongsQueue) can
+     *     preempt the hydrator any time. If the user starts an uncached
+     *     song mid-hydration, the hydrator waits.
+     *   * 3-second inter-call throttle (was 350 ms) so even if the gate
+     *     goes idle we don't hammer the API back-to-back.
+     *   * On any per-fetch failure (including 429) the hydration is
+     *     ABANDONED for this session. Counts will backfill on the next
+     *     library refresh — better than continuing to make failing calls
+     *     that starve playback.
+     *   * Skips playlists that already have a count (from cache).
      */
     private fun hydratePlaylistTrackCounts() {
         viewModelScope.launch(Dispatchers.IO) {
+            // Big initial delay — playback wins the race by a wide margin.
+            // 30 s is enough for the user to tap around and start a song
+            // before the hydrator even makes its first call.
+            delay(30_000L)
+
             val current = _spotifyPlaylists.value
             val needsCount = current.filter { (it.tracks?.total ?: 0) == 0 }
             if (needsCount.isEmpty()) {
@@ -306,11 +324,30 @@ constructor(
             }
             Timber.d("SpotifyVM: hydratePlaylistTrackCounts() — fetching counts for ${needsCount.size} playlist(s)")
 
+            var anyResolved = false
             for (pl in needsCount) {
+                // Yield the Spotify API lane to any in-flight playback-critical
+                // call. If the user is currently starting an uncached song,
+                // this suspends until every playback call completes.
+                com.metrolist.spotify.SpotifyPriorityGate.awaitIdle()
+
                 if (!SpotifyTokenManager.ensureAuthenticated()) break
-                val resolved = Spotify.playlist(pl.id).getOrNull()
-                val total = resolved?.tracks?.total
+                val resolved = try {
+                    Spotify.playlist(pl.id).getOrNull()
+                } catch (e: Exception) {
+                    Timber.w(e, "SpotifyVM: hydratePlaylistTrackCounts() — fetch failed for ${pl.id}, abandoning hydration")
+                    null
+                }
+                if (resolved == null) {
+                    // Bail out on the first failure. Aggressive continuation
+                    // was what starved playback in v13.8.10; stopping cleanly
+                    // is far safer than pounding a rate-limited endpoint.
+                    Timber.w("SpotifyVM: hydratePlaylistTrackCounts() — abandoning after failed fetch on ${pl.id}")
+                    break
+                }
+                val total = resolved.tracks?.total
                 if (total != null && total > 0) {
+                    anyResolved = true
                     _spotifyPlaylists.value = _spotifyPlaylists.value.map { existing ->
                         if (existing.id == pl.id) {
                             existing.copy(
@@ -326,15 +363,18 @@ constructor(
                         } else existing
                     }
                 }
-                // Throttle to avoid tripping Spotify's rate limit — 350ms between
-                // calls keeps us well under the observed ~1 req/300ms budget.
-                delay(350L)
+                // Slow throttle — even when gate is idle we deliberately go
+                // slowly. Non-critical background work; UX doesn't care if
+                // this takes a full minute for a 20-playlist library.
+                delay(3_000L)
             }
 
-            // Persist the enriched list so the next launch shows counts
-            // immediately without needing to re-hydrate.
-            savePlaylistsToCache(_spotifyPlaylists.value)
-            Timber.d("SpotifyVM: hydratePlaylistTrackCounts() — done, cache updated")
+            if (anyResolved) {
+                // Persist the enriched list so the next launch shows counts
+                // immediately without needing to re-hydrate.
+                savePlaylistsToCache(_spotifyPlaylists.value)
+            }
+            Timber.d("SpotifyVM: hydratePlaylistTrackCounts() — done")
         }
     }
 

@@ -1,3 +1,18 @@
+---v13.8.11
+# MuSicX 13.8.11 — HOTFIX: uncached Spotify playback stalled behind hydrator
+
+## Fixed
+- **CRITICAL:** v13.8.10's library playlist-count hydrator issued 20+ back-to-back `Spotify.playlist(id)` GraphQL calls at 350 ms cadence right after `loadPlaylists()`. That saturated Spotify's per-token rate limiter (429s) AND OkHttp's per-host request dispatcher, so when the user tapped play on an uncached Spotify song the playback pipeline's `Spotify.playlistTracks()` / `Spotify.likedSongs()` / mapper `Spotify.search()` calls queued behind the hydrator and — once 429s started — never resolved. Songs simply refused to start.
+- **New `SpotifyPriorityGate` module** (`spotify/src/main/kotlin/com/metrolist/spotify/SpotifyPriorityGate.kt`):
+  - Every playback-critical Spotify call site now wraps in `withPlaybackPriority { … }`, which bumps a shared in-flight counter for the duration of the call. Wired into `SpotifyYouTubeMapper.searchOnSpotifyForReverseLookup`, `SpotifyPlaylistQueue` (all three `playlistTracks` sites: initial fetch, buildAllTracks, and `fetchNextApiPage`), and `SpotifyLikedSongsQueue` (all three `likedSongs` sites).
+  - Background jobs (the hydrator) call `SpotifyPriorityGate.awaitIdle()` before each request, so any in-flight playback preempts them. If the user starts an uncached song mid-hydration, the hydrator suspends until playback's resolve completes.
+- **Hydrator is now dramatically less aggressive:**
+  - **30 s initial delay** before the hydrator wakes up (was: immediate). The user has ~30 s to open the library and start a song before the hydrator does anything.
+  - **3 s per-call throttle** (was: 350 ms). Even when the gate is idle we deliberately go slowly; a 20-playlist library takes ~60 s to fully populate, and the UX doesn't care.
+  - **Abandon-on-first-failure**: any per-fetch error (429, network, malformed response) stops the hydration for this session instead of continuing to pound a rate-limited endpoint. Counts backfill on the next library refresh.
+  - Cache is only re-persisted if at least one playlist actually resolved.
+
+
 ---v13.8.10
 # MuSicX 13.8.10 — Real track counts for every Spotify playlist in Library
 
