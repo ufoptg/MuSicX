@@ -1,3 +1,14 @@
+---v13.8.13
+# MuSicX 13.8.13 — Updater download works, About polish
+
+## Fixed
+- **"Latest: 13.8.x" row's download icon did nothing.** The whole row's `onClick` was hard-wired to `performManualCheck()`, so tapping the download icon just re-ran the version check — it never opened the actual download. Now, when an update is available, tapping the row (or the download icon) opens the GitHub releases page at [github.com/ufoptg/MuSicX/releases/latest](https://github.com/ufoptg/MuSicX/releases/latest) in the browser so you can grab the APK variant that matches your build. When no update is available, tapping still runs a check (unchanged).
+
+## Changed
+- **About header uses the orbs artwork.** The two-layer tinted oval + music-note icon at the top of Settings → About is replaced with the same three-orbs artwork used on the Listen Together header (`R.drawable.listen_together_orbs`). The two screens now visually rhyme.
+- **Original Project section now credits Meld too.** Added Francesco Grazioso (Meld's lead maintainer) alongside the Metrolist team, and updated the section description to *"MuSicX is based on Metrolist, an open-source YouTube Music client. Several features are ported from Meld, a sibling Metrolist fork."* Contributor roles now read `Metrolist · Lead developer` / `Metrolist · Collaborator` / `Meld · Lead developer` for clarity.
+
+
 ---v13.8.12
 # MuSicX 13.8.12 — Automatic Spotify token refresh on 401
 

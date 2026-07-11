@@ -876,7 +876,10 @@
     <string name="credits_collaborator">Collaborator</string>
     <string name="credits_collaborators_section">Collaborators</string>
     <string name="credits_original_project">Original Project</string>
-    <string name="credits_original_project_description">MuSicX is based on Metrolist, an open-source YouTube Music client.</string>
+    <string name="credits_original_project_description">MuSicX is based on Metrolist, an open-source YouTube Music client. Several features are ported from Meld, a sibling Metrolist fork.</string>
+    <string name="credits_meld_lead_developer">Meld · Lead developer</string>
+    <string name="credits_metrolist_lead_developer">Metrolist · Lead developer</string>
+    <string name="credits_metrolist_collaborator">Metrolist · Collaborator</string>
     <string name="credits_license_name">GNU General Public License v3.0</string>
     <string name="credits_license_desc">Free, open-source software. You may use, study, share, and improve it</string>
     <string name="credits_discord">Discord server</string>

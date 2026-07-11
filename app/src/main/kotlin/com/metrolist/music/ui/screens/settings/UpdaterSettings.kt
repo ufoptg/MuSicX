@@ -70,6 +70,19 @@ fun UpdaterScreen(
     val failedToCheckUpdatesTemplate = stringResource(R.string.failed_to_check_updates)
 
     val coroutineScope = rememberCoroutineScope()
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+
+    fun openLatestReleasePage() {
+        // Open the GitHub releases page for the latest tag. Users can pick
+        // the APK variant that matches their build (universal / arch / FOSS /
+        // GMS). Kept intentionally simple — no in-app APK downloader yet,
+        // which is a Play-Store-hostile pattern anyway on foss builds.
+        try {
+            uriHandler.openUri("https://github.com/ufoptg/MuSicX/releases/latest")
+        } catch (e: Exception) {
+            checkError = "Couldn't open the release page: ${e.message ?: "unknown error"}"
+        }
+    }
 
     fun performManualCheck() {
         coroutineScope.launch {
@@ -200,7 +213,19 @@ fun UpdaterScreen(
                                 )
                             }
                         },
-                        onClick = { if (!isChecking) performManualCheck() },
+                        onClick = {
+                            when {
+                                isChecking -> Unit
+                                // If we already know an update is available,
+                                // tapping the row (or its download icon)
+                                // opens the GitHub releases page. Fixes the
+                                // 13.8.x regression where tapping the
+                                // download icon re-ran the check instead of
+                                // starting the download.
+                                updateAvailable -> openLatestReleasePage()
+                                else -> performManualCheck()
+                            }
+                        },
                     ),
                 ),
         )

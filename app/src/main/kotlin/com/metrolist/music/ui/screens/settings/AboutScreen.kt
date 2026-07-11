@@ -111,14 +111,15 @@ private val leadDeveloper = Contributor(
     favoriteSongVideoId = null
 )
 
-// Metrolist upstream team — MuSicX is a fork of Metrolist and this
-// section attributes the original project on the About screen (matches
-// the "Original Project" list meld's About screen shows).
+// Original Project attribution — MuSicX is a fork of Metrolist, with
+// several features ported from Meld (a sibling Metrolist fork by
+// Francesco Grazioso). Both projects' teams are surfaced on the About
+// screen under one "Original Project" section for credit.
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private val originalProjectContributors = listOf(
     Contributor(
         name = "Mo Agamy",
-        roleRes = R.string.credits_lead_developer,
+        roleRes = R.string.credits_metrolist_lead_developer,
         githubHandle = "mostafaalagamy",
         sponsorUrl = "https://buymeacoffee.com/mostafaalagamy",
         polygon = MaterialShapes.Cookie9Sided,
@@ -126,7 +127,7 @@ private val originalProjectContributors = listOf(
     ),
     Contributor(
         name = "Adriel O'Connel",
-        roleRes = R.string.credits_collaborator,
+        roleRes = R.string.credits_metrolist_collaborator,
         githubHandle = "adrielGGmotion",
         sponsorUrl = "https://github.com/sponsors/adrielGGmotion",
         polygon = MaterialShapes.Cookie4Sided,
@@ -134,11 +135,18 @@ private val originalProjectContributors = listOf(
     ),
     Contributor(
         name = "Nyx",
-        roleRes = R.string.credits_collaborator,
+        roleRes = R.string.credits_metrolist_collaborator,
         githubHandle = "nyxiereal",
         sponsorUrl = "https://github.com/sponsors/nyxiereal",
         polygon = MaterialShapes.Cookie12Sided,
         favoriteSongVideoId = "zselaN6zPXw"
+    ),
+    Contributor(
+        name = "Francesco Grazioso",
+        roleRes = R.string.credits_meld_lead_developer,
+        githubHandle = "FrancescoGrazioso",
+        polygon = MaterialShapes.Cookie6Sided,
+        favoriteSongVideoId = null
     ),
 )
 
@@ -268,23 +276,16 @@ fun AboutScreen(
                     .padding(24.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
+                    // Orbs artwork (same one used on the Listen Together header,
+                    // added in v13.8.7). Replaces the previous two-layer
+                    // oval-tinted background + music-note overlay so the About
+                    // header now visually rhymes with Listen Together.
                     Image(
-                        painter = painterResource(R.drawable.ic_logo_oval),
-                        contentDescription = null,
-                        colorFilter = ColorFilter.tint(
-                            color = MaterialTheme.colorScheme.primary,
-                            blendMode = BlendMode.SrcIn,
-                        ),
-                        modifier = Modifier.size(84.dp)
-                    )
-                    Image(
-                        painter = painterResource(R.drawable.about_icon),
+                        painter = painterResource(R.drawable.listen_together_orbs),
                         contentDescription = stringResource(R.string.metrolist),
-                        colorFilter = ColorFilter.tint(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            blendMode = BlendMode.SrcIn,
-                        ),
-                        modifier = Modifier.size(64.dp)
+                        modifier = Modifier
+                            .size(96.dp)
+                            .clip(CircleShape),
                     )
                 }
         
