@@ -260,6 +260,11 @@ fun AppearanceSettings(
             SwipeThumbnailKey,
             defaultValue = true,
         )
+    val (expressivePlayer, onExpressivePlayerChange) =
+        rememberPreference(
+            com.metrolist.music.constants.EnableExpressivePlayerKey,
+            defaultValue = false,
+        )
     val (swipeSensitivity, onSwipeSensitivityChange) =
         rememberPreference(
             SwipeSensitivityKey,
@@ -1302,6 +1307,28 @@ fun AppearanceSettings(
                             )
                         },
                         onClick = { onSwipeThumbnailChange(!swipeThumbnail) },
+                    ),
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.palette),
+                        title = { Text(stringResource(R.string.enable_expressive_player)) },
+                        description = { Text(stringResource(R.string.enable_expressive_player_description)) },
+                        trailingContent = {
+                            Switch(
+                                checked = expressivePlayer,
+                                onCheckedChange = onExpressivePlayerChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter =
+                                            painterResource(
+                                                id = if (expressivePlayer) R.drawable.check else R.drawable.close,
+                                            ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize),
+                                    )
+                                },
+                            )
+                        },
+                        onClick = { onExpressivePlayerChange(!expressivePlayer) },
                     ),
                 ) +
                     if (swipeThumbnail) {
