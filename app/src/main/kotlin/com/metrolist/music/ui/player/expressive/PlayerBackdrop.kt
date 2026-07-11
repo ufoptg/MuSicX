@@ -34,15 +34,15 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmapOrNull
 import androidx.palette.graphics.Palette
-import coil.ImageLoader
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.request.SuccessResult
+import coil3.compose.AsyncImage
+import coil3.imageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.request.allowHardware
+import coil3.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
@@ -81,19 +81,16 @@ data class ArtPalette(
 private val paletteCache = ConcurrentHashMap<String, ArtPalette>()
 
 /**
- * Loads [artUrl] via Coil, decodes a downscaled bitmap, and derives an
+ * Loads [artUrl] via Coil3, decodes a downscaled bitmap, and derives an
  * [ArtPalette] via Android's `Palette` API on a background dispatcher.
  * Returns [ArtPalette.Fallback] immediately while loading, then updates.
  */
 @Composable
-fun rememberArtPalette(
-    artUrl: String?,
-    imageLoader: ImageLoader,
-): ArtPalette {
+fun rememberArtPalette(artUrl: String?): ArtPalette {
+    val context = LocalContext.current
     var palette by remember(artUrl) {
         mutableStateOf(artUrl?.let { paletteCache[it] } ?: ArtPalette.Fallback)
     }
-    val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(artUrl) {
         if (artUrl.isNullOrBlank()) {
@@ -111,7 +108,7 @@ fun rememberArtPalette(
                     .allowHardware(false) // Palette needs software-backed bitmaps.
                     .size(128)             // tiny — plenty for palette extraction.
                     .build()
-                (imageLoader.execute(req) as? SuccessResult)?.drawable?.toBitmapOrNull()
+                (context.imageLoader.execute(req) as? SuccessResult)?.image?.toBitmap()
             }.getOrNull()
         } ?: return@LaunchedEffect
 
@@ -136,7 +133,7 @@ fun rememberArtPalette(
 
 /**
  * Full-screen blurred album-art backdrop. Renders the art heavily blurred
- * (24 dp) inside a vertical gradient of the muted palette color so the
+ * (32 dp) inside a vertical gradient of the muted palette color so the
  * player content on top remains readable regardless of how colourful the
  * artwork is. Crossfades between tracks so switching songs doesn't snap.
  *
@@ -160,7 +157,7 @@ fun PlayerBackdrop(
                 AsyncImage(
                     model = url,
                     contentDescription = null,
-                    contentScale = ContentScale.Crop,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
                         .blur(radius = 32.dp),
@@ -188,8 +185,8 @@ fun PlayerBackdrop(
     }
 }
 
-// Kotlin's WCAG-ish contrast picker. Returns black if the color's luminance
-// is high, white otherwise. Simple and cheap.
+// WCAG-ish contrast picker. Returns black if the color's luminance is high,
+// white otherwise. Simple and cheap.
 private fun pickContrastFor(color: Color): Color {
     val luminance = 0.2126f * color.red + 0.7152f * color.green + 0.0722f * color.blue
     return if (luminance > 0.55f) Color.Black else Color.White
