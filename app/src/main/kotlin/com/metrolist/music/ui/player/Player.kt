@@ -234,10 +234,21 @@ fun BottomSheetPlayer(
         mutableStateOf(false)
     }
 
-    val playerBackground by rememberEnumPreference(
+    val expressivePlayer by rememberPreference(
+        com.metrolist.music.constants.EnableExpressivePlayerKey,
+        defaultValue = false,
+    )
+    val rawPlayerBackground by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
         defaultValue = PlayerBackgroundStyle.DEFAULT,
     )
+    // Expressive mode forces the blurred-art backdrop so the palette-tinted
+    // accents downstream have something to sit on. Users can still pick
+    // GRADIENT / DEFAULT etc. from Settings; toggling Expressive OFF returns
+    // to whatever they had.
+    val playerBackground = remember(expressivePlayer, rawPlayerBackground) {
+        if (expressivePlayer) PlayerBackgroundStyle.BLUR else rawPlayerBackground
+    }
     val playerButtonsStyle by rememberEnumPreference(
         key = PlayerButtonsStyleKey,
         defaultValue = PlayerButtonsStyle.DEFAULT,

@@ -109,6 +109,8 @@
     <string name="density_restart_message">The display density change will take effect after restarting the app. Restart now?</string>
     <string name="wavy">Wavy</string>
     <string name="enable_swipe_thumbnail">Enable swipe to change song</string>
+    <string name="enable_expressive_player">Expressive player (experimental)</string>
+    <string name="enable_expressive_player_description">Blurred album-art backdrop, palette-tinted accents, and richer transitions on the Now Playing screen. Restart the player after toggling.</string>
     <string name="swipe_song_to_add">Swipe left to add the song to the queue, or right to play it next</string>
     <string name="swipe_song_to_remove">Swipe to remove the song from the playlist</string>
     <string name="lyrics_click_change">Change lyrics on tap</string>

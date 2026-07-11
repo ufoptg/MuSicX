@@ -16,6 +16,11 @@ import java.time.ZoneOffset
 
 val EnableHighRefreshRateKey = booleanPreferencesKey("enableHighRefreshRate")
 val EnableLandscapeScalingKey = booleanPreferencesKey("enableLandscapeScaling")
+// Player redesign (v13.9.x). Switches Now-Playing to the "Expressive"
+// layout — blurred art backdrop, palette-tinted accents, artwork
+// crossfade + swipe skip, queue peek strip. Default off until we're
+// confident on device; users can flip in Settings → Appearance.
+val EnableExpressivePlayerKey = booleanPreferencesKey("enableExpressivePlayer")
 val DynamicThemeKey = booleanPreferencesKey("dynamicTheme")
 val SelectedThemeColorKey = intPreferencesKey("selectedThemeColor")
 val DarkModeKey = stringPreferencesKey("darkMode")
