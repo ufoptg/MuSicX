@@ -139,3 +139,96 @@ jobs:
         with:
           name: ${{ matrix.variant == 'gms' && 'MuSicX-Nightly-debug-with-Google-Cast' || 'MuSicX-Nightly-debug' }}
           path: app/build/outputs/apk/${{ matrix.variant }}/debug/*.apk
+
+  # Publishes the just-built release APKs (foss + gms) as a rolling GitHub
+  # pre-release tagged `nightly`. Marked `--prerelease --latest=false`, so
+  # the "Latest release" badge continues to point at whatever stable tag
+  # release.yml last published — nightlies never masquerade as stable.
+  #
+  # Only runs on pushes to `main` (not PRs, not other branches, not
+  # workflow_dispatch on random refs) to avoid firehosing the releases
+  # page with builds from feature branches.
+  publish_nightly:
+    name: Publish Nightly Pre-Release
+    needs: [build_release]
+    if: >
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      github.actor != 'dependabot[bot]' &&
+      github.actor != 'renovate[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download release APK artifacts
+        uses: actions/download-artifact@v6
+        with:
+          pattern: MuSicX-Nightly*
+          path: nightly_apks/
+          merge-multiple: false
+
+      - name: Gather APKs into out/
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          # Copy each APK and prefix its filename with the artifact name so
+          # foss and gms builds don't collide on disk.
+          find nightly_apks -mindepth 2 -name "*.apk" -print0 \
+            | while IFS= read -r -d '' apk; do
+                artifact=$(basename "$(dirname "$apk")")
+                base=$(basename "$apk")
+                cp "$apk" "out/${artifact}-${base}"
+              done
+          echo "Assembled APKs:"
+          ls -la out/
+
+      - name: Compose release notes
+        run: |
+          set -euo pipefail
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          DATE_UTC=$(date -u +"%Y-%m-%d %H:%M UTC")
+          {
+            echo "## MuSicX Nightly · ${DATE_UTC} (${SHORT_SHA})"
+            echo ""
+            echo "Rolling **pre-release** built automatically from the latest commit on \`main\`."
+            echo "Not marked as \"Latest release\" — the stable tag from \`release.yml\` keeps that badge."
+            echo ""
+            echo "> ⚠️ Nightlies may include unreleased features or partially-tested changes. Use at your own risk."
+            echo ""
+            echo "### Recent commits"
+            git log -15 --pretty=format:'- %s (%an)' --no-merges
+            echo ""
+          } > nightly_notes.md
+          echo "--- notes ---"
+          cat nightly_notes.md
+
+      - name: Publish nightly pre-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Drop the previous nightly release + its tag so the new one can
+          # take the same `nightly` tag without conflict. `|| true` keeps
+          # the workflow green on the very first run when there's nothing
+          # to delete.
+          gh release delete nightly --yes --cleanup-tag || true
+
+          gh release create nightly \
+            --title "MuSicX Nightly ($(git rev-parse --short HEAD))" \
+            --notes-file nightly_notes.md \
+            --prerelease \
+            --latest=false \
+            --target "$GITHUB_SHA" \
+            out/*.apk
+
+      - name: Nightly release summary
+        run: |
+          echo "## Nightly Pre-Release Published" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Tag**: \`nightly\` (rolling)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Commit**: \`$(git rev-parse --short HEAD)\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **APKs**: $(ls out/*.apk | wc -l)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **URL**: https://github.com/${{ github.repository }}/releases/tag/nightly" >> "$GITHUB_STEP_SUMMARY"
