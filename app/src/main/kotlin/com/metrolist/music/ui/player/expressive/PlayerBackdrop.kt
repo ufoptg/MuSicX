@@ -101,7 +101,7 @@ fun rememberArtPalette(artUrl: String?): ArtPalette {
             palette = it
             return@LaunchedEffect
         }
-        val bitmap: Bitmap? = withContext(Dispatchers.IO) {
+        val bitmap: Bitmap = withContext(Dispatchers.IO) {
             runCatching {
                 val req = ImageRequest.Builder(context)
                     .data(artUrl)
