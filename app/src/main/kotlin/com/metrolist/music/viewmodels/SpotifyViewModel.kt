@@ -272,7 +272,70 @@ constructor(
         }
 
         _playlistsLoading.value = false
+
+        // Kick off a background hydrator to fill in per-playlist track counts.
+        // libraryV3's playlist wrappers do NOT include the count in their
+        // response schema, so playlists render "0 songs" in the library grid
+        // until we resolve each one via fetchPlaylist (which does return
+        // `content.totalCount`). Runs async so the grid can show playlist
+        // names/thumbnails immediately; counts populate progressively.
+        hydratePlaylistTrackCounts()
+
         return retryAfter
+    }
+
+    /**
+     * Fills in the missing `tracks.total` field for every currently-loaded
+     * Spotify playlist by calling `Spotify.playlist(id)` in the background
+     * with a small throttle. Updates both _spotifyPlaylists and
+     * _spotifyRootPlaylists in place (StateFlow diffing means the library
+     * grid re-renders each affected tile), and re-persists the cache so the
+     * count is available immediately on next app launch.
+     *
+     * Skips playlists that already have a count (from cache) and swallows
+     * per-playlist failures — the goal is best-effort progressive fill, a
+     * single 429 or malformed response must not stop the whole hydration.
+     */
+    private fun hydratePlaylistTrackCounts() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val current = _spotifyPlaylists.value
+            val needsCount = current.filter { (it.tracks?.total ?: 0) == 0 }
+            if (needsCount.isEmpty()) {
+                Timber.d("SpotifyVM: hydratePlaylistTrackCounts() — all playlists already have counts")
+                return@launch
+            }
+            Timber.d("SpotifyVM: hydratePlaylistTrackCounts() — fetching counts for ${needsCount.size} playlist(s)")
+
+            for (pl in needsCount) {
+                if (!SpotifyTokenManager.ensureAuthenticated()) break
+                val resolved = Spotify.playlist(pl.id).getOrNull()
+                val total = resolved?.tracks?.total
+                if (total != null && total > 0) {
+                    _spotifyPlaylists.value = _spotifyPlaylists.value.map { existing ->
+                        if (existing.id == pl.id) {
+                            existing.copy(
+                                tracks = com.metrolist.spotify.models.SpotifyPlaylistTracksRef(total = total),
+                            )
+                        } else existing
+                    }
+                    _spotifyRootPlaylists.value = _spotifyRootPlaylists.value.map { existing ->
+                        if (existing.id == pl.id) {
+                            existing.copy(
+                                tracks = com.metrolist.spotify.models.SpotifyPlaylistTracksRef(total = total),
+                            )
+                        } else existing
+                    }
+                }
+                // Throttle to avoid tripping Spotify's rate limit — 350ms between
+                // calls keeps us well under the observed ~1 req/300ms budget.
+                delay(350L)
+            }
+
+            // Persist the enriched list so the next launch shows counts
+            // immediately without needing to re-hydrate.
+            savePlaylistsToCache(_spotifyPlaylists.value)
+            Timber.d("SpotifyVM: hydratePlaylistTrackCounts() — done, cache updated")
+        }
     }
 
     /**

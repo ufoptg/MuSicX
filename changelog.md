@@ -1,3 +1,12 @@
+---v13.8.10
+# MuSicX 13.8.10 — Real track counts for every Spotify playlist in Library
+
+## Fixed
+- **Library still showed "0 songs" for every Spotify playlist except Liked Songs** — v13.8.9's `parsePlaylistWrapper` fallbacks (`content.totalCount` → `content.numberOfItems` → `attributes.numberOfTracks` → `data.totalCount`) turned up empty because Spotify's `libraryV3` GraphQL response really doesn't include the track count on the playlist wrapper at that layer. Confirmed by opening a playlist — the individual `fetchPlaylist` GQL op does return the count (that's why the detail screen showed "29 songs" for *Release Radar*).
+- **Fix:** `SpotifyViewModel` now runs a `hydratePlaylistTrackCounts()` background job right after `loadPlaylists()` finishes. It walks every currently-loaded playlist that lacks a count, calls `Spotify.playlist(id)` for each with a 350 ms throttle (to stay under Spotify's rate-limit budget), and merges the resolved `tracks.total` back into `_spotifyPlaylists` + `_spotifyRootPlaylists` via StateFlow diffing so the library grid re-renders each affected tile progressively as counts arrive.
+- Enriched playlists are re-persisted to the existing DataStore cache, so the next app launch shows real counts immediately — no need to re-hydrate.
+
+
 ---v13.8.9
 # MuSicX 13.8.9 — Discord copy + Spotify library track counts
 
