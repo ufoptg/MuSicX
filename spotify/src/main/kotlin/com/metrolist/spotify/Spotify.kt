@@ -650,6 +650,19 @@ object Spotify {
         val playlistId = playlistUri.substringAfterLast(":")
         val ownerData = data.obj("ownerV2")?.obj("data")
         val ownerId = ownerData?.str("uri")?.substringAfterLast(":") ?: ownerData?.str("id") ?: ""
+        // Track count for library-listed playlists. Spotify has surfaced this
+        // number under a handful of shapes over time: the direct-playlist
+        // endpoint returns it as `data.content.totalCount` (see line ~800),
+        // and older / library-wrapper responses have also used
+        // `attributes.numberOfTracks` / `content.numberOfItems`.
+        // Fall back through all of them so the library grid shows the real
+        // song count instead of "0 songs" (issue: user reported every
+        // Spotify playlist except Liked Songs showing 0).
+        val trackTotal = data.obj("content")?.int("totalCount")
+            ?: data.obj("content")?.int("numberOfItems")
+            ?: data.obj("attributes")?.int("numberOfTracks")
+            ?: data.int("totalCount")
+            ?: 0
         return SpotifyPlaylist(
             id = playlistId,
             name = data.str("name") ?: "",
@@ -660,6 +673,7 @@ object Spotify {
                 displayName = ownerData?.str("name"),
                 uri = ownerData?.str("uri"),
             ),
+            tracks = SpotifyPlaylistTracksRef(total = trackTotal),
             uri = playlistUri,
         )
     }

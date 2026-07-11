@@ -1,3 +1,13 @@
+---v13.8.9
+# MuSicX 13.8.9 — Discord copy + Spotify library track counts
+
+## Fixed
+- **Every Spotify playlist in Library showed "0 songs"** except Spotify Liked Songs. The library-list GraphQL parser (`parsePlaylistWrapper`) was returning `SpotifyPlaylist` with `tracks = null`, which then got fed to the library grid as `remoteSongCount = null` and displayed as `songCount = 0` → "0 songs". Now the parser also reads the track total from the wrapper (falls through `data.content.totalCount` → `data.content.numberOfItems` → `data.attributes.numberOfTracks` → `data.totalCount` to survive Spotify's occasional GQL field reshuffling — same defensive pattern already used by the folder wrapper parser).
+
+## Changed
+- **Settings → Integrations → Discord Integration** info card no longer says *"Metrolist uses Discord's… Metrolist connects directly to wss://gateway.discord.gg…"* — both mentions now read `MuSicX`.
+
+
 ---v13.8.8
 # MuSicX 13.8.8 — About screen reflects the MuSicX maintainer
 
