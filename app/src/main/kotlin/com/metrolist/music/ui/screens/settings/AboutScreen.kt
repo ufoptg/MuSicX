@@ -281,11 +281,22 @@ fun AboutScreen(
                     // oval-tinted background + music-note overlay so the About
                     // header now visually rhymes with Listen Together.
                     Image(
+<<<<<<< HEAD
                         painter = painterResource(R.drawable.listen_together_orbs),
                         contentDescription = stringResource(R.string.metrolist),
                         modifier = Modifier
                             .size(96.dp)
                             .clip(CircleShape),
+=======
+                        painter = painterResource(R.drawable.ic_logo_oval),
+                        contentDescription = null,
+                        modifier = Modifier.size(84.dp)
+                    )
+                    Image(
+                        painter = painterResource(R.drawable.about_icon),
+                        contentDescription = stringResource(R.string.metrolist),
+                        modifier = Modifier.size(64.dp)
+>>>>>>> upstream/main
                     )
                 }
         
