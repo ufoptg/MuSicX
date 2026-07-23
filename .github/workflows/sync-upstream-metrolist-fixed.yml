@@ -8,7 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  issues: write          # <-- REQUIRED for `gh label create`
+  issues: write          # required for `gh label create`
 
 concurrency:
   group: sync-upstream-metrolist
@@ -54,17 +54,16 @@ jobs:
             echo "::notice::Already up to date. Nothing to sync."
           fi
 
-      # Create labels EARLY so both PR creation and edits can use them.
+      # Create labels EARLY. No continue-on-error so real failures surface.
       - name: Ensure labels exist
         if: steps.diff.outputs.behind != '0'
-        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh label create upstream-sync --color 0E8A16 \
-            --description "Automated upstream Metrolist sync" --force || true
+            --description "Automated upstream Metrolist sync" --force
           gh label create needs-manual-resolution --color D93F0B \
-            --description "Merge conflicts require human review" --force || true
+            --description "Merge conflicts require human review" --force
 
       - name: Skip if an open sync PR already exists
         if: steps.diff.outputs.behind != '0'
@@ -134,20 +133,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [[ "${{ steps.merge.outputs.clean_merge }}" == "true" ]]; then
-            labels="upstream-sync"
-          else
-            labels="upstream-sync,needs-manual-resolution"
-          fi
-
           url=$(gh pr create \
             --repo "$GITHUB_REPOSITORY" \
             --base main \
             --head "${{ steps.merge.outputs.branch }}" \
             --title "chore: sync upstream Metrolist" \
-            --body "${{ steps.body.outputs.body }}" \
-            --label "$labels")
+            --body "${{ steps.body.outputs.body }}")
           echo "url=$url" >> "$GITHUB_OUTPUT"
+
+          # Attach labels AFTER PR exists (retries cleanly, avoids race with label creation)
+          if [[ "${{ steps.merge.outputs.clean_merge }}" == "true" ]]; then
+            gh pr edit "$url" --add-label "upstream-sync"
+          else
+            gh pr edit "$url" --add-label "upstream-sync,needs-manual-resolution"
+          fi
 
       # OPTIONAL: auto-merge only when the merge was clean (no conflicts).
       - name: Enable auto-merge on clean sync
