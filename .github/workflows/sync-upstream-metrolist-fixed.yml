@@ -8,7 +8,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  issues: write          # required for `gh label create`
 
 concurrency:
   group: sync-upstream-metrolist
@@ -25,17 +24,21 @@ jobs:
 
     steps:
       - name: Checkout repository (full history)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ env.LOCAL_BASE }}
           fetch-depth: 0
           persist-credentials: true
 
+      - name: Fix permissions
+        run: |
+          chmod -R u+rwX .
+          git config --global --add safe.directory /github/workspace
+
       - name: Configure git identity
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Add upstream + fetch
         run: |
@@ -51,19 +54,12 @@ jobs:
           echo "behind=$behind" >> "$GITHUB_OUTPUT"
           echo "ahead=$ahead" >> "$GITHUB_OUTPUT"
           if [[ "$behind" == "0" ]]; then
-            echo "::notice::Already up to date. Nothing to sync."
+            echo "Already up to date. Nothing to sync."
           fi
 
-      # Create labels EARLY. No continue-on-error so real failures surface.
-      - name: Ensure labels exist
-        if: steps.diff.outputs.behind != '0'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh label create upstream-sync --color 0E8A16 \
-            --description "Automated upstream Metrolist sync" --force
-          gh label create needs-manual-resolution --color D93F0B \
-            --description "Merge conflicts require human review" --force
+      - name: Short-circuit if up to date
+        if: steps.diff.outputs.behind == '0'
+        run: echo "::notice::Nothing to sync. Exiting successfully."
 
       - name: Skip if an open sync PR already exists
         if: steps.diff.outputs.behind != '0'
@@ -71,9 +67,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
-            --search "in:title chore: sync upstream Metrolist" \
-            --json number --jq '.[0].number // empty')
+          existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --search "head:${SYNC_BRANCH_PREFIX}- in:title Sync upstream Metrolist" --json number --jq '.[0].number // empty')
           if [[ -n "$existing" ]]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
@@ -96,29 +90,35 @@ jobs:
 
           if [[ "$status" -eq 0 ]]; then
             echo "clean_merge=true" >> "$GITHUB_OUTPUT"
+            echo "conflicting_files=" >> "$GITHUB_OUTPUT"
           else
             echo "clean_merge=false" >> "$GITHUB_OUTPUT"
             conflicts=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
+            {
+              echo "conflicting_files<<CONFLICT_EOF"
+              git diff --name-only --diff-filter=U
+              echo "CONFLICT_EOF"
+            } >> "$GITHUB_OUTPUT"
             git add -A
-            git commit --no-verify \
-              -m "chore: sync upstream MetrolistGroup/Metrolist@main (CONFLICTS)" \
-              -m "Files requiring manual resolution: $conflicts"
+            git commit --no-verify -m "chore: sync upstream MetrolistGroup/Metrolist@main (CONFLICTS)" -m "Files requiring manual resolution: $conflicts"
           fi
 
       - name: Collect PR body content
         if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true'
         id: body
         run: |
+          commits_md=$(git log --oneline --no-decorate "$LOCAL_BASE..upstream/$UPSTREAM_BRANCH" | sed 's/^/- /')
+          files_md=$(git diff --stat --no-color "$LOCAL_BASE..upstream/$UPSTREAM_BRANCH" | tail -n 40 | sed 's/[()]/\\&/g' || echo "Large diff")
+
           {
             echo "body<<PR_BODY_EOF"
             echo "## What"
-            echo "Auto-generated PR to bring this repo up to date with upstream Metrolist."
+            echo "Auto-generated PR to bring ufoptg/MuSicX up to date with upstream Metrolist."
             echo ""
             echo "- Behind by: ${{ steps.diff.outputs.behind }} commits"
-            echo "- Clean merge: ${{ steps.merge.outputs.clean_merge }}"
             echo ""
             echo "## Reviewer checklist"
-            echo "- [ ] Verify no custom features regressed"
+            echo "- [ ] Verify no MuSicX features regressed"
             echo "- [ ] Check CI builds"
             echo "PR_BODY_EOF"
           } >> "$GITHUB_OUTPUT"
@@ -129,34 +129,18 @@ jobs:
 
       - name: Open Pull Request
         if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true'
-        id: pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
         run: |
-          url=$(gh pr create \
+          # Create labels safely
+          gh label create upstream-sync --color 0E8A16 --description "Automated upstream Metrolist sync" 2>/dev/null || true
+          gh label create needs-manual-resolution --color D93F0B --description "Merge conflicts require human review" 2>/dev/null || true
+
+          gh pr create \
             --repo "$GITHUB_REPOSITORY" \
             --base main \
             --head "${{ steps.merge.outputs.branch }}" \
             --title "chore: sync upstream Metrolist" \
-            --body "${{ steps.body.outputs.body }}")
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-
-          # Attach labels AFTER PR exists (retries cleanly, avoids race with label creation)
-          if [[ "${{ steps.merge.outputs.clean_merge }}" == "true" ]]; then
-            gh pr edit "$url" --add-label "upstream-sync"
-          else
-            gh pr edit "$url" --add-label "upstream-sync,needs-manual-resolution"
-          fi
-
-      # OPTIONAL: auto-merge only when the merge was clean (no conflicts).
-      - name: Enable auto-merge on clean sync
-        if: >
-          steps.diff.outputs.behind != '0' &&
-          steps.existing_pr.outputs.skip != 'true' &&
-          steps.merge.outputs.clean_merge == 'true'
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr merge "${{ steps.pr.outputs.url }}" --squash --auto || \
-            echo "Auto-merge not enabled (may need branch protection / auto-merge setting)."
+            --body "${{ steps.body.outputs.body }}" \
+            --label upstream-sync || echo "PR may already exist or creation failed"
