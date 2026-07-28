@@ -1,3 +1,19 @@
+---v13.9.1
+# MuSicX 13.9.1 — Expressive Player: default on, palette accents, double-tap lyrics
+
+## Changed
+- **Expressive Player is now the default** for every user. First launch after this update opens straight into the palette-tinted Now Playing. The toggle at *Settings → Appearance → Expressive player* stays as a classic-player escape hatch — flip it off to return to the previous solid-color player without losing any functionality.
+- **Pause pill + progress slider fill** now palette-tint from the album art when Expressive is on. Same dominant-color extraction that drives the blurred backdrop, so pill and slider always feel unified with the artwork instead of stark white against warm/muted backdrops.
+
+## Added (Phase 5 gesture)
+- **Double-tap the artwork to toggle lyrics** (Expressive only). Non-conflicting with the existing horizontal-swipe-to-skip and vertical-scroll-to-collapse gestures. Ignored entirely when Expressive is off, so classic-player users see zero behaviour change.
+
+## Polish (Phase 7)
+- Backdrop blur radius bumped 32 → **40 dp** — more painterly, less recognisable as art. Matches its atmospheric-backdrop role (artwork lives on the main tile; the backdrop is mood).
+- Backdrop crossfade duration 500 → **700 ms** — track transitions no longer feel snappy; the palette shift now reads as an intentional transition.
+- Backdrop scrim gained a darker top stop (0.55 muted at y=0) — fixes the *"Now Playing / Your Queue"* header vanishing on light-artwork tracks.
+
+
 ---v13.8.13
 # MuSicX 13.8.13 — Updater download works, About polish
 

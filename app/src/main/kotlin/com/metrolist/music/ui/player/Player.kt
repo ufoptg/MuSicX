@@ -1967,7 +1967,26 @@ fun BottomSheetPlayer(
                             } else {
                                 Thumbnail(
                                     sliderPositionProvider = sliderPositionProvider,
-                                    modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
+                                    modifier = Modifier
+                                        .nestedScroll(state.preUpPostDownNestedScrollConnection)
+                                        // Phase 5 (Expressive-only): double-tap
+                                        // the artwork to toggle inline lyrics.
+                                        // Non-conflicting with the existing
+                                        // horizontal-swipe-to-skip and vertical
+                                        // scroll-to-collapse gestures. Ignored
+                                        // when Expressive is off so classic-
+                                        // player users see zero behaviour change.
+                                        .then(
+                                            if (expressivePlayer) {
+                                                Modifier.pointerInput(Unit) {
+                                                    androidx.compose.foundation.gestures.detectTapGestures(
+                                                        onDoubleTap = {
+                                                            showInlineLyrics = !showInlineLyrics
+                                                        },
+                                                    )
+                                                }
+                                            } else Modifier
+                                        ),
                                     isPlayerExpanded = isExpandedProvider,
                                     isListenTogetherGuest = isListenTogetherGuest,
                                 )
