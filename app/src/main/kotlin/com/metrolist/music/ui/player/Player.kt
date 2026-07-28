@@ -96,6 +96,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -1979,7 +1980,7 @@ fun BottomSheetPlayer(
                                         .then(
                                             if (expressivePlayer) {
                                                 Modifier.pointerInput(Unit) {
-                                                    androidx.compose.foundation.gestures.detectTapGestures(
+                                                    detectTapGestures(
                                                         onDoubleTap = {
                                                             showInlineLyrics = !showInlineLyrics
                                                         },
