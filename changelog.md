@@ -248,7 +248,6 @@ This is the first release under the **MuSicX** brand, a maintained fork of Metro
 - Qobuz integration
 - New Player Design
 
-
 ---v13.5.0
 # MAINTENANCE MODE
 Metrolist is currently in maintenance mode. This means we will only be fixing bugs and making minor improvements. Please do not submit PRs for new features or major changes, as they will not be accepted.

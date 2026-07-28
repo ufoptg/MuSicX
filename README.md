@@ -344,6 +344,10 @@ MuSicX is a fork that adds: full Spotify integration (login, home, library, sear
       <td align="center"><a href="https://github.com/ZemerTeam/zemer-cipher"><strong>zemer-cipher</strong></a></td>
       <td>YouTube cipher deobfuscation and PoToken generation</td>
     </tr>
+    <tr>
+      <td align="center"><a href="https://github.com/ZemerTeam/zemer-cipher"><strong>zemer-cipher</strong></a></td>
+      <td>YouTube cipher deobfuscation and PoToken generation</td>
+    </tr>
   </tbody>
 </table>
 

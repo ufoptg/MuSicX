@@ -222,7 +222,6 @@ android {
     kotlin {
         jvmToolchain(21)
         compilerOptions {
-            freeCompilerArgs.add("-Xannotation-default-target=param-property")
             jvmTarget.set(JvmTarget.JVM_21)
         }
     }
