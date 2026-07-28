@@ -103,15 +103,9 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
-<<<<<<< HEAD
         versionCode = 171
         versionName = "13.8.13"
         resValue("string", "app_name", appNameOverride ?: "MuSicX")
-=======
-        versionCode = 150
-        versionName = "13.6.1"
-        resValue("string", "app_name", appNameOverride ?: "Metrolist")
->>>>>>> upstream/main
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
