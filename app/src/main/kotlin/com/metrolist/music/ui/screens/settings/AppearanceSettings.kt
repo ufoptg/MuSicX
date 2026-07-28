@@ -263,7 +263,7 @@ fun AppearanceSettings(
     val (expressivePlayer, onExpressivePlayerChange) =
         rememberPreference(
             com.metrolist.music.constants.EnableExpressivePlayerKey,
-            defaultValue = false,
+            defaultValue = true,
         )
     val (swipeSensitivity, onSwipeSensitivityChange) =
         rememberPreference(

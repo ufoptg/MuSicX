@@ -236,7 +236,7 @@ fun BottomSheetPlayer(
 
     val expressivePlayer by rememberPreference(
         com.metrolist.music.constants.EnableExpressivePlayerKey,
-        defaultValue = false,
+        defaultValue = true,
     )
     val rawPlayerBackground by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,

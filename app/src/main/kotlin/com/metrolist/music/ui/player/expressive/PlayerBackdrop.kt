@@ -150,7 +150,7 @@ fun PlayerBackdrop(
         // Blurred art layer — only meaningful when we actually have art.
         Crossfade(
             targetState = artUrl,
-            animationSpec = tween(durationMillis = 500),
+            animationSpec = tween(durationMillis = 700), // Phase 7 polish: slower fade feels less snappy on track change.
             label = "player-backdrop-crossfade",
         ) { url ->
             if (!url.isNullOrBlank() && android.os.Build.VERSION.SDK_INT >= 31) {
@@ -160,7 +160,7 @@ fun PlayerBackdrop(
                     contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
-                        .blur(radius = 32.dp),
+                        .blur(radius = 40.dp), // Phase 7 polish: heavier blur, more painterly.
                     colorFilter = ColorFilter.tint(
                         color = palette.muted.copy(alpha = 0.35f),
                         blendMode = androidx.compose.ui.graphics.BlendMode.Overlay,
@@ -169,16 +169,17 @@ fun PlayerBackdrop(
             }
         }
         // Top-to-bottom scrim so the player content (title, buttons, controls)
-        // reads comfortably against the busiest artwork. Anchored in the
-        // muted color so the transition to background feels intentional.
+        // reads comfortably against the busiest artwork. Phase 7 polish: darker
+        // at the top so the "Now Playing" header stays legible on light art.
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        0.0f to palette.muted.copy(alpha = 0.35f),
-                        0.55f to palette.muted.copy(alpha = 0.70f),
-                        1.0f to palette.muted.copy(alpha = 0.92f),
+                        0.00f to palette.muted.copy(alpha = 0.55f),
+                        0.15f to palette.muted.copy(alpha = 0.30f),
+                        0.55f to palette.muted.copy(alpha = 0.68f),
+                        1.00f to palette.muted.copy(alpha = 0.90f),
                     ),
                 ),
         )
