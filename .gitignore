@@ -114,9 +114,13 @@ app/src/main/cpp/coverart/
 .opencode
 .cursor*
 .codeium
+<<<<<<< HEAD
 
 # Emergent platform artifacts (do not publish)
 .emergent/
 memory/
 test_reports/
 test_result.md
+=======
+.cortexkit
+>>>>>>> upstream/main
