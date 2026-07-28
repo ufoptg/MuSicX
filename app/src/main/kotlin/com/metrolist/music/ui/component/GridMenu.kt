@@ -32,10 +32,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.exoplayer.offline.Download
 import com.metrolist.music.R
@@ -108,12 +108,11 @@ fun LazyGridScope.GridMenuItem(
                 text = stringResource(title),
                 style = MaterialTheme.typography.labelLarge,
                 textAlign = TextAlign.Center,
+                minLines = 2,
                 maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(with(LocalDensity.current) {
-                        MaterialTheme.typography.labelLarge.lineHeight.toDp() * 2
-                    })
             )
         }
     }
@@ -192,7 +191,9 @@ fun LazyGridScope.SleepTimerGridMenu(
                 ),
                 style = MaterialTheme.typography.labelLarge,
                 textAlign = TextAlign.Center,
+                minLines = 2,
                 maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.fillMaxWidth()
             )
         }
