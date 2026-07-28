@@ -151,8 +151,9 @@ jobs:
         if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true' && steps.merge.outputs.clean_merge == 'true'
         run: |
           gh pr merge "${{ steps.pr.outputs.url }}" --squash --auto
-          echo "::notice::Squash auto-merge enabled — will land on main once required checks pass."
+          echo "::notice::Squash auto-merge enabled - will land on main once required checks pass."
 
       - name: Conflict notice
         if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true' && steps.merge.outputs.clean_merge == 'false'
-        run: echo "::warning::Merge had conflicts. PR opened with '${{ env.CONFLICT_LABEL }}' — resolve manually.
+        run: |
+          echo "::warning::Merge had conflicts. PR opened with the needs-manual-resolution label - resolve it manually."
