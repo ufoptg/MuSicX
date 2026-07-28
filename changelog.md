@@ -1,3 +1,14 @@
+---v13.9.2
+# MuSicX 13.9.2 — Expressive Player: active lyric strip (Phase 6)
+
+## Added (Phase 6)
+- **One-line active lyric strip under the title** on Now Playing (Expressive only). While synced (LRC) lyrics are available, the current line follows playback in real time right below the song title / artist, crossfading as the song moves from line to line and marquee-scrolling long lines. It reuses the existing lyric plumbing — `PlayerConnection.currentLyrics` for the track's `LyricsEntity` and `LyricsUtils.findCurrentLineIndex(lines, position)` as the position→line picker — so it stays in sync with the full lyrics view.
+- Auto-hides with zero layout cost when the track has no synced lyrics, when lyrics aren't found, or while the full inline lyrics view is open. Classic (non-Expressive) player is completely unchanged.
+
+## Notes
+- New composable: `ui/player/expressive/ActiveLyricStrip.kt` (self-contained). Wired into `Player.kt` inside the title column, guarded by `expressivePlayer && !showInlineLyrics`.
+
+
 ---v13.9.1
 # MuSicX 13.9.1 — Expressive Player: default on, palette accents, double-tap lyrics
 

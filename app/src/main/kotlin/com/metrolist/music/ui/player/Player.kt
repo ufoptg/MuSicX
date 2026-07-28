@@ -1146,6 +1146,19 @@ fun BottomSheetPlayer(
                             }
                         }
                     }
+
+                    // Phase 6: one-line active lyric strip under the title/artist.
+                    // Expressive-only; auto-hides when the full inline lyrics view
+                    // is open or the track has no synced lyrics.
+                    if (expressivePlayer && !showInlineLyrics) {
+                        com.metrolist.music.ui.player.expressive.ActiveLyricStrip(
+                            positionProvider = { sliderPosition ?: effectivePosition },
+                            color = TextBackgroundColor,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 2.dp),
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))

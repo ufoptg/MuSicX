@@ -64,6 +64,7 @@ Features added on top of Metrolist upstream:
 | 🟢 **Spotify Liked Songs queue depth + Shuffle** | Shipped v13.8.5 / v13.8.6 | Playing a big Liked Songs list used to cap the queue at 23 songs — shuffle only randomised those 23. Now the queue accepts the ViewModel's already-loaded track list, and `MusicService` grows the queue to 60 items in the background *after* audio starts (5-item fast-start window so Shuffle stays near-instant). New **Shuffle button** on the Liked Songs screen ships a pre-shuffled ordering so the shuffle randomises across every loaded track. |
 | 🟢 **Shuffle button on every playlist screen** ✨ new | Shipped v13.8.7 | The v13.8.5 "pre-shuffled backing list" trick is now on Spotify user playlists, YouTube Music playlists, Spotify albums, and every local playlist (Liked / Auto / Top / Cache / user-created). Shuffle randomises across all loaded tracks — not just the fast-start window ExoPlayer's shuffle toggle would randomise mid-playback. |
 | 🟢 **Listen Together — orbs artwork** ✨ new | Shipped v13.8.7 | The Listen Together screen header now uses a dedicated three-orbs artwork (`R.drawable.listen_together_orbs`, 17 KB WebP) instead of the plain two-people icon. |
+| 🟢 **Expressive Player redesign** ✨ new | Shipped v13.9.x | Redesigned, default-on Now Playing: palette-extracted blurred album-art backdrop, dominant-color-tinted pause pill + progress slider, queue peek sheet, double-tap artwork to toggle lyrics, and a **one-line active lyric strip under the title** (v13.9.2) that follows synced lyrics in real time. Classic player kept behind *Settings → Appearance → Expressive player*. |
 
 <br/>
 
@@ -77,7 +78,6 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
 
 | Planned Feature | Priority | Description |
 |---|---|---|
-| 🎨 **New Player Design** | P2 — Next | Redesigned Now-Playing screen with animated blur backdrops, refined gesture handling, and minimal / immersive variants. |
 | 🌐 **Wrapped / Year-in-review** | P3 | End-of-year listening summary — top tracks, top artists, listening minutes, shareable card exports. |
 | 🎧 **Cross-device queue sync** | P3 | Sync the current queue and playback position to other MuSicX installs via Emergent-managed cloud (or self-hosted). |
 | 🌍 **Better offline mode** | P3 | Smart queue pre-fetch, richer download management, per-playlist auto-download rules. |
@@ -155,6 +155,7 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
 
 #### Interface
 - Home screen widget
+- **Expressive Player — blurred album-art backdrop, palette-tinted controls & active lyric strip** ✨
 - Light / Dark / Black / Dynamic theme modes
 - Dynamic color + 19 preset color palettes
 - Built with Material 3
@@ -174,7 +175,6 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
     <td width="50%" valign="top">
 
 #### Coming Soon
-- New Player Design (P2)
 - Wrapped / Year-in-review (P3)
 - Cross-device queue sync (P3)
 - Smarter offline mode (P3)
