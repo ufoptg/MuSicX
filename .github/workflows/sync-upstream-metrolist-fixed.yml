@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write            # <-- labels use the Issues API (fixes GITHUB_TOKEN fallback)
 
 concurrency:
   group: sync-upstream-metrolist
@@ -23,7 +24,6 @@ jobs:
       SYNC_BRANCH_PREFIX: chore/sync-upstream
       SYNC_LABEL: upstream-sync
       CONFLICT_LABEL: needs-manual-resolution
-      # Prefer a PAT / App token so the sync PR triggers CI; fall back to GITHUB_TOKEN.
       GH_TOKEN: ${{ secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
 
     steps:
@@ -33,7 +33,6 @@ jobs:
           ref: ${{ env.LOCAL_BASE }}
           fetch-depth: 0
           persist-credentials: true
-          # Push with the same token so pull_request CI can fire on the sync branch.
           token: ${{ secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Configure git identity + safe directory
@@ -56,18 +55,18 @@ jobs:
           echo "ahead=$ahead"   >> "$GITHUB_OUTPUT"
           echo "::notice::behind=$behind ahead=$ahead"
 
-      - name: Ensure labels exist
+      - name: Ensure labels exist (best-effort)
         if: steps.diff.outputs.behind != '0'
         run: |
-          gh label create "$SYNC_LABEL"     --color 0E8A16 --description "Automated upstream Metrolist sync"   2>/dev/null || true
-          gh label create "$CONFLICT_LABEL"  --color D93F0B --description "Merge conflicts require human review" 2>/dev/null || true
+          gh label create "$SYNC_LABEL"     --color 0E8A16 --description "Automated upstream Metrolist sync"   || echo "::warning::could not create $SYNC_LABEL (check token Issues:write)"
+          gh label create "$CONFLICT_LABEL"  --color D93F0B --description "Merge conflicts require human review" || echo "::warning::could not create $CONFLICT_LABEL"
 
       - name: Skip if an open sync PR already exists
         if: steps.diff.outputs.behind != '0'
         id: existing_pr
         run: |
           existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
-            --label "$SYNC_LABEL" --json number --jq '.[0].number // empty')
+            --label "$SYNC_LABEL" --json number --jq '.[0].number // empty' 2>/dev/null || true)
           if [[ -n "$existing" ]]; then
             echo "::notice::Open sync PR #$existing already exists. Skipping."
             echo "skip=true"  >> "$GITHUB_OUTPUT"
@@ -132,20 +131,21 @@ jobs:
         if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true'
         id: pr
         run: |
-          label_args=(--label "$SYNC_LABEL")
-          if [[ "${{ steps.merge.outputs.clean_merge }}" != "true" ]]; then
-            label_args+=(--label "$CONFLICT_LABEL")
-          fi
-
+          # Create the PR WITHOUT labels so a missing label can never fail this step.
           url=$(gh pr create \
             --repo "$GITHUB_REPOSITORY" \
             --base "$LOCAL_BASE" \
             --head "${{ steps.merge.outputs.branch }}" \
             --title "chore: sync upstream Metrolist" \
-            --body-file pr_body.md \
-            "${label_args[@]}")
+            --body-file pr_body.md)
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "::notice::Opened PR: $url"
+
+          # Labels are cosmetic now — attach best-effort, never fail the job.
+          gh pr edit "$url" --add-label "$SYNC_LABEL" || echo "::warning::could not add $SYNC_LABEL"
+          if [[ "${{ steps.merge.outputs.clean_merge }}" != "true" ]]; then
+            gh pr edit "$url" --add-label "$CONFLICT_LABEL" || echo "::warning::could not add $CONFLICT_LABEL"
+          fi
 
       - name: Enable auto-merge (clean syncs only)
         if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true' && steps.merge.outputs.clean_merge == 'true'
@@ -155,4 +155,4 @@ jobs:
 
       - name: Conflict notice
         if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true' && steps.merge.outputs.clean_merge == 'false'
-        run: echo "::warning::Merge had conflicts. PR opened with '${{ env.CONFLICT_LABEL }}' label — resolve manually."
+        run: echo "::warning::Merge had conflicts. PR opened with '${{ env.CONFLICT_LABEL }}' — resolve manually.
