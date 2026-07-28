@@ -487,13 +487,28 @@ fun BottomSheetPlayer(
         label = "icBackgroundColor",
     )
 
+    // Expressive Player (Phase 3): extract art palette so the pill / slider
+    // fill can be tinted with the dominant color from the current artwork,
+    // giving the same warmth on the controls that the backdrop already has.
+    val expressiveArtPalette =
+        com.metrolist.music.ui.player.expressive.rememberArtPalette(
+            artUrl = mediaMetadata?.thumbnailUrl,
+        )
+
     val (textButtonColor, iconButtonColor) =
         when {
             playerBackground == PlayerBackgroundStyle.BLUR ||
                 playerBackground == PlayerBackgroundStyle.GRADIENT -> {
                 when (playerButtonsStyle) {
                     PlayerButtonsStyle.DEFAULT -> {
-                        Pair(Color.White, Color.Black)
+                        if (expressivePlayer) {
+                            // Palette-tinted pill/slider — pulls the dominant
+                            // swatch from the current album art so controls
+                            // feel unified with the backdrop.
+                            Pair(expressiveArtPalette.dominant, expressiveArtPalette.onDominant)
+                        } else {
+                            Pair(Color.White, Color.Black)
+                        }
                     }
 
                     PlayerButtonsStyle.PRIMARY -> {
