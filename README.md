@@ -6,6 +6,8 @@
 
 ### YouTube Music client with Spotify integration & FLAC hi-res streaming for Android — supercharged.
 
+https://metrolist.cc/listen?code=04UMRJ89
+
 <br/>
 
 [![Latest release](https://img.shields.io/github/v/release/ufoptg/MuSicX?style=for-the-badge&labelColor=0d1117)](https://github.com/ufoptg/MuSicX/releases)
