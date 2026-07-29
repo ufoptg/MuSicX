@@ -1,3 +1,13 @@
+---v13.9.3
+# MuSicX 13.9.3 — HOTFIX: lyrics gesture froze the artwork
+
+## Fixed
+- **Long-press the artwork to toggle lyrics — and touch no longer freezes.** Phase 5 (v13.9.1) stacked a *second* `detectTapGestures { onDoubleTap }` on top of the thumbnail to toggle inline lyrics, but the thumbnail already binds double-tap to **seek ±5s**. The two competing tap detectors on the same area meant the lyrics gesture almost never fired and the artwork touch area could hang. The lyrics toggle now runs through the thumbnail's *existing* gesture detector as a **long-press** (double-tap stays seek), so it no longer collides. Wired on both portrait and landscape players; Expressive-only, classic player unchanged.
+
+## Notes
+- `ThumbnailItem` / `Thumbnail` gained an `onArtLongPress` callback; the stacked `pointerInput`/`detectTapGestures` in `Player.kt` was removed.
+
+
 ---v13.9.2
 # MuSicX 13.9.2 — Expressive Player: active lyric strip (Phase 6)
 

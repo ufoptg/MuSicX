@@ -96,7 +96,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -1922,6 +1921,12 @@ fun BottomSheetPlayer(
                                     isPlayerExpanded = isExpandedProvider,
                                     isLandscape = true,
                                     isListenTogetherGuest = isListenTogetherGuest,
+                                    // Phase 5 (Expressive-only): long-press artwork toggles lyrics.
+                                    onArtLongPress = if (expressivePlayer) {
+                                        { showInlineLyrics = !showInlineLyrics }
+                                    } else {
+                                        null
+                                    },
                                 )
                             }
                         }
@@ -1982,27 +1987,20 @@ fun BottomSheetPlayer(
                                 Thumbnail(
                                     sliderPositionProvider = sliderPositionProvider,
                                     modifier = Modifier
-                                        .nestedScroll(state.preUpPostDownNestedScrollConnection)
-                                        // Phase 5 (Expressive-only): double-tap
-                                        // the artwork to toggle inline lyrics.
-                                        // Non-conflicting with the existing
-                                        // horizontal-swipe-to-skip and vertical
-                                        // scroll-to-collapse gestures. Ignored
-                                        // when Expressive is off so classic-
-                                        // player users see zero behaviour change.
-                                        .then(
-                                            if (expressivePlayer) {
-                                                Modifier.pointerInput(Unit) {
-                                                    detectTapGestures(
-                                                        onDoubleTap = {
-                                                            showInlineLyrics = !showInlineLyrics
-                                                        },
-                                                    )
-                                                }
-                                            } else Modifier
-                                        ),
+                                        .nestedScroll(state.preUpPostDownNestedScrollConnection),
                                     isPlayerExpanded = isExpandedProvider,
                                     isListenTogetherGuest = isListenTogetherGuest,
+                                    // Phase 5 (Expressive-only): long-press the
+                                    // artwork to toggle inline lyrics. Uses the
+                                    // Thumbnail's own gesture detector so it no
+                                    // longer collides with double-tap-to-seek
+                                    // (the old stacked double-tap never fired and
+                                    // froze touch on the artwork).
+                                    onArtLongPress = if (expressivePlayer) {
+                                        { showInlineLyrics = !showInlineLyrics }
+                                    } else {
+                                        null
+                                    },
                                 )
                             }
                         }
