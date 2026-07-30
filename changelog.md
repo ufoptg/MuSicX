@@ -1,3 +1,13 @@
+---v13.9.4
+# MuSicX 13.9.4 — Fix: Spotify search tracks are now playable
+
+## Fixed
+- **Tapping a track in the search "Spotify Integration" section did nothing.** Spotify playlists and albums in the online search results were tappable (they open their screens), but the track rows had no click handler at all, so you couldn't play a song straight from the Spotify results — you had to scroll past them to the YouTube results. Track rows now play on tap: tapping resolves the Spotify track to its YouTube-Music equivalent and starts a `SpotifyQueue` via the shared player (same path used by the Spotify home "Top Tracks" rows), so playback + radio continuation work exactly like everywhere else.
+
+## Notes
+- `SpotifySearchInjector.TrackRow` gained a `clickable`/`onClick`; `SpotifySearchSectionContent` now builds a `SpotifyYouTubeMapper` and plays via `PlayerConnection.playQueue(SpotifyQueue(...))`.
+
+
 ---v13.9.3
 # MuSicX 13.9.3 — HOTFIX: lyrics gesture froze the artwork
 

@@ -29,12 +29,17 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
+import com.metrolist.music.LocalDatabase
+import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.EnableSpotifyKey
 import com.metrolist.music.constants.SpotifySpDcKey
 import com.metrolist.music.constants.UseSpotifySearchKey
+import com.metrolist.music.playback.SpotifyYouTubeMapper
+import com.metrolist.music.playback.queues.SpotifyQueue
 import com.metrolist.music.utils.rememberPreference
 import com.metrolist.spotify.Spotify
 import com.metrolist.spotify.models.SpotifyAlbum
@@ -80,6 +85,11 @@ private fun SpotifySearchSectionContent(query: String, navController: NavControl
     val tracks = r.tracks?.items.orEmpty().take(6)
     if (playlists.isEmpty() && albums.isEmpty() && tracks.isEmpty()) return
 
+    val playerConnection = LocalPlayerConnection.current
+    val database = LocalDatabase.current
+    val context = LocalContext.current
+    val mapper = remember(database) { SpotifyYouTubeMapper(database) }
+
     Text(
         text = stringResource(R.string.spotify_integration),
         style = MaterialTheme.typography.titleMedium,
@@ -88,7 +98,18 @@ private fun SpotifySearchSectionContent(query: String, navController: NavControl
 
     playlists.forEach { p -> PlaylistRow(p) { navController.navigate("spotify/playlist/${p.id}") } }
     albums.forEach { a -> AlbumRow(a) { navController.navigate("spotify/album/${a.id}") } }
-    tracks.forEach { t -> TrackRow(t) }
+    tracks.forEach { t ->
+        TrackRow(t) {
+            playerConnection?.playQueue(
+                SpotifyQueue(
+                    initialTrack = t,
+                    mapper = mapper,
+                    context = context,
+                    database = database,
+                ),
+            )
+        }
+    }
 }
 
 @Composable
@@ -134,9 +155,10 @@ private fun AlbumRow(a: SpotifyAlbum, onClick: () -> Unit) {
 }
 
 @Composable
-private fun TrackRow(t: SpotifyTrack) {
+private fun TrackRow(t: SpotifyTrack, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AsyncImage(
