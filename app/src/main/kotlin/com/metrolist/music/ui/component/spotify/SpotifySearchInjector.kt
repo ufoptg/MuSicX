@@ -8,6 +8,7 @@
 package com.metrolist.music.ui.component.spotify
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -40,6 +41,8 @@ import com.metrolist.music.constants.SpotifySpDcKey
 import com.metrolist.music.constants.UseSpotifySearchKey
 import com.metrolist.music.playback.SpotifyYouTubeMapper
 import com.metrolist.music.playback.queues.SpotifyQueue
+import com.metrolist.music.ui.component.LocalMenuState
+import com.metrolist.music.ui.menu.SpotifyTrackMenu
 import com.metrolist.music.utils.rememberPreference
 import com.metrolist.spotify.Spotify
 import com.metrolist.spotify.models.SpotifyAlbum
@@ -88,6 +91,7 @@ private fun SpotifySearchSectionContent(query: String, navController: NavControl
     val playerConnection = LocalPlayerConnection.current
     val database = LocalDatabase.current
     val context = LocalContext.current
+    val menuState = LocalMenuState.current
     val mapper = remember(database) { SpotifyYouTubeMapper(database) }
 
     Text(
@@ -99,16 +103,29 @@ private fun SpotifySearchSectionContent(query: String, navController: NavControl
     playlists.forEach { p -> PlaylistRow(p) { navController.navigate("spotify/playlist/${p.id}") } }
     albums.forEach { a -> AlbumRow(a) { navController.navigate("spotify/album/${a.id}") } }
     tracks.forEach { t ->
-        TrackRow(t) {
-            playerConnection?.playQueue(
-                SpotifyQueue(
-                    initialTrack = t,
-                    mapper = mapper,
-                    context = context,
-                    database = database,
-                ),
-            )
-        }
+        TrackRow(
+            t = t,
+            onClick = {
+                playerConnection?.playQueue(
+                    SpotifyQueue(
+                        initialTrack = t,
+                        mapper = mapper,
+                        context = context,
+                        database = database,
+                    ),
+                )
+            },
+            onLongClick = {
+                menuState.show {
+                    SpotifyTrackMenu(
+                        track = t,
+                        mapper = mapper,
+                        onDismiss = menuState::dismiss,
+                        navController = navController,
+                    )
+                }
+            },
+        )
     }
 }
 
@@ -155,9 +172,10 @@ private fun AlbumRow(a: SpotifyAlbum, onClick: () -> Unit) {
 }
 
 @Composable
-private fun TrackRow(t: SpotifyTrack, onClick: () -> Unit) {
+private fun TrackRow(t: SpotifyTrack, onClick: () -> Unit, onLongClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+        modifier = Modifier.fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

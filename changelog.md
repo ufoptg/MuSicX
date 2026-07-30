@@ -1,3 +1,13 @@
+---v13.9.5
+# MuSicX 13.9.5 — Long-press menu on Spotify search tracks
+
+## Added
+- **Long-press a Spotify search track for the full action menu.** Tracks in the search "Spotify Integration" section now open the same `SpotifyTrackMenu` used inside Spotify playlists/albums on long-press — **Play next**, **Add to queue**, **Add to playlist**, **Change YouTube version**, and **View artist** — matching the long-press behaviour of the YouTube results. Single tap still plays the track.
+
+## Notes
+- `SpotifySearchInjector.TrackRow` switched from `clickable` to `combinedClickable`; long-press calls `menuState.show { SpotifyTrackMenu(track, mapper, …) }`.
+
+
 ---v13.9.4
 # MuSicX 13.9.4 — Fix: Spotify search tracks are now playable
 
