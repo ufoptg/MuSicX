@@ -325,13 +325,9 @@ class MusicService :
     private var crossfadeDuration = 5000f
     private var crossfadeGapless = true
     private var crossfadeMessage: PlayerMessage? = null
-<<<<<<< HEAD
-
     // SponsorBlock: per-track job that fetches skip segments and polls playback
     // position to seek past them (ported from meld).
     private var sponsorBlockJob: Job? = null
-=======
->>>>>>> upstream/main
 
     private val secondaryPlayerListener =
         object : Player.Listener {
