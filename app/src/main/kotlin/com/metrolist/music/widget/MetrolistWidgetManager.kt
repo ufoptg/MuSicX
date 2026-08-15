@@ -50,6 +50,14 @@ class MetrolistWidgetManager @Inject constructor(
     private var cachedAlbumArt: Bitmap? = null
     private var cachedCircularAlbumArt: Bitmap? = null
 
+    // Separate cache for the large widget's portrait album art (different aspect
+    // ratio from the square art used by the compact/full widgets). Both the raw
+    // and rounded-corner bitmaps are cached so frequent progress updates don't
+    // re-decode/re-render art.
+    private var cachedLargeArtworkUri: String? = null
+    private var cachedLargeAlbumArt: Bitmap? = null
+    private var cachedLargeRoundedArt: Bitmap? = null
+
     suspend fun updateWidgets(
         title: String,
         artist: String,
@@ -87,6 +95,7 @@ class MetrolistWidgetManager @Inject constructor(
                     options,
                     title,
                     artist,
+                    artworkUri,
                     albumArt,
                     isPlaying,
                     isLiked,
@@ -122,10 +131,11 @@ class MetrolistWidgetManager @Inject constructor(
         )
     }
 
-    private fun createRemoteViewsForSize(
+    private suspend fun createRemoteViewsForSize(
         options: Bundle,
         title: String,
         artist: String,
+        artworkUri: String?,
         albumArt: Bitmap?,
         isPlaying: Boolean,
         isLiked: Boolean,
@@ -138,7 +148,8 @@ class MetrolistWidgetManager @Inject constructor(
         // Determine widget size category
         // 2x2: approximately 110dp x 110dp (compact square)
         // 4x1: approximately 250dp x 40dp (wide single row)
-        // Full: approximately 250dp x 110dp (default)
+        // 4x4 (tall): approximately 180dp x 180dp+ (vertical now-playing)
+        // Full: approximately 250dp x 110dp (default horizontal)
         return when {
             minWidth < 180 && minHeight < 100 -> {
                 // 2x2 Compact - Only play button with album art
@@ -148,8 +159,12 @@ class MetrolistWidgetManager @Inject constructor(
                 // 4x1 Wide - Single row with album art, song info, like and play buttons
                 createCompactWideRemoteViews(title, artist, albumArt, isPlaying, isLiked)
             }
+            minWidth >= 180 && minHeight >= 180 -> {
+                // 4x4+ Tall - Vertical now-playing with prev/play/next + progress
+                createLargeRemoteViews(title, artist, artworkUri, isPlaying, duration, currentPosition)
+            }
             else -> {
-                // Full layout
+                // Full horizontal layout
                 createRemoteViews(title, artist, albumArt, isPlaying, isLiked, duration, currentPosition)
             }
         }
@@ -200,6 +215,103 @@ class MetrolistWidgetManager @Inject constructor(
         views.setOnClickPendingIntent(R.id.widget_like_button, getLikeIntent())
 
         return views
+    }
+
+    /**
+     * Large 4x4 (and taller) vertical "now playing" layout. Mirrors the
+     * Spotify-style widget: portrait album art + title/artist/logo on top,
+     * previous / play-pause / next controls below, progress bar at the
+     * bottom. Sized to fit the Galaxy Z Flip cover screen as well as the
+     * full home screen.
+     */
+    private suspend fun createLargeRemoteViews(
+        title: String,
+        artist: String,
+        artworkUri: String?,
+        isPlaying: Boolean,
+        duration: Long = 0,
+        currentPosition: Long = 0
+    ): RemoteViews {
+        val views = RemoteViews(context.packageName, R.layout.widget_music_player_large)
+
+        // Song info
+        views.setTextViewText(R.id.widget_song_title, title)
+        views.setTextViewText(R.id.widget_artist_name, artist)
+
+        // Portrait album art with rounded corners (cached to avoid re-decoding on
+        // every progress tick).
+        val roundedArt = artworkUri?.let { loadLargeRoundedArt(it) }
+        if (roundedArt != null) {
+            views.setImageViewBitmap(R.id.widget_album_art, roundedArt)
+        } else {
+            views.setImageViewBitmap(R.id.widget_album_art, getRoundedDefaultIcon(32f))
+        }
+
+        // Play / pause icon
+        val playPauseIcon = if (isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play
+        views.setImageViewResource(R.id.widget_play_pause, playPauseIcon)
+
+        // Progress bar
+        if (duration > 0) {
+            val level = ((currentPosition.toDouble() / duration.toDouble()) * 10000).toInt()
+            views.setInt(R.id.widget_progress_fill, "setImageLevel", level)
+        } else {
+            views.setInt(R.id.widget_progress_fill, "setImageLevel", 0)
+        }
+
+        // Click intents
+        views.setOnClickPendingIntent(R.id.widget_album_art, getOpenAppIntent())
+        views.setOnClickPendingIntent(R.id.widget_play_pause_container, getPlayPauseIntent())
+        views.setOnClickPendingIntent(R.id.widget_prev_button, getPreviousIntent())
+        views.setOnClickPendingIntent(R.id.widget_next_button, getNextIntent())
+
+        return views
+    }
+
+    private suspend fun loadLargeRoundedArt(artworkUri: String): Bitmap? {
+        // Reuse the cache when the artwork hasn't changed
+        if (artworkUri == cachedLargeArtworkUri && cachedLargeRoundedArt != null) {
+            return cachedLargeRoundedArt
+        }
+        // Load at a portrait aspect ratio (kept small to stay well under the
+        // RemoteViews binder transaction limit) so the rounded corners line up
+        // with the portrait ImageView rather than being center-cropped away.
+        val art = withContext(Dispatchers.IO) {
+            try {
+                val request = ImageRequest.Builder(context)
+                    .data(artworkUri)
+                    .size(300, 450)
+                    .allowHardware(false)
+                    .crossfade(300)
+                    .build()
+                imageLoader.execute(request).image?.toBitmap()
+            } catch (e: Exception) {
+                null
+            }
+        }
+        val rounded = art?.let { getRoundedCornerBitmapAsIs(it, 32f) }
+        cachedLargeArtworkUri = artworkUri
+        cachedLargeAlbumArt = art
+        cachedLargeRoundedArt = rounded
+        return rounded
+    }
+
+    /**
+     * Rounds the corners of [bitmap] without forcing it to a square crop.
+     * Used for the large widget's portrait album art so the aspect ratio is
+     * preserved.
+     */
+    private fun getRoundedCornerBitmapAsIs(bitmap: Bitmap, cornerRadius: Float): Bitmap {
+        val output = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        val paint = Paint().apply {
+            isAntiAlias = true
+            isFilterBitmap = true
+            shader = BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        }
+        val rect = RectF(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat())
+        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, paint)
+        return output
     }
 
     private suspend fun loadAlbumArt(artworkUri: String, size: Int = 200): Bitmap? {
@@ -398,6 +510,30 @@ class MetrolistWidgetManager @Inject constructor(
         return PendingIntent.getBroadcast(
             context,
             1,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun getPreviousIntent(): PendingIntent {
+        val intent = Intent(context, MusicWidgetReceiver::class.java).apply {
+            action = MusicWidgetReceiver.ACTION_PREVIOUS
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            6,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun getNextIntent(): PendingIntent {
+        val intent = Intent(context, MusicWidgetReceiver::class.java).apply {
+            action = MusicWidgetReceiver.ACTION_NEXT
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            7,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )

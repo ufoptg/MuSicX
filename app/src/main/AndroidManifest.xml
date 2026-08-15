@@ -315,6 +315,8 @@
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="com.metrolist.music.widget.PLAY_PAUSE" />
                 <action android:name="com.metrolist.music.widget.LIKE" />
+                <action android:name="com.metrolist.music.widget.NEXT" />
+                <action android:name="com.metrolist.music.widget.PREVIOUS" />
                 <action android:name="com.metrolist.music.widget.UPDATE_WIDGET" />
             </intent-filter>
 
