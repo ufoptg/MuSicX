@@ -14,7 +14,7 @@ import android.os.Build
 import android.os.Bundle
 import com.metrolist.music.playback.MusicService
 
-class MusicWidgetReceiver : AppWidgetProvider() {
+open class MusicWidgetReceiver : AppWidgetProvider() {
 
     override fun onUpdate(
         context: Context,
