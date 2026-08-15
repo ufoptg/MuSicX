@@ -4786,6 +4786,31 @@ class MusicService :
     ) {
         try {
             super.onUpdateNotification(session, startInForegroundRequired)
+
+            // Samsung One UI (and modern AOSP) refuses swipe-to-dismiss on
+            // any notification tied to a currently-active foreground service,
+            // regardless of the FLAG_ONGOING_EVENT / FLAG_NO_CLEAR bits on
+            // the notification itself. Media3 also re-promotes to
+            // foreground on every play-state change, so clearing those flags
+            // once on creation isn't enough.
+            //
+            // Immediately after Media3 promotes us to foreground for a play
+            // state, detach from foreground service state via STOP_FOREGROUND_DETACH.
+            // The notification stays visible (NotificationManager retains it
+            // by NOTIFICATION_ID) and is now swipeable, while the service
+            // continues running via audio focus + the MediaSession's wake lock.
+            //
+            // If Android does reclaim the service under memory pressure the
+            // effect is identical to what the user was trying to do anyway
+            // (playback stops, notification vanishes), so the trade-off is
+            // acceptable.
+            if (startInForegroundRequired) {
+                runCatching {
+                    ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
+                }.onFailure { e ->
+                    Timber.tag(TAG).w(e, "stopForeground(DETACH) failed after onUpdateNotification")
+                }
+            }
         } catch (e: ForegroundServiceStartNotAllowedException) {
             handleForegroundServiceStartNotAllowed(e)
         } catch (e: IllegalStateException) {

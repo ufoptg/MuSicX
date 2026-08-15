@@ -1,3 +1,14 @@
+---v13.9.12
+# MuSicX 13.9.12 — Swipe-to-dismiss while playing (Samsung One UI)
+
+## Fixed
+- **v13.9.11 only allowed the media notification to be dismissed after pausing.** Samsung One UI (and modern AOSP) refuse swipe-to-dismiss on any notification tied to a currently-active foreground service — regardless of the `FLAG_ONGOING_EVENT` / `FLAG_NO_CLEAR` bits on the notification itself. Clearing those flags in v13.9.11 was necessary but not sufficient.
+- Now, immediately after Media3 promotes MuSicX to foreground for a play state, we detach via `stopForeground(STOP_FOREGROUND_DETACH)`. The notification stays visible (NotificationManager retains it by ID), the service keeps running on the MediaSession's wake lock + audio focus, and the OS lets you swipe the notification away while music is playing.
+
+## Trade-off
+- With the service no longer strictly in foreground state, Android *can* reclaim it under aggressive memory pressure. In practice audio focus + the MediaSession token keeps it alive; if it does happen, the outcome is identical to what a swipe-dismiss would do anyway (playback stops, notification vanishes).
+
+
 ---v13.9.11
 # MuSicX 13.9.11 — Swipe the media notification to close it
 
