@@ -44,7 +44,11 @@ jobs:
       - name: Add upstream + fetch
         run: |
           git remote add upstream "$UPSTREAM_URL" 2>/dev/null || git remote set-url upstream "$UPSTREAM_URL"
-          git fetch upstream "$UPSTREAM_BRANCH" --tags
+          # --no-tags: we sync upstream's branch commits only. Fetching upstream
+          # tags collides with the fork's own same-named release tags (e.g.
+          # v13.6.2/v13.6.3) and fails with "would clobber existing tag". The
+          # rest of this workflow only references upstream/$UPSTREAM_BRANCH.
+          git fetch upstream "$UPSTREAM_BRANCH" --no-tags
 
       - name: Compute divergence
         id: diff
