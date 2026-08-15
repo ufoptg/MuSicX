@@ -678,7 +678,27 @@ class MusicService :
                             actionFactory,
                             trackingCallback,
                         ).also { mediaNotification ->
-                            latestMediaNotification = mediaNotification.notification
+                            // Make the media notification swipe-to-dismiss on
+                            // the SystemUI media panel and the notification
+                            // shade. Media3's DefaultMediaNotificationProvider
+                            // sets FLAG_ONGOING_EVENT + FLAG_NO_CLEAR on the
+                            // notification, which — on Samsung One UI and
+                            // AOSP — prevents users from swiping the media
+                            // player away even while it's playing. Clearing
+                            // those flags lets the OS honour the swipe.
+                            //
+                            // We also override the notification's deleteIntent
+                            // so a swipe-dismiss stops playback and tears down
+                            // the service cleanly (Media3's default delete
+                            // intent only calls Player.pause(), which would
+                            // leave the service alive and the notification
+                            // would just come back on the next state change).
+                            val notif = mediaNotification.notification
+                            notif.flags = notif.flags and
+                                Notification.FLAG_ONGOING_EVENT.inv() and
+                                Notification.FLAG_NO_CLEAR.inv()
+                            notif.deleteIntent = createDismissNotificationPendingIntent()
+                            latestMediaNotification = notif
                         }
                 }
 
@@ -4600,6 +4620,26 @@ class MusicService :
         )
     }
 
+    /**
+     * Delete intent for the media notification. Fires when the user swipes
+     * the notification (or the SystemUI media panel entry) away. The default
+     * Media3 provider only pauses the player, which leaves the service alive
+     * so the notification comes right back on the next state change. This
+     * intent stops playback and the service outright, matching what a user
+     * clearly expects from "swipe to dismiss".
+     */
+    private fun createDismissNotificationPendingIntent(): PendingIntent {
+        val intent = Intent(this, MusicService::class.java).apply {
+            action = ACTION_DISMISS_NOTIFICATION
+        }
+        return PendingIntent.getService(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+    }
+
     private fun createFallbackForegroundNotification(): Notification {
         ensureForegroundChannelExists()
         val pending =
@@ -4775,6 +4815,28 @@ class MusicService :
         when (intent?.action) {
             ACTION_ALARM_TRIGGER -> {
                 handleAlarmTrigger(intent)
+            }
+
+            ACTION_DISMISS_NOTIFICATION -> {
+                // User swiped away the media notification / SystemUI media
+                // panel. Stop playback, drop the queue, and tear the service
+                // down — Media3 will drop the media notification when the
+                // MediaSession is released, which happens in onDestroy().
+                Timber.tag(TAG).i("User dismissed media notification — stopping playback")
+                runCatching {
+                    if (::player.isInitialized) {
+                        player.pause()
+                        player.stop()
+                        player.clearMediaItems()
+                    }
+                }.onFailure { e ->
+                    Timber.tag(TAG).w(e, "Error stopping player on dismiss")
+                }
+                runCatching {
+                    ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+                }
+                stopSelf()
+                return START_NOT_STICKY
             }
 
             MusicWidgetReceiver.ACTION_PLAY_PAUSE -> {
@@ -5438,6 +5500,7 @@ class MusicService :
 
     companion object {
         const val ACTION_ALARM_TRIGGER = "com.metrolist.music.action.ALARM_TRIGGER"
+        const val ACTION_DISMISS_NOTIFICATION = "com.metrolist.music.action.DISMISS_NOTIFICATION"
         const val EXTRA_ALARM_ID = "extra_alarm_id"
         const val EXTRA_ALARM_PLAYLIST_ID = "extra_alarm_playlist_id"
         const val EXTRA_ALARM_RANDOM_SONG = "extra_alarm_random_song"

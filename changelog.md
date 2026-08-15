@@ -1,3 +1,11 @@
+---v13.9.11
+# MuSicX 13.9.11 — Swipe the media notification to close it
+
+## Fixed
+- **The media notification (both the SystemUI media panel entry and the notification-shade card) refused to be dismissed by swiping left or right.** Media3's `DefaultMediaNotificationProvider` was setting `FLAG_ONGOING_EVENT` + `FLAG_NO_CLEAR` on the notification, which — on Samsung One UI and AOSP — makes the OS reject the swipe gesture even while the notification is showing. Clearing those flags in our notification wrapper lets the OS honour the swipe.
+- Swipe-dismiss now genuinely tears everything down. Media3's default deleteIntent only called `Player.pause()`, which would leave the service alive so the notification would just come back on the next state change (like resuming playback). MuSicX now installs its own deleteIntent (`ACTION_DISMISS_NOTIFICATION`) that stops the player, clears the queue, drops foreground state, and calls `stopSelf()`. One swipe, everything gone — playback, notification, service.
+
+
 ---v13.9.10
 # MuSicX 13.9.10 — MuSicX icon in the lockscreen media player
 
