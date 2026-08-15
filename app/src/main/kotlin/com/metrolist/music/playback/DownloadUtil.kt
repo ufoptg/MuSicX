@@ -11,6 +11,7 @@ import android.net.ConnectivityManager
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
 import androidx.media3.database.DatabaseProvider
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.CacheDataSource
@@ -62,7 +63,7 @@ constructor(
     private val TAG = "DownloadUtil"
     private val connectivityManager = context.getSystemService<ConnectivityManager>()!!
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
-    private val songUrlCache = HashMap<String, Pair<String, Long>>()
+    private val songUrlCache = StreamUrlCache()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -95,9 +96,12 @@ constructor(
                 return@Factory dataSpec
             }
 
-            songUrlCache[mediaId]?.takeIf { it.second < System.currentTimeMillis() }?.let {
-                return@Factory dataSpec.withUri(it.first.toUri())
+            songUrlCache[mediaId]?.let { cachedStream ->
+                return@Factory dataSpec
+                    .withUri(cachedStream.url.toUri())
+                    .withRequestHeaders(dataSpec.httpRequestHeaders + cachedStream.requestHeaders)
             }
+            val cacheGeneration = songUrlCache.generation(mediaId)
 
             val playbackData = runBlocking(Dispatchers.IO) {
                 val song = database.songEntity(mediaId)
@@ -128,6 +132,11 @@ constructor(
                 val request = okhttp3.Request.Builder()
                     .head()
                     .url(playbackData.streamUrl)
+                    .apply {
+                        playbackData.streamHeaders.forEach { (name, value) ->
+                            header(name, value)
+                        }
+                    }
                     .build()
                 client.newCall(request).execute().use { response ->
                     length = response.header("Content-Length")?.toLongOrNull()
@@ -173,8 +182,17 @@ constructor(
                 "${it}&range=0-${actualContentLength}"
             }
 
-            songUrlCache[mediaId] = streamUrl to playbackData.streamExpiresInSeconds * 1000L
-            dataSpec.withUri(streamUrl.toUri())
+            songUrlCache.put(
+                mediaId = mediaId,
+                url = streamUrl,
+                requestHeaders = playbackData.streamHeaders,
+                clientName = playbackData.streamClient,
+                expiresInSeconds = playbackData.streamExpiresInSeconds,
+                expectedGeneration = cacheGeneration,
+            )
+            dataSpec
+                .withUri(streamUrl.toUri())
+                .withRequestHeaders(dataSpec.httpRequestHeaders + playbackData.streamHeaders)
         }
 
     val downloadNotificationHelper =
@@ -197,6 +215,10 @@ constructor(
                         download: Download,
                         finalException: Exception?,
                     ) {
+                        if (download.state == Download.STATE_FAILED && finalException.isExpiredStreamError()) {
+                            songUrlCache.invalidate(download.request.id)
+                        }
+
                         downloads.update { map ->
                             map.toMutableMap().apply {
                                 set(download.request.id, download)
@@ -224,6 +246,7 @@ constructor(
                         download: Download,
                     ) {
                         val downloadId = download.request.id
+                        songUrlCache.invalidate(downloadId)
 
                         runCatching {
                             database.updateDownloadedInfo(downloadId, false, null)
@@ -255,5 +278,18 @@ constructor(
 
     fun release() {
         scope.cancel()
+    }
+
+    private fun Throwable?.isExpiredStreamError(): Boolean {
+        var current = this
+        while (current != null) {
+            if (current is HttpDataSource.InvalidResponseCodeException &&
+                (current.responseCode == 403 || current.responseCode == 410)
+            ) {
+                return true
+            }
+            current = current.cause
+        }
+        return false
     }
 }

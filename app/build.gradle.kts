@@ -103,9 +103,15 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
+<<<<<<< HEAD
         versionCode = 179
         versionName = "13.9.7"
         resValue("string", "app_name", appNameOverride ?: "MuSicX")
+=======
+        versionCode = 152
+        versionName = "13.6.3"
+        resValue("string", "app_name", appNameOverride ?: "Metrolist")
+>>>>>>> upstream/main
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -242,6 +248,10 @@ android {
         warningsAsErrors = false
         abortOnError = false
         checkDependencies = false
+        // Lint never gated anything here (abortOnError = false), so the
+        // lintVital pass that assembleRelease implicitly triggers was pure
+        // build time. Run lint on demand with ./gradlew :app:lintGmsRelease.
+        checkReleaseBuilds = false
     }
 
     androidResources {
