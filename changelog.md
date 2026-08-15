@@ -1,3 +1,11 @@
+---v13.9.8
+# MuSicX 13.9.8 — Upstream Metrolist sync
+
+## Changed
+- Merged the latest upstream Metrolist changes: new stream-URL cache (`StreamUrlCache`), player-config / cipher-deobfuscation improvements, `YTPlayerUtils` / `MusicService` / `DownloadUtil` updates, gradle wrapper bump, and refreshed translations. These upstream fixes target playback robustness (including the kind of stream/parse failures reported recently).
+- Conflicts from the sync were resolved in favour of MuSicX: kept our versioning (13.9.8 / MuSicX branding), our `ubuntu-latest` CI workflows + MuSicX artifact names, our changelog, and our (newer) `player_configs.json`.
+
+
 ---v13.9.7
 # MuSicX 13.9.7 — "Start radio" on the Spotify track menu
 

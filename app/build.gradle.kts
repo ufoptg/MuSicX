@@ -103,8 +103,8 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
-        versionCode = 179
-        versionName = "13.9.7"
+        versionCode = 180
+        versionName = "13.9.8"
         resValue("string", "app_name", appNameOverride ?: "MuSicX")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -242,6 +242,10 @@ android {
         warningsAsErrors = false
         abortOnError = false
         checkDependencies = false
+        // Lint never gated anything here (abortOnError = false), so the
+        // lintVital pass that assembleRelease implicitly triggers was pure
+        // build time. Run lint on demand with ./gradlew :app:lintGmsRelease.
+        checkReleaseBuilds = false
     }
 
     androidResources {
