@@ -916,7 +916,7 @@ class MusicService :
                             "QOBUZ SETTING CHANGED ($prevProjection -> $projection), reloading current stream for $mediaId",
                         )
 
-                        songUrlCache.remove(mediaId)
+                        songUrlCache.invalidate(mediaId)
                         // Toggling Qobuz settings is an explicit user retry signal —
                         // wipe the negative cache so previously-missed tracks get a
                         // fresh resolve attempt instead of silently falling through

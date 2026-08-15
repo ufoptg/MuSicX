@@ -1,3 +1,11 @@
+---v13.9.9
+# MuSicX 13.9.9 — Izzy release build fix
+
+## Fixed
+- **Izzy release variant failed to compile** with `Unresolved reference 'remove'` at `MusicService.kt:919`. The Qobuz-toggle observer was calling `songUrlCache.remove(mediaId)`, but `StreamUrlCache` has never exposed a `remove()` method — it uses `invalidate()`, and every other call site in the codebase already uses that. The stale reference was introduced in the v13.8.3 R8-safety fix (`32359f2d2`) and lay dormant until the upstream Metrolist sync (`3d292a951` → `8d4019142`) changed enough of the surrounding compilation graph to force the Izzy variant to actually re-check that line.
+- No behaviour change — `invalidate()` is what the code always intended to call.
+
+
 ---v13.9.8
 # MuSicX 13.9.8 — Upstream Metrolist sync
 
