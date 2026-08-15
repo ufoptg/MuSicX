@@ -106,6 +106,24 @@ class MetrolistWidgetManager @Inject constructor(
             }
         }
 
+        // Update Galaxy Z Flip cover-screen (Flex Window) widgets. These always
+        // use the large vertical now-playing layout regardless of size.
+        val coverComponentName = ComponentName(context, CoverScreenWidgetReceiver::class.java)
+        val coverWidgetIds = appWidgetManager.getAppWidgetIds(coverComponentName)
+        if (coverWidgetIds.isNotEmpty()) {
+            val coverViews = createLargeRemoteViews(
+                title = title,
+                artist = artist,
+                artworkUri = artworkUri,
+                isPlaying = isPlaying,
+                duration = duration,
+                currentPosition = currentPosition
+            )
+            coverWidgetIds.forEach { widgetId ->
+                appWidgetManager.updateAppWidget(widgetId, coverViews)
+            }
+        }
+
         // Update turntable widgets
         val turntableComponentName = ComponentName(context, TurntableWidgetReceiver::class.java)
         val turntableWidgetIds = appWidgetManager.getAppWidgetIds(turntableComponentName)

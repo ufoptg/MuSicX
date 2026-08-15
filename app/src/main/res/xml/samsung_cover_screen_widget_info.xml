@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Samsung Flex Window (cover screen) opt-in.
+    display="sub_screen" registers this widget as available on the Galaxy Z
+    Flip cover screen, so it appears under Settings > Cover screen > Widgets.
+    See https://developer.samsung.com/galaxy-z/flex_window.html
+-->
+<samsung-appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    display="sub_screen">
+</samsung-appwidget-provider>

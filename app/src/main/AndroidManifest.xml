@@ -325,6 +325,28 @@
                 android:resource="@xml/music_widget_info" />
         </receiver>
 
+        <!-- Cover Screen Widget (Galaxy Z Flip Flex Window) -->
+        <receiver
+            android:name=".widget.CoverScreenWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_music_player">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.metrolist.music.widget.PLAY_PAUSE" />
+                <action android:name="com.metrolist.music.widget.LIKE" />
+                <action android:name="com.metrolist.music.widget.NEXT" />
+                <action android:name="com.metrolist.music.widget.PREVIOUS" />
+                <action android:name="com.metrolist.music.widget.UPDATE_WIDGET" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/cover_screen_widget_info" />
+            <meta-data
+                android:name="com.samsung.android.appwidget.provider"
+                android:resource="@xml/samsung_cover_screen_widget_info" />
+        </receiver>
+
 
         <!-- Playlist Widget -->
         <receiver

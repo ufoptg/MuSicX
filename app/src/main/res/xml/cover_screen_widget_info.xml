@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Cover-screen (Flex Window) widget info. The large minWidth/minHeight and
+    widgetCategory="keyguard" are what Samsung reads to place this widget on the
+    Galaxy Z Flip cover screen. See res/xml/samsung_cover_screen_widget_info.xml
+    for the Samsung sub_screen opt-in.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="352dp"
+    android:minHeight="339dp"
+    android:minResizeWidth="352dp"
+    android:minResizeHeight="339dp"
+    android:updatePeriodMillis="1800000"
+    android:previewLayout="@layout/widget_music_player_large"
+    android:initialLayout="@layout/widget_music_player_large"
+    android:description="@string/cover_widget_description"
+    android:widgetCategory="keyguard"
+    android:resizeMode="horizontal|vertical" />
