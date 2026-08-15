@@ -1,3 +1,10 @@
+---v13.9.10
+# MuSicX 13.9.10 — MuSicX icon in the lockscreen media player
+
+## Fixed
+- **Lockscreen / notification media player showed the old Metrolist music-note icon next to the song title.** The media notification's `setSmallIcon(R.drawable.small_icon)` was pointing at a `small_icon.png` that still carried the upstream Metrolist glyph — the one thing the rebrand had missed. Replaced with the MuSicX ♪x monogram derived from `ic_launcher_monochrome`, correctly encoded as opaque white on a transparent alpha channel so Android's notification-tint pipeline renders it as the system icon colour on any lockscreen theme. Also fixes the same icon everywhere `R.drawable.small_icon` is used in-app (LyricsPlus share card, Player badge, Thumbnail overlay, generated share images).
+
+
 ---v13.9.9
 # MuSicX 13.9.9 — Izzy release build fix
 
