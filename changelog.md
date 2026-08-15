@@ -1,3 +1,13 @@
+---v13.9.7
+# MuSicX 13.9.7 — "Start radio" on the Spotify track menu
+
+## Added
+- **Start radio from any Spotify track.** The Spotify track long-press menu (search results, playlists, albums) gains a **Start radio** action next to Play next / Add to queue. It resolves the track to its YouTube-Music equivalent and starts a proper YouTube radio mix (`YouTubeQueue.radio`), matching the "Start radio" behaviour on native YouTube songs.
+
+## Notes
+- `SpotifyTrackMenu` gained a Start-radio item that calls `mapper.mapToYouTube(track)` then `playerConnection.playQueue(YouTubeQueue.radio(metadata))`, with a toast fallback when no match is found.
+
+
 ---v13.9.5
 # MuSicX 13.9.5 — Long-press menu on Spotify search tracks
 

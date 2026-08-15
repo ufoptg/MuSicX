@@ -52,6 +52,7 @@ import com.metrolist.music.constants.ListThumbnailSize
 import com.metrolist.music.constants.ThumbnailCornerRadius
 import com.metrolist.music.constants.EnableQobuzKey
 import com.metrolist.music.playback.SpotifyYouTubeMapper
+import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.ui.component.ListDialog
 import com.metrolist.music.ui.component.Material3MenuGroup
 import com.metrolist.music.ui.component.Material3MenuItemData
@@ -272,6 +273,33 @@ fun SpotifyTrackMenu(
                                 context.getString(R.string.added_to_queue),
                                 Toast.LENGTH_SHORT,
                             ).show()
+                        } else {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.spotify_no_tracks),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    }
+                },
+            ),
+            Material3MenuItemData(
+                title = { Text(text = stringResource(R.string.start_radio)) },
+                description = { Text(text = stringResource(R.string.start_radio_desc)) },
+                icon = {
+                    Icon(
+                        painter = painterResource(R.drawable.radio),
+                        contentDescription = null,
+                    )
+                },
+                onClick = {
+                    onDismiss()
+                    coroutineScope.launch {
+                        val metadata = withContext(Dispatchers.IO) {
+                            mapper.mapToYouTube(track)
+                        }
+                        if (metadata != null) {
+                            playerConnection.playQueue(YouTubeQueue.radio(metadata))
                         } else {
                             Toast.makeText(
                                 context,
