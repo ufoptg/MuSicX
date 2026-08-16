@@ -1,3 +1,11 @@
+---v13.9.14
+# MuSicX 13.9.14 — Playback fix + Spotify durations
+
+## Fixed
+- **Playback stopped after one song (regression from v13.9.12).** The `stopForeground(STOP_FOREGROUND_DETACH)` call added in v13.9.12 to enable swipe-to-dismiss while playing was dropping MusicService out of foreground state, and Android was reclaiming the service at the first track transition. Reverted that block — swipe-to-dismiss now works while paused (v13.9.11 behaviour), and playback plays through the queue reliably again.
+- **Spotify playlists showed 0:00 for every track (issue #27).** `parseGqlTrackDurationMs` now peeks through `trackV2.data`, `item.data`, and the `duration.totalMs` shape that Spotify's GraphQL uses for `fetchPlaylist` responses. Liked Songs was unaffected; every other Spotify playlist gets real durations again.
+
+
 ---v13.9.12
 # MuSicX 13.9.12 — Swipe-to-dismiss while playing (Samsung One UI)
 

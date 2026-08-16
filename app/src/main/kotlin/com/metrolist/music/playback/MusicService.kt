@@ -4786,31 +4786,13 @@ class MusicService :
     ) {
         try {
             super.onUpdateNotification(session, startInForegroundRequired)
-
-            // Samsung One UI (and modern AOSP) refuses swipe-to-dismiss on
-            // any notification tied to a currently-active foreground service,
-            // regardless of the FLAG_ONGOING_EVENT / FLAG_NO_CLEAR bits on
-            // the notification itself. Media3 also re-promotes to
-            // foreground on every play-state change, so clearing those flags
-            // once on creation isn't enough.
-            //
-            // Immediately after Media3 promotes us to foreground for a play
-            // state, detach from foreground service state via STOP_FOREGROUND_DETACH.
-            // The notification stays visible (NotificationManager retains it
-            // by NOTIFICATION_ID) and is now swipeable, while the service
-            // continues running via audio focus + the MediaSession's wake lock.
-            //
-            // If Android does reclaim the service under memory pressure the
-            // effect is identical to what the user was trying to do anyway
-            // (playback stops, notification vanishes), so the trade-off is
-            // acceptable.
-            if (startInForegroundRequired) {
-                runCatching {
-                    ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
-                }.onFailure { e ->
-                    Timber.tag(TAG).w(e, "stopForeground(DETACH) failed after onUpdateNotification")
-                }
-            }
+            // NOTE: v13.9.12 detached the service from the foreground state
+            // via STOP_FOREGROUND_DETACH here to allow swipe-to-dismiss while
+            // playing on One UI. In practice Android reclaimed the service
+            // at the first track transition and playback stopped after one
+            // song. Reverted in v13.9.14 — swipe-to-dismiss now only works
+            // while paused (v13.9.11 behaviour), which is the correct
+            // trade-off.
         } catch (e: ForegroundServiceStartNotAllowedException) {
             handleForegroundServiceStartNotAllowed(e)
         } catch (e: IllegalStateException) {

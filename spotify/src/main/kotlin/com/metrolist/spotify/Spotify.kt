@@ -466,10 +466,27 @@ object Spotify {
      */
     private fun parseGqlTrackDurationMs(trackData: JsonObject): Int {
         trackData.obj("duration")?.int("totalMilliseconds")?.let { if (it > 0) return it }
+        trackData.obj("duration")?.int("totalMs")?.let { if (it > 0) return it }
         trackData.int("durationMs")?.let { if (it > 0) return it }
         trackData.int("duration_ms")?.let { if (it > 0) return it }
         // Some APIs return duration in seconds
         trackData.int("duration")?.let { sec -> if (sec > 0) return sec * 1000 }
+        // fetchPlaylist wraps tracks under itemV2.data.trackV2.data — the
+        // durationMs / duration fields live one level deeper there. When
+        // this parser is invoked with itemV2.data the outer shape misses
+        // them, so peek through trackV2 as a fallback. Fixes issue #27
+        // where every Spotify playlist except Liked Songs showed 0:00.
+        trackData.obj("trackV2")?.obj("data")?.let { inner ->
+            inner.obj("duration")?.int("totalMilliseconds")?.let { if (it > 0) return it }
+            inner.obj("duration")?.int("totalMs")?.let { if (it > 0) return it }
+            inner.int("durationMs")?.let { if (it > 0) return it }
+            inner.int("duration_ms")?.let { if (it > 0) return it }
+        }
+        // Some libraryV3 shapes wrap the track under `item.data`.
+        trackData.obj("item")?.obj("data")?.let { inner ->
+            inner.obj("duration")?.int("totalMilliseconds")?.let { if (it > 0) return it }
+            inner.int("durationMs")?.let { if (it > 0) return it }
+        }
         return 0
     }
 
