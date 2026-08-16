@@ -34,7 +34,7 @@ class SpotifyPlaylistViewModel
 constructor(
     @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle,
-    database: MusicDatabase,
+    private val database: MusicDatabase,
 ) : ViewModel() {
     val playlistId: String = savedStateHandle.get<String>("playlistId")
         ?: throw IllegalArgumentException("playlistId is required")
@@ -61,6 +61,56 @@ constructor(
 
     private val _mutationError = MutableStateFlow<String?>(null)
     val mutationError = _mutationError.asStateFlow()
+
+    // ── Enhance (issue #26) ───────────────────────────────────────────────
+
+    /**
+     * Ephemeral recommendations produced when the user toggles "Enhance" on
+     * the playlist screen. Not persisted to the actual Spotify playlist —
+     * turning Enhance off clears this list. Rebuilt each time the toggle
+     * flips from off → on so users see fresh picks on each session.
+     */
+    private val _enhanceTracks = MutableStateFlow<List<SpotifyTrack>>(emptyList())
+    val enhanceTracks = _enhanceTracks.asStateFlow()
+
+    private val _isEnhanceLoading = MutableStateFlow(false)
+    val isEnhanceLoading = _isEnhanceLoading.asStateFlow()
+
+    private val _enhanceError = MutableStateFlow<String?>(null)
+    val enhanceError = _enhanceError.asStateFlow()
+
+    fun clearEnhance() {
+        _enhanceTracks.value = emptyList()
+        _enhanceError.value = null
+    }
+
+    fun buildEnhance() {
+        val current = _tracks.value
+        if (current.isEmpty() || _isEnhanceLoading.value) return
+        _isEnhanceLoading.value = true
+        _enhanceError.value = null
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val recs = com.metrolist.music.playback.SpotifyRecommendationEngine
+                    .getRecommendationsForPlaylist(
+                        playlistTracks = current,
+                        limit = 20,
+                        seedCount = 4,
+                        context = context,
+                        database = database,
+                    )
+                _enhanceTracks.value = recs
+                if (recs.isEmpty()) {
+                    _enhanceError.value = "No recommendations available"
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Enhance failed")
+                _enhanceError.value = e.message ?: "Enhance failed"
+            } finally {
+                _isEnhanceLoading.value = false
+            }
+        }
+    }
 
     fun clearMutationError() {
         _mutationError.value = null

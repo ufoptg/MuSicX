@@ -1,3 +1,15 @@
+---v13.9.15
+# MuSicX 13.9.15 — Enhance button on Spotify playlists (issue #26)
+
+## Added
+- **Enhance toggle on Spotify playlist screens.** Modelled after Spotify's former Enhance feature. Tap the sparkles button next to Play/Shuffle to append a set of recommended tracks that the algorithm thinks fit the playlist. Each recommendation is marked with a sparkle badge on its thumbnail and lives in a "Recommended" section at the bottom of the playlist.
+- Recommendations are ephemeral by design — they disappear when you toggle Enhance off, and are not written to your Spotify playlist. Long-press any recommendation to open the track menu and pick "Add to this playlist" to persist it.
+- Under the hood, `SpotifyRecommendationEngine` was extended with `getRecommendationsForPlaylist` — it picks 4 evenly-spaced seed tracks across the playlist, runs the per-seed recommender on each in parallel, then round-robin merges + dedupes the results (filtering out anything already in the playlist).
+
+## Coming next
+- Enhance for Local playlists and YouTube Music online playlists is planned for v13.9.16, using a YT-Music-based recommender.
+
+
 ---v13.9.14
 # MuSicX 13.9.14 — Playback fix + Spotify durations
 

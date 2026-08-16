@@ -9,6 +9,7 @@ package com.metrolist.music.ui.screens.playlist
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -186,6 +187,22 @@ fun SpotifyPlaylistScreen(
 
     val playlistItems by viewModel.playlistItems.collectAsState()
 
+    // ── Enhance (issue #26) ─────────────────────────────────────────────
+    val enhanceTracks by viewModel.enhanceTracks.collectAsState()
+    val isEnhanceLoading by viewModel.isEnhanceLoading.collectAsState()
+    val enhanceError by viewModel.enhanceError.collectAsState()
+    var enhanceEnabled by rememberSaveable(viewModel.playlistId) { mutableStateOf(false) }
+    LaunchedEffect(enhanceEnabled, tracks.size) {
+        if (enhanceEnabled && enhanceTracks.isEmpty() && tracks.isNotEmpty() && !isEnhanceLoading) {
+            viewModel.buildEnhance()
+        }
+    }
+    LaunchedEffect(enhanceError) {
+        enhanceError?.let { msg ->
+            snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
+        }
+    }
+
     val sortedItems = remember(playlistItems, sortType, sortDescending) {
         val sorted = when (sortType) {
             SpotifySortType.ORIGINAL -> playlistItems
@@ -356,6 +373,35 @@ fun SpotifyPlaylistScreen(
                                 )
                                 Spacer(modifier = Modifier.size(8.dp))
                                 Text(stringResource(R.string.shuffle))
+                            }
+                            // Enhance toggle (issue #26) — mirrors Spotify's
+                            // former Enhance feature. When on, recommendation
+                            // tracks are interleaved into the displayed list;
+                            // when off, they disappear (not persisted to the
+                            // actual playlist).
+                            androidx.compose.material3.FilledIconToggleButton(
+                                checked = enhanceEnabled,
+                                onCheckedChange = {
+                                    enhanceEnabled = it
+                                    if (!it) viewModel.clearEnhance()
+                                },
+                                modifier = Modifier.size(40.dp),
+                            ) {
+                                if (isEnhanceLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                } else {
+                                    Icon(
+                                        painterResource(R.drawable.sparkles),
+                                        contentDescription = stringResource(
+                                            if (enhanceEnabled) R.string.enhance_on_desc
+                                            else R.string.enhance_off_desc,
+                                        ),
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                }
                             }
                         }
                     }
@@ -578,6 +624,134 @@ fun SpotifyPlaylistScreen(
                         ) {
                             content()
                         }
+                    }
+                }
+            }
+
+            // ── Enhance recommendations (issue #26) ───────────────────────
+            // Rendered as a bottom section rather than interleaved so we
+            // don't disturb the playlist's reorderable/swipe-remove logic
+            // (those assume real playlist items with uids). Recommendations
+            // are ephemeral — they disappear when Enhance is toggled off
+            // and are not persisted to the Spotify playlist unless the user
+            // taps "Add to this playlist" on the row menu.
+            if (enhanceEnabled && !isSearching && enhanceTracks.isNotEmpty()) {
+                item(key = "enhance_header") {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.sparkles),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text(
+                            text = stringResource(R.string.enhance_recommendation_label),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+                itemsIndexed(
+                    items = enhanceTracks,
+                    key = { _, t -> "enhance_${t.id}" },
+                ) { _, recTrack ->
+                    val recThumb = SpotifyMapper.getTrackThumbnail(recTrack)
+                    val isRecActive = currentSpotifyId != null && currentSpotifyId == recTrack.id
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f),
+                            )
+                            .animateItem(),
+                    ) {
+                        ListItem(
+                            title = recTrack.name,
+                            subtitle = joinByBullet(
+                                recTrack.artists.joinToString { it.name },
+                                makeTimeString((recTrack.durationMs).toLong()),
+                            ),
+                            isActive = isRecActive,
+                            thumbnailContent = {
+                                Box(contentAlignment = Alignment.BottomEnd) {
+                                    ItemThumbnail(
+                                        thumbnailUrl = recThumb,
+                                        isActive = isRecActive,
+                                        isPlaying = isPlaying,
+                                        shape = RoundedCornerShape(ThumbnailCornerRadius),
+                                        modifier = Modifier.size(ListThumbnailSize),
+                                    )
+                                    // Sparkle badge on the thumbnail as the
+                                    // distinct visual indicator (issue #26)
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .padding(2.dp)
+                                            .size(18.dp)
+                                            .background(
+                                                color = MaterialTheme.colorScheme.primary,
+                                                shape = androidx.compose.foundation.shape.CircleShape,
+                                            ),
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.sparkles),
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(12.dp),
+                                        )
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .combinedClickable(
+                                    onClick = {
+                                        // Play the recommendation as a
+                                        // one-shot queue seeded from itself.
+                                        // Reusing SpotifyPlaylistQueue keeps
+                                        // the Spotify → YT mapping path.
+                                        playerConnection.playQueue(
+                                            SpotifyPlaylistQueue(
+                                                playlistId = viewModel.playlistId,
+                                                initialTracks = listOf(recTrack) + enhanceTracks.filter { it.id != recTrack.id },
+                                                startIndex = 0,
+                                                mapper = viewModel.mapper,
+                                            ),
+                                        )
+                                    },
+                                    onLongClick = {
+                                        menuState.show {
+                                            SpotifyTrackMenu(
+                                                track = recTrack,
+                                                mapper = mapper,
+                                                onDismiss = menuState::dismiss,
+                                                navController = navController,
+                                                onAddToThisPlaylist = {
+                                                    viewModel.addTracks(
+                                                        listOf(
+                                                            recTrack.uri
+                                                                ?: "spotify:track:${recTrack.id}",
+                                                        ),
+                                                    )
+                                                    Toast.makeText(
+                                                        context,
+                                                        context.getString(
+                                                            R.string.enhance_added_to_playlist,
+                                                        ),
+                                                        Toast.LENGTH_SHORT,
+                                                    ).show()
+                                                },
+                                            )
+                                        }
+                                    },
+                                ),
+                        )
                     }
                 }
             }

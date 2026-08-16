@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Enhance (issue #26) -->
+    <string name="enhance">Enhance</string>
+    <string name="enhance_on_desc">Turn off Enhance</string>
+    <string name="enhance_off_desc">Turn on Enhance — insert recommended tracks</string>
+    <string name="enhance_recommendation_label">Recommended</string>
+    <string name="enhance_add_to_playlist">Add to this playlist</string>
+    <string name="enhance_added_to_playlist">Added to playlist</string>
+    <string name="enhance_no_results">Enhance couldn\'t find recommendations for this playlist</string>
+
     <string name="local_history">Local</string>
     <string name="remote_history">Remote</string>
 

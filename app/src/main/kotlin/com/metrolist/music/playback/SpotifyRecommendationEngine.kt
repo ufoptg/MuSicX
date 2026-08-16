@@ -324,6 +324,75 @@ object SpotifyRecommendationEngine {
     }
 
     /**
+     * Playlist-level Enhance: generate recommendations seeded from an entire
+     * playlist rather than a single track. Picks a diverse set of seed tracks
+     * from the playlist (spaced across it so we don't just seed from the top),
+     * runs [getRecommendations] on each in parallel, then merges/dedupes and
+     * filters out tracks already in the playlist.
+     *
+     * Used by the playlist "Enhance" toggle (issue #26).
+     *
+     * @param playlistTracks the full track list of the playlist
+     * @param limit target recommendation count (final list may be shorter
+     *   after dedupe + already-in-playlist filtering)
+     * @param seedCount how many diverse seeds to pull from the playlist
+     */
+    suspend fun getRecommendationsForPlaylist(
+        playlistTracks: List<SpotifyTrack>,
+        limit: Int = 20,
+        seedCount: Int = 4,
+        context: Context? = null,
+        database: MusicDatabase? = null,
+    ): List<SpotifyTrack> = withContext(Dispatchers.IO) {
+        val valid = playlistTracks.filter { it.id.isNotEmpty() }
+        if (valid.isEmpty()) return@withContext emptyList()
+
+        // Pick evenly-spaced seed tracks so we cover the whole playlist,
+        // not just the newest additions.
+        val seeds = if (valid.size <= seedCount) {
+            valid
+        } else {
+            val step = valid.size / seedCount
+            (0 until seedCount).map { valid[it * step] }
+        }
+
+        val alreadyIn = valid.map { it.id }.toHashSet()
+        val perSeedLimit = (limit * 2 / seeds.size).coerceAtLeast(8)
+
+        val recsPerSeed = coroutineScope {
+            seeds.map { seed ->
+                async {
+                    getRecommendations(
+                        seedTrack = seed,
+                        limit = perSeedLimit,
+                        context = context,
+                        database = database,
+                    )
+                }
+            }.awaitAll()
+        }
+
+        // Round-robin merge — interleave one recommendation per seed at a
+        // time so no single seed dominates the output ordering.
+        val merged = mutableListOf<SpotifyTrack>()
+        val seen = HashSet<String>(alreadyIn)
+        val iterators = recsPerSeed.map { it.iterator() }.toMutableList()
+        while (merged.size < limit && iterators.any { it.hasNext() }) {
+            for (it in iterators) {
+                if (!it.hasNext()) continue
+                val next = it.next()
+                if (next.id.isNotEmpty() && seen.add(next.id)) {
+                    merged.add(next)
+                    if (merged.size >= limit) break
+                }
+            }
+        }
+
+        Timber.d("$TAG: Enhance produced ${merged.size} recs from ${seeds.size} seeds")
+        merged
+    }
+
+    /**
      * Builds a scored candidate from a track and its context.
      */
     private fun buildCandidate(

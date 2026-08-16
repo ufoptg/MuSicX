@@ -73,6 +73,10 @@ import kotlinx.coroutines.withContext
  *
  * @param onRemoveFromPlaylist When non-null, shows a "Remove from playlist" action.
  *   The callback is invoked when the user confirms removal.
+ * @param onAddToThisPlaylist When non-null, shows an "Add to this playlist" action
+ *   (used by the Enhance recommendation rows — issue #26 — where the track is
+ *   currently only shown as an ephemeral recommendation and the user wants to
+ *   persist it into the visible playlist).
  */
 @Composable
 fun SpotifyTrackMenu(
@@ -81,6 +85,7 @@ fun SpotifyTrackMenu(
     onDismiss: () -> Unit,
     navController: NavController? = null,
     onRemoveFromPlaylist: (() -> Unit)? = null,
+    onAddToThisPlaylist: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val database = LocalDatabase.current
@@ -400,6 +405,26 @@ fun SpotifyTrackMenu(
                     onClick = {
                         onDismiss()
                         onRemoveFromPlaylist()
+                    },
+                ),
+            ),
+        )
+    }
+
+    if (onAddToThisPlaylist != null) {
+        Material3MenuGroup(
+            items = listOf(
+                Material3MenuItemData(
+                    title = { Text(text = stringResource(R.string.enhance_add_to_playlist)) },
+                    icon = {
+                        Icon(
+                            painter = painterResource(R.drawable.sparkles),
+                            contentDescription = null,
+                        )
+                    },
+                    onClick = {
+                        onDismiss()
+                        onAddToThisPlaylist()
                     },
                 ),
             ),
