@@ -32,6 +32,7 @@ import com.metrolist.music.di.ApplicationScope
 import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.extensions.toInetSocketAddress
 import com.metrolist.music.utils.CrashHandler
+import com.metrolist.music.utils.ArtistNameAliases
 import com.metrolist.music.utils.YTPlayerUtils
 import com.metrolist.music.utils.cipher.CipherDeobfuscator
 import com.metrolist.music.utils.dataStore
@@ -70,6 +71,7 @@ class App :
 
         // Install crash handler first
         CrashHandler.install(this)
+        ArtistNameAliases.initialize(this)
 
         // Initialize CrashReporter (opt-in remote reporting to GitHub Issues).
         // No-op unless the user enables it in Settings AND CRASH_REPORT_TOKEN
