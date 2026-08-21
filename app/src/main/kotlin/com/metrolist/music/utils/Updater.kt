@@ -253,7 +253,7 @@ object Updater {
                 
                 if (!shouldFetch && cachedReleaseInfo != null) {
                     val hasUpdate = isUpdateAvailable(
-                        BuildConfig.VERSION_NAME,
+                        BuildConfig.BASE_VERSION_NAME,
                         cachedReleaseInfo!!.versionName
                     )
                     return@runCatching cachedReleaseInfo!! to hasUpdate
@@ -263,7 +263,7 @@ object Updater {
                 if (result.isSuccess) {
                     val releaseInfo = result.getOrThrow()
                     val hasUpdate = isUpdateAvailable(
-                        BuildConfig.VERSION_NAME,
+                        BuildConfig.BASE_VERSION_NAME,
                         releaseInfo.versionName
                     )
                     releaseInfo to hasUpdate

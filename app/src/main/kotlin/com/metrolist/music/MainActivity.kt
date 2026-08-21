@@ -200,6 +200,7 @@ import com.metrolist.music.ui.utils.resetHeightOffset
 import com.metrolist.music.utils.ReleaseInfo
 import com.metrolist.music.utils.SearchRoutes
 import com.metrolist.music.utils.SyncUtils
+import com.metrolist.music.utils.ArtistNameAliases
 import com.metrolist.music.utils.Updater
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.safeDataStoreEdit
@@ -250,7 +251,7 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var navController: NavHostController
     private var pendingIntent: Intent? = null
-    private var latestVersionName by mutableStateOf(BuildConfig.VERSION_NAME)
+    private var latestVersionName by mutableStateOf(BuildConfig.BASE_VERSION_NAME)
 
     // Keep PlayerConnection as regular property - NOT mutableStateOf to prevent UI recomposition
     // when it becomes null during onStop. Only update the snapshot for Compose when needed.
@@ -418,7 +419,7 @@ class MainActivity : ComponentActivity() {
         // Defer migration and version tracking to avoid blocking first frame
         lifecycleScope.launch(Dispatchers.IO) {
             val preferences = dataStore.data.first()
-            val currentVersion = BuildConfig.VERSION_NAME
+            val currentVersion = BuildConfig.BASE_VERSION_NAME
 
             // SimpMusic Removal Migration
             if (preferences[SimpMusicMigrationDoneKey] != true) {
@@ -448,7 +449,7 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             safeDataStoreEdit { settings ->
-                settings[LastSeenVersionKey] = BuildConfig.VERSION_NAME
+                settings[LastSeenVersionKey] = BuildConfig.BASE_VERSION_NAME
             }
         }
 
@@ -526,7 +527,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 } else {
-                    onLatestVersionNameChange(BuildConfig.VERSION_NAME)
+                    onLatestVersionNameChange(BuildConfig.BASE_VERSION_NAME)
                     kmpRelease = null
                 }
             }
@@ -691,7 +692,7 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(Unit) {
                     val lastSeenVersion = dataStore.data.first()[LastSeenVersionKey] ?: ""
-                    val currentVersion = BuildConfig.VERSION_NAME
+                    val currentVersion = BuildConfig.BASE_VERSION_NAME
                     if (lastSeenVersion != currentVersion) {
                         showChangelog.value = true
                     }
@@ -727,8 +728,8 @@ class MainActivity : ComponentActivity() {
                 val tabOpenedFromShortcut =
                     remember {
                         when (intent?.action) {
-                            ACTION_SEARCH -> NavigationTab.LIBRARY
-                            ACTION_LIBRARY -> NavigationTab.SEARCH
+                            ACTION_SEARCH -> NavigationTab.SEARCH
+                            ACTION_LIBRARY -> NavigationTab.LIBRARY
                             else -> null
                         }
                     }
@@ -994,6 +995,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                 val baseBg = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+                val artistNameAliases by ArtistNameAliases.aliases.collectAsStateWithLifecycle()
 
                 CompositionLocalProvider(
                     LocalDatabase provides database,
@@ -1006,6 +1008,7 @@ class MainActivity : ComponentActivity() {
                     LocalSyncUtils provides syncUtils,
                     LocalListenTogetherManager provides listenTogetherManager,
                     LocalChangelogState provides showChangelog,
+                    LocalArtistNameAliases provides artistNameAliases,
                 ) {
                     if (showChangelog.value) {
                         ChangelogScreen(onDismiss = { showChangelog.value = false })
@@ -1052,7 +1055,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                             IconButton(onClick = { showAccountDialog = true }) {
                                                 BadgedBox(badge = {
-                                                    if (latestVersionName != BuildConfig.VERSION_NAME) {
+                                                    if (latestVersionName != BuildConfig.BASE_VERSION_NAME) {
                                                         Badge()
                                                     }
                                                 }) {
@@ -1304,8 +1307,8 @@ class MainActivity : ComponentActivity() {
                                     startDestination =
                                         when (tabOpenedFromShortcut ?: defaultOpenTab) {
                                             NavigationTab.HOME -> Screens.Home
+                                            NavigationTab.SEARCH -> Screens.Search
                                             NavigationTab.LIBRARY -> Screens.Library
-                                            else -> Screens.Home
                                         }.route,
                                     enterTransition = {
                                         val currentRouteIndex = routeIndexMap[targetState.destination.route] ?: -1
@@ -1658,4 +1661,5 @@ val LocalDownloadUtil = staticCompositionLocalOf<DownloadUtil> { error("No Downl
 val LocalSyncUtils = staticCompositionLocalOf<SyncUtils> { error("No SyncUtils provided") }
 val LocalListenTogetherManager = staticCompositionLocalOf<com.metrolist.music.listentogether.ListenTogetherManager?> { null }
 val LocalChangelogState = staticCompositionLocalOf<MutableState<Boolean>> { error("No LocalChangelogState provided") }
+val LocalArtistNameAliases = staticCompositionLocalOf<Map<String, String>> { emptyMap() }
 val LocalIsPlayerExpanded = compositionLocalOf { false }

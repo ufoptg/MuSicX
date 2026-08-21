@@ -59,6 +59,11 @@ data class YouTubeClient(
             userAgent = USER_AGENT_WEB,
         )
 
+        val WEB_ACCOUNT_SWITCHER = WEB.copy(
+            clientVersion = "2.20260708.00.00",
+            loginSupported = true,
+        )
+
         val WEB_REMIX = YouTubeClient(
             clientName = "WEB_REMIX",
             clientVersion = "1.20260114.03.00",

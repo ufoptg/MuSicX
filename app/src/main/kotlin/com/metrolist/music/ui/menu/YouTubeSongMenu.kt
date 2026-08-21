@@ -61,6 +61,7 @@ import com.metrolist.innertube.YouTube
 import com.metrolist.music.LocalNavController
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.music.LocalDatabase
+import com.metrolist.music.LocalArtistNameAliases
 import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerConnection
@@ -84,6 +85,7 @@ import com.metrolist.music.ui.component.NewAction
 import com.metrolist.music.ui.component.NewActionGrid
 import com.metrolist.music.ui.utils.ShowMediaInfo
 import com.metrolist.music.ui.utils.resize
+import com.metrolist.music.utils.ArtistNameAliases
 import com.metrolist.music.utils.joinByBullet
 import com.metrolist.music.utils.makeTimeString
 import kotlinx.coroutines.Dispatchers
@@ -110,10 +112,14 @@ fun YouTubeSongMenu(
     val syncUtils = LocalSyncUtils.current
     val listenTogetherManager = LocalListenTogetherManager.current
     val isPinned by database.speedDialDao.isPinned(song.id).collectAsStateWithLifecycle(initialValue = false)
-    val artists = remember {
+    val artistNameAliases = LocalArtistNameAliases.current
+    val artists = remember(song.artists, artistNameAliases) {
         song.artists.mapNotNull {
             it.id?.let { artistId ->
-                MediaMetadata.Artist(id = artistId, name = it.name)
+                MediaMetadata.Artist(
+                    id = artistId,
+                    name = ArtistNameAliases.resolve(artistNameAliases, artistId, it.name),
+                )
             }
         }
     }
@@ -198,7 +204,9 @@ fun YouTubeSongMenu(
         supportingContent = {  
             Text(  
                 text = joinByBullet(
-                    song.artists.joinToString { it.name },
+                    song.artists.joinToString {
+                        ArtistNameAliases.resolve(artistNameAliases, it.id, it.name)
+                    },
                     song.duration?.let { makeTimeString(it * 1000L) },
                 )
             )  
@@ -660,7 +668,13 @@ fun YouTubeSongMenu(
                         add(
                             Material3MenuItemData(
                                 title = { Text(text = stringResource(R.string.view_artist)) },
-                                description = { Text(text = song.artists.joinToString { it.name }) },
+                                description = {
+                                    Text(
+                                        text = song.artists.joinToString {
+                                            ArtistNameAliases.resolve(artistNameAliases, it.id, it.name)
+                                        },
+                                    )
+                                },
                                 icon = {
                                     Icon(
                                         painter = painterResource(R.drawable.artist),

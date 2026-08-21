@@ -25,10 +25,12 @@ import com.metrolist.innertube.models.TasteProfile
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_ATV
 import com.metrolist.innertube.models.YTItem
+import com.metrolist.innertube.models.YouTubeAccount
 import com.metrolist.innertube.models.YouTubeClient
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.metrolist.innertube.models.YouTubeLocale
+import com.metrolist.innertube.models.extractYouTubeAccounts
 import com.metrolist.innertube.models.getContinuation
 import com.metrolist.innertube.models.getItems
 import com.metrolist.innertube.models.oddElements
@@ -109,6 +111,11 @@ object YouTube {
         get() = innerTube.dataSyncId
         set(value) {
             innerTube.dataSyncId = value
+        }
+    var authUser: String
+        get() = innerTube.authUser
+        set(value) {
+            innerTube.authUser = value
         }
     var cookie: String?
         get() = innerTube.cookie
@@ -2548,7 +2555,7 @@ object YouTube {
                 Timber.d("[PODCAST_API] section[$idx]: hasCarousel=${section.musicCarouselShelfRenderer != null} hasShelf=${section.musicShelfRenderer != null} hasPlaylistShelf=${section.musicPlaylistShelfRenderer != null} hasCardShelf=${section.musicCardShelfRenderer != null} hasGrid=${section.gridRenderer != null} hasItemSection=${section.itemSectionRenderer != null}")
                 section.musicCarouselShelfRenderer?.let { carousel ->
                     val carouselTitle = carousel.header?.musicCarouselShelfBasicHeaderRenderer?.title?.runs?.joinToString("") { it.text }
-                    Timber.d("[PODCAST_API]   carousel title=$carouselTitle, items=${carousel.contents?.size}")
+                    Timber.d("[PODCAST_API]   carousel title=$carouselTitle, items=${carousel.contents.size}")
                 }
                 section.musicShelfRenderer?.let { shelf ->
                     Timber.d("[PODCAST_API]   shelf title=${shelf.title?.runs?.joinToString("") { it.text }}, items=${shelf.contents?.size}")
@@ -2575,7 +2582,7 @@ object YouTube {
                     }
                 }
                 section.musicPlaylistShelfRenderer?.let { ps ->
-                    Timber.d("[PODCAST_API]   playlistShelf playlistId=${ps.playlistId}, items=${ps.contents?.size}")
+                    Timber.d("[PODCAST_API]   playlistShelf playlistId=${ps.playlistId}, items=${ps.contents.size}")
                 }
             }
 
@@ -2597,7 +2604,7 @@ object YouTube {
                         }
                         if (carousel != null) {
                             val carTitle = carousel.header?.musicCarouselShelfBasicHeaderRenderer?.title?.runs?.joinToString("") { it.text }
-                            Timber.d("[PODCAST_API]   singleCol section[$sIdx] carousel title=$carTitle, items=${carousel.contents?.size}")
+                            Timber.d("[PODCAST_API]   singleCol section[$sIdx] carousel title=$carTitle, items=${carousel.contents.size}")
                         }
                     }
                 }
@@ -2676,7 +2683,7 @@ object YouTube {
                 // Process musicCarouselShelfRenderer - each carousel is a podcast group
                 section.musicCarouselShelfRenderer?.let { carousel ->
                     val carouselTitle = carousel.header?.musicCarouselShelfBasicHeaderRenderer?.title?.runs?.joinToString("") { it.text }
-                    carousel.contents?.forEach { carouselContent ->
+                    carousel.contents.forEach { carouselContent ->
                         carouselContent.musicMultiRowListItemRenderer?.let { renderer ->
                             if (renderer.onTap?.watchEndpoint?.videoId == null) return@let
                             val title = renderer.title?.runs?.firstOrNull()?.text ?: return@let
@@ -3352,6 +3359,13 @@ object YouTube {
                 .header
                 ?.activeAccountHeaderRenderer
                 ?.toAccountInfo()!!
+        }
+
+    suspend fun accountsList(): Result<List<YouTubeAccount>> =
+        runCatching {
+            Json
+                .parseToJsonElement(innerTube.accountsList().bodyAsText())
+                .extractYouTubeAccounts()
         }
 
     suspend fun feedback(tokens: List<String>): Result<Boolean> =

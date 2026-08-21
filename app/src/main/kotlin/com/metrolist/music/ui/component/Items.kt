@@ -99,6 +99,7 @@ import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
 import com.metrolist.music.LocalDatabase
+import com.metrolist.music.LocalArtistNameAliases
 import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalNavController
 import com.metrolist.music.LocalPlayerConnection
@@ -124,6 +125,7 @@ import com.metrolist.music.ui.utils.resize
 import com.metrolist.music.utils.joinByBullet
 import com.metrolist.music.utils.joinToArtistString
 import com.metrolist.music.utils.makeTimeString
+import com.metrolist.music.utils.ArtistNameAliases
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.utils.reportException
@@ -156,7 +158,8 @@ fun ClickableArtistText(
 ) {
     val navController = LocalNavController.current
     val andString = stringResource(R.string.and)
-    val annotatedString = remember(artists, andString, color) {
+    val artistNameAliases = LocalArtistNameAliases.current
+    val annotatedString = remember(artists, andString, color, artistNameAliases) {
         buildAnnotatedString {
             artists.forEachIndexed { index, artist ->
                 withLink(
@@ -167,7 +170,7 @@ fun ClickableArtistText(
                         navController.navigate("artist/${artist.id}")
                     }
                 ) {
-                    append(artist.name)
+                    append(ArtistNameAliases.resolve(artistNameAliases, artist.id, artist.name))
                 }
                 if (index != artists.lastIndex) {
                     if (index == artists.lastIndex - 1) {
@@ -200,7 +203,8 @@ fun ClickableArtistText(
 ) {
     val navController = LocalNavController.current
     val andString = stringResource(R.string.and)
-    val annotatedString = remember(artists, andString, color) {
+    val artistNameAliases = LocalArtistNameAliases.current
+    val annotatedString = remember(artists, andString, color, artistNameAliases) {
         buildAnnotatedString {
             artists.forEachIndexed { index, artist ->
                 val artistId = artist.id
@@ -213,10 +217,10 @@ fun ClickableArtistText(
                             navController.navigate("artist/$artistId")
                         }
                     ) {
-                        append(artist.name)
+                        append(ArtistNameAliases.resolve(artistNameAliases, artistId, artist.name))
                     }
                 } else {
-                    append(artist.name)
+                    append(ArtistNameAliases.resolve(artistNameAliases, null, artist.name))
                 }
                 if (index != artists.lastIndex) {
                     if (index == artists.lastIndex - 1) {
@@ -249,7 +253,8 @@ fun ClickableArtistText(
 ) {
     val navController = LocalNavController.current
     val andString = stringResource(R.string.and)
-    val annotatedString = remember(artists, andString, color) {
+    val artistNameAliases = LocalArtistNameAliases.current
+    val annotatedString = remember(artists, andString, color, artistNameAliases) {
         buildAnnotatedString {
             artists.forEachIndexed { index, artist ->
                 val artistId = artist.id
@@ -262,10 +267,10 @@ fun ClickableArtistText(
                             navController.navigate("artist/$artistId")
                         }
                     ) {
-                        append(artist.name)
+                        append(ArtistNameAliases.resolve(artistNameAliases, artistId, artist.name))
                     }
                 } else {
-                    append(artist.name)
+                    append(ArtistNameAliases.resolve(artistNameAliases, null, artist.name))
                 }
                 if (index != artists.lastIndex) {
                     if (index == artists.lastIndex - 1) {
@@ -548,6 +553,7 @@ fun SongListItem(
     isSwipeable: Boolean = true,
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) {
+    val artistNameAliases = LocalArtistNameAliases.current
     val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = false)
 
     val content: @Composable () -> Unit = {
@@ -557,8 +563,10 @@ fun SongListItem(
                   badges()
                   if (subtitleOverride == null) {
                       Text(
-                          text = joinByBullet(
-                              song.orderedArtists.joinToArtistString(" ${stringResource(R.string.and)} ") { it.name },
+                           text = joinByBullet(
+                               song.orderedArtists.joinToArtistString(" ${stringResource(R.string.and)} ") {
+                                   ArtistNameAliases.resolve(artistNameAliases, it.id, it.name)
+                               },
                               makeTimeString(song.song.duration * 1000L)
                           ),
                           style = MaterialTheme.typography.bodySmall,
@@ -640,9 +648,12 @@ fun SongGridItem(
         )
     },
     subtitle = {
+        val artistNameAliases = LocalArtistNameAliases.current
         Text(
             text = joinByBullet(
-                song.orderedArtists.joinToArtistString(" ${stringResource(R.string.and)} ") { it.name },
+                song.orderedArtists.joinToArtistString(" ${stringResource(R.string.and)} ") {
+                    ArtistNameAliases.resolve(artistNameAliases, it.id, it.name)
+                },
                 makeTimeString(song.song.duration * 1000L)
             ),
             style = MaterialTheme.typography.bodyMedium,
@@ -1102,6 +1113,7 @@ fun MediaMetadataListItem(
     isPlaying: Boolean = false,
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) {
+    val artistNameAliases = LocalArtistNameAliases.current
     ListItem(
         title = mediaMetadata.title,
         subtitle = {
@@ -1109,7 +1121,9 @@ fun MediaMetadataListItem(
             Text(
                 text = buildAnnotatedString {
                     val base = joinByBullet(
-                        mediaMetadata.artists.joinToArtistString(" ${stringResource(R.string.and)} ") { it.name },
+                        mediaMetadata.artists.joinToArtistString(" ${stringResource(R.string.and)} ") {
+                            ArtistNameAliases.resolve(artistNameAliases, it.id, it.name)
+                        },
                         makeTimeString(mediaMetadata.duration * 1000L)
                     )
                     append(base)
@@ -1178,17 +1192,52 @@ fun YouTubeListItem(
     },
 ) {
     val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = false)
+    val artistNameAliases = LocalArtistNameAliases.current
+    val artistSeparator = " ${stringResource(R.string.and)} "
 
     val content: @Composable () -> Unit = {
         ListItem(
-            title = item.title,
+            title =
+                if (item is ArtistItem) {
+                    ArtistNameAliases.resolve(artistNameAliases, item.id, item.title)
+                } else {
+                    item.title
+                },
             subtitle = when (item) {
-                is SongItem -> joinByBullet(item.artists.joinToArtistString(" ${stringResource(R.string.and)} ") { it.name }, makeTimeString(item.duration?.times(1000L)))
-                is AlbumItem -> joinByBullet(item.artists?.joinToArtistString(" ${stringResource(R.string.and)} ") { it.name }, item.year?.toString())
+                is SongItem ->
+                    joinByBullet(
+                        item.artists.joinToArtistString(artistSeparator) {
+                            ArtistNameAliases.resolve(artistNameAliases, it.id, it.name)
+                        },
+                        makeTimeString(item.duration?.times(1000L)),
+                    )
+
+                is AlbumItem ->
+                    joinByBullet(
+                        item.artists?.joinToArtistString(artistSeparator) {
+                            ArtistNameAliases.resolve(artistNameAliases, it.id, it.name)
+                        },
+                        item.year?.toString(),
+                    )
+
                 is ArtistItem -> null
-                is PlaylistItem -> joinByBullet(item.author?.name, item.songCountText)
-                is PodcastItem -> joinByBullet(item.author?.name, item.episodeCountText)
-                is EpisodeItem -> joinByBullet(item.author?.name, makeTimeString(item.duration?.times(1000L)))
+                is PlaylistItem ->
+                    joinByBullet(
+                        item.author?.let { ArtistNameAliases.resolve(artistNameAliases, it.id, it.name) },
+                        item.songCountText,
+                    )
+
+                is PodcastItem ->
+                    joinByBullet(
+                        item.author?.let { ArtistNameAliases.resolve(artistNameAliases, it.id, it.name) },
+                        item.episodeCountText,
+                    )
+
+                is EpisodeItem ->
+                    joinByBullet(
+                        item.author?.let { ArtistNameAliases.resolve(artistNameAliases, it.id, it.name) },
+                        makeTimeString(item.duration?.times(1000L)),
+                    )
             },
             badges = badges,
             thumbnailContent = {
@@ -1253,7 +1302,11 @@ fun YouTubeGridItem(
 ) = GridItem(
     title = {
         Text(
-            text = item.title,
+            text = if (item is ArtistItem) {
+                ArtistNameAliases.resolve(LocalArtistNameAliases.current, item.id, item.title)
+            } else {
+                item.title
+            },
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
@@ -1263,13 +1316,15 @@ fun YouTubeGridItem(
         )
     },
      subtitle = {
+         val artistNameAliases = LocalArtistNameAliases.current
+         val artistSeparator = " ${stringResource(R.string.and)} "
          val subtitle = when (item) {
-             is SongItem -> joinByBullet(item.artists.joinToArtistString(" ${stringResource(R.string.and)} ") { it.name }, makeTimeString(item.duration?.times(1000L)))
-             is AlbumItem -> joinByBullet(item.artists?.joinToArtistString(" ${stringResource(R.string.and)} ") { it.name }, item.year?.toString())
+             is SongItem -> joinByBullet(item.artists.joinToArtistString(artistSeparator) { ArtistNameAliases.resolve(artistNameAliases, it.id, it.name) }, makeTimeString(item.duration?.times(1000L)))
+             is AlbumItem -> joinByBullet(item.artists?.joinToArtistString(artistSeparator) { ArtistNameAliases.resolve(artistNameAliases, it.id, it.name) }, item.year?.toString())
             is ArtistItem -> null
-            is PlaylistItem -> joinByBullet(item.author?.name, item.songCountText)
-            is PodcastItem -> joinByBullet(item.author?.name, item.episodeCountText)
-            is EpisodeItem -> joinByBullet(item.author?.name, makeTimeString(item.duration?.times(1000L)))
+            is PlaylistItem -> joinByBullet(item.author?.let { ArtistNameAliases.resolve(artistNameAliases, it.id, it.name) }, item.songCountText)
+            is PodcastItem -> joinByBullet(item.author?.let { ArtistNameAliases.resolve(artistNameAliases, it.id, it.name) }, item.episodeCountText)
+            is EpisodeItem -> joinByBullet(item.author?.let { ArtistNameAliases.resolve(artistNameAliases, it.id, it.name) }, makeTimeString(item.duration?.times(1000L)))
         }
         if (subtitle != null) {
             Text(

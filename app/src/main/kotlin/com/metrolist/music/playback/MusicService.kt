@@ -333,8 +333,12 @@ class MusicService :
         object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
                 Timber.tag(TAG).e(error, "Secondary player error")
-                secondaryPlayer?.stop()
-                secondaryPlayer?.clearMediaItems()
+                secondaryPlayer?.let { failedPlayer ->
+                    failedPlayer.removeListener(this)
+                    failedPlayer.stop()
+                    failedPlayer.clearMediaItems()
+                    releaseExoPlayer(failedPlayer)
+                }
                 secondaryPlayer = null
             }
         }
@@ -440,6 +444,7 @@ class MusicService :
     private var isAudioEffectSessionOpened = false
     private var openedAudioEffectSessionId: Int = C.AUDIO_SESSION_ID_UNSET
     private val playerNormalizationProcessors = HashMap<Player, VolumeNormalizationAudioProcessor>()
+    private val playerEqualizerProcessors = HashMap<Player, CustomEqualizerAudioProcessor>()
 
     private var loudnessSetupJob: Job? = null
     private var loudnessSetupGeneration: Long = 0L
@@ -1091,9 +1096,7 @@ class MusicService :
 
                 player.removeListener(this)
                 sleepTimer?.let { player.removeListener(it) }
-                playerNormalizationProcessors.remove(player)
-                playerSilenceProcessors.remove(player)
-                player.release()
+                releaseExoPlayer(player)
 
                 val newPlayer = createExoPlayer()
                 newPlayer.addListener(this@MusicService)
@@ -1429,7 +1432,6 @@ class MusicService :
             cachedNormalizationGainMb?.let { gain -> it.setTargetGain(gain) }
         }
         val eqProcessor = CustomEqualizerAudioProcessor()
-        equalizerService.addAudioProcessor(eqProcessor)
 
         val silenceProcessor = SilenceDetectorAudioProcessor { handleLongSilenceDetected() }
 
@@ -1478,6 +1480,8 @@ class MusicService :
 
         playerNormalizationProcessors[player] = normalizationProcessor
         playerSilenceProcessors[player] = silenceProcessor
+        playerEqualizerProcessors[player] = eqProcessor
+        equalizerService.addAudioProcessor(eqProcessor)
 
         if (prefs != null) {
             val offload = prefs[AudioOffload] ?: false
@@ -1806,9 +1810,10 @@ class MusicService :
                 ?: -1
 
         database.query {
-            if (song == null && mediaMetadata != null) {
+            if (mediaMetadata != null && (song == null || song.orderedArtists.isEmpty())) {
                 insert(mediaMetadata.copy(duration = duration))
-            } else if (song != null) {
+            }
+            if (song != null) {
                 var updatedSong = song.song
                 if (song.song.duration == -1) {
                     updatedSong = updatedSong.copy(duration = duration)
@@ -3730,7 +3735,8 @@ class MusicService :
         scope.launch(Dispatchers.IO) {
             val (freshSongId, freshIsPlaying) = withContext(Dispatchers.Main.immediate) {
                 player.currentMetadata?.id to player.isPlaying
-            } ?: return@launch
+            }
+            if (freshSongId == null) return@launch
             val song = database.song(freshSongId).first() ?: return@launch
             updateDiscordRPC(song, freshIsPlaying)
         }
@@ -4334,22 +4340,29 @@ class MusicService :
                     Timber.tag(TAG).w("No loudness data available from YouTube for video: $mediaId")
                 }
 
-                database.query {
-                    upsert(
-                        FormatEntity(
-                            id = mediaId,
-                            itag = format.itag,
-                            mimeType = format.mimeType.split(";")[0],
-                            codecs = format.mimeType.split("codecs=")[1].removeSurrounding("\""),
-                            bitrate = format.bitrate,
-                            sampleRate = format.audioSampleRate,
-                            contentLength = format.contentLength!!,
-                            loudnessDb = loudnessDb,
-                            perceptualLoudnessDb = perceptualLoudnessDb,
-                            playbackUrl = nonNullPlayback.playbackTracking?.videostatsPlaybackUrl?.baseUrl,
-                        ),
-                    )
-                }
+                format.contentLength?.let { contentLength ->
+                    database.query {
+                        upsert(
+                            FormatEntity(
+                                id = mediaId,
+                                itag = format.itag,
+                                mimeType = format.mimeType.substringBefore(";"),
+                                codecs =
+                                    format.mimeType
+                                        .substringAfter("codecs=", missingDelimiterValue = "")
+                                        .substringBefore(";")
+                                        .trim()
+                                        .removeSurrounding("\""),
+                                bitrate = format.bitrate,
+                                sampleRate = format.audioSampleRate,
+                                contentLength = contentLength,
+                                loudnessDb = loudnessDb,
+                                perceptualLoudnessDb = perceptualLoudnessDb,
+                                playbackUrl = nonNullPlayback.playbackTracking?.videostatsPlaybackUrl?.baseUrl,
+                            ),
+                        )
+                    }
+                } ?: Timber.tag(TAG).w("Skipping format persistence without content length for $mediaId")
                 recoverSongDeduped(mediaId, nonNullPlayback)
 
                 if (bypassCacheForQualityChange.remove(mediaId)) {
@@ -4733,14 +4746,24 @@ class MusicService :
         closeAudioEffectSession()
         mediaLibrarySessionCallback.release()
         mediaSession?.release()
+        crossfadeMessage?.cancel()
+        crossfadeMessage = null
+        crossfadeJob?.cancel()
+        crossfadeJob = null
+        secondaryPlayer?.let { pendingPlayer ->
+            pendingPlayer.removeListener(secondaryPlayerListener)
+            releaseExoPlayer(pendingPlayer)
+        }
+        secondaryPlayer = null
+        fadingPlayer?.let(::releaseExoPlayer)
+        fadingPlayer = null
+        isCrossfading = false
         player.removeListener(this)
         sleepTimer?.let { player.removeListener(it) }
-        playerNormalizationProcessors.remove(player)
-        playerSilenceProcessors.remove(player)
         initialBufferRecoveryJob?.cancel()
         controllerFuture?.let { MediaController.releaseFuture(it) }
         controllerFuture = null
-        player.release()
+        releaseExoPlayer(player)
         scope.cancel()
         super.onDestroy()
         shutdownDeferred.complete(Unit)
@@ -5372,8 +5395,8 @@ class MusicService :
             secPlayer.playWhenReady = true
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Failed to prepare secondary player for crossfade")
-            playerNormalizationProcessors.remove(secPlayer)
-            secPlayer.release()
+            secPlayer.removeListener(secondaryPlayerListener)
+            releaseExoPlayer(secPlayer)
             secondaryPlayer = null
             return
         }
@@ -5489,11 +5512,13 @@ class MusicService :
     }
 
     private fun cleanupCrossfade(fadingPlayerSessionId: Int = C.AUDIO_SESSION_ID_UNSET) {
-        fadingPlayer?.let { playerNormalizationProcessors.remove(it) }
-        fadingPlayer?.stop()
-        fadingPlayer?.clearMediaItems()
-        fadingPlayer?.release()
+        fadingPlayer?.let { previousPlayer ->
+            previousPlayer.stop()
+            previousPlayer.clearMediaItems()
+            releaseExoPlayer(previousPlayer)
+        }
         fadingPlayer = null
+        crossfadeJob = null
         isCrossfading = false
         applyEffectiveVolume()
         sleepTimer?.notifySongTransition()
@@ -5503,6 +5528,13 @@ class MusicService :
         if (fadingPlayerSessionId != C.AUDIO_SESSION_ID_UNSET && fadingPlayerSessionId > 0) {
             closeAudioEffectSession(sessionIdOverride = fadingPlayerSessionId, clearNormalizationCache = true)
         }
+    }
+
+    private fun releaseExoPlayer(player: ExoPlayer) {
+        playerNormalizationProcessors.remove(player)
+        playerSilenceProcessors.remove(player)
+        playerEqualizerProcessors.remove(player)?.let(equalizerService::removeAudioProcessor)
+        player.release()
     }
 
     companion object {
