@@ -175,8 +175,18 @@ constructor(
                     FormatEntity(
                         id = mediaId,
                         itag = format.itag,
+<<<<<<< HEAD
                         mimeType = mimeType,
                         codecs = codecs,
+=======
+                        mimeType = format.mimeType.substringBefore(";"),
+                        codecs =
+                            format.mimeType
+                                .substringAfter("codecs=", missingDelimiterValue = "")
+                                .substringBefore(";")
+                                .trim()
+                                .removeSurrounding("\""),
+>>>>>>> upstream/main
                         bitrate = format.bitrate,
                         sampleRate = format.audioSampleRate,
                         contentLength = actualContentLength,
