@@ -719,7 +719,13 @@ fun HomeScreen(
     val hideExplicit by rememberPreference(HideExplicitKey, defaultValue = false)
     val spotifyHomeViewModel: com.metrolist.music.viewmodels.SpotifyHomeViewModel = hiltViewModel()
 
-    LaunchedEffect(isRefreshing, spotifyHomeActive, hideExplicit) {
+    LaunchedEffect(spotifyHomeActive, hideExplicit) {
+        if (spotifyHomeActive) {
+            spotifyHomeViewModel.refresh(hideExplicit = hideExplicit)
+        }
+    }
+
+    LaunchedEffect(isRefreshing) {
         if (isRefreshing && spotifyHomeActive) {
             spotifyHomeViewModel.refresh(hideExplicit = hideExplicit)
         }
