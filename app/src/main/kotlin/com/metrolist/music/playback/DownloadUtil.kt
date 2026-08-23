@@ -28,6 +28,7 @@ import com.metrolist.music.db.entities.FormatEntity
 import com.metrolist.music.db.entities.SongEntity
 import com.metrolist.music.di.DownloadCache
 import com.metrolist.music.di.PlayerCache
+import com.metrolist.music.playback.MusicService.Companion.CHUNK_LENGTH
 import com.metrolist.music.utils.YTPlayerUtils
 import com.metrolist.music.utils.enumPreference
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -39,6 +40,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -54,7 +56,7 @@ import javax.inject.Singleton
 class DownloadUtil
 @Inject
 constructor(
-    @ApplicationContext context: Context,
+    @ApplicationContext private val context: Context,
     val database: MusicDatabase,
     val databaseProvider: DatabaseProvider,
     @DownloadCache val downloadCache: Cache,
@@ -90,9 +92,25 @@ constructor(
                 ),
         ) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
-            val length = if (dataSpec.length >= 0) dataSpec.length else 1
 
-            if (playerCache.isCached(mediaId, dataSpec.position, length)) {
+            // Match MusicService: only skip URL resolve when the full needed
+            // range is already cached. Using length=1 (old behavior) short-
+            // circuited after any brief playback and left downloads stuck on
+            // a non-HTTP media-id URI for missing ranges.
+            val contentLength =
+                runBlocking(Dispatchers.IO) {
+                    database.song(mediaId).first()?.format?.contentLength
+                }
+            val requiredLength =
+                when {
+                    dataSpec.length >= 0 -> dataSpec.length
+                    contentLength != null -> (contentLength - dataSpec.position).coerceAtLeast(1)
+                    else -> CHUNK_LENGTH
+                }
+
+            if (downloadCache.isCached(mediaId, dataSpec.position, requiredLength) ||
+                playerCache.isCached(mediaId, dataSpec.position, requiredLength)
+            ) {
                 return@Factory dataSpec
             }
 
@@ -144,13 +162,21 @@ constructor(
                 length ?: error("Failed to retrieve content length")
             }
 
+            val mimeType = format.mimeType.split(";")[0]
+            val codecs =
+                format.mimeType
+                    .substringAfter("codecs=", missingDelimiterValue = "")
+                    .substringBefore(';')
+                    .removeSurrounding("\"")
+                    .ifBlank { "" }
+
             database.query {
                 upsert(
                     FormatEntity(
                         id = mediaId,
                         itag = format.itag,
-                        mimeType = format.mimeType.split(";")[0],
-                        codecs = format.mimeType.split("codecs=")[1].removeSurrounding("\""),
+                        mimeType = mimeType,
+                        codecs = codecs,
                         bitrate = format.bitrate,
                         sampleRate = format.audioSampleRate,
                         contentLength = actualContentLength,
@@ -178,9 +204,9 @@ constructor(
                 upsert(updatedSong)
             }
 
-            val streamUrl = playbackData.streamUrl.let {
-                "${it}&range=0-${actualContentLength}"
-            }
+            // Use a clean stream URL (no baked-in range=). Media3 DownloadManager
+            // requests byte ranges itself; baking range=0-N caused hangs/failures.
+            val streamUrl = playbackData.streamUrl
 
             songUrlCache.put(
                 mediaId = mediaId,
@@ -215,8 +241,15 @@ constructor(
                         download: Download,
                         finalException: Exception?,
                     ) {
-                        if (download.state == Download.STATE_FAILED && finalException.isExpiredStreamError()) {
-                            songUrlCache.invalidate(download.request.id)
+                        if (download.state == Download.STATE_FAILED) {
+                            Timber.tag(TAG).e(
+                                finalException,
+                                "Download failed for %s",
+                                download.request.id,
+                            )
+                            if (finalException.isExpiredStreamError()) {
+                                songUrlCache.invalidate(download.request.id)
+                            }
                         }
 
                         downloads.update { map ->
@@ -262,6 +295,13 @@ constructor(
                         }
                     }
                 }
+            )
+            addListener(
+                ExoDownloadService.TerminalStateNotificationHelper(
+                    context,
+                    downloadNotificationHelper,
+                    ExoDownloadService.NOTIFICATION_ID + 1,
+                )
             )
         }
 

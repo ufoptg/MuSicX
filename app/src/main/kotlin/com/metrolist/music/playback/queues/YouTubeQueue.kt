@@ -12,6 +12,8 @@ import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.models.MediaMetadata
 import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 class YouTubeQueue(
@@ -22,63 +24,73 @@ class YouTubeQueue(
     private var retryCount = 0
     private val maxRetries = 3
 
+    /**
+     * Serializes [getInitialStatus] / [nextPage] so concurrent callers from
+     * [com.metrolist.music.playback.MusicService.playQueue] background growth and
+     * [com.metrolist.music.playback.MusicService.onMediaItemTransition] cannot race
+     * on [continuation] / [endpoint].
+     */
+    private val pageMutex = Mutex()
+
     private class EmptyRadioQueueException : IllegalStateException()
 
     override suspend fun getInitialStatus(): Queue.Status {
         return withContext(IO) {
-            var lastException: Throwable? = null
+            pageMutex.withLock {
+                var lastException: Throwable? = null
 
-            if (endpoint.videoId != null && endpoint.playlistId == null) {
-                endpoint = WatchEndpoint(
-                    videoId = endpoint.videoId,
-                    playlistId = "RDAMVM${endpoint.videoId}"
-                )
-            }
+                if (endpoint.videoId != null && endpoint.playlistId == null) {
+                    endpoint = WatchEndpoint(
+                        videoId = endpoint.videoId,
+                        playlistId = "RDAMVM${endpoint.videoId}"
+                    )
+                }
 
-            val isRadioRequest =
-                endpoint.playlistId?.startsWith("RDAMVM") == true ||
-                (endpoint.videoId != null && endpoint.playlistId == null)
+                val isRadioRequest =
+                    endpoint.playlistId?.startsWith("RDAMVM") == true ||
+                    (endpoint.videoId != null && endpoint.playlistId == null)
 
-            for (attempt in 0..maxRetries) {
-                try {
-                    val nextResult = YouTube.next(endpoint, continuation).getOrThrow()
-                    
-                    var items = nextResult.items
-                    val relEndpoint = nextResult.relatedEndpoint
-                    
-                    if (isRadioRequest && continuation == null && items.size <= 1) {
-                        if (endpoint.playlistId?.startsWith("RDAMVM") == true) {
-                            throw EmptyRadioQueueException()
-                        } else if (relEndpoint != null) {
-                            val relatedPage = YouTube.related(relEndpoint).getOrNull()
-                            if (relatedPage != null && relatedPage.songs.isNotEmpty()) {
-                                val relatedSongs = relatedPage.songs.filter { it.id != endpoint.videoId }
-                                items = items + relatedSongs
+                for (attempt in 0..maxRetries) {
+                    try {
+                        val nextResult = YouTube.next(endpoint, continuation).getOrThrow()
+
+                        var items = nextResult.items
+                        val relEndpoint = nextResult.relatedEndpoint
+
+                        if (isRadioRequest && continuation == null && items.size <= 1) {
+                            if (endpoint.playlistId?.startsWith("RDAMVM") == true) {
+                                throw EmptyRadioQueueException()
+                            } else if (relEndpoint != null) {
+                                val relatedPage = YouTube.related(relEndpoint).getOrNull()
+                                if (relatedPage != null && relatedPage.songs.isNotEmpty()) {
+                                    val relatedSongs = relatedPage.songs.filter { it.id != endpoint.videoId }
+                                    items = items + relatedSongs
+                                }
                             }
                         }
-                    }
 
-                    endpoint = nextResult.endpoint
-                    continuation = nextResult.continuation
-                    retryCount = 0
-                    return@withContext Queue.Status(
-                        title = nextResult.title,
-                        items = items.map { it.toMediaItem() },
-                        mediaItemIndex = nextResult.currentIndex ?: 0,
-                    )
-                } catch (e: Exception) {
-                    lastException = e
-                    if (
-                        e is EmptyRadioQueueException &&
-                        endpoint.playlistId?.startsWith("RDAMVM") == true &&
-                        endpoint.videoId != null
-                    ) {
-                        endpoint = WatchEndpoint(videoId = endpoint.videoId)
-                        // It will loop again and try with just videoId
+                        endpoint = nextResult.endpoint
+                        continuation = nextResult.continuation
+                        retryCount = 0
+                        return@withLock Queue.Status(
+                            title = nextResult.title,
+                            items = items.map { it.toMediaItem() },
+                            mediaItemIndex = nextResult.currentIndex ?: 0,
+                        )
+                    } catch (e: Exception) {
+                        lastException = e
+                        if (
+                            e is EmptyRadioQueueException &&
+                            endpoint.playlistId?.startsWith("RDAMVM") == true &&
+                            endpoint.videoId != null
+                        ) {
+                            endpoint = WatchEndpoint(videoId = endpoint.videoId)
+                            // It will loop again and try with just videoId
+                        }
                     }
                 }
+                throw lastException ?: Exception("Failed to get initial status")
             }
-            throw lastException ?: Exception("Failed to get initial status")
         }
     }
 
@@ -86,24 +98,26 @@ class YouTubeQueue(
 
     override suspend fun nextPage(): List<MediaItem> {
         return withContext(IO) {
-            var lastException: Throwable? = null
+            pageMutex.withLock {
+                var lastException: Throwable? = null
 
-            for (attempt in 0..maxRetries) {
-                try {
-                    val nextResult = YouTube.next(endpoint, continuation).getOrThrow()
-                    endpoint = nextResult.endpoint
-                    continuation = nextResult.continuation
-                    retryCount = 0
-                    return@withContext nextResult.items.map { it.toMediaItem() }
-                } catch (e: Exception) {
-                    lastException = e
-                    retryCount++
-                    if (retryCount >= maxRetries) {
-                        continuation = null // Stop trying to load more
+                for (attempt in 0..maxRetries) {
+                    try {
+                        val nextResult = YouTube.next(endpoint, continuation).getOrThrow()
+                        endpoint = nextResult.endpoint
+                        continuation = nextResult.continuation
+                        retryCount = 0
+                        return@withLock nextResult.items.map { it.toMediaItem() }
+                    } catch (e: Exception) {
+                        lastException = e
+                        retryCount++
+                        if (retryCount >= maxRetries) {
+                            continuation = null // Stop trying to load more
+                        }
                     }
                 }
+                throw lastException ?: Exception("Failed to get next page")
             }
-            throw lastException ?: Exception("Failed to get next page")
         }
     }
 

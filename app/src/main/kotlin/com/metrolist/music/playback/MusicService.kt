@@ -216,7 +216,9 @@ import com.metrolist.music.playback.alarm.MusicAlarmStore
 import com.metrolist.music.playback.audio.SilenceDetectorAudioProcessor
 import com.metrolist.music.playback.queues.EmptyQueue
 import com.metrolist.music.playback.queues.ListQueue
+import com.metrolist.music.playback.queues.LocalAlbumRadio
 import com.metrolist.music.playback.queues.Queue
+import com.metrolist.music.playback.queues.YouTubeAlbumRadio
 import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.playback.queues.YouTubePlaylistQueue
 import com.metrolist.music.playback.queues.filterExplicit
@@ -515,6 +517,10 @@ class MusicService :
     private var cachedShufflePlaylistFirst = false
     @Volatile
     private var cachedAutoLoadMore = true
+
+    /** Guards concurrent [continueRadioFromCurrent] launches near end-of-queue. */
+    @Volatile
+    private var radioContinueInFlight = false
 
     // URL cache for stream URLs - class-level so it can be invalidated on errors
     private val songUrlCache = StreamUrlCache()
@@ -2737,21 +2743,40 @@ class MusicService :
         if (cachedAutoLoadMore &&
             reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT &&
             player.mediaItemCount - player.currentMediaItemIndex <= 5 &&
-            currentQueue.hasNextPage() &&
             !(cachedDisableLoadMoreWhenRepeatAll && player.repeatMode == REPEAT_MODE_ALL)
         ) {
-            scope.launch(SilentHandler) {
-                val mediaItems =
-                    withContext(Dispatchers.IO) {
-                        currentQueue
-                            .nextPage()
-                            .filterExplicit(cachedHideExplicit)
-                            .filterVideoSongs(cachedHideVideoSongs)
+            if (currentQueue.hasNextPage()) {
+                scope.launch(SilentHandler) {
+                    val mediaItems =
+                        withContext(Dispatchers.IO) {
+                            currentQueue
+                                .nextPage()
+                                .filterExplicit(cachedHideExplicit)
+                                .filterVideoSongs(cachedHideVideoSongs)
+                        }
+                    if (player.playbackState != STATE_IDLE && mediaItems.isNotEmpty()) {
+                        player.addMediaItems(mediaItems)
+                        if (player.shuffleModeEnabled) {
+                            applyShuffleOrder(
+                                player.currentMediaItemIndex,
+                                player.mediaItemCount,
+                                cachedShufflePlaylistFirst,
+                            )
+                        }
                     }
-                if (player.playbackState != STATE_IDLE && mediaItems.isNotEmpty()) {
-                    player.addMediaItems(mediaItems)
-                    if (player.shuffleModeEnabled) {
-                        applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, cachedShufflePlaylistFirst)
+                }
+            } else if (
+                !radioContinueInFlight &&
+                (currentQueue is YouTubeQueue ||
+                    currentQueue is YouTubeAlbumRadio ||
+                    currentQueue is LocalAlbumRadio)
+            ) {
+                radioContinueInFlight = true
+                scope.launch(SilentHandler) {
+                    try {
+                        continueRadioFromCurrent()
+                    } finally {
+                        radioContinueInFlight = false
                     }
                 }
             }
@@ -2759,6 +2784,72 @@ class MusicService :
 
         if (cachedPersistentQueue) {
             saveQueueToDisk()
+        }
+    }
+
+    /**
+     * When a radio/album-radio queue exhausts its YouTube continuation token,
+     * start a fresh radio from the current track and append unique songs so
+     * playback does not stop after the initial ~60-song fill.
+     */
+    private suspend fun continueRadioFromCurrent() {
+        val currentMetadata = player.currentMetadata ?: return
+        val existingIds =
+            buildSet {
+                for (i in 0 until player.mediaItemCount) {
+                    add(player.getMediaItemAt(i).mediaId)
+                }
+            }
+
+        val radioQueue = YouTubeQueue.radio(currentMetadata)
+        try {
+            val initialStatus =
+                withContext(Dispatchers.IO) {
+                    radioQueue
+                        .getInitialStatus()
+                        .filterExplicit(cachedHideExplicit)
+                        .filterVideoSongs(cachedHideVideoSongs)
+                }
+
+            var newItems =
+                initialStatus.items.filter { item ->
+                    item.mediaId !in existingIds
+                }
+
+            // First page may be mostly duplicates of the current queue; keep
+            // paginating once so we still have something to append.
+            if (newItems.isEmpty() && radioQueue.hasNextPage()) {
+                newItems =
+                    withContext(Dispatchers.IO) {
+                        radioQueue
+                            .nextPage()
+                            .filterExplicit(cachedHideExplicit)
+                            .filterVideoSongs(cachedHideVideoSongs)
+                            .filter { it.mediaId !in existingIds }
+                    }
+            }
+
+            if (player.playbackState == STATE_IDLE) return
+
+            // Adopt the new radio queue even when this batch is empty so
+            // subsequent AutoLoadMore calls can use its continuation.
+            currentQueue = radioQueue
+            if (initialStatus.title != null) {
+                queueTitle = initialStatus.title
+            }
+
+            if (newItems.isNotEmpty()) {
+                player.addMediaItems(newItems)
+                if (player.shuffleModeEnabled) {
+                    applyShuffleOrder(
+                        player.currentMediaItemIndex,
+                        player.mediaItemCount,
+                        cachedShufflePlaylistFirst,
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Timber.tag(TAG).w(e, "Failed to continue radio after continuation exhausted")
         }
     }
 
