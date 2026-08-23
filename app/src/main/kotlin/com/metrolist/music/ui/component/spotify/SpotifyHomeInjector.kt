@@ -48,6 +48,8 @@ import com.metrolist.music.viewmodels.SpotifyHomeViewModel
  *   "Your Top Tracks" section (matched by title key "spotify_top_tracks").
  *   Useful for slotting the local Recently Played row directly under Top Tracks
  *   so it never gets shuffled to the bottom by the randomize-home-order feature.
+ * @param viewModel Optional shared [SpotifyHomeViewModel] so HomeScreen can
+ *   trigger refresh on pull-to-refresh. Defaults to a screen-scoped instance.
  *
  * Usage inside HomeScreen.kt:
  *     LazyColumn(...) {
@@ -58,15 +60,17 @@ import com.metrolist.music.viewmodels.SpotifyHomeViewModel
 fun LazyListScope.spotifyHomeSections(
     navController: NavController,
     postTopTracks: (@Composable () -> Unit)? = null,
+    viewModel: SpotifyHomeViewModel? = null,
 ) {
     item(key = "musicx_spotify_home_gate") {
+        // Default must match Settings → Integrations → Spotify (opt-in: false).
         val enableSpotify by rememberPreference(EnableSpotifyKey, defaultValue = false)
-        val useSpotifyHome by rememberPreference(UseSpotifyHomeKey, defaultValue = true)
+        val useSpotifyHome by rememberPreference(UseSpotifyHomeKey, defaultValue = false)
         val spDc by rememberPreference(SpotifySpDcKey, defaultValue = "")
 
         if (!enableSpotify || !useSpotifyHome || spDc.isEmpty()) return@item
 
-        SpotifyHomeSectionsContent(navController, postTopTracks)
+        SpotifyHomeSectionsContent(navController, postTopTracks, viewModel)
     }
 }
 
@@ -74,8 +78,9 @@ fun LazyListScope.spotifyHomeSections(
 private fun SpotifyHomeSectionsContent(
     navController: NavController,
     postTopTracks: (@Composable () -> Unit)? = null,
-    viewModel: SpotifyHomeViewModel = hiltViewModel(),
+    sharedViewModel: SpotifyHomeViewModel? = null,
 ) {
+    val viewModel = sharedViewModel ?: hiltViewModel()
     val sections by viewModel.sections.collectAsStateWithLifecycle()
 
     Column {

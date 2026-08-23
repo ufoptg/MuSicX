@@ -119,6 +119,8 @@ import com.metrolist.music.constants.GridItemsSizeKey
 import com.metrolist.music.constants.GridThumbnailHeight
 import com.metrolist.music.constants.InnerTubeCookieKey
 import com.metrolist.music.constants.EnableSpotifyKey
+import com.metrolist.music.constants.HideExplicitKey
+import com.metrolist.music.constants.SpotifyHomeOnlyKey
 import com.metrolist.music.constants.SpotifySpDcKey
 import com.metrolist.music.constants.UseSpotifyHomeKey
 import com.metrolist.music.constants.ListItemHeight
@@ -706,11 +708,22 @@ fun HomeScreen(
     // Spotify integration prefs — used to decide whether the local Recently
     // Played row should be slotted INSIDE the Spotify sections (right below
     // "Your Top Tracks") or into the local sections list (as a fallback when
-    // Spotify home is disabled / logged out).
+    // Spotify home is disabled / logged out). Defaults must match Settings
+    // (opt-in: false) so the toggle actually controls Home.
     val enableSpotify by rememberPreference(EnableSpotifyKey, defaultValue = false)
-    val useSpotifyHome by rememberPreference(UseSpotifyHomeKey, defaultValue = true)
+    val useSpotifyHome by rememberPreference(UseSpotifyHomeKey, defaultValue = false)
+    val spotifyHomeOnly by rememberPreference(SpotifyHomeOnlyKey, defaultValue = false)
     val spotifySpDc by rememberPreference(SpotifySpDcKey, defaultValue = "")
     val spotifyHomeActive = enableSpotify && useSpotifyHome && spotifySpDc.isNotEmpty()
+    val hideLocalHomeSections = spotifyHomeActive && spotifyHomeOnly
+    val hideExplicit by rememberPreference(HideExplicitKey, defaultValue = false)
+    val spotifyHomeViewModel: com.metrolist.music.viewmodels.SpotifyHomeViewModel = hiltViewModel()
+
+    LaunchedEffect(isRefreshing, spotifyHomeActive, hideExplicit) {
+        if (isRefreshing && spotifyHomeActive) {
+            spotifyHomeViewModel.refresh(hideExplicit = hideExplicit)
+        }
+    }
 
     LaunchedEffect(Unit) { viewModel.loadHomeData() }
 
@@ -1050,6 +1063,7 @@ fun HomeScreen(
             recentlyPlayed,
             mediaMetadata?.id,
             spotifyHomeActive,
+            hideLocalHomeSections,
             dailyDiscover,
             keepListening,
             accountPlaylists,
@@ -1062,26 +1076,42 @@ fun HomeScreen(
             val list = mutableListOf<HomeSection>()
             val chipActive = selectedChip != null
 
-            if (!chipActive && speedDialItems.isNotEmpty()) list.add(HomeSection.SpeedDial)
-            if (!chipActive && quickPicks?.isNotEmpty() == true) list.add(HomeSection.QuickPicks)
-            if (!chipActive && (recentlyPlayed?.isNotEmpty() == true || mediaMetadata != null) && !spotifyHomeActive) list.add(HomeSection.RecentlyPlayed)
-            if (!chipActive && communityPlaylists?.isNotEmpty() == true) list.add(HomeSection.FromTheCommunity)
-            if (!chipActive && dailyDiscover?.isNotEmpty() == true) list.add(HomeSection.DailyDiscover)
-            if (!chipActive && keepListening?.isNotEmpty() == true) list.add(HomeSection.KeepListening)
-            if (!chipActive && accountPlaylists?.isNotEmpty() == true) list.add(HomeSection.AccountPlaylists)
-            if (!chipActive && forgottenFavorites?.isNotEmpty() == true) list.add(HomeSection.ForgottenFavorites)
+            // Spotify-only home: skip local/YouTube rows when the toggle is on
+            // (chips still work so podcast browse etc. remains reachable).
+            if (!chipActive && !hideLocalHomeSections) {
+                if (speedDialItems.isNotEmpty()) list.add(HomeSection.SpeedDial)
+                if (quickPicks?.isNotEmpty() == true) list.add(HomeSection.QuickPicks)
+                if ((recentlyPlayed?.isNotEmpty() == true || mediaMetadata != null) && !spotifyHomeActive) {
+                    list.add(HomeSection.RecentlyPlayed)
+                }
+                if (communityPlaylists?.isNotEmpty() == true) list.add(HomeSection.FromTheCommunity)
+                if (dailyDiscover?.isNotEmpty() == true) list.add(HomeSection.DailyDiscover)
+                if (keepListening?.isNotEmpty() == true) list.add(HomeSection.KeepListening)
+                if (accountPlaylists?.isNotEmpty() == true) list.add(HomeSection.AccountPlaylists)
+                if (forgottenFavorites?.isNotEmpty() == true) list.add(HomeSection.ForgottenFavorites)
 
-            if (!chipActive) {
                 similarRecommendations?.indices?.forEach { i ->
                     list.add(HomeSection.SimilarRecommendation(i))
                 }
+            } else if (!chipActive && hideLocalHomeSections) {
+                // Still allow Recently Played in the local list only when Spotify
+                // home is inactive (Spotify path uses postTopTracks instead).
+                if ((recentlyPlayed?.isNotEmpty() == true || mediaMetadata != null) && !spotifyHomeActive) {
+                    list.add(HomeSection.RecentlyPlayed)
+                }
             }
 
-            homePage?.sections?.indices?.forEach { i ->
-                list.add(HomeSection.HomePageSection(i))
+            // Chip-filtered / YouTube home page rows: keep for chip browse;
+            // hide default YouTube home page when Spotify-only is active.
+            if (chipActive || !hideLocalHomeSections) {
+                homePage?.sections?.indices?.forEach { i ->
+                    list.add(HomeSection.HomePageSection(i))
+                }
             }
 
-            if (explorePage?.moodAndGenres != null) list.add(HomeSection.MoodAndGenres)
+            if (!hideLocalHomeSections && explorePage?.moodAndGenres != null) {
+                list.add(HomeSection.MoodAndGenres)
+            }
 
             if (randomizeHomeOrder) {
                 list.sortedByDescending { section ->
@@ -1464,7 +1494,11 @@ fun HomeScreen(
 
                 // MuSicX Spotify home sections (no-op if disabled / logged out).
                 // Slot the local Recently Played row directly below "Your Top Tracks".
-                spotifyHomeSections(navController, postTopTracks = recentlyPlayedContent)
+                spotifyHomeSections(
+                    navController = navController,
+                    postTopTracks = recentlyPlayedContent,
+                    viewModel = spotifyHomeViewModel,
+                )
 
                 item {
                     ChipsRow(
