@@ -21,7 +21,9 @@ https://metrolist.cc/listen?code=04UMRJ89
 </div>
 
 > [!NOTE]
-> **MuSicX** is a maintained fork of [Metrolist](https://github.com/MetrolistGroup/Metrolist) with additional integrations (Spotify, SponsorBlock, Music Recognition, Podcasts, LyricsPlus, and experimental FLAC / Hi-Res streaming via Qobuz), crash reporting, and an automated nightly upstream sync. Same great UX, more music sources, more resilience.
+> **MuSicX** is a maintained fork of [Metrolist](https://github.com/MetrolistGroup/Metrolist) with additional integrations (Spotify, SponsorBlock, Music Recognition, Podcasts, LyricsPlus, Expressive player, playlist Enhance, and experimental FLAC / Hi-Res streaming via Qobuz), crash reporting, and an automated nightly upstream sync. Same great UX, more music sources, more resilience.
+>
+> Latest stable: **v13.9.18**
 
 > [!WARNING]
 > **Regional Restriction** — If YouTube Music is unavailable in your region, this app will not work without a **VPN or proxy** connecting to a supported region.
@@ -64,9 +66,13 @@ Features added on top of Metrolist upstream:
 | 🟢 **Qobuz hi-res streaming** | Shipped v13.8.0 | Experimental FLAC / Hi-Res playback via third-party Qobuz resolvers (Monokenny / Jumo / Squid / TrypT HiFi). AAC 320 → CD (16-bit / 44.1 kHz) → Hi-Res (up to 24-bit / 192 kHz). Falls back silently to YouTube on failure. Uses Spotify ISRC when available for tighter matching. Toggle at *Settings → Spotify Integration → Audio quality (experimental)*. Country code editor + live Backend Status section added in v13.8.2. R8/release-build playback regression fixed in v13.8.3. |
 | 🟢 **Instant playback from Spotify home** | Shipped v13.8.4 | The Spotify personalized-radio queue used to run its entire recommendation engine synchronously before the first note played — tap-to-play latency was 4–6 s. Now the engine is deferred to `nextPage()` and runs on a background coroutine after audio is already playing. Tap-to-play drops to ~100–500 ms warm / ~1 s cold. |
 | 🟢 **Spotify Liked Songs queue depth + Shuffle** | Shipped v13.8.5 / v13.8.6 | Playing a big Liked Songs list used to cap the queue at 23 songs — shuffle only randomised those 23. Now the queue accepts the ViewModel's already-loaded track list, and `MusicService` grows the queue to 60 items in the background *after* audio starts (5-item fast-start window so Shuffle stays near-instant). New **Shuffle button** on the Liked Songs screen ships a pre-shuffled ordering so the shuffle randomises across every loaded track. |
-| 🟢 **Shuffle button on every playlist screen** ✨ new | Shipped v13.8.7 | The v13.8.5 "pre-shuffled backing list" trick is now on Spotify user playlists, YouTube Music playlists, Spotify albums, and every local playlist (Liked / Auto / Top / Cache / user-created). Shuffle randomises across all loaded tracks — not just the fast-start window ExoPlayer's shuffle toggle would randomise mid-playback. |
-| 🟢 **Listen Together — orbs artwork** ✨ new | Shipped v13.8.7 | The Listen Together screen header now uses a dedicated three-orbs artwork (`R.drawable.listen_together_orbs`, 17 KB WebP) instead of the plain two-people icon. |
-| 🟢 **Expressive Player redesign** ✨ new | Shipped v13.9.x | Redesigned, default-on Now Playing: palette-extracted blurred album-art backdrop, dominant-color-tinted pause pill + progress slider, queue peek sheet, long-press artwork to toggle lyrics, and a **one-line active lyric strip under the title** (v13.9.2) that follows synced lyrics in real time. Classic player kept behind *Settings → Appearance → Expressive player*. |
+| 🟢 **Shuffle button on every playlist screen** | Shipped v13.8.7 | The v13.8.5 "pre-shuffled backing list" trick is now on Spotify user playlists, YouTube Music playlists, Spotify albums, and every local playlist (Liked / Auto / Top / Cache / user-created). Shuffle randomises across all loaded tracks — not just the fast-start window ExoPlayer's shuffle toggle would randomise mid-playback. |
+| 🟢 **Listen Together — orbs artwork** | Shipped v13.8.7 | The Listen Together screen header now uses a dedicated three-orbs artwork (`R.drawable.listen_together_orbs`, 17 KB WebP) instead of the plain two-people icon. |
+| 🟢 **Expressive Player redesign** | Shipped v13.9.x | Redesigned, default-on Now Playing: palette-extracted blurred album-art backdrop, dominant-color-tinted pause pill + progress slider, queue peek sheet, long-press artwork to toggle lyrics, and a **one-line active lyric strip under the title** that follows synced lyrics in real time. Classic player kept behind *Settings → Appearance → Expressive player*. |
+| 🟢 **Spotify search + track menu + Start radio** | Shipped v13.9.4–13.9.7 | Spotify search results play on tap; long-press opens the full track menu (Play next / Queue / Add to playlist / Change YouTube version / View artist). **Start radio** resolves the track to YouTube Music and starts a proper radio mix. |
+| 🟢 **Playlist Enhance** ✨ new | Shipped v13.9.15–13.9.18 | Sparkles toggle next to Play/Shuffle on **Spotify**, **Local**, and **online YouTube Music** playlists. Appends an ephemeral “Recommended” section seeded from the playlist (Spotify recommender / YT Music `related`). Long-press a rec to add it to the playlist (Local) or open the song menu (Online YT). |
+| 🟢 **Now-playing widgets + Flex Window** | Shipped v13.9.13 | 4×1, 4×2, and **4×4** large now-playing widgets with prev / play / next. Optional Galaxy Z Flip Flex Window cover-screen widget. |
+| 🟢 **Notification swipe-to-dismiss** | Shipped v13.9.11+ | Swipe the media notification away while paused to fully tear down playback / queue / service (not just pause). |
 
 <br/>
 
@@ -74,15 +80,14 @@ Features added on top of Metrolist upstream:
 
 <h1><a id="roadmap"></a>Roadmap — Coming Soon</h1>
 
-Features currently being ported from [meld](https://github.com/AudreyProject/meld):
-
 </div>
 
 | Planned Feature | Priority | Description |
 |---|---|---|
+| 🎧 **Cross-device queue sync** | P2 | Sync the current queue and playback position to other MuSicX installs. |
+| 🌍 **Better offline mode** | P2 | Predictive prefetch, offline-first search, richer download management. |
 | 🌐 **Wrapped / Year-in-review** | P3 | End-of-year listening summary — top tracks, top artists, listening minutes, shareable card exports. |
-| 🎧 **Cross-device queue sync** | P3 | Sync the current queue and playback position to other MuSicX installs via Emergent-managed cloud (or self-hosted). |
-| 🌍 **Better offline mode** | P3 | Smart queue pre-fetch, richer download management, per-playlist auto-download rules. |
+| 🩺 **One-tap “Diagnose playback”** | P3 | Backend health + smoke-test resolve of the current track, shareable report. |
 
 > Want a feature bumped? Open an issue or vote on existing ones.
 
@@ -105,7 +110,8 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
 - **SponsorBlock — skip sponsor/intro segments** ✨
 - **Qobuz FLAC / Hi-Res streaming** ✨
 - **Continue Listening hero card** on Home ✨
-- **Shuffle across every loaded track** on all playlist screens ✨ new
+- **Shuffle across every loaded track** on all playlist screens ✨
+- **Playlist Enhance** — recommended tracks on Spotify / Local / YT playlists ✨
 
 </td>
     <td width="50%" valign="top">
@@ -130,6 +136,7 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
 - **Local Recently Played row** on Home ✨
 - **Music Recognition (Shazam-style)** — home widget + Quick Settings tile ✨
 - Search songs, albums, artists, videos, playlists, **podcasts & episodes** ✨
+- **Spotify search** with long-press menu + Start radio ✨
 
 </td>
     <td width="50%" valign="top">
@@ -151,16 +158,18 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
 
 #### Social
 - Listen together with friends in real-time
+- Discord Rich Presence
+- Last.fm scrobbling
 
 </td>
     <td width="50%" valign="top">
 
 #### Interface
-- Home screen widget
+- **4×1 / 4×2 / 4×4 now-playing widgets** (+ Z Flip Flex Window) ✨
 - **Expressive Player — blurred album-art backdrop, palette-tinted controls & active lyric strip** ✨
 - Light / Dark / Black / Dynamic theme modes
 - Dynamic color + 19 preset color palettes
-- Built with Material 3
+- Built with Material 3 (+ Expressive)
 
 </td>
   </tr>
@@ -171,15 +180,17 @@ Features currently being ported from [meld](https://github.com/AudreyProject/mel
 - **ANR Watchdog** — auto-detects UI freezes
 - **Crash reporter** — one-tap submit to GitHub Issues
 - **Nightly upstream Metrolist sync** — automated PR when upstream diverges
-- **R8-safe Qobuz code path** — v13.8.3 hardened the resolver so a Qobuz failure can never abort the ExoPlayer callback and kill playback
+- **R8-safe Qobuz code path** — hardened so a Qobuz failure can never abort ExoPlayer callbacks and kill playback
+- **Swipe media notification to dismiss** (while paused) — full teardown of player / queue / service
 
 </td>
     <td width="50%" valign="top">
 
 #### Coming Soon
+- Cross-device queue sync (P2)
+- Smarter offline mode (P2)
 - Wrapped / Year-in-review (P3)
-- Cross-device queue sync (P3)
-- Smarter offline mode (P3)
+- One-tap Diagnose playback (P3)
 
 </td>
   </tr>
@@ -269,8 +280,13 @@ Three ways: (1) <strong>Search</strong> → type any podcast name → tap the "P
 </details>
 
 <details>
+<summary><strong>What does the Enhance (sparkles) button do?</strong></summary>
+On Spotify, Local, and online YouTube Music playlists, the sparkles toggle next to Play/Shuffle loads an ephemeral “Recommended” section at the bottom. Recs disappear when you turn Enhance off. On Local (and Spotify) playlists you can long-press a recommendation and choose <strong>Add to this playlist</strong> to keep it; on online YT playlists long-press opens the normal song menu.
+</details>
+
+<details>
 <summary><strong>How is MuSicX different from Metrolist?</strong></summary>
-MuSicX is a fork that adds: full Spotify integration (login, home, library, search bridging), SponsorBlock, ANR watchdog, GitHub-issue crash reporting, Music Recognition (Shazam-style widget + Quick Settings tile), Podcasts library, LyricsPlus/ExperimentalLyrics with word-timed karaoke, and now Qobuz hi-res streaming (experimental). Upstream Metrolist commits are automatically synced on top, so no fixes get lost.
+MuSicX is a fork that adds: full Spotify integration (login, home, library, search bridging, Enhance, Start radio), SponsorBlock, ANR watchdog, GitHub-issue crash reporting, Music Recognition (Shazam-style widget + Quick Settings tile), Podcasts library, LyricsPlus/ExperimentalLyrics with word-timed karaoke, Expressive player, now-playing widgets, and experimental Qobuz hi-res streaming. Upstream Metrolist commits are automatically synced on top, so no fixes get lost.
 </details>
 
 </div>
@@ -341,10 +357,6 @@ MuSicX is a fork that adds: full Spotify integration (login, home, library, sear
     <tr>
       <td align="center"><a href="https://github.com/Spotube/Spotube"><strong>Spotube</strong></a></td>
       <td>Inspiration for the cookie-based Spotify auth flow</td>
-    </tr>
-    <tr>
-      <td align="center"><a href="https://github.com/ZemerTeam/zemer-cipher"><strong>zemer-cipher</strong></a></td>
-      <td>YouTube cipher deobfuscation and PoToken generation</td>
     </tr>
     <tr>
       <td align="center"><a href="https://github.com/ZemerTeam/zemer-cipher"><strong>zemer-cipher</strong></a></td>
