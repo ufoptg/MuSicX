@@ -100,7 +100,12 @@ import java.time.LocalDateTime
 fun YouTubeSongMenu(
     song: SongItem,
     onDismiss: () -> Unit,
-    onHistoryRemoved: () -> Unit = {}
+    onHistoryRemoved: () -> Unit = {},
+    /**
+     * When non-null, shows an "Add to this playlist" action (used by Enhance
+     * recommendation rows on Local playlists — persist the ephemeral rec).
+     */
+    onAddToThisPlaylist: (() -> Unit)? = null,
 ) {
     val navController = LocalNavController.current
     val context = LocalContext.current
@@ -419,6 +424,29 @@ fun YouTubeSongMenu(
                     } else null
                 )
             )
+        }
+
+        if (onAddToThisPlaylist != null) {
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+            item {
+                Material3MenuGroup(
+                    items = listOf(
+                        Material3MenuItemData(
+                            title = { Text(text = stringResource(R.string.enhance_add_to_playlist)) },
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.sparkles),
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                onDismiss()
+                                onAddToThisPlaylist()
+                            },
+                        ),
+                    ),
+                )
+            }
         }
 
         item { Spacer(modifier = Modifier.height(12.dp)) }

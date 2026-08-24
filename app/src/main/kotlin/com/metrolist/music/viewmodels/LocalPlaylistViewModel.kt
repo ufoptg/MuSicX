@@ -11,7 +11,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.models.Album
+import com.metrolist.innertube.models.Artist
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.SongItem
+import com.metrolist.music.R
 import com.metrolist.music.constants.HideVideoSongsKey
 import com.metrolist.music.constants.PlaylistSongSortDescendingKey
 import com.metrolist.music.constants.PlaylistSongSortType
@@ -20,13 +24,17 @@ import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.PlaylistSong
 import com.metrolist.music.extensions.reversed
 import com.metrolist.music.extensions.toEnum
+import com.metrolist.music.models.toMediaMetadata
+import com.metrolist.music.playback.YouTubeRecommendationEngine
 import com.metrolist.music.utils.dataStore
+import com.metrolist.music.utils.get
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -34,6 +42,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import java.text.Collator
 import java.util.Locale
 import javax.inject.Inject
@@ -42,8 +51,8 @@ import javax.inject.Inject
 class LocalPlaylistViewModel
 @Inject
 constructor(
-    @ApplicationContext context: Context,
-    database: MusicDatabase,
+    @ApplicationContext private val context: Context,
+    private val database: MusicDatabase,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     val playlistId = savedStateHandle.get<String>("playlistId")!!
@@ -51,6 +60,73 @@ constructor(
         database
             .playlist(playlistId)
             .stateIn(viewModelScope, SharingStarted.Lazily, null)
+
+    private val _enhanceTracks = MutableStateFlow<List<SongItem>>(emptyList())
+    val enhanceTracks = _enhanceTracks.asStateFlow()
+
+    private val _isEnhanceLoading = MutableStateFlow(false)
+    val isEnhanceLoading = _isEnhanceLoading.asStateFlow()
+
+    private val _enhanceError = MutableStateFlow<String?>(null)
+    val enhanceError = _enhanceError.asStateFlow()
+
+    fun clearEnhance() {
+        _enhanceTracks.value = emptyList()
+        _enhanceError.value = null
+    }
+
+    fun buildEnhance() {
+        val current = playlistSongs.value
+        if (current.isEmpty() || _isEnhanceLoading.value) return
+        _isEnhanceLoading.value = true
+        _enhanceError.value = null
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
+                val seeds = current.map { it.toSongItem() }
+                val recs = YouTubeRecommendationEngine.getRecommendationsForPlaylist(
+                    playlistSongs = seeds,
+                    limit = 20,
+                    seedCount = 4,
+                    hideVideoSongs = hideVideoSongs,
+                )
+                _enhanceTracks.value = recs
+                if (recs.isEmpty()) {
+                    _enhanceError.value = context.getString(R.string.enhance_no_results)
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Enhance failed")
+                _enhanceError.value = e.message ?: "Enhance failed"
+            } finally {
+                _isEnhanceLoading.value = false
+            }
+        }
+    }
+
+    fun addEnhanceTrackToPlaylist(song: SongItem) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val pl = playlist.value ?: return@launch
+            database.transaction {
+                insert(song.toMediaMetadata())
+                addSongsToPlaylist(pl, listOf(song.id to song.setVideoId))
+            }
+            pl.playlist.browseId?.let { browseId ->
+                YouTube.addToPlaylist(browseId, song.id)
+            }
+        }
+    }
+
+    private fun PlaylistSong.toSongItem(): SongItem =
+        SongItem(
+            id = song.id,
+            title = song.song.title,
+            artists = song.artists.map { Artist(name = it.name, id = it.id) },
+            album = song.album?.let { Album(name = it.title, id = it.id) },
+            duration = song.song.duration.takeIf { it > 0 },
+            thumbnail = song.song.thumbnailUrl.orEmpty(),
+            explicit = song.song.explicit,
+            setVideoId = map.setVideoId,
+        )
 
     private val _onlinePlaylist = MutableStateFlow<PlaylistItem?>(null)
     val onlinePlaylist: StateFlow<PlaylistItem?> = _onlinePlaylist
