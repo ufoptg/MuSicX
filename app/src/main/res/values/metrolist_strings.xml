@@ -787,13 +787,9 @@
     <string name="column_label">Column %d</string>
 
     <string name="discord_connect_description">Sign in with Discord to share what you\'re listening to</string>
-<<<<<<< HEAD
     <string name="discord_information_warning">MuSicX uses Discord\'s public OAuth2 and Gateway APIs to share what you\'re listening to. Authorization happens through a local browser session that closes itself after capturing the code — nothing is sent to third-party servers. Your token is stored on this device in encrypted preferences and is never shared. MuSicX connects directly to wss://gateway.discord.gg to publish your activity, and only requests the minimum scope required (sdk.social_layer_presence).</string>
     <string name="discord_status_connecting">Connecting to Discord…</string>
     <string name="discord_status_reconnecting">Reconnecting to Discord…</string>
-=======
-    <string name="discord_information_warning">Metrolist uses Discord\'s public OAuth2 and Gateway APIs to share what you\'re listening to. Authorization happens through a local browser session that closes itself after capturing the code — nothing is sent to third-party servers. Your token is stored on this device in encrypted preferences and is never shared. Metrolist connects directly to wss://gateway.discord.gg to publish your activity, and only requests the minimum scope required (sdk.social_layer_presence).</string>
->>>>>>> upstream/main
     <string name="discord_status_connected">Connected</string>
     <string name="discord_status_authorizing">Authorizing…</string>
     <string name="discord_status_authorized">Authorized</string>
@@ -1000,7 +996,6 @@
     <string name="stream_source_android_vr_desc">Android VR clients (all versions).</string>
     <string name="stream_source_web_creator">WEB_CREATOR</string>
     <string name="stream_source_web_creator_desc">Creator web client.</string>
-<<<<<<< HEAD
     <string name="stream_source_android_creator">ANDROID_CREATOR</string>
     <string name="stream_source_android_creator_desc">Android creator client. Off by default; needs DroidGuard.</string>
 
@@ -1144,6 +1139,4 @@
     <string name="qobuz_provider_health_offline">Offline</string>
     <string name="qobuz_provider_health_checking">Checking…</string>
     <string name="qobuz_provider_health_latency">%1$d ms</string>
-=======
->>>>>>> upstream/main
 </resources>

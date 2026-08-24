@@ -109,18 +109,12 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
-<<<<<<< HEAD
-        versionCode = 189
-        versionName = "13.9.17"
-        resValue("string", "app_name", appNameOverride ?: "MuSicX")
-=======
-        versionCode = 152
-        versionName = "13.6.3"
+        versionCode = 190
+        versionName = "13.9.18"
         val baseVersionName = requireNotNull(versionName)
         buildConfigField("String", "BASE_VERSION_NAME", "\"$baseVersionName\"")
         buildCommit?.let { versionName = "$baseVersionName+$it" }
-        resValue("string", "app_name", appNameOverride ?: "Metrolist")
->>>>>>> upstream/main
+        resValue("string", "app_name", appNameOverride ?: "MuSicX")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
