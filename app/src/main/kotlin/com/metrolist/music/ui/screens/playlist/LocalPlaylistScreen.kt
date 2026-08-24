@@ -15,7 +15,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -40,7 +42,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -115,11 +119,13 @@ import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.LocalSyncUtils
 import com.metrolist.music.R
 import com.metrolist.music.constants.DarkModeKey
+import com.metrolist.music.constants.ListThumbnailSize
 import com.metrolist.music.constants.PlaylistEditLockKey
 import com.metrolist.music.constants.PlaylistSongSortDescendingKey
 import com.metrolist.music.constants.PlaylistSongSortType
 import com.metrolist.music.constants.PlaylistSongSortTypeKey
 import com.metrolist.music.constants.SwipeToRemoveSongKey
+import com.metrolist.music.constants.ThumbnailCornerRadius
 import com.metrolist.music.db.entities.Playlist
 import com.metrolist.music.db.entities.PlaylistSong
 import com.metrolist.music.db.entities.PlaylistSongMap
@@ -134,6 +140,8 @@ import com.metrolist.music.ui.component.DraggableScrollbar
 import com.metrolist.music.ui.component.EmptyPlaceholder
 import com.metrolist.music.ui.component.ExpandableText
 import com.metrolist.music.ui.component.IconButton
+import com.metrolist.music.ui.component.ItemThumbnail
+import com.metrolist.music.ui.component.ListItem
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.component.OverlayEditButton
 import com.metrolist.music.ui.component.SongListItem
@@ -143,8 +151,10 @@ import com.metrolist.music.ui.menu.CustomThumbnailMenu
 import com.metrolist.music.ui.menu.LocalPlaylistMenu
 import com.metrolist.music.ui.menu.SelectionSongMenu
 import com.metrolist.music.ui.menu.SongMenu
+import com.metrolist.music.ui.menu.YouTubeSongMenu
 import com.metrolist.music.ui.screens.settings.DarkMode
 import com.metrolist.music.ui.utils.backToMain
+import com.metrolist.music.utils.joinByBullet
 import com.metrolist.music.utils.makeTimeString
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
@@ -178,6 +188,20 @@ fun LocalPlaylistScreen(
     val playlist by viewModel.playlist.collectAsStateWithLifecycle()
     val songs by viewModel.playlistSongs.collectAsStateWithLifecycle()
     val onlinePlaylist by viewModel.onlinePlaylist.collectAsStateWithLifecycle()
+    val enhanceTracks by viewModel.enhanceTracks.collectAsStateWithLifecycle()
+    val isEnhanceLoading by viewModel.isEnhanceLoading.collectAsStateWithLifecycle()
+    val enhanceError by viewModel.enhanceError.collectAsStateWithLifecycle()
+    var enhanceEnabled by rememberSaveable(viewModel.playlistId) { mutableStateOf(false) }
+    LaunchedEffect(enhanceEnabled, songs.size) {
+        if (enhanceEnabled && enhanceTracks.isEmpty() && songs.isNotEmpty() && !isEnhanceLoading) {
+            viewModel.buildEnhance()
+        }
+    }
+    LaunchedEffect(enhanceError) {
+        enhanceError?.let { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
     val mutableSongs = remember { mutableStateListOf<PlaylistSong>() }
     val playlistLength =
         remember(songs) {
@@ -505,6 +529,12 @@ fun LocalPlaylistScreen(
                                 onshowDeletePlaylistDialog = { showDeletePlaylistDialog = true },
                                 onStartSearch = { isSearching = true },
                                 snackbarHostState = snackbarHostState,
+                                enhanceEnabled = enhanceEnabled,
+                                isEnhanceLoading = isEnhanceLoading,
+                                onEnhanceChange = { enabled ->
+                                    enhanceEnabled = enabled
+                                    if (!enabled) viewModel.clearEnhance()
+                                },
                                 modifier = Modifier.animateItem(),
                             )
                         }
@@ -722,6 +752,110 @@ fun LocalPlaylistScreen(
                     }
                 }
             }
+
+            if (enhanceEnabled && !isSearching && enhanceTracks.isNotEmpty()) {
+                item(key = "enhance_header") {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.sparkles),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text(
+                            text = stringResource(R.string.enhance_recommendation_label),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+                itemsIndexed(
+                    items = enhanceTracks,
+                    key = { _, t -> "enhance_${t.id}" },
+                ) { _, recTrack ->
+                    val isRecActive = mediaMetadata?.id == recTrack.id
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f),
+                            )
+                            .animateItem(),
+                    ) {
+                        ListItem(
+                            title = recTrack.title,
+                            subtitle = joinByBullet(
+                                recTrack.artists.joinToString { it.name },
+                                recTrack.duration?.let { makeTimeString(it.toLong() * 1000) },
+                            ),
+                            isActive = isRecActive,
+                            thumbnailContent = {
+                                Box(contentAlignment = Alignment.BottomEnd) {
+                                    ItemThumbnail(
+                                        thumbnailUrl = recTrack.thumbnail,
+                                        isActive = isRecActive,
+                                        isPlaying = isPlaying,
+                                        shape = RoundedCornerShape(ThumbnailCornerRadius),
+                                        modifier = Modifier.size(ListThumbnailSize),
+                                    )
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .padding(2.dp)
+                                            .size(18.dp)
+                                            .background(
+                                                color = MaterialTheme.colorScheme.primary,
+                                                shape = CircleShape,
+                                            ),
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.sparkles),
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(12.dp),
+                                        )
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .combinedClickable(
+                                    onClick = {
+                                        playerConnection.playQueue(
+                                            ListQueue(
+                                                title = context.getString(R.string.enhance_recommendation_label),
+                                                items = (listOf(recTrack) + enhanceTracks.filter { it.id != recTrack.id })
+                                                    .map { it.toMediaMetadata().toMediaItem() },
+                                            ),
+                                        )
+                                    },
+                                    onLongClick = {
+                                        menuState.show {
+                                            YouTubeSongMenu(
+                                                song = recTrack,
+                                                onDismiss = menuState::dismiss,
+                                                onAddToThisPlaylist = {
+                                                    viewModel.addEnhanceTrackToPlaylist(recTrack)
+                                                    Toast.makeText(
+                                                        context,
+                                                        context.getString(R.string.enhance_added_to_playlist),
+                                                        Toast.LENGTH_SHORT,
+                                                    ).show()
+                                                },
+                                            )
+                                        }
+                                    },
+                                ),
+                        )
+                    }
+                }
+            }
         }
 
         DraggableScrollbar(
@@ -872,6 +1006,9 @@ fun LocalPlaylistHeader(
     onshowDeletePlaylistDialog: () -> Unit,
     onStartSearch: () -> Unit,
     snackbarHostState: SnackbarHostState,
+    enhanceEnabled: Boolean = false,
+    isEnhanceLoading: Boolean = false,
+    onEnhanceChange: (Boolean) -> Unit = {},
     modifier: Modifier,
 ) {
     val navController = LocalNavController.current
@@ -1376,6 +1513,31 @@ fun LocalPlaylistHeader(
                         tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(32.dp),
                     )
+                }
+            }
+
+            // Enhance toggle — YT-Music related recommendations for this playlist
+            if (songs.isNotEmpty()) {
+                FilledIconToggleButton(
+                    checked = enhanceEnabled,
+                    onCheckedChange = onEnhanceChange,
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    if (isEnhanceLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Icon(
+                            painterResource(R.drawable.sparkles),
+                            contentDescription = stringResource(
+                                if (enhanceEnabled) R.string.enhance_on_desc
+                                else R.string.enhance_off_desc,
+                            ),
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                 }
             }
 

@@ -14,8 +14,13 @@ import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.filterVideoSongs
+import com.metrolist.innertube.models.Album
+import com.metrolist.innertube.models.Artist
+import com.metrolist.music.R
 import com.metrolist.music.constants.HideVideoSongsKey
+import com.metrolist.music.constants.SongSortType
 import com.metrolist.music.db.MusicDatabase
+import com.metrolist.music.playback.YouTubeRecommendationEngine
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
 import com.metrolist.music.utils.reportException
@@ -30,9 +35,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import com.metrolist.music.constants.SongSortType
-import com.metrolist.innertube.models.Artist
-import com.metrolist.innertube.models.Album
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -58,6 +61,48 @@ class OnlinePlaylistViewModel @Inject constructor(
 
     private val _isLoadingMore = MutableStateFlow(false)
     val isLoadingMore = _isLoadingMore.asStateFlow()
+
+    private val _enhanceTracks = MutableStateFlow<List<SongItem>>(emptyList())
+    val enhanceTracks = _enhanceTracks.asStateFlow()
+
+    private val _isEnhanceLoading = MutableStateFlow(false)
+    val isEnhanceLoading = _isEnhanceLoading.asStateFlow()
+
+    private val _enhanceError = MutableStateFlow<String?>(null)
+    val enhanceError = _enhanceError.asStateFlow()
+
+    fun clearEnhance() {
+        _enhanceTracks.value = emptyList()
+        _enhanceError.value = null
+    }
+
+    fun buildEnhance() {
+        if (isPodcastPlaylist) return
+        val current = playlistSongs.value
+        if (current.isEmpty() || _isEnhanceLoading.value) return
+        _isEnhanceLoading.value = true
+        _enhanceError.value = null
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
+                val recs = YouTubeRecommendationEngine.getRecommendationsForPlaylist(
+                    playlistSongs = current,
+                    limit = 20,
+                    seedCount = 4,
+                    hideVideoSongs = hideVideoSongs,
+                )
+                _enhanceTracks.value = recs
+                if (recs.isEmpty()) {
+                    _enhanceError.value = context.getString(R.string.enhance_no_results)
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Enhance failed")
+                _enhanceError.value = e.message ?: "Enhance failed"
+            } finally {
+                _isEnhanceLoading.value = false
+            }
+        }
+    }
 
     val dbPlaylist = database.playlistByBrowseId(playlistId)
         .stateIn(viewModelScope, SharingStarted.Lazily, null)

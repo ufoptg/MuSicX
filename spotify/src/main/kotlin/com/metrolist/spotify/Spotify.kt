@@ -42,6 +42,7 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
@@ -461,34 +462,57 @@ object Spotify {
 
     /**
      * Extracts track duration in ms from GQL track payload.
-     * Tries multiple keys because different operations may return duration
-     * as nested (duration.totalMilliseconds) or flat (durationMs / duration_ms).
+     * Tries multiple keys because different operations / hash revisions
+     * return duration under different shapes:
+     * - duration.totalMilliseconds / totalMs (older + library tracks)
+     * - trackDuration.totalMilliseconds (current fetchPlaylist)
+     * - flat durationMs / duration_ms
+     * - nested under trackV2.data / item.data wrappers
      */
     private fun parseGqlTrackDurationMs(trackData: JsonObject): Int {
-        trackData.obj("duration")?.int("totalMilliseconds")?.let { if (it > 0) return it }
-        trackData.obj("duration")?.int("totalMs")?.let { if (it > 0) return it }
-        trackData.int("durationMs")?.let { if (it > 0) return it }
-        trackData.int("duration_ms")?.let { if (it > 0) return it }
+        parseDurationObject(trackData.obj("duration"))?.let { return it }
+        parseDurationObject(trackData.obj("trackDuration"))?.let { return it }
+        trackData.numberAsInt("durationMs")?.let { if (it > 0) return it }
+        trackData.numberAsInt("duration_ms")?.let { if (it > 0) return it }
         // Some APIs return duration in seconds
-        trackData.int("duration")?.let { sec -> if (sec > 0) return sec * 1000 }
-        // fetchPlaylist wraps tracks under itemV2.data.trackV2.data — the
-        // durationMs / duration fields live one level deeper there. When
-        // this parser is invoked with itemV2.data the outer shape misses
-        // them, so peek through trackV2 as a fallback. Fixes issue #27
-        // where every Spotify playlist except Liked Songs showed 0:00.
+        trackData.numberAsInt("duration")?.let { sec -> if (sec > 0) return sec * 1000 }
+        // fetchPlaylist historically wrapped tracks under itemV2.data.trackV2.data
         trackData.obj("trackV2")?.obj("data")?.let { inner ->
-            inner.obj("duration")?.int("totalMilliseconds")?.let { if (it > 0) return it }
-            inner.obj("duration")?.int("totalMs")?.let { if (it > 0) return it }
-            inner.int("durationMs")?.let { if (it > 0) return it }
-            inner.int("duration_ms")?.let { if (it > 0) return it }
+            parseDurationObject(inner.obj("duration"))?.let { return it }
+            parseDurationObject(inner.obj("trackDuration"))?.let { return it }
+            inner.numberAsInt("durationMs")?.let { if (it > 0) return it }
+            inner.numberAsInt("duration_ms")?.let { if (it > 0) return it }
         }
         // Some libraryV3 shapes wrap the track under `item.data`.
         trackData.obj("item")?.obj("data")?.let { inner ->
-            inner.obj("duration")?.int("totalMilliseconds")?.let { if (it > 0) return it }
-            inner.int("durationMs")?.let { if (it > 0) return it }
+            parseDurationObject(inner.obj("duration"))?.let { return it }
+            parseDurationObject(inner.obj("trackDuration"))?.let { return it }
+            inner.numberAsInt("durationMs")?.let { if (it > 0) return it }
         }
         return 0
     }
+
+    private fun parseDurationObject(durationObj: JsonObject?): Int? {
+        if (durationObj == null) return null
+        durationObj.numberAsInt("totalMilliseconds")?.let { if (it > 0) return it }
+        durationObj.numberAsInt("totalMs")?.let { if (it > 0) return it }
+        durationObj.numberAsInt("milliseconds")?.let { if (it > 0) return it }
+        return null
+    }
+
+    /**
+     * Reads a JSON number as Int, tolerating Long-sized literals that
+     * [JsonPrimitive.intOrNull] rejects.
+     */
+    private fun JsonObject.numberAsInt(key: String): Int? =
+        try {
+            val primitive = this[key]?.takeIf { it !is JsonNull }?.jsonPrimitive ?: return null
+            primitive.intOrNull
+                ?: primitive.longOrNull?.coerceIn(0, Int.MAX_VALUE.toLong())?.toInt()
+                ?: primitive.contentOrNull?.toLongOrNull()?.coerceIn(0, Int.MAX_VALUE.toLong())?.toInt()
+        } catch (_: Exception) {
+            null
+        }
 
     /**
      * Flattens the nested `images.items[].sources[]` structure used by
