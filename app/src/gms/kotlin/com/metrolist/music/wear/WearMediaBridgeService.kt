@@ -15,6 +15,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import org.json.JSONObject
 
 /**
@@ -107,7 +108,8 @@ class WearMediaBridgeService : WearableListenerService() {
             }
             "/play" -> {
                 val mediaId = req.optString("mediaId", "")
-                val item = MediaItemCache.get(mediaId) ?: MediaItem.fromMediaId(mediaId)
+                val item = MediaItemCache.get(mediaId)
+                    ?: MediaItem.Builder().setMediaId(mediaId).build()
                 browser.setMediaItem(item)
                 browser.prepare()
                 browser.play()
@@ -117,6 +119,7 @@ class WearMediaBridgeService : WearableListenerService() {
             "/resume" -> { browser.play(); replyOk(node, "/resume_result/$requestId") }
             "/next" -> { browser.seekToNext(); replyOk(node, "/next_result/$requestId") }
             "/previous" -> { browser.seekToPrevious(); replyOk(node, "/previous_result/$requestId") }
+            
             "/nowplaying" -> {
                 reply(node, "/nowplaying_result/$requestId", nowPlayingJson(browser))
             }
@@ -138,7 +141,7 @@ class WearMediaBridgeService : WearableListenerService() {
         return o.toString().toByteArray(Charsets.UTF_8)
     }
 
-    private fun replyOk(node: String, path: String) {
+    private suspend fun replyOk(node: String, path: String) {
         val bytes = JSONObject().put("ok", true).toString().toByteArray(Charsets.UTF_8)
         reply(node, path, bytes)
     }
