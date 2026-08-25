@@ -15,7 +15,6 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-        resValue("string", "app_name", "MuSicX")
     }
 
     // Mirror the phone app's signing so phone + watch share the same certificate
