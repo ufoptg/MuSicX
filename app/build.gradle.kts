@@ -103,8 +103,8 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
-        versionCode = 190
-        versionName = "13.9.18"
+        versionCode = 191
+        versionName = "13.10"
         resValue("string", "app_name", appNameOverride ?: "MuSicX")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -388,6 +388,10 @@ dependencies {
     "gmsImplementation"(libs.media3.cast)
     "gmsImplementation"(libs.mediarouter)
     "gmsImplementation"(libs.cast.framework)
+
+    // Wear OS companion bridge (Data Layer). GMS-only so FOSS/Izzy stay F-Droid clean.
+    "gmsImplementation"("com.google.android.gms:play-services-wearable:18.2.0")
+    "gmsImplementation"("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0")
 
     implementation(libs.room.runtime)
     implementation(libs.kuromoji.ipadic)
