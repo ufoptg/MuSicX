@@ -58,19 +58,23 @@ fun MediaMetadata.withResolvedArtistNameAliases(): MediaMetadata {
     return if (resolvedArtists == artists) this else copy(artists = resolvedArtists)
 }
 
-fun MediaItem.withResolvedArtistNameAliases(): MediaItem {
-    val currentMetadata = metadata ?: return this
-    val resolvedMetadata = currentMetadata.withResolvedArtistNameAliases()
-    if (resolvedMetadata === currentMetadata) return this
-
+fun MediaItem.withUpdatedMetadata(updatedMetadata: MediaMetadata): MediaItem {
+    val resolvedMetadata = updatedMetadata.withResolvedArtistNameAliases()
     val artistNames = resolvedMetadata.artists.joinToString { it.name }
     return buildUpon()
         .setTag(resolvedMetadata)
         .setMediaMetadata(
             mediaMetadata.buildUpon()
+                .setTitle(resolvedMetadata.title)
+                .setDisplayTitle(resolvedMetadata.title)
                 .setSubtitle(artistNames)
                 .setArtist(artistNames)
+                .setArtworkUri(resolvedMetadata.thumbnailUrl?.toUri())
+                .setAlbumTitle(resolvedMetadata.album?.title)
                 .setAlbumArtist(resolvedMetadata.artists.firstOrNull()?.name)
+                .setExtras(Bundle().apply {
+                    resolvedMetadata.thumbnailUrl?.let { putString("artwork_uri", it) }
+                })
                 .build(),
         ).build()
 }

@@ -62,6 +62,7 @@ import com.metrolist.music.constants.AccountChannelHandleKey
 import com.metrolist.music.constants.AccountEmailKey
 import com.metrolist.music.constants.AccountNameKey
 import com.metrolist.music.constants.DataSyncIdKey
+import com.metrolist.music.constants.InnerTubeAuthUserKey
 import com.metrolist.music.constants.InnerTubeCookieKey
 import com.metrolist.music.constants.UseLoginForBrowse
 import com.metrolist.music.constants.VisitorDataKey
@@ -92,6 +93,7 @@ fun AccountSettings(
     val (innerTubeCookie, onInnerTubeCookieChange) = rememberPreference(InnerTubeCookieKey, "")
     val (visitorData, onVisitorDataChange) = rememberPreference(VisitorDataKey, "")
     val (dataSyncId, onDataSyncIdChange) = rememberPreference(DataSyncIdKey, "")
+    val (authUser, onAuthUserChange) = rememberPreference(InnerTubeAuthUserKey, "0")
 
     val isLoggedIn = remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)
@@ -193,6 +195,7 @@ fun AccountSettings(
                 ***INNERTUBE COOKIE*** =$innerTubeCookie
                 ***VISITOR DATA*** =$visitorData
                 ***DATASYNC ID*** =$dataSyncId
+                ***AUTH USER*** =$authUser
                 ***ACCOUNT NAME*** =$accountNamePref
                 ***ACCOUNT EMAIL*** =$accountEmail
                 ***ACCOUNT CHANNEL HANDLE*** =$accountChannelHandle
@@ -204,6 +207,7 @@ fun AccountSettings(
                     var cookie = ""
                     var visitorDataValue = ""
                     var dataSyncIdValue = ""
+                    var authUserValue = "0"
                     var accountNameValue = ""
                     var accountEmailValue = ""
                     var accountChannelHandleValue = ""
@@ -213,6 +217,7 @@ fun AccountSettings(
                             it.startsWith("***INNERTUBE COOKIE*** =") -> cookie = it.substringAfter("=")
                             it.startsWith("***VISITOR DATA*** =") -> visitorDataValue = it.substringAfter("=")
                             it.startsWith("***DATASYNC ID*** =") -> dataSyncIdValue = it.substringAfter("=")
+                            it.startsWith("***AUTH USER*** =") -> authUserValue = it.substringAfter("=")
                             it.startsWith("***ACCOUNT NAME*** =") -> accountNameValue = it.substringAfter("=")
                             it.startsWith("***ACCOUNT EMAIL*** =") -> accountEmailValue = it.substringAfter("=")
                             it.startsWith("***ACCOUNT CHANNEL HANDLE*** =") -> accountChannelHandleValue = it.substringAfter("=")
@@ -226,6 +231,7 @@ fun AccountSettings(
                         cookie = cookie,
                         visitorData = visitorDataValue,
                         dataSyncId = dataSyncIdValue,
+                        authUser = authUserValue,
                         accountName = accountNameValue,
                         accountEmail = accountEmailValue,
                         accountChannelHandle = accountChannelHandleValue,
@@ -252,7 +258,7 @@ fun AccountSettings(
         }
 
         Material3SettingsGroup(
-            items = listOf(
+            items = listOfNotNull(
                 Material3SettingsItem(
                     title = {
                         Row(
@@ -299,7 +305,17 @@ fun AccountSettings(
                             navController.navigate("login")
                         }
                     }
-                )
+                ),
+                if (isLoggedIn) {
+                    Material3SettingsItem(
+                        title = { Text(stringResource(R.string.switch_youtube_channel)) },
+                        icon = painterResource(R.drawable.account),
+                        onClick = {
+                            onClose()
+                            navController.navigate("switch_channel")
+                        },
+                    )
+                } else null,
             ),
             useLowContrast = true
         )
@@ -400,7 +416,7 @@ fun AccountSettings(
                 icon = {
                     BadgedBox(
                         badge = {
-                            if (BuildConfig.UPDATER_AVAILABLE && latestVersionName != BuildConfig.VERSION_NAME) {
+                            if (BuildConfig.UPDATER_AVAILABLE && latestVersionName != BuildConfig.BASE_VERSION_NAME) {
                                 Badge()
                             }
                         }
@@ -419,7 +435,7 @@ fun AccountSettings(
 
             Spacer(Modifier.height(4.dp))
 
-            if (BuildConfig.UPDATER_AVAILABLE && latestVersionName != BuildConfig.VERSION_NAME) {
+            if (BuildConfig.UPDATER_AVAILABLE && latestVersionName != BuildConfig.BASE_VERSION_NAME) {
                 val releaseInfo = Updater.getCachedLatestRelease()
                 val downloadUrl = releaseInfo?.let { Updater.getDownloadUrlForCurrentVariant(it) }
                 
