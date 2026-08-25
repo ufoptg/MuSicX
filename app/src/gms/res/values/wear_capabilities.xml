@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Declares the phone-side capability the Wear app looks for via CapabilityClient.
+     Name is referenced verbatim in dev.ufoptg.musicx.wear.PhoneBridge.CAPABILITY. -->
+<resources>
+    <string-array name="android_wear_capabilities">
+        <item>musicx_phone_bridge</item>
+    </string-array>
+</resources>

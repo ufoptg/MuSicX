@@ -389,6 +389,10 @@ dependencies {
     "gmsImplementation"(libs.mediarouter)
     "gmsImplementation"(libs.cast.framework)
 
+    // Wear OS companion bridge (Data Layer). GMS-only so FOSS/Izzy stay F-Droid clean.
+    "gmsImplementation"("com.google.android.gms:play-services-wearable:18.2.0")
+    "gmsImplementation"("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0")
+
     implementation(libs.room.runtime)
     implementation(libs.kuromoji.ipadic)
     implementation(libs.tinypinyin)
