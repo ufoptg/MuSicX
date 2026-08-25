@@ -3,14 +3,23 @@ plugins {
     alias(libs.plugins.compose.compiler)
 }
 
+// Mirror the phone app's env-var overrides so PR/CI builds stay consistent.
+val applicationIdOverride = System.getenv("METROLIST_APPLICATION_ID")?.takeIf { it.isNotBlank() }
+val debugKeystorePathOverride = System.getenv("METROLIST_DEBUG_KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
+val debugKeystorePassword = System.getenv("METROLIST_DEBUG_KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: "android"
+val debugKeyAlias = System.getenv("METROLIST_DEBUG_KEY_ALIAS")?.takeIf { it.isNotBlank() } ?: "androiddebugkey"
+val debugKeyPassword = System.getenv("METROLIST_DEBUG_KEY_PASSWORD")?.takeIf { it.isNotBlank() } ?: "android"
+
 android {
     namespace = "dev.ufoptg.musicx.wear"
     compileSdk = 37
 
     defaultConfig {
-        // Same applicationId as the phone app so the Wear Data Layer pairs the two.
-        // Debug builds mirror the phone's `.debug` suffix (dev.ufoptg.musicx.debug).
-        applicationId = "dev.ufoptg.musicx"
+        // The wear app must share the phone's applicationId for the Wear Data Layer to pair them.
+        // In PR builds the phone gets a unique id (e.g. dev.ufoptg.musicx.pr.p42) so the wear
+        // module reads the same override; without it the two APKs would have different ids and
+        // the Data Layer would refuse to pair them.
+        applicationId = applicationIdOverride ?: "dev.ufoptg.musicx"
         minSdk = 30          // Wear OS 3+
         targetSdk = 36
         versionCode = 1
@@ -18,9 +27,10 @@ android {
     }
 
     // Mirror the phone app's signing so phone + watch share the same certificate
-    // (required for the Wear Data Layer to pair the two apps). Locally both fall
-    // back to the default debug keystore; in CI both use app/persistent-debug.keystore.
+    // (required for the Wear Data Layer to pair the two apps).
     val persistentDebugKeystore = rootProject.file("app/persistent-debug.keystore")
+    val workflowDebugKeystoreFile = debugKeystorePathOverride
+        ?.let { rootProject.file("app/$it") }
 
     signingConfigs {
         create("persistentDebug") {
@@ -28,6 +38,12 @@ android {
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
+        }
+        create("workflowDebug") {
+            storeFile = workflowDebugKeystoreFile ?: persistentDebugKeystore
+            storePassword = debugKeystorePassword
+            keyAlias = debugKeyAlias
+            keyPassword = debugKeyPassword
         }
         getByName("debug") {
             keyAlias = "androiddebugkey"
@@ -39,10 +55,16 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix = ".debug"
-            signingConfig =
-                if (persistentDebugKeystore.exists()) signingConfigs.getByName("persistentDebug")
-                else signingConfigs.getByName("debug")
+            // Match phone: only append .debug when there's no applicationId override
+            // (PR builds pass a fully-qualified id already).
+            if (applicationIdOverride == null) {
+                applicationIdSuffix = ".debug"
+            }
+            signingConfig = when {
+                workflowDebugKeystoreFile != null -> signingConfigs.getByName("workflowDebug")
+                persistentDebugKeystore.exists()  -> signingConfigs.getByName("persistentDebug")
+                else                              -> signingConfigs.getByName("debug")
+            }
         }
         release {
             isMinifyEnabled = false
