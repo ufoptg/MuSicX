@@ -353,7 +353,7 @@ fun YouTubePlaylistMenu(
         ) {
             item {
                 ListItem(
-                    headlineContent = { Text(text = stringResource(R.string.already_in_playlist)) },
+                    content = { Text(text = stringResource(R.string.already_in_playlist)) },
                     leadingContent = {
                         Image(
                             painter = painterResource(R.drawable.close),
@@ -368,7 +368,7 @@ fun YouTubePlaylistMenu(
 
             items(notAddedList) { song ->
                 ListItem(
-                    headlineContent = { Text(text = song.title) },
+                    content = { Text(text = song.title) },
                     leadingContent = {
                         Box(
                             contentAlignment = Alignment.Center,
