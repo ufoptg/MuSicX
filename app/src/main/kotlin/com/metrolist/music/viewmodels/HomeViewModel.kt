@@ -25,6 +25,7 @@ import com.metrolist.innertube.models.filterYoutubeShorts
 import com.metrolist.innertube.pages.ExplorePage
 import com.metrolist.innertube.pages.HomePage
 import com.metrolist.innertube.utils.completed
+import com.metrolist.music.constants.AccountNameKey
 import com.metrolist.music.constants.HideExplicitKey
 import com.metrolist.music.constants.HideVideoSongsKey
 import com.metrolist.music.constants.HideYoutubeShortsKey
@@ -43,6 +44,7 @@ import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.models.SimilarRecommendation
 import com.metrolist.music.ui.screens.wrapped.WrappedAudioService
 import com.metrolist.music.ui.screens.wrapped.WrappedManager
+import com.metrolist.music.utils.NetworkConnectivityObserver
 import com.metrolist.music.utils.SyncUtils
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.safeDataStoreEdit
@@ -84,6 +86,7 @@ class HomeViewModel @Inject constructor(
     val syncUtils: SyncUtils,
     val wrappedManager: WrappedManager,
     private val wrappedAudioService: WrappedAudioService,
+    private val networkConnectivity: NetworkConnectivityObserver,
 ) : ViewModel() {
     val isRefreshing = MutableStateFlow(false)
     val isLoading = MutableStateFlow(false)
@@ -286,11 +289,6 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
-    // Track last processed cookie to avoid unnecessary updates
-    private var lastProcessedCookie: String? = null
-    // Track if we're currently processing account data
-    private var isProcessingAccountData = false
-
     private suspend fun getDailyDiscover() {
         val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
         val likedSongs = database.likedSongsByCreateDateAsc().first()
@@ -347,7 +345,7 @@ class HomeViewModel @Inject constructor(
                 val forgotten = database.forgottenFavorites().first().filterVideoSongs(hideVideoSongs).take(8)
 
                 // Get similar songs from YouTube based on recent listening
-                val recentSong = database.events().first().firstOrNull()?.song
+                val recentSong = database.latestEvent().first()?.song
                 val ytSimilarSongs = mutableListOf<Song>()
 
                 if (recentSong != null) {
@@ -375,7 +373,7 @@ class HomeViewModel @Inject constructor(
                 quickPicks.value = combined.ifEmpty { relatedSongs.shuffled().take(20) }
             }
             QuickPicks.LAST_LISTEN -> {
-                val song = database.events().first().firstOrNull()?.song
+                val song = database.latestEvent().first()?.song
                 if (song != null && database.hasRelatedSongs(song.id)) {
                     quickPicks.value = database.getRelatedSongs(song.id).first().filterVideoSongs(hideVideoSongs).shuffled().take(20)
                 }
@@ -512,6 +510,7 @@ class HomeViewModel @Inject constructor(
             }
 
             if (YouTube.cookie != null) {
+                launch(Dispatchers.IO) { loadAccountInfo() }
                 launch(Dispatchers.IO) { loadAccountPlaylists() }
             }
         }
@@ -683,6 +682,15 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    private suspend fun loadAccountInfo() {
+        YouTube.accountInfo().onSuccess { info ->
+            accountName.value = info.name
+            accountImageUrl.value = info.thumbnailUrl
+        }.onFailure {
+            reportException(it)
+        }
+    }
+
     private suspend fun loadAccountPlaylists() {
         val hideYoutubeShorts = context.dataStore.get(HideYoutubeShortsKey, false)
         YouTube.library("FEmusic_liked_playlists").completed().onSuccess {
@@ -744,6 +752,18 @@ class HomeViewModel @Inject constructor(
             syncUtils.tryAutoSync()
         }
 
+        var wasOffline = !networkConnectivity.networkStatus.value
+        viewModelScope.launch(Dispatchers.IO) {
+            networkConnectivity.networkStatus.collect { isConnected ->
+                if (!isConnected) {
+                    wasOffline = true
+                } else if (wasOffline) {
+                    wasOffline = false
+                    refresh()
+                }
+            }
+        }
+
         // Prepare wrapped data in background
         viewModelScope.launch(Dispatchers.IO) {
             showWrappedCard.collect { shouldShow ->
@@ -766,30 +786,16 @@ class HomeViewModel @Inject constructor(
         // Listen for cookie changes and reload account data
         viewModelScope.launch(Dispatchers.IO) {
             context.dataStore.data
-                .map { it[InnerTubeCookieKey] }
-                .collect { cookie ->
-                    if (isProcessingAccountData) return@collect
-
-                    lastProcessedCookie = cookie
-                    isProcessingAccountData = true
-
-                    try {
-                        if (cookie != null && cookie.isNotEmpty()) {
-                            YouTube.cookie = cookie
-
-                            YouTube.accountInfo().onSuccess { info ->
-                                accountName.value = info.name
-                                accountImageUrl.value = info.thumbnailUrl
-                            }.onFailure {
-                                reportException(it)
-                            }
-                        } else {
-                            accountName.value = "Guest"
-                            accountImageUrl.value = null
-                            accountPlaylists.value = null
-                        }
-                    } finally {
-                        isProcessingAccountData = false
+                .map { it[InnerTubeCookieKey] to it[AccountNameKey] }
+                .distinctUntilChanged()
+                .collect { (cookie, savedAccountName) ->
+                    if (!cookie.isNullOrEmpty()) {
+                        YouTube.cookie = cookie
+                        accountName.value = savedAccountName.orEmpty().ifBlank { "Guest" }
+                    } else {
+                        accountName.value = "Guest"
+                        accountImageUrl.value = null
+                        accountPlaylists.value = null
                     }
                 }
         }

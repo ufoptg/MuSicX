@@ -234,6 +234,7 @@ Features added on top of Metrolist upstream:
   </tr>
   <tr>
     <td align="center">
+<<<<<<< HEAD
       <a href="https://nightly.link/ufoptg/MuSicX/workflows/build/main/MuSicX-Nightly.zip">
         <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="MuSicX Nightly" height="60">
       </a>
@@ -241,6 +242,10 @@ Features added on top of Metrolist upstream:
     <td align="center">
       <a href="https://nightly.link/ufoptg/MuSicX/workflows/build/main/MuSicX-Nightly-with-Google-Cast.zip">
         <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="MuSicX Nightly (Cast)" height="60">
+=======
+      <a href="https://github.com/MetrolistGroup/Metrolist/releases/download/nightly/Metrolist-with-Google-Cast.apk">
+        <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Download from GitHub" height="75">
+>>>>>>> upstream/main
       </a>
     </td>
   </tr>
