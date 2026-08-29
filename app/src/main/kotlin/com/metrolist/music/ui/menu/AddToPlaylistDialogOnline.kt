@@ -39,6 +39,8 @@ import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.R
+import com.metrolist.music.constants.AddToPlaylistPosition
+import com.metrolist.music.constants.AddToPlaylistPositionKey
 import com.metrolist.music.constants.AddToPlaylistSortDescendingKey
 import com.metrolist.music.constants.AddToPlaylistSortTypeKey
 import com.metrolist.music.constants.ListThumbnailSize
@@ -104,6 +106,10 @@ fun AddToPlaylistDialogOnline(
     val database = LocalDatabase.current
     val coroutineScope = rememberCoroutineScope()
     val viewStateMap = remember { mutableStateMapOf<String, ItemsPage?>() }
+    val (addToPlaylistPosition) = rememberEnumPreference(
+        AddToPlaylistPositionKey,
+        AddToPlaylistPosition.BEGINNING,
+    )
     val (sortType, onSortTypeChange) = rememberEnumPreference(
         AddToPlaylistSortTypeKey,
         PlaylistSortType.NAME
@@ -299,9 +305,10 @@ fun AddToPlaylistDialogOnline(
                             
                             val songsIdx = AtomicInteger(0)
                             val semaphore = kotlinx.coroutines.sync.Semaphore(15)
+                            val resolvedSongIds = arrayOfNulls<String>(songsTot)
                             onProgressStart(true)
                             try {
-                                val jobs = songs.reversed().map { song ->
+                                val jobs = songs.mapIndexed { index, song ->
                                     coroutineScope.launch {
                                         semaphore.withPermit {
                                             try {
@@ -318,14 +325,13 @@ fun AddToPlaylistDialogOnline(
                                                             val firstSong = items.firstOrNull() as? SongItem
                                                             if (firstSong != null) {
                                                                 val firstSongMedia = firstSong.toMediaMetadata()
-                                                                val ids = listOf(firstSong.id)
                                                                 withContext(Dispatchers.IO) {
                                                                     try {
                                                                         database.insert(firstSongMedia)
                                                                     } catch (e: Exception) {
                                                                         Timber.tag("Exception").e(e.toString())
                                                                     }
-                                                                    database.addSongsToPlaylist(playlist, ids.map { it to null })
+                                                                    resolvedSongIds[index] = firstSong.id
                                                                 }
                                                             }
                                                         }
@@ -342,6 +348,11 @@ fun AddToPlaylistDialogOnline(
                                     }
                                 }
                                 jobs.forEach { it.join() }
+                                database.addSongsToPlaylist(
+                                    playlist,
+                                    resolvedSongIds.filterNotNull().map { it to null },
+                                    prepend = addToPlaylistPosition.prepend,
+                                )
                             } finally {
                                 withContext(Dispatchers.Main) {
                                     onProgressStart(false)
@@ -454,13 +465,13 @@ fun AddToPlaylistDialogOnline(
                     onClick = {
                         showDuplicateDialog = false
                         onDismiss()
-                         database.transaction {
+                        database.transaction {
                             addSongsToPlaylist(
                                 selectedPlaylist!!,
                                 songIds!!.filter {
                                     !duplicates.contains(it)
                                 }.map { it to null },
-                                prepend = true,
+                                prepend = addToPlaylistPosition.prepend,
                             )
                         }
                     }
@@ -472,8 +483,12 @@ fun AddToPlaylistDialogOnline(
                     onClick = {
                         showDuplicateDialog = false
                         onDismiss()
-                         database.transaction {
-                            addSongsToPlaylist(selectedPlaylist!!, songIds!!.map { it to null }, prepend = true)
+                        database.transaction {
+                            addSongsToPlaylist(
+                                selectedPlaylist!!,
+                                songIds!!.map { it to null },
+                                prepend = addToPlaylistPosition.prepend,
+                            )
                         }
                     }
                 ) {

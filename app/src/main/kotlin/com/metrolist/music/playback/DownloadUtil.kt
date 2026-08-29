@@ -9,7 +9,6 @@ package com.metrolist.music.playback
 import android.content.Context
 import android.net.ConnectivityManager
 import androidx.core.content.getSystemService
-import androidx.core.net.toUri
 import androidx.media3.database.DatabaseProvider
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
@@ -20,7 +19,7 @@ import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.offline.DownloadNotificationHelper
 import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.strategy.ContentHints
+import com.metrolist.innertubex.extraction.ContentHints
 import com.metrolist.music.constants.AudioQuality
 import com.metrolist.music.constants.AudioQualityKey
 import com.metrolist.music.db.MusicDatabase
@@ -28,8 +27,12 @@ import com.metrolist.music.db.entities.FormatEntity
 import com.metrolist.music.db.entities.SongEntity
 import com.metrolist.music.di.DownloadCache
 import com.metrolist.music.di.PlayerCache
+<<<<<<< HEAD
 import com.metrolist.music.playback.MusicService.Companion.CHUNK_LENGTH
 import com.metrolist.music.utils.YTPlayerUtils
+=======
+import com.metrolist.music.utils.InnerTubeXPlayer
+>>>>>>> upstream/main
 import com.metrolist.music.utils.enumPreference
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -47,6 +50,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import timber.log.Timber
+import java.io.IOException
 import java.time.LocalDateTime
 import java.util.concurrent.Executor
 import javax.inject.Inject
@@ -66,6 +70,17 @@ constructor(
     private val connectivityManager = context.getSystemService<ConnectivityManager>()!!
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
     private val songUrlCache = StreamUrlCache()
+    private val streamHttpClient =
+        OkHttpClient.Builder()
+            .proxy(YouTube.proxy)
+            .proxyAuthenticator { _, response ->
+                YouTube.proxyAuth?.let { auth ->
+                    response.request.newBuilder()
+                        .header("Proxy-Authorization", auth)
+                        .build()
+                } ?: response.request
+            }
+            .build()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -77,18 +92,7 @@ constructor(
                 .Factory()
                 .setCache(playerCache)
                 .setUpstreamDataSourceFactory(
-                    OkHttpDataSource.Factory(
-                        OkHttpClient.Builder()
-                            .proxy(YouTube.proxy)
-                            .proxyAuthenticator { _, response ->
-                                YouTube.proxyAuth?.let { auth ->
-                                    response.request.newBuilder()
-                                        .header("Proxy-Authorization", auth)
-                                        .build()
-                                } ?: response.request
-                            }
-                            .build(),
-                    ),
+                    OkHttpDataSource.Factory(streamHttpClient),
                 ),
         ) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
@@ -115,15 +119,13 @@ constructor(
             }
 
             songUrlCache[mediaId]?.let { cachedStream ->
-                return@Factory dataSpec
-                    .withUri(cachedStream.url.toUri())
-                    .withRequestHeaders(dataSpec.httpRequestHeaders + cachedStream.requestHeaders)
+                return@Factory dataSpec.withResolvedStream(cachedStream)
             }
             val cacheGeneration = songUrlCache.generation(mediaId)
 
             val playbackData = runBlocking(Dispatchers.IO) {
                 val song = database.songEntity(mediaId)
-                YTPlayerUtils.playerResponseForPlayback(
+                InnerTubeXPlayer.playerResponseForPlayback(
                     mediaId,
                     audioQuality = audioQuality,
                     connectivityManager = connectivityManager,
@@ -131,36 +133,35 @@ constructor(
                         isExplicit = song?.explicit,
                         isUploaded = song?.isUploaded,
                     ),
+                    allowBoundedRange = false,
                 )
             }.getOrThrow()
             val format = playbackData.format
 
-            val actualContentLength = format.contentLength ?: run {
-                var length: Long? = null
-                val client = OkHttpClient.Builder()
-                    .proxy(YouTube.proxy)
-                    .proxyAuthenticator { _, response ->
-                        YouTube.proxyAuth?.let { auth ->
-                            response.request.newBuilder()
-                                .header("Proxy-Authorization", auth)
-                                .build()
-                        } ?: response.request
-                    }
-                    .build()
-                val request = okhttp3.Request.Builder()
-                    .head()
-                    .url(playbackData.streamUrl)
-                    .apply {
-                        playbackData.streamHeaders.forEach { (name, value) ->
-                            header(name, value)
+            val actualContentLength =
+                format.contentLength?.takeIf { it > 0L } ?: run {
+                    val request = okhttp3.Request.Builder()
+                        .get()
+                        .url(playbackData.streamUrl)
+                        .apply {
+                            playbackData.streamHeaders.forEach { (name, value) ->
+                                header(name, value)
+                            }
                         }
+                        .header("Range", "bytes=0-0")
+                        .build()
+                    try {
+                        streamHttpClient.newCall(request).execute().use { response ->
+                            downloadContentLength(
+                                statusCode = response.code,
+                                contentRange = response.header("Content-Range"),
+                                contentLength = response.header("Content-Length"),
+                            )
+                        }
+                    } catch (_: IOException) {
+                        null
                     }
-                    .build()
-                client.newCall(request).execute().use { response ->
-                    length = response.header("Content-Length")?.toLongOrNull()
                 }
-                length ?: error("Failed to retrieve content length")
-            }
 
             val mimeType = format.mimeType.split(";")[0]
             val codecs =
@@ -171,6 +172,7 @@ constructor(
                     .ifBlank { "" }
 
             database.query {
+<<<<<<< HEAD
                 upsert(
                     FormatEntity(
                         id = mediaId,
@@ -185,6 +187,31 @@ constructor(
                         playbackUrl = playbackData.playbackTracking?.videostatsPlaybackUrl?.baseUrl
                     ),
                 )
+=======
+                if (actualContentLength != null) {
+                    upsert(
+                        FormatEntity(
+                            id = mediaId,
+                            itag = format.itag,
+                            mimeType = format.mimeType.substringBefore(";"),
+                            codecs =
+                                format.mimeType
+                                    .substringAfter("codecs=", missingDelimiterValue = "")
+                                    .substringBefore(";")
+                                    .trim()
+                                    .removeSurrounding("\""),
+                            bitrate = format.bitrate,
+                            sampleRate = format.audioSampleRate,
+                            contentLength = actualContentLength,
+                            loudnessDb = playbackData.audioConfig?.loudnessDb,
+                            perceptualLoudnessDb = playbackData.audioConfig?.perceptualLoudnessDb,
+                            playbackUrl = playbackData.playbackTracking?.videostatsPlaybackUrl?.baseUrl
+                        ),
+                    )
+                } else {
+                    deleteFormat(mediaId)
+                }
+>>>>>>> upstream/main
 
                 // Metadata registration only — dateDownload is intentionally NOT set here.
                 // It belongs solely to onDownloadChanged()'s STATE_COMPLETED branch below,
@@ -204,8 +231,11 @@ constructor(
                 upsert(updatedSong)
             }
 
+<<<<<<< HEAD
             // Use a clean stream URL (no baked-in range=). Media3 DownloadManager
             // requests byte ranges itself; baking range=0-N caused hangs/failures.
+=======
+>>>>>>> upstream/main
             val streamUrl = playbackData.streamUrl
 
             songUrlCache.put(
@@ -214,11 +244,21 @@ constructor(
                 requestHeaders = playbackData.streamHeaders,
                 clientName = playbackData.streamClient,
                 expiresInSeconds = playbackData.streamExpiresInSeconds,
+                requireBoundedRange = playbackData.requireBoundedRange,
+                rangeChunkSizeBytes = playbackData.rangeChunkSizeBytes,
+                useRangeChunks = playbackData.useRangeChunks,
                 expectedGeneration = cacheGeneration,
             )
-            dataSpec
-                .withUri(streamUrl.toUri())
-                .withRequestHeaders(dataSpec.httpRequestHeaders + playbackData.streamHeaders)
+            dataSpec.withResolvedStream(
+                CachedStreamUrl(
+                    url = streamUrl,
+                    requestHeaders = playbackData.streamHeaders,
+                    clientName = playbackData.streamClient,
+                    requireBoundedRange = playbackData.requireBoundedRange,
+                    rangeChunkSizeBytes = playbackData.rangeChunkSizeBytes,
+                    useRangeChunks = playbackData.useRangeChunks,
+                ),
+            )
         }
 
     val downloadNotificationHelper =
@@ -324,7 +364,7 @@ constructor(
         var current = this
         while (current != null) {
             if (current is HttpDataSource.InvalidResponseCodeException &&
-                (current.responseCode == 403 || current.responseCode == 410)
+                (current.responseCode == 403 || current.responseCode == 410 || current.responseCode == 416)
             ) {
                 return true
             }
@@ -333,3 +373,29 @@ constructor(
         return false
     }
 }
+
+internal fun downloadContentLength(
+    statusCode: Int,
+    contentRange: String?,
+    contentLength: String?,
+): Long? {
+    val rangePattern =
+        when (statusCode) {
+            206 -> PARTIAL_CONTENT_RANGE
+            416 -> UNSATISFIED_CONTENT_RANGE
+            else -> null
+        }
+    if (rangePattern != null) {
+        return contentRange
+            ?.trim()
+            ?.let(rangePattern::matchEntire)
+            ?.groupValues
+            ?.get(1)
+            ?.toLongOrNull()
+            ?.takeIf { it > 0L }
+    }
+    return if (statusCode == 200) contentLength?.toLongOrNull()?.takeIf { it > 0L } else null
+}
+
+private val PARTIAL_CONTENT_RANGE = Regex("""bytes\s+0-0/(\d+)""", RegexOption.IGNORE_CASE)
+private val UNSATISFIED_CONTENT_RANGE = Regex("""bytes\s+\*/(\d+)""", RegexOption.IGNORE_CASE)
