@@ -305,10 +305,14 @@ abstract class InternalDatabase : RoomDatabase() {
                     MIGRATION_21_24,
                     MIGRATION_22_24,
                     MIGRATION_24_25,
+<<<<<<< HEAD
                     MIGRATION_38_39,
                     MIGRATION_39_40,
                     MIGRATION_40_41,
                 ).fallbackToDestructiveMigration()
+=======
+                ).fallbackToDestructiveMigration(false)
+>>>>>>> upstream/main
                 .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                 .setTransactionExecutor(
                     java.util.concurrent.Executors

@@ -1,7 +1,10 @@
 @file:Suppress("UnstableApiUsage")
 
+val useMavenLocalInnerTubeX = providers.gradleProperty("useMavenLocalInnerTubeX").isPresent
+
 pluginManagement {
     repositories {
+        mavenLocal()
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -12,6 +15,20 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
 
     repositories {
+        exclusiveContent {
+            forRepository {
+                if (useMavenLocalInnerTubeX) mavenLocal() else maven("https://jitpack.io")
+            }
+            filter {
+                if (useMavenLocalInnerTubeX) {
+                    includeModule("com.github.MetrolistGroup", "innertubex")
+                    includeModule("com.github.MetrolistGroup", "innertubex-android")
+                    includeModule("com.github.MetrolistGroup", "innertubex-desktop")
+                } else {
+                    includeGroup("com.github.MetrolistGroup.innertubex")
+                }
+            }
+        }
         google()
         mavenCentral()
         maven { setUrl("https://jitpack.io") }
@@ -35,6 +52,7 @@ include(":lastfm")
 include(":betterlyrics")
 include(":shazamkit")
 include(":paxsenix")
+<<<<<<< HEAD
 include(":spotify")
 
 // Use a local copy of NewPipe Extractor by uncommenting the lines below.
@@ -52,3 +70,5 @@ include(":spotify")
 //        substitute(module("com.github.teamnewpipe:NewPipeExtractor")).using(project(":extractor"))
 //    }
 //}
+=======
+>>>>>>> upstream/main
