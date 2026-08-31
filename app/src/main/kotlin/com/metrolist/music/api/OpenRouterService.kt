@@ -1,20 +1,38 @@
+<<<<<<< HEAD
 /**
  * MuSicX Project (C) 2026
  * Credits to Metrolist Project (C) 2026
+=======
+/*
+ * Metrolist Project (C) 2026
+>>>>>>> upstream/main
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
 package com.metrolist.music.api
 
+import com.metrolist.music.constants.OpenRouterDefaultBaseUrl
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
-import org.json.JSONObject
 import java.util.concurrent.TimeUnit
+
+private val translationJson = Json { ignoreUnknownKeys = true }
 
 object OpenRouterService {
     private val client =
@@ -24,7 +42,7 @@ object OpenRouterService {
             .readTimeout(90, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .build()
-    private val JSON = "application/json; charset=utf-8".toMediaType()
+    private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
     suspend fun translate(
         text: String,
@@ -34,28 +52,80 @@ object OpenRouterService {
         model: String,
         mode: String,
         maxRetries: Int = 3,
-        sourceLanguage: String? = null,
         customSystemPrompt: String = "",
     ): Result<List<String>> =
         withContext(Dispatchers.IO) {
-            var currentAttempt = 0
+            if (text.isBlank()) return@withContext Result.failure(Exception("Input text is empty"))
 
-            // Validate input
-            if (text.isBlank()) {
-                return@withContext Result.failure(Exception("Input text is empty"))
+            repeat(maxRetries) { attempt ->
+                try {
+                    val body =
+                        buildTranslationRequest(
+                            text = text,
+                            targetLanguage = targetLanguage,
+                            model = model,
+                            mode = mode,
+                            customSystemPrompt = customSystemPrompt,
+                        )
+                    val request =
+                        Request
+                            .Builder()
+                            .url(baseUrl.ifBlank { OpenRouterDefaultBaseUrl })
+                            .apply {
+                                if (apiKey.isNotBlank()) addHeader("Authorization", "Bearer ${apiKey.trim()}")
+                            }.addHeader("Content-Type", "application/json")
+                            .addHeader("HTTP-Referer", "https://github.com/MetrolistGroup/Metrolist")
+                            .addHeader("X-Title", "Metrolist")
+                            .post(body.toString().toRequestBody(jsonMediaType))
+                            .build()
+
+                    client.newCall(request).execute().use { response ->
+                        val responseBody = response.body.string()
+                        if (!response.isSuccessful) {
+                            val error = apiErrorMessage(responseBody, response.code, response.message)
+                            if (response.code >= 500) throw Exception(error)
+                            return@withContext Result.failure(Exception("Translation failed: $error"))
+                        }
+
+                        val content =
+                            translationJson
+                                .parseToJsonElement(responseBody.orEmpty())
+                                .jsonObject["choices"]
+                                ?.jsonArray
+                                ?.getOrNull(0)
+                                ?.jsonObject
+                                ?.get("message")
+                                ?.jsonObject
+                                ?.get("content")
+                                ?.jsonPrimitive
+                                ?.contentOrNull
+                                .orEmpty()
+                        return@withContext parseTranslationContent(content, text.lines().size)
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    if (attempt == maxRetries - 1) return@withContext Result.failure(error)
+                    delay(1000L * (attempt + 1))
+                }
             }
 
-            val lines = text.lines()
-            val lineCount = lines.size
+            Result.failure(Exception("Max retries exceeded"))
+        }
+}
 
-            while (currentAttempt < maxRetries) {
-                try {
-                    // Use custom system prompt if provided, otherwise use the default
-                    val systemPrompt =
-                        if (customSystemPrompt.isNotBlank()) {
-                            customSystemPrompt.replace("{lineCount}", lineCount.toString())
-                        } else {
-                            """You are a precise lyrics translation assistant. Your output must ALWAYS be a valid JSON array of strings.
+internal fun buildTranslationRequest(
+    text: String,
+    targetLanguage: String,
+    model: String,
+    mode: String,
+    customSystemPrompt: String,
+    stream: Boolean = false,
+): JsonObject {
+    val lineCount = text.lines().size
+    val systemPrompt =
+        customSystemPrompt.takeIf(String::isNotBlank)?.replace("{lineCount}", lineCount.toString())
+            ?: """You are a precise lyrics translation assistant. Your output must ALWAYS be a valid JSON array of strings.
 
 CRITICAL RULES:
 1. Output ONLY a JSON array: ["line1", "line2", "line3"]
@@ -64,12 +134,10 @@ CRITICAL RULES:
 4. Preserve empty lines as empty strings ""
 5. Return EXACTLY $lineCount items in the array
 6. If uncertain, provide best approximation but maintain line count"""
-                        }
-
-                    val userPrompt =
-                        when (mode) {
-                            "Romanized" -> {
-                                """Romanize/transliterate the following $lineCount lines into simple Latin script using ONLY basic English letters (a-z, A-Z).
+    val userPrompt =
+        when (mode) {
+            "Romanized" -> {
+                """Romanize/transliterate the following $lineCount lines into simple Latin script using ONLY basic English letters (a-z, A-Z).
 
 CRITICAL REQUIREMENTS:
 - Use ONLY simple ASCII characters (a-z, A-Z, 0-9, basic punctuation)
@@ -90,10 +158,10 @@ Input ($lineCount lines):
 $text
 
 Output MUST be a JSON array with EXACTLY $lineCount strings using ONLY simple ASCII characters."""
-                            }
+            }
 
-                            "Transcribed" -> {
-                                """Transcribe/transliterate the following $lineCount lines phonetically into $targetLanguage script.
+            "Transcribed" -> {
+                """Transcribe/transliterate the following $lineCount lines phonetically into $targetLanguage script.
 
 CRITICAL REQUIREMENTS:
 - Convert the SOUND/PRONUNCIATION of the original text into $targetLanguage script
@@ -113,10 +181,10 @@ Input ($lineCount lines):
 $text
 
 Output MUST be a JSON array with EXACTLY $lineCount strings in $targetLanguage script."""
-                            }
+            }
 
-                            else -> {
-                                """Translate the following $lineCount lines to $targetLanguage.
+            else -> {
+                """Translate the following $lineCount lines to $targetLanguage.
 
 IMPORTANT:
 - Provide natural, accurate translation
@@ -129,6 +197,7 @@ Input ($lineCount lines):
 $text
 
 Output MUST be a JSON array with EXACTLY $lineCount strings."""
+<<<<<<< HEAD
                             }
                         }
 
@@ -266,7 +335,79 @@ Output MUST be a JSON array with EXACTLY $lineCount strings."""
                 }
                 currentAttempt++
                 kotlinx.coroutines.delay(1000L * currentAttempt)
+=======
+>>>>>>> upstream/main
             }
-            return@withContext Result.failure(Exception("Max retries exceeded"))
         }
+
+    return buildJsonObject {
+        put(
+            "messages",
+            buildJsonArray {
+                add(
+                    buildJsonObject {
+                        put("role", "system")
+                        put("content", systemPrompt)
+                    },
+                )
+                add(
+                    buildJsonObject {
+                        put("role", "user")
+                        put("content", userPrompt)
+                    },
+                )
+            },
+        )
+        if (model.isNotBlank()) put("model", model)
+        put("temperature", 0.3)
+        put("max_tokens", lineCount * 100)
+        if (stream) put("stream", true)
+    }
 }
+
+internal fun parseTranslationContent(
+    content: String,
+    expectedLineCount: Int,
+): Result<List<String>> =
+    runCatching {
+        val cleaned = content.replace("```json", "").replace("```", "").trim()
+        val bracketed =
+            cleaned
+                .substringAfter('[', "")
+                .substringBeforeLast(']', "")
+                .takeIf(String::isNotEmpty)
+                ?.let { "[$it]" }
+        val translatedLines =
+            sequenceOf(content.trim(), cleaned, bracketed)
+                .filterNotNull()
+                .mapNotNull { candidate ->
+                    runCatching {
+                        translationJson.parseToJsonElement(candidate).jsonArray.map { it.jsonPrimitive.content }
+                    }.getOrNull()
+                }.firstOrNull()
+                ?: cleaned
+                    .lines()
+                    .filter(String::isNotBlank)
+                    .map { it.trim().removeSurrounding("\"").removeSurrounding("'") }
+                    .takeIf(List<String>::isNotEmpty)
+                ?: error("Failed to parse translation")
+
+        translatedLines.take(expectedLineCount) + List((expectedLineCount - translatedLines.size).coerceAtLeast(0)) { "" }
+    }
+
+internal fun apiErrorMessage(
+    body: String?,
+    code: Int,
+    message: String,
+): String =
+    runCatching {
+        translationJson
+            .parseToJsonElement(body.orEmpty())
+            .jsonObject["error"]
+            ?.jsonObject
+            ?.get("message")
+            ?.jsonPrimitive
+            ?.contentOrNull
+    }.getOrNull()
+        .takeUnless { it.isNullOrBlank() }
+        ?: "HTTP $code: $message"
