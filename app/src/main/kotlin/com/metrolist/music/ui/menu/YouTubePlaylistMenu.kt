@@ -53,9 +53,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import coil3.compose.AsyncImage
 import com.metrolist.innertube.YouTube
@@ -353,7 +351,7 @@ fun YouTubePlaylistMenu(
         ) {
             item {
                 ListItem(
-                    headlineContent = { Text(text = stringResource(R.string.already_in_playlist)) },
+                    content = { Text(text = stringResource(R.string.already_in_playlist)) },
                     leadingContent = {
                         Image(
                             painter = painterResource(R.drawable.close),
@@ -368,7 +366,7 @@ fun YouTubePlaylistMenu(
 
             items(notAddedList) { song ->
                 ListItem(
-                    headlineContent = { Text(text = song.title) },
+                    content = { Text(text = song.title) },
                     leadingContent = {
                         Box(
                             contentAlignment = Alignment.Center,
@@ -648,20 +646,7 @@ fun YouTubePlaylistMenu(
                                                 )
                                             },
                                             onClick = {
-                                                songs.forEach { song ->
-                                                    val downloadRequest =
-                                                        DownloadRequest
-                                                            .Builder(song.id, song.id.toUri())
-                                                            .setCustomCacheKey(song.id)
-                                                            .setData(song.title.toByteArray())
-                                                            .build()
-                                                    DownloadService.sendAddDownload(
-                                                        context,
-                                                        ExoDownloadService::class.java,
-                                                        downloadRequest,
-                                                        false,
-                                                    )
-                                                }
+                                                songs.forEach { downloadUtil.download(it) }
                                             },
                                         )
                                     }

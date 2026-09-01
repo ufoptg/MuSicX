@@ -25,10 +25,10 @@ import com.metrolist.innertube.models.TasteProfile
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_ATV
 import com.metrolist.innertube.models.YTItem
+import com.metrolist.innertube.models.YouTubeAccount
 import com.metrolist.innertube.models.YouTubeClient
-import com.metrolist.innertube.models.YouTubeClient.Companion.WEB
-import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.metrolist.innertube.models.YouTubeLocale
+import com.metrolist.innertube.models.extractYouTubeAccounts
 import com.metrolist.innertube.models.getContinuation
 import com.metrolist.innertube.models.getItems
 import com.metrolist.innertube.models.oddElements
@@ -42,7 +42,6 @@ import com.metrolist.innertube.models.response.FeedbackResponse
 import com.metrolist.innertube.models.response.GetQueueResponse
 import com.metrolist.innertube.models.response.GetSearchSuggestionsResponse
 import com.metrolist.innertube.models.response.GetTranscriptResponse
-import com.metrolist.innertube.models.response.ImageUploadResponse
 import com.metrolist.innertube.models.response.NextResponse
 import com.metrolist.innertube.models.response.PlayerResponse
 import com.metrolist.innertube.models.response.SearchResponse
@@ -71,6 +70,8 @@ import com.metrolist.innertube.pages.SearchResult
 import com.metrolist.innertube.pages.SearchSuggestionPage
 import com.metrolist.innertube.pages.SearchSummary
 import com.metrolist.innertube.pages.SearchSummaryPage
+import com.metrolist.innertubex.models.YouTubeClient.Companion.WEB
+import com.metrolist.innertubex.models.YouTubeClient.Companion.WEB_REMIX
 import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.async
@@ -79,11 +80,9 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonPrimitive
 import timber.log.Timber
+import java.io.FilterInputStream
+import java.io.InputStream
 import java.net.Proxy
 import kotlin.random.Random
 
@@ -93,7 +92,6 @@ import kotlin.random.Random
  */
 object YouTube {
     private val innerTube = InnerTube()
-    private const val ENABLE_NEWPIPE_STREAM_INFO_EXTRACTOR = false
 
     var locale: YouTubeLocale
         get() = innerTube.locale
@@ -109,6 +107,11 @@ object YouTube {
         get() = innerTube.dataSyncId
         set(value) {
             innerTube.dataSyncId = value
+        }
+    var authUser: String
+        get() = innerTube.authUser
+        set(value) {
+            innerTube.authUser = value
         }
     var cookie: String?
         get() = innerTube.cookie
@@ -131,6 +134,8 @@ object YouTube {
         set(value) {
             innerTube.useLoginForBrowse = value
         }
+
+    fun extractionTransport(): InnerTube.ExtractionTransport = innerTube.extractionTransport()
 
     suspend fun searchSuggestions(query: String): Result<SearchSuggestions> =
         runCatching {
@@ -1199,10 +1204,8 @@ object YouTube {
 
             val appendedContents: List<MusicShelfRenderer.Content> =
                 response.onResponseReceivedActions
-                    ?.firstOrNull()
-                    ?.appendContinuationItemsAction
-                    ?.continuationItems
                     .orEmpty()
+                    .flatMap { it.appendContinuationItemsAction?.continuationItems.orEmpty() }
 
             val allContents = mainContents + shelfContents + musicShelfContinuationContents + appendedContents
 
@@ -1212,27 +1215,19 @@ object YouTube {
                     .mapNotNull { renderer -> PlaylistPage.fromMusicResponsiveListItemRenderer(renderer) }
 
             val nextContinuation =
-                if (songs.isEmpty()) {
-                    null
-                } else {
-                    response.continuationContents
-                        ?.sectionListContinuation
+                response.continuationContents
+                    ?.sectionListContinuation
+                    ?.continuations
+                    ?.getContinuation()
+                    ?: response.continuationContents
+                        ?.musicPlaylistShelfContinuation
                         ?.continuations
                         ?.getContinuation()
-                        ?: response.continuationContents
-                            ?.musicPlaylistShelfContinuation
-                            ?.continuations
-                            ?.getContinuation()
-                        ?: response.continuationContents
-                            ?.musicShelfContinuation
-                            ?.continuations
-                            ?.getContinuation()
-                        ?: response.onResponseReceivedActions
-                            ?.firstOrNull()
-                            ?.appendContinuationItemsAction
-                            ?.continuationItems
-                            ?.getContinuation()
-                }
+                    ?: response.continuationContents
+                        ?.musicShelfContinuation
+                        ?.continuations
+                        ?.getContinuation()
+                    ?: appendedContents.getContinuation()
 
             PlaylistContinuationPage(
                 songs = songs,
@@ -2548,7 +2543,7 @@ object YouTube {
                 Timber.d("[PODCAST_API] section[$idx]: hasCarousel=${section.musicCarouselShelfRenderer != null} hasShelf=${section.musicShelfRenderer != null} hasPlaylistShelf=${section.musicPlaylistShelfRenderer != null} hasCardShelf=${section.musicCardShelfRenderer != null} hasGrid=${section.gridRenderer != null} hasItemSection=${section.itemSectionRenderer != null}")
                 section.musicCarouselShelfRenderer?.let { carousel ->
                     val carouselTitle = carousel.header?.musicCarouselShelfBasicHeaderRenderer?.title?.runs?.joinToString("") { it.text }
-                    Timber.d("[PODCAST_API]   carousel title=$carouselTitle, items=${carousel.contents?.size}")
+                    Timber.d("[PODCAST_API]   carousel title=$carouselTitle, items=${carousel.contents.size}")
                 }
                 section.musicShelfRenderer?.let { shelf ->
                     Timber.d("[PODCAST_API]   shelf title=${shelf.title?.runs?.joinToString("") { it.text }}, items=${shelf.contents?.size}")
@@ -2575,7 +2570,7 @@ object YouTube {
                     }
                 }
                 section.musicPlaylistShelfRenderer?.let { ps ->
-                    Timber.d("[PODCAST_API]   playlistShelf playlistId=${ps.playlistId}, items=${ps.contents?.size}")
+                    Timber.d("[PODCAST_API]   playlistShelf playlistId=${ps.playlistId}, items=${ps.contents.size}")
                 }
             }
 
@@ -2597,7 +2592,7 @@ object YouTube {
                         }
                         if (carousel != null) {
                             val carTitle = carousel.header?.musicCarouselShelfBasicHeaderRenderer?.title?.runs?.joinToString("") { it.text }
-                            Timber.d("[PODCAST_API]   singleCol section[$sIdx] carousel title=$carTitle, items=${carousel.contents?.size}")
+                            Timber.d("[PODCAST_API]   singleCol section[$sIdx] carousel title=$carTitle, items=${carousel.contents.size}")
                         }
                     }
                 }
@@ -2676,7 +2671,7 @@ object YouTube {
                 // Process musicCarouselShelfRenderer - each carousel is a podcast group
                 section.musicCarouselShelfRenderer?.let { carousel ->
                     val carouselTitle = carousel.header?.musicCarouselShelfBasicHeaderRenderer?.title?.runs?.joinToString("") { it.text }
-                    carousel.contents?.forEach { carouselContent ->
+                    carousel.contents.forEach { carouselContent ->
                         carouselContent.musicMultiRowListItemRenderer?.let { renderer ->
                             if (renderer.onTap?.watchEndpoint?.videoId == null) return@let
                             val title = renderer.title?.runs?.firstOrNull()?.text ?: return@let
@@ -3023,19 +3018,11 @@ object YouTube {
         playlistId: String,
         image: ByteArray,
     ) = runCatching {
-        val uploadUrl = innerTube.getUploadCustomThumbnailLink(WEB_REMIX, image.size).headers["x-guploader-uploadid"]
-        val blobReq =
-            innerTube.uploadCustomThumbnail(
-                WEB_REMIX,
-                uploadUrl!!,
-                image,
-            )
-        val blobId = Json.decodeFromString<ImageUploadResponse>(blobReq.bodyAsText()).encryptedBlobId
         innerTube
-            .setThumbnailPlaylist(
+            .setPlaylistThumbnail(
                 WEB_REMIX,
                 playlistId,
-                blobId,
+                image,
             ).body<EditPlaylistResponse>()
             .newHeader
             ?.musicEditablePlaylistDetailHeaderRenderer
@@ -3049,7 +3036,7 @@ object YouTube {
     suspend fun removeThumbnailPlaylist(playlistId: String) =
         runCatching {
             innerTube
-                .removeThumbnailPlaylist(
+                .removePlaylistThumbnail(
                     WEB_REMIX,
                     playlistId,
                 ).body<EditPlaylistResponse>()
@@ -3330,16 +3317,7 @@ object YouTube {
 
     suspend fun visitorData(): Result<String> =
         runCatching {
-            Json
-                .parseToJsonElement(innerTube.getSwJsData().bodyAsText().substring(5))
-                .jsonArray[0]
-                .jsonArray[2]
-                .jsonArray
-                .first {
-                    (it as? JsonPrimitive)?.contentOrNull?.let { candidate ->
-                        VISITOR_DATA_REGEX.containsMatchIn(candidate)
-                    } ?: false
-                }.jsonPrimitive.content
+            checkNotNull(innerTube.fetchFreshVisitorData()) { "YouTube did not return visitor data" }
         }
 
     suspend fun accountInfo(): Result<AccountInfo> =
@@ -3352,6 +3330,13 @@ object YouTube {
                 .header
                 ?.activeAccountHeaderRenderer
                 ?.toAccountInfo()!!
+        }
+
+    suspend fun accountsList(): Result<List<YouTubeAccount>> =
+        runCatching {
+            Json
+                .parseToJsonElement(innerTube.accountsList().bodyAsText())
+                .extractYouTubeAccounts()
         }
 
     suspend fun feedback(tokens: List<String>): Result<Boolean> =
@@ -3485,101 +3470,38 @@ object YouTube {
 
     const val MAX_GET_QUEUE_SIZE = 1000
 
-    private val VISITOR_DATA_REGEX = Regex("^Cg[t|s]")
-
-    fun getNewPipeStreamUrls(videoId: String): List<Pair<Int, String>> =
-        if (ENABLE_NEWPIPE_STREAM_INFO_EXTRACTOR) {
-            NewPipeExtractor.newPipePlayer(videoId)
-        } else {
-            emptyList()
-        }
-
-    suspend fun newPipePlayer(
-        videoId: String,
-        tempRes: PlayerResponse,
-    ): PlayerResponse? {
-        if (tempRes.playabilityStatus.status != "OK") {
-            return null
-        }
-
-        val streamsList = getNewPipeStreamUrls(videoId)
-        if (streamsList.isEmpty()) return null
-
-        val decodedSigResponse =
-            tempRes.copy(
-                streamingData =
-                    tempRes.streamingData?.copy(
-                        formats =
-                            tempRes.streamingData.formats?.map { format ->
-                                format.copy(
-                                    url = streamsList.find { it.first == format.itag }?.second ?: format.url,
-                                )
-                            },
-                        adaptiveFormats =
-                            tempRes.streamingData.adaptiveFormats.map { adaptiveFormat ->
-                                adaptiveFormat.copy(
-                                    url = streamsList.find { it.first == adaptiveFormat.itag }?.second ?: adaptiveFormat.url,
-                                )
-                            },
-                    ),
-            )
-
-        val urlList =
-            (
-                decodedSigResponse.streamingData
-                    ?.adaptiveFormats
-                    ?.mapNotNull { it.url }
-                    ?.toMutableList() ?: mutableListOf()
-            ).apply {
-                decodedSigResponse.streamingData
-                    ?.formats
-                    ?.mapNotNull { it.url }
-                    ?.let { addAll(it) }
-            }
-
-        return if (urlList.isNotEmpty()) {
-            decodedSigResponse
-        } else {
-            null
-        }
-    }
-
     /**
-     * Upload a song to YouTube Music.
+     * Upload a song to YouTube Music without buffering the file in memory.
      * @param filename The name of the file
-     * @param data The file data as ByteArray
+     * @param contentLength The file size in bytes
+     * @param content Opens the file for streaming
      * @param onProgress Callback for upload progress (0.0 to 1.0)
      * @return true if upload succeeded
      */
     suspend fun uploadSong(
         filename: String,
-        data: ByteArray,
+        contentLength: Long,
+        content: () -> InputStream,
         onProgress: ((Float) -> Unit)? = null,
     ): Result<Boolean> =
         runCatching {
+            require(contentLength in 1 until MAX_UPLOAD_SIZE)
             onProgress?.invoke(0f)
-
-            // Step 1: Initialize upload (5% of progress)
-            val initResponse = innerTube.initSongUpload(filename, data.size.toLong())
-            val uploadUrl =
-                initResponse.headers["X-Goog-Upload-URL"]
-                    ?: throw Exception("Failed to get upload URL")
-
             onProgress?.invoke(0.05f)
-
-            // Step 2: Upload file data (5% to 100% of progress)
             val uploadResponse =
-                innerTube.uploadSongData(
-                    uploadUrl = uploadUrl,
-                    data = data,
-                    onProgress = { uploadProgress ->
-                        // Map upload progress (0-1) to overall progress (0.05-1.0)
-                        onProgress?.invoke(0.05f + uploadProgress * 0.95f)
+                innerTube.uploadSong(
+                    filename = filename,
+                    contentLength = contentLength,
+                    content = {
+                        UploadProgressInputStream(content(), contentLength) { progress ->
+                            onProgress?.invoke(0.05f + progress * 0.95f)
+                        }
                     },
                 )
 
-            val status = uploadResponse.headers["X-Goog-Upload-Status"]
-            status == "final"
+            val uploaded = uploadResponse.headers["X-Goog-Upload-Status"] == "final"
+            if (uploaded) onProgress?.invoke(1f)
+            uploaded
         }
 
     /**
@@ -3692,5 +3614,32 @@ object YouTube {
                 }
             }.awaitAll().filterNotNull().toMap()
         }
+    }
+}
+
+internal class UploadProgressInputStream(
+    input: InputStream,
+    private val contentLength: Long,
+    private val onProgress: (Float) -> Unit,
+) : FilterInputStream(input) {
+    private var bytesRead = 0L
+
+    override fun read(): Int =
+        super.read().also { value ->
+            if (value >= 0) reportBytesRead(1)
+        }
+
+    override fun read(
+        buffer: ByteArray,
+        offset: Int,
+        length: Int,
+    ): Int =
+        super.read(buffer, offset, length).also { count ->
+            if (count > 0) reportBytesRead(count)
+        }
+
+    private fun reportBytesRead(count: Int) {
+        bytesRead += count
+        onProgress((bytesRead.toFloat() / contentLength).coerceAtMost(1f))
     }
 }

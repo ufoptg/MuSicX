@@ -586,7 +586,10 @@ fun SongListItem(
              },
              thumbnailContent = {
                  ItemThumbnail(
-                     thumbnailUrl = song.song.thumbnailUrl?.resize(200, 200),
+                     thumbnailUrl =
+                         song.song.thumbnailUrl?.let { thumbnailUrl ->
+                             if (song.isDownloaded) thumbnailUrl else thumbnailUrl.resize(200, 200)
+                         },
                      albumIndex = albumIndex,
                      isSelected = isSelected,
                      isActive = isActive,

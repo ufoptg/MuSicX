@@ -136,6 +136,7 @@ class SyncUtils @Inject constructor(
         private const val MAX_RETRIES = 3
         private const val INITIAL_RETRY_DELAY_MS = 1000L
         private const val DB_OPERATION_DELAY_MS = 50L
+        private const val DB_QUERY_BATCH_SIZE = 500
         private const val PLAYLIST_EDIT_THROTTLE_MS = 500L
     }
     private fun markPlaylistModifying(playlistId: String) {
@@ -150,6 +151,12 @@ class SyncUtils @Inject constructor(
 
     private fun isPlaylistBeingModified(playlistId: String): Boolean =
         (playlistsBeingModified[playlistId]?.get() ?: 0) > 0
+
+    private fun findSongIdsWithoutArtists(songIds: Collection<String>): Set<String> =
+        songIds
+            .chunked(DB_QUERY_BATCH_SIZE)
+            .flatMap(database::songIdsWithoutArtists)
+            .toSet()
 
     private suspend fun runQueuedPlaylistEdit(block: suspend () -> Unit) {
         playlistEditMutex.withLock {
@@ -466,7 +473,11 @@ class SyncUtils @Inject constructor(
     suspend fun cleanupDuplicatePlaylistsSuspend() = syncExecutionMutex.withLock { executeCleanupDuplicatePlaylists() }
     suspend fun clearAllSyncedContentSuspend() = syncExecutionMutex.withLock { executeClearAllSyncedContent() }
 
-    suspend fun clearAllLibraryData() = withContext(Dispatchers.IO) {
+    suspend fun clearAllLibraryData() = syncExecutionMutex.withLock {
+        executeClearAllLibraryData()
+    }
+
+    private suspend fun executeClearAllLibraryData() = withContext(Dispatchers.IO) {
         Timber.d("[LOGOUT_CLEAR] Starting complete library data cleanup")
         try {
             updateState {
@@ -506,10 +517,12 @@ class SyncUtils @Inject constructor(
                 val mappingTables = listOf(
                     "playlist_song_map",
                     "song_album_map",
-                    "song_artist_map",
                     "album_artist_map",
                     "related_song_map"
                 )
+
+                // Downloaded songs need their normalized artist rows to remain usable offline.
+                val retainedDownloadTables = setOf("song", "artist", "song_artist_map")
 
                 // Delete mapping tables first
                 Timber.d("[LOGOUT_CLEAR] Deleting mapping tables")
@@ -522,7 +535,7 @@ class SyncUtils @Inject constructor(
                 // Delete all other tables except song (handled specially to keep downloads)
                 Timber.d("[LOGOUT_CLEAR] Deleting remaining tables")
                 for (table in allTables) {
-                    if (table in skipTables || table in mappingTables || table == "song") {
+                    if (table in skipTables || table in mappingTables || table in retainedDownloadTables) {
                         continue
                     }
                     safeDeleteTable(table)
@@ -531,7 +544,11 @@ class SyncUtils @Inject constructor(
                 // Finally, delete songs but keep downloaded ones
                 if ("song" in allTables) {
                     Timber.d("[LOGOUT_CLEAR] Deleting songs (keeping downloaded)")
-                    safeRawQuery("DELETE FROM song WHERE dateDownload IS NULL")
+                    database.deleteSongsNotDownloaded()
+                }
+                if ("artist" in allTables) {
+                    database.clearArtistBookmarks()
+                    database.deleteOrphanArtists()
                 }
             }
 
@@ -571,15 +588,6 @@ class SyncUtils @Inject constructor(
             Timber.d("[LOGOUT_CLEAR] Cleared table: $tableName")
         } catch (e: Exception) {
             Timber.w("[LOGOUT_CLEAR] Table $tableName error: ${e.message}")
-        }
-    }
-
-    private fun safeRawQuery(query: String) {
-        try {
-            database.raw(androidx.sqlite.db.SimpleSQLiteQuery(query))
-            Timber.d("[LOGOUT_CLEAR] Executed: $query")
-        } catch (e: Exception) {
-            Timber.w("[LOGOUT_CLEAR] Query failed: $query - ${e.message}")
         }
     }
 
@@ -766,37 +774,34 @@ class SyncUtils @Inject constructor(
                     val remoteSongs = page.songs
                     val remoteIds = remoteSongs.map { it.id }.toSet()
                     val localSongs = database.likedSongEntitiesByNameAsc()
-
-                    // Remove likes from songs not in remote
-                    localSongs.filterNot { it.id in remoteIds }.forEach { song ->
-                        try {
-                            database.update(song.localToggleLike())
-                            delay(DB_OPERATION_DELAY_MS)
-                        } catch (e: Exception) {
-                            Timber.e(e, "Failed to update song: ${song.id}")
-                        }
+                    val advertisedCount = page.playlist.songCountText?.filter { it.isDigit() }?.toIntOrNull()
+                    check(advertisedCount == null || remoteSongs.size >= advertisedCount) {
+                        "Liked-song response was incomplete (${remoteSongs.size}/$advertisedCount)"
                     }
-
-                    // Add/update songs from remote
+                    val songIdsWithoutArtists = findSongIdsWithoutArtists(remoteIds)
                     val now = LocalDateTime.now()
-                    remoteSongs.forEachIndexed { index, song ->
-                        try {
-                            val dbSong = database.songEntity(song.id)
-                            val timestamp = now.minusSeconds(index.toLong())
-                            val isVideoSong = song.isVideoSong
 
-                            database.withTransaction {
-                                if (dbSong == null) {
-                                    insert(song.toMediaMetadata()) {
-                                        it.copy(liked = true, likedDate = timestamp, isVideo = isVideoSong)
-                                    }
-                                } else if (!dbSong.liked || dbSong.likedDate != timestamp || dbSong.isVideo != isVideoSong) {
+                    database.withTransaction {
+                        localSongs.filterNot { it.id in remoteIds }.forEach { song ->
+                            update(song.localToggleLike())
+                        }
+
+                        remoteSongs.forEachIndexed { index, song ->
+                            val dbSong = songEntity(song.id)
+                            val timestamp = dbSong?.likedDate ?: now.minusSeconds(index.toLong())
+                            val isVideoSong = song.isVideoSong
+                            if (dbSong == null) {
+                                insert(song.toMediaMetadata()) {
+                                    it.copy(liked = true, likedDate = timestamp, isVideo = isVideoSong)
+                                }
+                            } else {
+                                if (song.id in songIdsWithoutArtists) {
+                                    insert(song.toMediaMetadata())
+                                }
+                                if (!dbSong.liked || dbSong.likedDate == null || dbSong.isVideo != isVideoSong) {
                                     update(dbSong.copy(liked = true, likedDate = timestamp, isVideo = isVideoSong))
                                 }
                             }
-                            delay(DB_OPERATION_DELAY_MS)
-                        } catch (e: Exception) {
-                            Timber.e(e, "Failed to process song: ${song.id}")
                         }
                     }
 
@@ -832,29 +837,29 @@ class SyncUtils @Inject constructor(
                     val remoteSongs = page.items.filterIsInstance<SongItem>().reversed()
                     val remoteIds = remoteSongs.map { it.id }.toSet()
                     val localSongs = database.librarySongEntitiesByNameAsc()
+                    val songIdsWithoutArtists = findSongIdsWithoutArtists(remoteIds)
+                    val now = LocalDateTime.now()
 
-                    localSongs.filterNot { it.id in remoteIds }.forEach { song ->
-                        try {
-                            database.update(song.toggleLibrary(syncToYouTube = false))
-                            delay(DB_OPERATION_DELAY_MS)
-                        } catch (e: Exception) {
-                            Timber.e(e, "Failed to update song: ${song.id}")
+                    database.withTransaction {
+                        localSongs.filterNot { it.id in remoteIds }.forEach { song ->
+                            update(song.withLibraryMembership(isInLibrary = false))
                         }
-                    }
 
-                    remoteSongs.forEach { song ->
-                        try {
-                            val dbSong = database.songEntity(song.id)
-                            database.withTransaction {
-                                if (dbSong == null) {
-                                    insert(song.toMediaMetadata()) { it.toggleLibrary(syncToYouTube = false) }
-                                } else if (dbSong.inLibrary == null) {
-                                    update(dbSong.toggleLibrary(syncToYouTube = false))
+                        remoteSongs.forEachIndexed { index, song ->
+                            val dbSong = songEntity(song.id)
+                            val timestamp = now.minusSeconds((remoteSongs.lastIndex - index).toLong())
+                            if (dbSong == null) {
+                                insert(song.toMediaMetadata()) {
+                                    it.withLibraryMembership(isInLibrary = true, addedAt = timestamp)
+                                }
+                            } else {
+                                if (song.id in songIdsWithoutArtists) {
+                                    insert(song.toMediaMetadata())
+                                }
+                                if (dbSong.inLibrary == null) {
+                                    update(dbSong.withLibraryMembership(isInLibrary = true, addedAt = timestamp))
                                 }
                             }
-                            delay(DB_OPERATION_DELAY_MS)
-                        } catch (e: Exception) {
-                            Timber.e(e, "Failed to process song: ${song.id}")
                         }
                     }
 
@@ -891,6 +896,7 @@ class SyncUtils @Inject constructor(
                     val remoteSongs = page.items.filterIsInstance<SongItem>().reversed()
                     val remoteIds = remoteSongs.map { it.id }.toSet()
                     val localSongs = database.uploadedSongEntitiesByNameAsc()
+                    val songIdsWithoutArtists = findSongIdsWithoutArtists(remoteIds)
 
                     // Remove uploaded flag from songs no longer in remote
                     localSongs.filterNot { it.id in remoteIds }.forEach { song ->
@@ -909,11 +915,16 @@ class SyncUtils @Inject constructor(
                             database.withTransaction {
                                 if (dbSong == null) {
                                     insert(song.toMediaMetadata()) { it.toggleUploaded() }
-                                } else if (!dbSong.isUploaded) {
-                                    update(dbSong.copy(isUploaded = true, uploadEntityId = song.uploadEntityId))
-                                } else if (dbSong.uploadEntityId != song.uploadEntityId && song.uploadEntityId != null) {
-                                    // Update uploadEntityId if it differs from remote
-                                    update(dbSong.copy(uploadEntityId = song.uploadEntityId))
+                                } else {
+                                    if (song.id in songIdsWithoutArtists) {
+                                        insert(song.toMediaMetadata())
+                                    }
+                                    if (!dbSong.isUploaded) {
+                                        update(dbSong.copy(isUploaded = true, uploadEntityId = song.uploadEntityId))
+                                    } else if (dbSong.uploadEntityId != song.uploadEntityId && song.uploadEntityId != null) {
+                                        // Update uploadEntityId if it differs from remote
+                                        update(dbSong.copy(uploadEntityId = song.uploadEntityId))
+                                    }
                                 }
                             }
                             delay(DB_OPERATION_DELAY_MS)
@@ -1565,30 +1576,36 @@ class SyncUtils @Inject constructor(
 
                     val remoteIds = songs.map { it.id }
                     val localIds = database.playlistSongIds(playlistId)
+                    val songIdsWithoutArtists = database.playlistSongIdsWithoutArtists(playlistId).toSet()
 
                     if (remoteIds == localIds) {
+                        val metadataRepairs = songs.filter {
+                            it.id in songIdsWithoutArtists && it.artists.isNotEmpty()
+                        }
+                        if (metadataRepairs.isNotEmpty()) {
+                            database.withTransaction {
+                                metadataRepairs.forEach(::insert)
+                            }
+                        }
                         Timber.d("syncPlaylist: Local and remote are in sync, no changes needed")
                         return@onSuccess
                     }
 
                     Timber.d("syncPlaylist: Updating local playlist (remote: ${remoteIds.size}, local: ${localIds.size})")
 
-                    val localSongsBeforeSync = database.playlistSongs(playlistId).first()
-                    val downloadedSongIds = localSongsBeforeSync
-                        .filter { it.song.song.isDownloaded || it.song.song.dateDownload != null }
-                        .map { it.song.id }
-                        .toSet()
+                    val remoteIdSet = remoteIds.toSet()
+                    val localIdSet = localIds.toSet()
+                    val downloadedSongIds = database.downloadedPlaylistSongIds(playlistId).toSet()
+                    val metadataInserts = songs.filter {
+                        it.id !in localIdSet || it.id in songIdsWithoutArtists
+                    }
 
                     database.withTransaction {
                         database.clearPlaylist(playlistId)
-                        songs.forEach { song ->
-                            if (database.getSongByIdBlocking(song.id) == null) {
-                                database.insert(song)
-                            }
-                        }
+                        metadataInserts.forEach(database::insert)
 
                         downloadedSongIds.forEach { songId ->
-                            if (songId !in remoteIds) {
+                            if (songId !in remoteIdSet) {
                                 val existingSong = database.getSongByIdBlocking(songId)
                                 if (existingSong != null) {
                                     val maxPosition = database.playlistSongsBlocking(playlistId)
