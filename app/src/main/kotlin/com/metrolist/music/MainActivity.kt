@@ -20,7 +20,7 @@ import android.os.IBinder
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
@@ -139,6 +139,7 @@ import com.metrolist.music.constants.AppLanguageKey
 import com.metrolist.music.constants.CheckForUpdatesKey
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.DefaultOpenTabKey
+import com.metrolist.music.constants.DensityScaleKey
 import com.metrolist.music.constants.DisableScreenshotKey
 import com.metrolist.music.constants.DynamicThemeKey
 import com.metrolist.music.constants.EnableHighRefreshRateKey
@@ -165,6 +166,7 @@ import com.metrolist.music.constants.SlimNavBarKey
 import com.metrolist.music.constants.StopMusicOnTaskClearKey
 import com.metrolist.music.constants.UpdateNotificationsEnabledKey
 import com.metrolist.music.constants.UseNewMiniPlayerDesignKey
+import com.metrolist.music.constants.VideoThumbnailMigrationDoneKey
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.SearchHistory
 import com.metrolist.music.extensions.toEnum
@@ -226,7 +228,7 @@ import javax.inject.Inject
 
 @Suppress("DEPRECATION", "ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     companion object {
         private const val ACTION_SEARCH = "com.metrolist.music.action.SEARCH"
         private const val ACTION_LIBRARY = "com.metrolist.music.action.LIBRARY"
@@ -251,7 +253,7 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var navController: NavHostController
     private var pendingIntent: Intent? = null
-    private var latestVersionName by mutableStateOf(BuildConfig.VERSION_NAME)
+    private var latestVersionName by mutableStateOf(BuildConfig.BASE_VERSION_NAME)
 
     // Keep PlayerConnection as regular property - NOT mutableStateOf to prevent UI recomposition
     // when it becomes null during onStop. Only update the snapshot for Compose when needed.
@@ -419,7 +421,7 @@ class MainActivity : ComponentActivity() {
         // Defer migration and version tracking to avoid blocking first frame
         lifecycleScope.launch(Dispatchers.IO) {
             val preferences = dataStore.data.first()
-            val currentVersion = BuildConfig.VERSION_NAME
+            val currentVersion = BuildConfig.BASE_VERSION_NAME
 
             // SimpMusic Removal Migration
             if (preferences[SimpMusicMigrationDoneKey] != true) {
@@ -445,11 +447,18 @@ class MainActivity : ComponentActivity() {
                     settings[LastSeenVersionKey] = currentVersion
                 }
             }
+
+            if (preferences[VideoThumbnailMigrationDoneKey] != true) {
+                database.repairMissingVideoThumbnails()
+                safeDataStoreEdit { settings ->
+                    settings[VideoThumbnailMigrationDoneKey] = true
+                }
+            }
         }
 
         lifecycleScope.launch(Dispatchers.IO) {
             safeDataStoreEdit { settings ->
-                settings[LastSeenVersionKey] = BuildConfig.VERSION_NAME
+                settings[LastSeenVersionKey] = BuildConfig.BASE_VERSION_NAME
             }
         }
 
@@ -527,7 +536,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 } else {
-                    onLatestVersionNameChange(BuildConfig.VERSION_NAME)
+                    onLatestVersionNameChange(BuildConfig.BASE_VERSION_NAME)
                     kmpRelease = null
                 }
             }
@@ -576,6 +585,7 @@ class MainActivity : ComponentActivity() {
         }
 
         val enableLandscapeScaling by rememberPreference(EnableLandscapeScalingKey, defaultValue = false)
+        val userDensityScale by rememberPreference(DensityScaleKey, defaultValue = 1f)
         val pureBlackEnabled by rememberPreference(PureBlackKey, defaultValue = false)
         val pureBlack =
             remember(pureBlackEnabled, useDarkTheme) {
@@ -655,21 +665,22 @@ class MainActivity : ComponentActivity() {
             val containerSize = windowInfo.containerDpSize
             val smallestDimensionDp = minOf(containerSize.width, containerSize.height)
 
-            val densityScale = remember(smallestDimensionDp, enableLandscapeScaling) {
-                if (enableLandscapeScaling) {
-                    when {
-                        smallestDimensionDp >= 840.dp -> 1.15f
-                        smallestDimensionDp >= 720.dp -> 1.1f
-                        smallestDimensionDp >= 600.dp -> 1.05f
-                        else -> 1.0f
+            val landscapeDensityScale =
+                remember(smallestDimensionDp, enableLandscapeScaling) {
+                    if (enableLandscapeScaling) {
+                        when {
+                            smallestDimensionDp >= 840.dp -> 1.15f
+                            smallestDimensionDp >= 720.dp -> 1.1f
+                            smallestDimensionDp >= 600.dp -> 1.05f
+                            else -> 1.0f
+                        }
+                    } else {
+                        1.0f
                     }
-                } else {
-                    1.0f
                 }
-            }
-            val scaledDensity: Density = remember(currentDensity, densityScale) {
+            val scaledDensity: Density = remember(currentDensity, landscapeDensityScale, userDensityScale) {
                 Density(
-                    density = currentDensity.density * densityScale,
+                    density = currentDensity.density * landscapeDensityScale * userDensityScale,
                     fontScale = currentDensity.fontScale,
                 )
             }
@@ -692,7 +703,7 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(Unit) {
                     val lastSeenVersion = dataStore.data.first()[LastSeenVersionKey] ?: ""
-                    val currentVersion = BuildConfig.VERSION_NAME
+                    val currentVersion = BuildConfig.BASE_VERSION_NAME
                     if (lastSeenVersion != currentVersion) {
                         showChangelog.value = true
                     }
@@ -728,8 +739,8 @@ class MainActivity : ComponentActivity() {
                 val tabOpenedFromShortcut =
                     remember {
                         when (intent?.action) {
-                            ACTION_SEARCH -> NavigationTab.LIBRARY
-                            ACTION_LIBRARY -> NavigationTab.SEARCH
+                            ACTION_SEARCH -> NavigationTab.SEARCH
+                            ACTION_LIBRARY -> NavigationTab.LIBRARY
                             else -> null
                         }
                     }
@@ -1055,7 +1066,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                             IconButton(onClick = { showAccountDialog = true }) {
                                                 BadgedBox(badge = {
-                                                    if (latestVersionName != BuildConfig.VERSION_NAME) {
+                                                    if (latestVersionName != BuildConfig.BASE_VERSION_NAME) {
                                                         Badge()
                                                     }
                                                 }) {
@@ -1307,8 +1318,8 @@ class MainActivity : ComponentActivity() {
                                     startDestination =
                                         when (tabOpenedFromShortcut ?: defaultOpenTab) {
                                             NavigationTab.HOME -> Screens.Home
+                                            NavigationTab.SEARCH -> Screens.Search
                                             NavigationTab.LIBRARY -> Screens.Library
-                                            else -> Screens.Home
                                         }.route,
                                     enterTransition = {
                                         val currentRouteIndex = routeIndexMap[targetState.destination.route] ?: -1

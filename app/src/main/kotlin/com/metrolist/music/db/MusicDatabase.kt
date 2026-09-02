@@ -20,6 +20,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.AutoMigrationSpec
 import androidx.room.migration.Migration
+import androidx.room.withTransaction
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import com.metrolist.music.db.daos.SpeedDialDao
@@ -82,14 +83,8 @@ class MusicDatabase(
         }
 
     suspend fun withTransaction(block: suspend MusicDatabase.() -> Unit) =
-        with(delegate) {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                runInTransaction {
-                    kotlinx.coroutines.runBlocking {
-                        block(this@MusicDatabase)
-                    }
-                }
-            }
+        delegate.withTransaction {
+            block(this@MusicDatabase)
         }
 
     fun close() = delegate.close()
@@ -305,10 +300,14 @@ abstract class InternalDatabase : RoomDatabase() {
                     MIGRATION_21_24,
                     MIGRATION_22_24,
                     MIGRATION_24_25,
+<<<<<<< HEAD
                     MIGRATION_38_39,
                     MIGRATION_39_40,
                     MIGRATION_40_41,
                 ).fallbackToDestructiveMigration()
+=======
+                ).fallbackToDestructiveMigration(false)
+>>>>>>> upstream/main
                 .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                 .setTransactionExecutor(
                     java.util.concurrent.Executors
