@@ -70,7 +70,6 @@ import com.metrolist.music.constants.LibraryViewType
 import com.metrolist.music.constants.PlaylistSortDescendingKey
 import com.metrolist.music.constants.PlaylistSortType
 import com.metrolist.music.constants.PlaylistSortTypeKey
-import com.metrolist.music.constants.PlaylistViewTypeKey
 import com.metrolist.music.constants.ShowCachedPlaylistKey
 import com.metrolist.music.constants.ShowDownloadedPlaylistKey
 import com.metrolist.music.constants.ShowLikedPlaylistKey
@@ -109,6 +108,8 @@ private data class VisiblePlaylistItem(
 fun LibraryPlaylistsScreen(
     navController: NavController,
     filterContent: @Composable () -> Unit,
+    viewType: LibraryViewType,
+    onViewTypeChange: (LibraryViewType) -> Unit,
     viewModel: LibraryPlaylistsViewModel = hiltViewModel(),
     initialTextFieldValue: String? = null,
     allowSyncing: Boolean = true,
@@ -119,7 +120,6 @@ fun LibraryPlaylistsScreen(
 
     val coroutineScope = rememberCoroutineScope()
 
-    var viewType by rememberEnumPreference(PlaylistViewTypeKey, LibraryViewType.GRID)
     val (sortType, onSortTypeChange) = rememberEnumPreference(
         PlaylistSortTypeKey,
         PlaylistSortType.CREATE_DATE
@@ -386,7 +386,7 @@ fun LibraryPlaylistsScreen(
 
             IconButton(
                 onClick = {
-                    viewType = viewType.toggle()
+                    onViewTypeChange(viewType.toggle())
                 },
                 modifier = Modifier.padding(end = 8.dp).size(40.dp),
             ) {

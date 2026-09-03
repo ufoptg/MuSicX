@@ -121,3 +121,5 @@ memory/
 test_reports/
 test_result.md
 .cortexkit
+.mcp.json
+*.har
