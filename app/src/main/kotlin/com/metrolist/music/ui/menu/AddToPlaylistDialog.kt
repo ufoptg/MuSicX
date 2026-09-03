@@ -34,11 +34,14 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.metrolist.innertube.utils.parseCookieString
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.R
+import com.metrolist.music.constants.AddToPlaylistPosition
+import com.metrolist.music.constants.AddToPlaylistPositionKey
 import com.metrolist.music.constants.AddToPlaylistSortDescendingKey
 import com.metrolist.music.constants.AddToPlaylistSortTypeKey
 import com.metrolist.music.constants.InnerTubeCookieKey
 import com.metrolist.music.constants.ListThumbnailSize
 import com.metrolist.music.constants.PlaylistSortType
+import com.metrolist.music.db.DatabaseDao
 import com.metrolist.music.db.entities.Playlist
 import com.metrolist.music.ui.component.CreatePlaylistDialog
 import com.metrolist.music.ui.component.DefaultDialog
@@ -89,6 +92,10 @@ fun AddToPlaylistDialog(
     val database = LocalDatabase.current
     val syncUtils = LocalSyncUtils.current
     val coroutineScope = rememberCoroutineScope()
+    val (addToPlaylistPosition) = rememberEnumPreference(
+        AddToPlaylistPositionKey,
+        AddToPlaylistPosition.BEGINNING,
+    )
     val (sortType, onSortTypeChange) = rememberEnumPreference(
         AddToPlaylistSortTypeKey,
         PlaylistSortType.NAME
@@ -123,7 +130,11 @@ fun AddToPlaylistDialog(
     }
 
     suspend fun addSongsAndSync(targetPlaylist: Playlist, ids: List<String>) {
-        database.addSongsToPlaylist(targetPlaylist, ids.map { it to null }, prepend = true)
+        database.addSongsToPlaylist(
+            targetPlaylist,
+            ids.map { it to null },
+            prepend = addToPlaylistPosition.prepend,
+        )
         targetPlaylist.playlist.browseId?.let { plist ->
             ids.forEach { songId ->
                 syncUtils.addToPlaylist(plist, targetPlaylist.id, songId)
@@ -140,13 +151,14 @@ fun AddToPlaylistDialog(
     }
     LaunchedEffect(isVisible, songIds, playlists) {
         if (!isVisible) {
+            songIds = null
             playlistsContainingSong = emptySet()
             return@LaunchedEffect
         }
         val ids = songIds ?: return@LaunchedEffect
         withContext(Dispatchers.IO) {
             playlistsContainingSong = playlists
-                .filter { database.playlistDuplicates(it.id, ids).isNotEmpty() }
+                .filter { database.playlistDuplicatesBatched(it.id, ids).isNotEmpty() }
                 .map { it.id }
                 .toSet()
         }
@@ -300,7 +312,7 @@ fun AddToPlaylistDialog(
                             } else {
                                 onGetSong(playlist)
                             }
-                            duplicates = database.playlistDuplicates(playlist.id, songIds!!)
+                            duplicates = database.playlistDuplicatesBatched(playlist.id, songIds!!)
                             if (duplicates.isNotEmpty()) {
                                 showDuplicateDialog = true
                             } else {
@@ -378,3 +390,18 @@ fun AddToPlaylistDialog(
             }
         }
 }
+
+internal const val MAX_PLAYLIST_DUPLICATES_BATCH_SIZE = 500
+
+internal suspend fun DatabaseDao.playlistDuplicatesBatched(
+    playlistId: String,
+    songIds: List<String>,
+): List<String> =
+    if (songIds.size <= MAX_PLAYLIST_DUPLICATES_BATCH_SIZE) {
+        playlistDuplicates(playlistId, songIds)
+    } else {
+        songIds
+            .distinct()
+            .chunked(MAX_PLAYLIST_DUPLICATES_BATCH_SIZE)
+            .flatMap { playlistDuplicates(playlistId, it) }
+    }
