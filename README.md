@@ -1,6 +1,10 @@
 <div align="center">
 
+<<<<<<< HEAD
 <img src="fastlane/metadata/android/en-US/images/icon.png" alt="MuSicX app icon" width="200" />
+=======
+<img src="fastlane/metadata/android/en-US/images/icon.png" alt="Metrolist app icon" width="200" />
+>>>>>>> upstream/main
 
 # MuSicX
 
@@ -10,10 +14,18 @@ https://metrolist.cc/listen?code=04UMRJ89
 
 <br/>
 
+<<<<<<< HEAD
 [![Latest release](https://img.shields.io/github/v/release/ufoptg/MuSicX?style=for-the-badge&labelColor=0d1117)](https://github.com/ufoptg/MuSicX/releases)
 [![License](https://img.shields.io/github/license/ufoptg/MuSicX?style=for-the-badge)](https://github.com/ufoptg/MuSicX/blob/main/LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/ufoptg/MuSicX/total?style=for-the-badge)](https://github.com/ufoptg/MuSicX/releases)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/TrueSaiyan)
+=======
+<a href="https://www.blacksmith.sh">
+  <img src="assets/blacksmith-powered.png" alt="CI powered by Blacksmith" width="280" />
+</a>
+
+<br/>
+>>>>>>> upstream/main
 <br/>
 
 [**Download**](#download-now) · [**Features**](#features) · [**What's New**](#whats-new-in-musicx) · [**Roadmap**](#roadmap) · [**FAQ**](#faq)
@@ -120,8 +132,12 @@ Features added on top of Metrolist upstream:
 - Audio normalization
 - Tempo & pitch control
 - Equalizer
+<<<<<<< HEAD
 - **Lossless FLAC 16-bit / 44.1 kHz (CD)** ✨
 - **Hi-Res FLAC up to 24-bit / 192 kHz** ✨
+=======
+- Crossfade
+>>>>>>> upstream/main
 
 </td>
   </tr>
@@ -158,8 +174,13 @@ Features added on top of Metrolist upstream:
 
 #### Social
 - Listen together with friends in real-time
+<<<<<<< HEAD
 - Discord Rich Presence
 - Last.fm scrobbling
+=======
+- Last.fm integration for scrobbling
+- Safe Discord Rich Presence
+>>>>>>> upstream/main
 
 </td>
     <td width="50%" valign="top">
@@ -208,11 +229,32 @@ Features added on top of Metrolist upstream:
 
 <table>
   <tr>
+<<<<<<< HEAD
+=======
+    <th align="center">Obtainium</th>
+    <th align="center">IzzyOnDroid</th>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/MetrolistGroup/Metrolist/">
+        <img src="assets/badges/obtainium.svg" alt="Add Metrolist to Obtainium" height="100">
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://apt.izzysoft.de/fdroid/index/apk/com.metrolist.music">
+        <img src="assets/badges/izzyondroid.svg" alt="Get Metrolist on IzzyOnDroid" height="100">
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <th align="center">OpenAPK</th>
+>>>>>>> upstream/main
     <th align="center">GitHub</th>
     <th align="center">Obtainium</th>
   </tr>
   <tr>
     <td align="center">
+<<<<<<< HEAD
       <a href="https://github.com/ufoptg/MuSicX/releases/latest/download/MuSicX.apk">
         <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Download from GitHub" height="60">
       </a>
@@ -220,6 +262,15 @@ Features added on top of Metrolist upstream:
     <td align="center">
       <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/ufoptg/MuSicX/">
         <img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png" alt="Download from Obtainium" height="40">
+=======
+      <a href="https://www.openapk.net/metrolist/com.metrolist.music/">
+        <img src="assets/badges/openapk.svg" alt="Get Metrolist on OpenAPK" height="100">
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/MetrolistGroup/Metrolist/releases/latest/download/Metrolist.apk">
+        <img src="assets/badges/github-stable.svg" alt="Get the stable Metrolist release on GitHub" height="100">
+>>>>>>> upstream/main
       </a>
     </td>
   </tr>
@@ -234,6 +285,7 @@ Features added on top of Metrolist upstream:
   </tr>
   <tr>
     <td align="center">
+<<<<<<< HEAD
       <a href="https://nightly.link/ufoptg/MuSicX/workflows/build/main/MuSicX-Nightly.zip">
         <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="MuSicX Nightly" height="60">
       </a>
@@ -241,6 +293,10 @@ Features added on top of Metrolist upstream:
     <td align="center">
       <a href="https://nightly.link/ufoptg/MuSicX/workflows/build/main/MuSicX-Nightly-with-Google-Cast.zip">
         <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="MuSicX Nightly (Cast)" height="60">
+=======
+      <a href="https://github.com/MetrolistGroup/Metrolist/releases/download/nightly/Metrolist-with-Google-Cast.apk">
+        <img src="assets/badges/github-nightly.svg" alt="Get the Metrolist nightly build on GitHub" height="120">
+>>>>>>> upstream/main
       </a>
     </td>
   </tr>
@@ -284,10 +340,44 @@ Three ways: (1) <strong>Search</strong> → type any podcast name → tap the "P
 On Spotify, Local, and online YouTube Music playlists, the sparkles toggle next to Play/Shuffle loads an ephemeral “Recommended” section at the bottom. Recs disappear when you turn Enhance off. On Local (and Spotify) playlists you can long-press a recommendation and choose <strong>Add to this playlist</strong> to keep it; on online YT playlists long-press opens the normal song menu.
 </details>
 
+<<<<<<< HEAD
 <details>
 <summary><strong>How is MuSicX different from Metrolist?</strong></summary>
 MuSicX is a fork that adds: full Spotify integration (login, home, library, search bridging, Enhance, Start radio), SponsorBlock, ANR watchdog, GitHub-issue crash reporting, Music Recognition (Shazam-style widget + Quick Settings tile), Podcasts library, LyricsPlus/ExperimentalLyrics with word-timed karaoke, Expressive player, now-playing widgets, and experimental Qobuz hi-res streaming. Upstream Metrolist commits are automatically synced on top, so no fixes get lost.
 </details>
+=======
+<h3>We use Weblate to translate Metrolist. <a href="https://hosted.weblate.org/projects/Metrolist/">Help us bring Metrolist to more people!</a></h3>
+
+<a href="https://hosted.weblate.org/projects/Metrolist/">
+  <img src="https://hosted.weblate.org/widget/Metrolist/horizontal-auto.svg" alt="Translation status" />
+</a>
+
+<h3>Thank you! Every translation makes Metrolist a little more accessible to someone, somewhere in the world.</h3>
+
+</div>
+
+---
+
+<div align="center">
+
+<h1><a id="support-the-project"></a>Support the Project</h1>
+
+<h3>Metrolist is free and open-source. If it brings you joy, consider supporting its development!</h3>
+
+#### Monero (XMR)
+
+<img src="assets/XMR.png" alt="Monero QR code" width="150" />
+
+```text
+44XjSELSWcgJTZiCKzjpCQWyXhokrH9RqH3rpp35FkSKi57T25hniHWHQNhLeXyFn3DDYqufmfRB1iEtENerZpJc7xJCcqt
+```
+
+#### Buy Me a Coffee
+
+<a href="https://www.buymeacoffee.com/mostafaalagamy">
+  <img src="assets/buymeacoffee.png" alt="Buy Me a Coffee" width="150" />
+</a>
+>>>>>>> upstream/main
 
 </div>
 
@@ -365,7 +455,17 @@ MuSicX is a fork that adds: full Spotify integration (login, home, library, sear
   </tbody>
 </table>
 
+<<<<<<< HEAD
 <h3>We also thank the entire open-source community — for every library, tool, and API that powers this project.</h3>
+=======
+<br/>
+
+<a href="https://www.blacksmith.sh">
+  <img src="assets/blacksmith-powered.png" alt="CI powered by Blacksmith" width="280" />
+</a>
+
+<h3>We also thank the entire open-source community! For every library, tool, and API that powers this project.</h3>
+>>>>>>> upstream/main
 
 </div>
 
