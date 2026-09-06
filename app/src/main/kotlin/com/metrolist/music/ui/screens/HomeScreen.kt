@@ -1614,15 +1614,6 @@ fun HomeScreen(
                         }
                     }
 
-                    // Add "Latest Episodes" header before episode sections (if we have any sections)
-                    if (homeSections.filterIsInstance<HomeSection.HomePageSection>().isNotEmpty()) {
-                        item(key = "0_latest_episodes_title") {
-                            NavigationTitle(
-                                title = stringResource(R.string.latest_episodes),
-                            )
-                        }
-                    }
-
                     // Render the regular sections from the chip (episodes grouped by category)
                     // Use key prefix "1_" to ensure episodes sort after channels "0_"
                     // Skip sections that duplicate official API sections (Your Shows, Episodes for Later)
