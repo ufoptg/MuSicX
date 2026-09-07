@@ -26,6 +26,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import com.metrolist.music.constants.DataSyncIdKey
+import com.metrolist.music.constants.InnerTubeAuthUserKey
 import com.metrolist.music.constants.InnerTubeCookieKey
 import com.metrolist.music.constants.VisitorDataKey
 import com.metrolist.music.db.InternalDatabase
@@ -290,6 +291,7 @@ class BackupRestoreViewModel @Inject constructor(
                                         prefs.remove(InnerTubeCookieKey)
                                         prefs.remove(VisitorDataKey)
                                         prefs.remove(DataSyncIdKey)
+                                        prefs.remove(InnerTubeAuthUserKey)
                                     }
                                 }
 

@@ -1,7 +1,10 @@
 @file:Suppress("UnstableApiUsage")
 
+val useMavenLocalInnerTubeX = providers.gradleProperty("useMavenLocalInnerTubeX").isPresent
+
 pluginManagement {
     repositories {
+        mavenLocal()
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -12,6 +15,20 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
 
     repositories {
+        exclusiveContent {
+            forRepository {
+                if (useMavenLocalInnerTubeX) mavenLocal() else maven("https://jitpack.io")
+            }
+            filter {
+                if (useMavenLocalInnerTubeX) {
+                    includeModule("com.github.MetrolistGroup", "innertubex")
+                    includeModule("com.github.MetrolistGroup", "innertubex-android")
+                    includeModule("com.github.MetrolistGroup", "innertubex-desktop")
+                } else {
+                    includeGroup("com.github.MetrolistGroup.innertubex")
+                }
+            }
+        }
         google()
         mavenCentral()
         maven { setUrl("https://jitpack.io") }
@@ -20,14 +37,19 @@ dependencyResolutionManagement {
 }
 
 // F-Droid doesn't support foojay-resolver plugin
+<<<<<<< HEAD
 // plugins {
 //     id("org.gradle.toolchains.foojay-resolver-convention") version("1.0.0")
 // }
 
 rootProject.name = "MuSicX"
+=======
+rootProject.name = "Metrolist"
+>>>>>>> upstream/main
 include(":app")
 include(":wear")
 include(":innertube")
+<<<<<<< HEAD
 include(":kugou")
 include(":lrclib")
 
@@ -52,3 +74,5 @@ include(":spotify")
 //        substitute(module("com.github.teamnewpipe:NewPipeExtractor")).using(project(":extractor"))
 //    }
 //}
+=======
+>>>>>>> upstream/main

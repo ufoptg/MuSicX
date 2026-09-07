@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+<<<<<<< HEAD
     <color name="ic_launcher_background">#0a0a0a</color>
 </resources>
+=======
+    <color name="ic_launcher_background">#000000</color>
+    <color name="teal_200">#80CBC4</color>
+    <color name="teal_700">#00796B</color>
+</resources>
+>>>>>>> upstream/main

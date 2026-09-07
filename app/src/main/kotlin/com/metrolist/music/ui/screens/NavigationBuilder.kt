@@ -56,7 +56,6 @@ import com.metrolist.music.ui.screens.settings.PrivacySettings
 import com.metrolist.music.ui.screens.settings.RomanizationSettings
 import com.metrolist.music.ui.screens.settings.SettingsScreen
 import com.metrolist.music.ui.screens.settings.StorageSettings
-import com.metrolist.music.ui.screens.settings.StreamSourcesSettings
 import com.metrolist.music.ui.screens.settings.ThemeScreen
 import com.metrolist.music.ui.screens.settings.UpdaterScreen
 import com.metrolist.music.ui.screens.settings.integrations.DiscordSettings
@@ -359,7 +358,7 @@ fun NavGraphBuilder.navigationBuilder(
     }
 
     composable("settings/appearance") {
-        AppearanceSettings(navController, activity, snackbarHostState)
+        AppearanceSettings(navController, snackbarHostState)
     }
 
     composable("settings/appearance/theme") {
@@ -382,6 +381,7 @@ fun NavGraphBuilder.navigationBuilder(
         PlayerSettings(navController)
     }
 
+<<<<<<< HEAD
     // MuSicX SponsorBlock settings (ported from meld)
     composable("settings/player/sponsorblock") {
         SponsorBlockSettings(navController)
@@ -391,6 +391,8 @@ fun NavGraphBuilder.navigationBuilder(
         StreamSourcesSettings(navController)
     }
 
+=======
+>>>>>>> upstream/main
     composable("settings/storage") {
         StorageSettings(navController)
     }
@@ -472,6 +474,13 @@ fun NavGraphBuilder.navigationBuilder(
 
     composable("login") {
         LoginScreen(navController)
+    }
+
+    composable("switch_channel") {
+        LoginScreen(
+            navController = navController,
+            isSwitchingChannel = true,
+        )
     }
 
     composable("wrapped") {

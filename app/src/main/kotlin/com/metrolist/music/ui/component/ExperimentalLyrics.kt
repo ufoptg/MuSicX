@@ -110,7 +110,6 @@ import com.metrolist.music.constants.ShowIntervalIndicatorKey
 import com.metrolist.music.constants.TranslateLanguageKey
 import com.metrolist.music.constants.TranslateModeKey
 import com.metrolist.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
-import com.metrolist.music.lyrics.LyricsResyncHelper
 import com.metrolist.music.lyrics.LyricsTranslationHelper
 import com.metrolist.music.lyrics.LyricsUtils.findActiveLineIndices
 import com.metrolist.music.lyrics.lyricsTextLooksSynced
@@ -615,7 +614,6 @@ fun ExperimentalLyrics(
             }
         }
 
-        val latestShowLyrics by rememberUpdatedState(showLyrics)
         val latestResyncLyrics by rememberUpdatedState(
             newValue = {
                 flingJob?.cancel()
@@ -639,14 +637,6 @@ fun ExperimentalLyrics(
                 isAutoScrollEnabled = true
             },
         )
-
-        LaunchedEffect(Unit) {
-            LyricsResyncHelper.resyncTrigger.collect {
-                if (latestShowLyrics) {
-                    latestResyncLyrics()
-                }
-            }
-        }
 
         LyricsTranslationHeader(
             status = translationStatus,
@@ -757,9 +747,9 @@ fun ExperimentalLyrics(
                                 is LyricsListItem.Indicator -> {
                                     val visible =
                                         isAutoScrollEnabled &&
-                                            currentPositionState >= listItem.gapStartMs &&
-                                            currentPositionState <= listItem.gapEndMs - 650L
-                                    IntervalIndicator(listItem.gapStartMs, listItem.gapEndMs - 650L, currentPositionState, visible, expressiveAccent, 
+                                            currentEffectivePosition >= listItem.gapStartMs &&
+                                            currentEffectivePosition <= listItem.gapEndMs - 650L
+                                    IntervalIndicator(listItem.gapStartMs, listItem.gapEndMs - 650L, currentEffectivePosition, visible, expressiveAccent,
                                         Modifier.fillMaxWidth().onSizeChanged { itemHeights[listIndex] = it.height }.padding(horizontal = 24.dp).wrapContentWidth(Alignment.CenterHorizontally))
                                 }
                                 is LyricsListItem.Line -> {

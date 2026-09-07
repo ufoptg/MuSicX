@@ -291,7 +291,7 @@ fun ListenTogetherScreen(
                 }
 
                 // Connected users
-                val connectedUsers = room.users.filter { it.isConnected }
+                val connectedUsers = room.usersList.filter { it.isConnected }
                 val currentUserIdValue = userId ?: ""
                 item {
                     ConnectedUsersSection(
