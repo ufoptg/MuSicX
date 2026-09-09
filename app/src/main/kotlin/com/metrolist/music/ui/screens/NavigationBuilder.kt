@@ -381,7 +381,6 @@ fun NavGraphBuilder.navigationBuilder(
         PlayerSettings(navController)
     }
 
-<<<<<<< HEAD
     // MuSicX SponsorBlock settings (ported from meld)
     composable("settings/player/sponsorblock") {
         SponsorBlockSettings(navController)
@@ -391,8 +390,6 @@ fun NavGraphBuilder.navigationBuilder(
         StreamSourcesSettings(navController)
     }
 
-=======
->>>>>>> upstream/main
     composable("settings/storage") {
         StorageSettings(navController)
     }

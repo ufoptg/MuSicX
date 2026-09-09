@@ -275,7 +275,6 @@ fun AboutScreen(
                     .fillMaxWidth()
                     .padding(24.dp)
             ) {
-<<<<<<< HEAD
                 Box(contentAlignment = Alignment.Center) {
                     // Orbs artwork (same one used on the Listen Together header,
                     // added in v13.8.7). Replaces the previous two-layer
@@ -289,17 +288,6 @@ fun AboutScreen(
                             .clip(CircleShape),
                     )
                 }
-=======
-                Image(
-                    painter = painterResource(R.drawable.small_icon),
-                    contentDescription = stringResource(R.string.metrolist),
-                    colorFilter = ColorFilter.tint(
-                        color = MaterialTheme.colorScheme.primary,
-                        blendMode = BlendMode.SrcIn,
-                    ),
-                    modifier = Modifier.size(64.dp)
-                )
->>>>>>> upstream/main
         
                 Spacer(Modifier.width(20.dp))
         

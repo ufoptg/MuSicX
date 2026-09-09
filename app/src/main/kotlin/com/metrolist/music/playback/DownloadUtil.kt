@@ -36,14 +36,10 @@ import com.metrolist.music.db.entities.Song
 import com.metrolist.music.db.entities.SongEntity
 import com.metrolist.music.di.DownloadCache
 import com.metrolist.music.di.PlayerCache
-<<<<<<< HEAD
 import com.metrolist.music.playback.MusicService.Companion.CHUNK_LENGTH
-import com.metrolist.music.utils.YTPlayerUtils
-=======
 import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.utils.InnerTubeXPlayer
->>>>>>> upstream/main
 import com.metrolist.music.utils.enumPreference
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -187,22 +183,6 @@ constructor(
                     .ifBlank { "" }
 
             database.query {
-<<<<<<< HEAD
-                upsert(
-                    FormatEntity(
-                        id = mediaId,
-                        itag = format.itag,
-                        mimeType = mimeType,
-                        codecs = codecs,
-                        bitrate = format.bitrate,
-                        sampleRate = format.audioSampleRate,
-                        contentLength = actualContentLength,
-                        loudnessDb = playbackData.audioConfig?.loudnessDb,
-                        perceptualLoudnessDb = playbackData.audioConfig?.perceptualLoudnessDb,
-                        playbackUrl = playbackData.playbackTracking?.videostatsPlaybackUrl?.baseUrl
-                    ),
-                )
-=======
                 if (actualContentLength != null) {
                     upsert(
                         FormatEntity(
@@ -226,7 +206,6 @@ constructor(
                 } else {
                     deleteFormat(mediaId)
                 }
->>>>>>> upstream/main
 
                 // Metadata registration only — dateDownload is intentionally NOT set here.
                 // It belongs solely to onDownloadChanged()'s STATE_COMPLETED branch below,
@@ -246,11 +225,8 @@ constructor(
                 upsert(updatedSong)
             }
 
-<<<<<<< HEAD
             // Use a clean stream URL (no baked-in range=). Media3 DownloadManager
             // requests byte ranges itself; baking range=0-N caused hangs/failures.
-=======
->>>>>>> upstream/main
             val streamUrl = playbackData.streamUrl
 
             songUrlCache.put(

@@ -42,18 +42,12 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
-<<<<<<< HEAD
         versionCode = 191
         versionName = "13.10"
-        resValue("string", "app_name", appNameOverride ?: "MuSicX")
-=======
-        versionCode = 153
-        versionName = "13.7.0"
         val baseVersionName = requireNotNull(versionName)
         buildConfigField("String", "BASE_VERSION_NAME", "\"$baseVersionName\"")
         buildCommit?.let { versionName = "$baseVersionName+$it" }
-        resValue("string", "app_name", appNameOverride ?: "Metrolist")
->>>>>>> upstream/main
+        resValue("string", "app_name", appNameOverride ?: "MuSicX")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -319,7 +313,6 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     implementation(project(":innertube"))
-<<<<<<< HEAD
     implementation(project(":kugou"))
     implementation(project(":lrclib"))
     implementation(project(":lastfm"))
@@ -327,8 +320,6 @@ dependencies {
     implementation(project(":shazamkit"))
     implementation(project(":paxsenix"))
     implementation(project(":spotify"))
-=======
->>>>>>> upstream/main
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)

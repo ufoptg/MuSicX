@@ -1,11 +1,6 @@
-<<<<<<< HEAD
 /**
  * MuSicX Project (C) 2026
  * Credits to Metrolist Project (C) 2026
-=======
-/*
- * Metrolist Project (C) 2026
->>>>>>> upstream/main
  * Licensed under GPL-3.0 | See git history for contributors
  */
 

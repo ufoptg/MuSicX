@@ -4047,7 +4047,6 @@ class MusicService :
         }
     }
 
-<<<<<<< HEAD
     // ─── Qobuz support (ported from meld) ─────────────────────────────────────
     // In-memory negative cache for Qobuz: tracks that recently failed to resolve
     // are skipped for QOBUZ_MISS_TTL_MS to avoid burning the search budget on
@@ -4327,16 +4326,12 @@ class MusicService :
     }
     // ─── End Qobuz helpers ─────────────────────────────────────────────────────
 
-    private fun createDataSourceFactory(): DataSource.Factory {
-        return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
-            val mediaId = stripQobuzCacheKeyPrefix(dataSpec.key ?: error("No media id"))
-=======
     private fun createDataSourceFactory(
         normalizationProcessor: VolumeNormalizationAudioProcessor,
         playerProvider: () -> ExoPlayer?,
     ): DataSource.Factory {
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
-            val mediaId = dataSpec.key ?: error("No media id")
+            val mediaId = stripQobuzCacheKeyPrefix(dataSpec.key ?: error("No media id"))
             val storedFormat = runBlocking(Dispatchers.IO) { database.format(mediaId).first() }
             applyAudioNormalizationBeforePlayback(
                 processor = normalizationProcessor,
@@ -4346,7 +4341,6 @@ class MusicService :
                 perceptualLoudnessDb = storedFormat?.perceptualLoudnessDb,
                 preserveCachedIfMissing = true,
             )
->>>>>>> upstream/main
 
             val shouldBypassCache = bypassCacheForQualityChange.contains(mediaId)
 

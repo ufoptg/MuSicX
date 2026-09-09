@@ -1,12 +1,9 @@
-<<<<<<< HEAD
 /**
  * MuSicX Project (C) 2026
  * Credits to Metrolist Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
-=======
->>>>>>> upstream/main
 package com.metrolist.music.listentogether
 
 import com.google.protobuf.ByteString

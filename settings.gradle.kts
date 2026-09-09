@@ -37,19 +37,14 @@ dependencyResolutionManagement {
 }
 
 // F-Droid doesn't support foojay-resolver plugin
-<<<<<<< HEAD
 // plugins {
 //     id("org.gradle.toolchains.foojay-resolver-convention") version("1.0.0")
 // }
 
 rootProject.name = "MuSicX"
-=======
-rootProject.name = "Metrolist"
->>>>>>> upstream/main
 include(":app")
 include(":wear")
 include(":innertube")
-<<<<<<< HEAD
 include(":kugou")
 include(":lrclib")
 
@@ -74,5 +69,3 @@ include(":spotify")
 //        substitute(module("com.github.teamnewpipe:NewPipeExtractor")).using(project(":extractor"))
 //    }
 //}
-=======
->>>>>>> upstream/main
