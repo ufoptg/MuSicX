@@ -195,7 +195,7 @@ private fun ContributorAvatar(
     contentDescription: String? = null,
     onClick: (() -> Unit)? = null
 ) {
-    val fallback = painterResource(R.drawable.about_icon)
+    val fallback = painterResource(R.drawable.small_icon)
     Surface(
         onClick = onClick ?: {},
         enabled = onClick != null,

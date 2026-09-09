@@ -85,7 +85,6 @@ class ExoDownloadService : DownloadService(
             .build()
     }
 
-
     /**
      * This helper will outlive the lifespan of a single instance of [ExoDownloadService]
      */
