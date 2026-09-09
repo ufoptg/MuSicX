@@ -1504,6 +1504,10 @@ interface DatabaseDao {
     ): Flow<List<EventWithSong>>
 
     @Transaction
+    @Query("SELECT * FROM event ORDER BY rowId DESC")
+    fun events(): Flow<List<EventWithSong>>
+
+    @Transaction
     @Query("SELECT * FROM event ORDER BY rowId ASC LIMIT 1")
     fun firstEvent(): Flow<EventWithSong?>
 

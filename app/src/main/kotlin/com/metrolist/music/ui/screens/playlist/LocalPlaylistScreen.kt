@@ -127,6 +127,7 @@ import com.metrolist.music.db.entities.PlaylistSong
 import com.metrolist.music.db.entities.PlaylistSongMap
 import com.metrolist.music.extensions.move
 import com.metrolist.music.extensions.toMediaItem
+import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.ExoDownloadService
 import com.metrolist.music.playback.queues.ListQueue
 import com.metrolist.music.ui.component.ActionPromptDialog

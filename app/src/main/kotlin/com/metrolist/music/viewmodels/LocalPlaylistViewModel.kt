@@ -106,7 +106,7 @@ constructor(
     fun addEnhanceTrackToPlaylist(song: SongItem) {
         viewModelScope.launch(Dispatchers.IO) {
             val pl = playlist.value ?: return@launch
-            database.transaction {
+            database.withTransaction {
                 insert(song.toMediaMetadata())
                 addSongsToPlaylist(pl, listOf(song.id to song.setVideoId))
             }

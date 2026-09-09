@@ -386,10 +386,6 @@ fun NavGraphBuilder.navigationBuilder(
         SponsorBlockSettings(navController)
     }
 
-    composable("settings/stream_sources") {
-        StreamSourcesSettings(navController)
-    }
-
     composable("settings/storage") {
         StorageSettings(navController)
     }
