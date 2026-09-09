@@ -23,7 +23,7 @@ https://metrolist.cc/listen?code=04UMRJ89
 > [!NOTE]
 > **MuSicX** is a maintained fork of [Metrolist](https://github.com/MetrolistGroup/Metrolist) with additional integrations (Spotify, SponsorBlock, Music Recognition, Podcasts, LyricsPlus, Expressive player, playlist Enhance, and experimental FLAC / Hi-Res streaming via Qobuz), crash reporting, and an automated nightly upstream sync. Same great UX, more music sources, more resilience.
 >
-> Latest stable: **v13.9.18**
+> Latest stable: **v13.11**
 
 > [!WARNING]
 > **Regional Restriction** — If YouTube Music is unavailable in your region, this app will not work without a **VPN or proxy** connecting to a supported region.
@@ -70,9 +70,10 @@ Features added on top of Metrolist upstream:
 | 🟢 **Listen Together — orbs artwork** | Shipped v13.8.7 | The Listen Together screen header now uses a dedicated three-orbs artwork (`R.drawable.listen_together_orbs`, 17 KB WebP) instead of the plain two-people icon. |
 | 🟢 **Expressive Player redesign** | Shipped v13.9.x | Redesigned, default-on Now Playing: palette-extracted blurred album-art backdrop, dominant-color-tinted pause pill + progress slider, queue peek sheet, long-press artwork to toggle lyrics, and a **one-line active lyric strip under the title** that follows synced lyrics in real time. Classic player kept behind *Settings → Appearance → Expressive player*. |
 | 🟢 **Spotify search + track menu + Start radio** | Shipped v13.9.4–13.9.7 | Spotify search results play on tap; long-press opens the full track menu (Play next / Queue / Add to playlist / Change YouTube version / View artist). **Start radio** resolves the track to YouTube Music and starts a proper radio mix. |
-| 🟢 **Playlist Enhance** ✨ new | Shipped v13.9.15–13.9.18 | Sparkles toggle next to Play/Shuffle on **Spotify**, **Local**, and **online YouTube Music** playlists. Appends an ephemeral “Recommended” section seeded from the playlist (Spotify recommender / YT Music `related`). Long-press a rec to add it to the playlist (Local) or open the song menu (Online YT). |
+| 🟢 **Playlist Enhance** | Shipped v13.9.15–13.9.18 | Sparkles toggle next to Play/Shuffle on **Spotify**, **Local**, and **online YouTube Music** playlists. Appends an ephemeral “Recommended” section seeded from the playlist (Spotify recommender / YT Music `related`). Long-press a rec to add it to the playlist (Local) or open the song menu (Online YT). |
 | 🟢 **Now-playing widgets + Flex Window** | Shipped v13.9.13 | 4×1, 4×2, and **4×4** large now-playing widgets with prev / play / next. Optional Galaxy Z Flip Flex Window cover-screen widget. |
 | 🟢 **Notification swipe-to-dismiss** | Shipped v13.9.11+ | Swipe the media notification away while paused to fully tear down playback / queue / service (not just pause). |
+| 🟢 **InnerTubeX stream extraction** ✨ new | Shipped v13.11 | Upstream Metrolist sync adopts [InnerTubeX](https://github.com/MetrolistGroup/innertubex) as the sole YouTube stream extractor (replacing the older NewPipe-based path), with MuSicX Spotify / Qobuz / SponsorBlock / Enhance stacks kept intact. |
 
 <br/>
 
@@ -103,6 +104,7 @@ Features added on top of Metrolist upstream:
 
 #### Playback
 - Stream any song or video from YouTube Music
+- **InnerTubeX stream extraction** ✨
 - Background playback
 - Download & cache for offline use
 - Skip silence

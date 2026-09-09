@@ -1,3 +1,19 @@
+---v13.11
+# MuSicX 13.11 — Upstream Metrolist sync + InnerTubeX
+
+## Changed
+- Synced upstream MetrolistGroup/Metrolist, including the switch to **InnerTubeX** as the sole YouTube stream extractor.
+- Restored MuSicX CI workflows (nightly / PR / release) after the sync left conflict markers and Metrolist branding in place.
+- Kept MuSicX-specific stacks intact: Spotify, Qobuz, SponsorBlock, Enhance, music recognition, and branding.
+
+## Fixed
+- Merge-conflict fallout that blocked GMS/FOSS builds (Gradle modules, duplicate launcher resources, compile errors).
+- Wear companion jobs removed from CI for now (`:wear` is not part of this build).
+
+## Notes
+- Stream-source client toggles from the old NewPipe path are gone; extraction is handled by InnerTubeX.
+
+
 ---v13.9.15
 # MuSicX 13.9.15 — Enhance button on Spotify playlists (issue #26)
 
