@@ -35,8 +35,9 @@ jobs:
             exit 0
           fi
 
-          NEW_VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts || echo "")
-          VERSION_CODE=$(grep -oP 'versionCode\s*=\s*\K\d+' app/build.gradle.kts || echo "")
+          # Only the base semver assignment — ignore versionName = "$baseVersionName+$it"
+          NEW_VERSION=$(grep -oP 'versionName\s*=\s*"\K[0-9][^"]*' app/build.gradle.kts | head -n1 || true)
+          VERSION_CODE=$(grep -oP 'versionCode\s*=\s*\K\d+' app/build.gradle.kts | head -n1 || true)
 
           if [ -z "$NEW_VERSION" ]; then
             echo "Could not find versionName in app/build.gradle.kts"
@@ -55,7 +56,7 @@ jobs:
           fi
 
           if git show HEAD^:app/build.gradle.kts > /dev/null 2>&1; then
-            OLD_VERSION=$(git show HEAD^:app/build.gradle.kts | grep -oP 'versionName\s*=\s*"\K[^"]+' || echo "")
+            OLD_VERSION=$(git show HEAD^:app/build.gradle.kts | grep -oP 'versionName\s*=\s*"\K[0-9][^"]*' | head -n1 || true)
             echo "Previous version: $OLD_VERSION"
             
             if [ "$OLD_VERSION" != "$NEW_VERSION" ]; then
