@@ -45,13 +45,6 @@ rootProject.name = "MuSicX"
 include(":app")
 include(":wear")
 include(":innertube")
-include(":kugou")
-include(":lrclib")
-
-include(":lastfm")
-include(":betterlyrics")
-include(":shazamkit")
-include(":paxsenix")
 include(":spotify")
 
 // Use a local copy of NewPipe Extractor by uncommenting the lines below.
