@@ -43,7 +43,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "MuSicX"
 include(":app")
-include(":wear")
 include(":innertube")
 include(":spotify")
 
