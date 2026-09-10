@@ -50,7 +50,8 @@ jobs:
 
       - name: Package Windows EXE (bundles LibVLC via vlc-setup)
         shell: bash
-        run: ./gradlew --console=plain :desktop:vlcSetup :desktop:packageReleaseExe --warning-mode summary
+        # vlc-setup tasks call Task.project at execution time; incompatible with configuration cache.
+        run: ./gradlew --console=plain --no-configuration-cache :desktop:vlcSetup :desktop:packageReleaseExe --warning-mode summary
 
       - name: Collect installer
         shell: bash
