@@ -29,17 +29,24 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Downloads InnerTubeX audio with required headers, then plays via bundled LibVLC.
- * Filtered VLC builds lack HTTP access plugins, so we feed a local file instead of streaming.
+ * Plays InnerTubeX audio via bundled LibVLC.
+ *
+ * The bundled VLC ships the full plugin set (see desktop/build.gradle.kts vlcSetup
+ * shouldIncludeAllVlcFiles), so HTTP/HTTPS access + TLS are available. We stream the
+ * googlevideo URL directly and let VLC buffer ahead — exactly like ExoPlayer does on
+ * Android. googlevideo delivers progressive streams at ~real-time rate, so downloading
+ * the whole file up front used to blow past the request timeout; progressive playback
+ * only needs real-time throughput. A local-file download stays as a resilient fallback.
  */
 class DesktopAudioPlayer : AutoCloseable {
     private val downloadClient =
         HttpClient(OkHttp) {
             expectSuccess = false
+            // No total-request timeout: a slow-but-progressing download must not be killed.
+            // Only guard against a truly stalled socket.
             install(HttpTimeout) {
-                requestTimeoutMillis = 120_000
                 connectTimeoutMillis = 30_000
-                socketTimeoutMillis = 120_000
+                socketTimeoutMillis = 30_000
             }
         }
 
@@ -72,6 +79,64 @@ class DesktopAudioPlayer : AutoCloseable {
         check(stream.sabrBootstrap == null) { "SABR streams are not supported yet" }
         lastError.set(null)
 
+        // Primary: stream the URL directly through VLC (progressive, like Android/ExoPlayer).
+        val streamedDirectly =
+            withContext(Dispatchers.IO) {
+                runCatching { startDirectStream(stream) }.getOrDefault(false)
+            }
+        if (streamedDirectly) {
+            isPlaying = true
+            return
+        }
+
+        // Fallback: download to a temp file, then play locally.
+        withContext(Dispatchers.IO) { downloadThenPlay(stream) }
+    }
+
+    /**
+     * Feeds the remote URL straight to VLC with the required HTTP headers and waits
+     * briefly for decoding/output to begin. Returns true only when audio is actually
+     * playing.
+     */
+    private suspend fun startDirectStream(stream: ExtractedStream): Boolean {
+        stopInternal()
+        lastError.set(null)
+
+        val options = buildList {
+            add(":no-video")
+            add(":network-caching=5000")
+            stream.headers["User-Agent"]?.takeIf { it.isNotBlank() }?.let { add(":http-user-agent=$it") }
+            stream.headers["Referer"]?.takeIf { it.isNotBlank() }?.let { add(":http-referrer=$it") }
+        }
+
+        val started = mediaPlayer.media().play(stream.audioUrl, *options.toTypedArray())
+        if (!started) return false
+
+        mediaPlayer.audio().setVolume(100)
+        mediaPlayer.audio().setMute(false)
+
+        // Give a streamed source more time to connect + buffer than a local file.
+        repeat(60) {
+            delay(100)
+            lastError.get()?.let {
+                stopInternal()
+                return false
+            }
+            when (mediaPlayer.status().state()) {
+                State.PLAYING, State.BUFFERING -> return true
+                State.ERROR, State.ENDED -> {
+                    stopInternal()
+                    return false
+                }
+                else -> Unit
+            }
+        }
+        // Never reached PLAYING within the window — treat as a failure and fall back.
+        stopInternal()
+        return false
+    }
+
+    private suspend fun downloadThenPlay(stream: ExtractedStream) {
         val file =
             withContext(Dispatchers.IO) {
                 val ext =
@@ -91,7 +156,6 @@ class DesktopAudioPlayer : AutoCloseable {
         withContext(Dispatchers.IO) {
             stopInternal()
             tempFile = file
-            // MRL must be a file URL; Windows paths need proper URI form
             val mrl = file.toURI().toASCIIString()
             val started = mediaPlayer.media().play(mrl, ":no-video")
             if (!started) {
@@ -100,8 +164,7 @@ class DesktopAudioPlayer : AutoCloseable {
             mediaPlayer.audio().setVolume(100)
             mediaPlayer.audio().setMute(false)
 
-            // Wait briefly for decode/output to start; surface silent failures
-            repeat(20) {
+            repeat(30) {
                 delay(100)
                 lastError.get()?.let { error(it) }
                 when (mediaPlayer.status().state()) {
