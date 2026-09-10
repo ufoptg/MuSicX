@@ -31,7 +31,7 @@ jobs:
   build_windows:
     name: Build Windows Installers
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v6
@@ -48,9 +48,9 @@ jobs:
           cache-encryption-key: ${{ secrets.GRADLE_CACHE_KEY }}
           cache-cleanup: on-success
 
-      - name: Package Windows EXE
+      - name: Package Windows EXE (bundles LibVLC via vlc-setup)
         shell: bash
-        run: ./gradlew --console=plain :desktop:packageReleaseExe --warning-mode summary
+        run: ./gradlew --console=plain :desktop:vlcSetup :desktop:packageReleaseExe --warning-mode summary
 
       - name: Collect installer
         shell: bash
