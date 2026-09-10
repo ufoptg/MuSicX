@@ -112,7 +112,6 @@ private fun SearchScreen(
             error = null
             try {
                 val stream = client.resolveAudioStream(hit.videoId)
-                check(stream.sabrBootstrap == null) { "SABR streams are not supported yet" }
                 player.play(stream)
                 nowPlaying = hit
                 playing = true
