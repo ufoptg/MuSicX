@@ -5,10 +5,22 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.compose.multiplatform)
+    id("ir.mahozad.vlc-setup") version "0.1.0"
 }
 
 kotlin {
     jvmToolchain(21)
+}
+
+val appResourcesDir = layout.projectDirectory.dir("appResources")
+
+vlcSetup {
+    vlcVersion = "3.0.21"
+    shouldCompressVlcFiles = true
+    shouldIncludeAllVlcFiles = false
+    pathToCopyVlcWindowsFilesTo = appResourcesDir.dir("windows/vlc").asFile
+    pathToCopyVlcLinuxFilesTo = appResourcesDir.dir("linux/vlc").asFile
+    pathToCopyVlcMacosFilesTo = appResourcesDir.dir("macos/vlc").asFile
 }
 
 dependencies {
@@ -23,7 +35,6 @@ dependencies {
     implementation(libs.ktor.serialization.json)
     implementation(libs.ktor.client.encoding)
 
-    // Bundled LibVLC — plays YouTube progressive/WebM/AAC streams in the packaged .exe
     implementation(libs.vlcj)
     implementation(libs.vlcj.natives)
 }
@@ -31,9 +42,9 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "com.metrolist.music.desktop.MainKt"
+        jvmArgs += "--add-opens=java.base/java.nio=ALL-UNNAMED"
 
         // ProGuard on windows-latest hits a Compose Desktop NPE (getStandardOutput must not be null).
-        // Re-enable once packaging is stable / we have keep rules for Spotify + InnerTubeX.
         buildTypes.release.proguard {
             isEnabled.set(false)
         }
@@ -42,11 +53,12 @@ compose.desktop {
             // EXE only while iterating slices (faster CI than MSI+WiX).
             targetFormats(TargetFormat.Exe)
             packageName = "MuSicX"
-            // Windows MSI/EXE require MAJOR.MINOR.BUILD
             packageVersion = "13.11.0"
             description = "MuSicX Desktop — YouTube Music client with Spotify integration"
             copyright = "© 2026 ufoptg / MuSicX contributors"
             vendor = "ufoptg"
+            // Bundled LibVLC from vlc-setup (appResources/<os>/vlc)
+            appResourcesRootDir.set(appResourcesDir.asFile)
 
             windows {
                 menuGroup = "MuSicX"
