@@ -20,6 +20,12 @@ compose.desktop {
     application {
         mainClass = "com.metrolist.music.desktop.MainKt"
 
+        // ProGuard on windows-latest hits a Compose Desktop NPE (getStandardOutput must not be null).
+        // Re-enable once packaging is stable / we have keep rules for Spotify + InnerTubeX.
+        buildTypes.release.proguard {
+            isEnabled.set(false)
+        }
+
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Exe)
             packageName = "MuSicX"
