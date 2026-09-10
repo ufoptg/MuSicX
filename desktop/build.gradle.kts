@@ -17,7 +17,8 @@ val appResourcesDir = layout.projectDirectory.dir("appResources")
 vlcSetup {
     vlcVersion = "3.0.21"
     shouldCompressVlcFiles = true
-    shouldIncludeAllVlcFiles = false
+    // Filtered plugin set lacks HTTP access + some demuxers; include all for reliable audio.
+    shouldIncludeAllVlcFiles = true
     pathToCopyVlcWindowsFilesTo = appResourcesDir.dir("windows/vlc").asFile
     pathToCopyVlcLinuxFilesTo = appResourcesDir.dir("linux/vlc").asFile
     pathToCopyVlcMacosFilesTo = appResourcesDir.dir("macos/vlc").asFile

@@ -118,9 +118,7 @@ private fun SearchScreen(
                     withContext(Dispatchers.IO) {
                         client.resolveAudioStream(hit.videoId)
                     }
-                withContext(Dispatchers.IO) {
-                    player.play(stream)
-                }
+                player.play(stream)
                 playing = true
             } catch (t: Throwable) {
                 error = t.message ?: t::class.simpleName ?: "Playback failed"
