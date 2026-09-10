@@ -78,31 +78,18 @@ class DesktopInnerTube : AutoCloseable {
     }
 
     suspend fun resolveAudioStream(videoId: String): ExtractedStream {
-        // OpenJFX on Windows plays AAC in MP4; InnerTubeX HIGH/AUTO prefer WebM/Opus.
-        // LOW selects audio/mp4. allowBoundedRange=false so a normal GET works when possible.
+        // VLC plays WebM/Opus and AAC; disable SABR/HLS and prefer non-bounded progressive URLs.
         val hints =
             ContentHints(wantVideo = false).withStreamCapabilities(
                 allowHls = false,
                 allowSabr = false,
                 allowBoundedRange = false,
             )
-        val stream =
-            extractor.extract(
-                videoId = videoId,
-                hints = hints,
-                audioQuality = AudioQuality.LOW,
-            ) ?: error("No playable stream for $videoId")
-        check(stream.sabrBootstrap == null) { "SABR streams are not supported yet" }
-        val mime = stream.mimeType.orEmpty()
-        if (!mime.contains("mp4", ignoreCase = true) &&
-            !mime.contains("m4a", ignoreCase = true)
-        ) {
-            error(
-                "Got ${mime.ifBlank { "unknown" }} (itag ${stream.itag}, client ${stream.clientName}); " +
-                    "need AAC/MP4 for desktop playback",
-            )
-        }
-        return stream
+        return extractor.extract(
+            videoId = videoId,
+            hints = hints,
+            audioQuality = AudioQuality.HIGH,
+        ) ?: error("No playable stream for $videoId")
     }
 
     override fun close() {
