@@ -6,7 +6,6 @@
 
 package com.metrolist.music.desktop
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -45,7 +45,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 fun main() = application {
     val client = remember { DesktopInnerTube() }
@@ -81,7 +83,7 @@ private fun SearchScreen(
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var nowPlaying by remember { mutableStateOf<SearchHit?>(null) }
-    var playbackBusy by remember { mutableStateOf(false) }
+    var playbackBusyId by remember { mutableStateOf<String?>(null) }
     var playing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -106,20 +108,25 @@ private fun SearchScreen(
     }
 
     fun playHit(hit: SearchHit) {
-        if (playbackBusy) return
+        if (playbackBusyId != null) return
         scope.launch {
-            playbackBusy = true
+            playbackBusyId = hit.videoId
             error = null
+            nowPlaying = hit
             try {
-                val stream = client.resolveAudioStream(hit.videoId)
-                player.play(stream)
-                nowPlaying = hit
+                val stream =
+                    withContext(Dispatchers.IO) {
+                        client.resolveAudioStream(hit.videoId)
+                    }
+                withContext(Dispatchers.IO) {
+                    player.play(stream)
+                }
                 playing = true
             } catch (t: Throwable) {
                 error = t.message ?: t::class.simpleName ?: "Playback failed"
                 playing = false
             } finally {
-                playbackBusy = false
+                playbackBusyId = null
             }
         }
     }
@@ -137,7 +144,7 @@ private fun SearchScreen(
             color = MaterialTheme.colorScheme.primary,
         )
         Text(
-            text = "Search YouTube Music",
+            text = "Search YouTube Music — tap Play on a result",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
@@ -184,24 +191,42 @@ private fun SearchScreen(
                     contentPadding = PaddingValues(bottom = 16.dp),
                 ) {
                     items(results, key = { it.videoId }) { hit ->
-                        Column(
+                        val busy = playbackBusyId == hit.videoId
+                        Row(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .clickable(enabled = !playbackBusy) { playHit(hit) }
-                                    .padding(vertical = 10.dp),
+                                    .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Text(
-                                text = hit.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            if (!hit.subtitle.isNullOrBlank()) {
+                            if (busy) {
+                                CircularProgressIndicator(modifier = Modifier.size(40.dp).padding(8.dp))
+                            } else {
+                                IconButton(
+                                    onClick = { playHit(hit) },
+                                    enabled = playbackBusyId == null,
+                                ) {
+                                    Icon(
+                                        Icons.Default.PlayArrow,
+                                        contentDescription = "Play ${hit.title}",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = hit.subtitle,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    text = hit.title,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                 )
+                                if (!hit.subtitle.isNullOrBlank()) {
+                                    Text(
+                                        text = hit.subtitle,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                             }
                         }
                         HorizontalDivider()
@@ -210,52 +235,55 @@ private fun SearchScreen(
             }
         }
 
-        nowPlaying?.let { hit ->
-            HorizontalDivider()
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+        HorizontalDivider()
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text =
+                        when {
+                            playbackBusyId != null -> "Loading…"
+                            nowPlaying != null && playing -> "Now playing"
+                            nowPlaying != null -> "Paused"
+                            else -> "Nothing playing"
+                        },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = nowPlaying?.title ?: "Choose a song and press Play",
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                )
+            }
+            IconButton(
+                onClick = {
+                    if (nowPlaying == null) return@IconButton
+                    player.togglePause()
+                    playing = player.isPlaying
+                },
+                enabled = nowPlaying != null && playbackBusyId == null,
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (playbackBusy) "Loading…" else "Now playing",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = hit.title,
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
-                    )
-                }
-                if (playbackBusy) {
-                    CircularProgressIndicator()
-                } else {
-                    IconButton(
-                        onClick = {
-                            player.togglePause()
-                            playing = player.isPlaying
-                        },
-                    ) {
-                        Icon(
-                            if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (playing) "Pause" else "Play",
-                        )
-                    }
-                    IconButton(
-                        onClick = {
-                            player.stop()
-                            playing = false
-                            nowPlaying = null
-                        },
-                    ) {
-                        Icon(Icons.Default.Stop, contentDescription = "Stop")
-                    }
-                }
+                Icon(
+                    if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (playing) "Pause" else "Play",
+                )
+            }
+            IconButton(
+                onClick = {
+                    player.stop()
+                    playing = false
+                    nowPlaying = null
+                },
+                enabled = nowPlaying != null,
+            ) {
+                Icon(Icons.Default.Stop, contentDescription = "Stop")
             }
         }
     }

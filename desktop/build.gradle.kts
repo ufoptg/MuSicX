@@ -23,10 +23,9 @@ dependencies {
     implementation(libs.ktor.serialization.json)
     implementation(libs.ktor.client.encoding)
 
-    // Windows desktop CI/package only — OpenJFX media for in-app playback.
-    implementation(variantOf(libs.javafx.base) { classifier("win") })
-    implementation(variantOf(libs.javafx.graphics) { classifier("win") })
-    implementation(variantOf(libs.javafx.media) { classifier("win") })
+    // Bundled LibVLC — plays YouTube progressive/WebM/AAC streams in the packaged .exe
+    implementation(libs.vlcj)
+    implementation(libs.vlcj.natives)
 }
 
 compose.desktop {
@@ -40,7 +39,8 @@ compose.desktop {
         }
 
         nativeDistributions {
-            targetFormats(TargetFormat.Msi, TargetFormat.Exe)
+            // EXE only while iterating slices (faster CI than MSI+WiX).
+            targetFormats(TargetFormat.Exe)
             packageName = "MuSicX"
             // Windows MSI/EXE require MAJOR.MINOR.BUILD
             packageVersion = "13.11.0"

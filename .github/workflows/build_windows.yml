@@ -1,9 +1,17 @@
 name: Build Windows
 
-# Produces MuSicX Desktop .msi / .exe installers via Compose Desktop,
-# mirroring how Android APKs are built and uploaded as Actions artifacts.
+# Produces MuSicX Desktop .exe via Compose Desktop on each desktop slice.
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feat/windows-desktop
+    paths:
+      - "desktop/**"
+      - ".github/workflows/build_windows.yml"
+      - "gradle/libs.versions.toml"
+      - "settings.gradle.kts"
+      - "build.gradle.kts"
   pull_request:
     paths:
       - "desktop/**"
@@ -40,28 +48,28 @@ jobs:
           cache-encryption-key: ${{ secrets.GRADLE_CACHE_KEY }}
           cache-cleanup: on-success
 
-      - name: Package Windows MSI + EXE
+      - name: Package Windows EXE
         shell: bash
-        run: ./gradlew --console=plain :desktop:packageReleaseMsi :desktop:packageReleaseExe --warning-mode summary
+        run: ./gradlew --console=plain :desktop:packageReleaseExe --warning-mode summary
 
-      - name: Collect installers
+      - name: Collect installer
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p out
-          find desktop/build/compose/binaries -type f \( -name '*.msi' -o -name '*.exe' \) -print0 \
+          find desktop/build/compose/binaries -type f -name '*.exe' -print0 \
             | while IFS= read -r -d '' f; do
                 cp "$f" "out/$(basename "$f")"
               done
           echo "Packaged files:"
           ls -la out/ || true
           if [ -z "$(ls -A out 2>/dev/null || true)" ]; then
-            echo "::error::No .msi/.exe artifacts found under desktop/build/compose/binaries"
+            echo "::error::No .exe artifact found under desktop/build/compose/binaries"
             find desktop/build -type f | head -100 || true
             exit 1
           fi
 
-      - name: Upload Windows installers
+      - name: Upload Windows EXE
         uses: actions/upload-artifact@v6
         with:
           name: MuSicX-Windows
