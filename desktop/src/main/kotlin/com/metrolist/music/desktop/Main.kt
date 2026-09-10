@@ -6,6 +6,7 @@
 
 package com.metrolist.music.desktop
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,7 +17,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -45,8 +49,12 @@ import kotlinx.coroutines.launch
 
 fun main() = application {
     val client = remember { DesktopInnerTube() }
+    val player = remember { DesktopAudioPlayer() }
     DisposableEffect(Unit) {
-        onDispose { client.close() }
+        onDispose {
+            player.close()
+            client.close()
+        }
     }
 
     Window(
@@ -57,18 +65,24 @@ fun main() = application {
     ) {
         MaterialTheme(colorScheme = darkColorScheme()) {
             Surface(modifier = Modifier.fillMaxSize()) {
-                SearchScreen(client)
+                SearchScreen(client, player)
             }
         }
     }
 }
 
 @Composable
-private fun SearchScreen(client: DesktopInnerTube) {
+private fun SearchScreen(
+    client: DesktopInnerTube,
+    player: DesktopAudioPlayer,
+) {
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var nowPlaying by remember { mutableStateOf<SearchHit?>(null) }
+    var playbackBusy by remember { mutableStateOf(false) }
+    var playing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     fun runSearch() {
@@ -87,6 +101,26 @@ private fun SearchScreen(client: DesktopInnerTube) {
                 error = t.message ?: t::class.simpleName ?: "Search failed"
             } finally {
                 loading = false
+            }
+        }
+    }
+
+    fun playHit(hit: SearchHit) {
+        if (playbackBusy) return
+        scope.launch {
+            playbackBusy = true
+            error = null
+            try {
+                val stream = client.resolveAudioStream(hit.videoId)
+                check(stream.sabrBootstrap == null) { "SABR streams are not supported yet" }
+                player.play(stream)
+                nowPlaying = hit
+                playing = true
+            } catch (t: Throwable) {
+                error = t.message ?: t::class.simpleName ?: "Playback failed"
+                playing = false
+            } finally {
+                playbackBusy = false
             }
         }
     }
@@ -128,6 +162,14 @@ private fun SearchScreen(client: DesktopInnerTube) {
             }
         }
 
+        if (error != null) {
+            Text(
+                text = error!!,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        }
+
         when {
             loading -> {
                 CircularProgressIndicator(
@@ -137,20 +179,19 @@ private fun SearchScreen(client: DesktopInnerTube) {
                             .align(Alignment.CenterHorizontally),
                 )
             }
-            error != null && results.isEmpty() -> {
-                Text(
-                    text = error!!,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 24.dp),
-                )
-            }
             else -> {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(top = 16.dp),
-                    contentPadding = PaddingValues(bottom = 24.dp),
+                    modifier = Modifier.weight(1f).padding(top = 16.dp),
+                    contentPadding = PaddingValues(bottom = 16.dp),
                 ) {
                     items(results, key = { it.videoId }) { hit ->
-                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+                        Column(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable(enabled = !playbackBusy) { playHit(hit) }
+                                    .padding(vertical = 10.dp),
+                        ) {
                             Text(
                                 text = hit.title,
                                 style = MaterialTheme.typography.titleMedium,
@@ -165,6 +206,55 @@ private fun SearchScreen(client: DesktopInnerTube) {
                             }
                         }
                         HorizontalDivider()
+                    }
+                }
+            }
+        }
+
+        nowPlaying?.let { hit ->
+            HorizontalDivider()
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (playbackBusy) "Loading…" else "Now playing",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = hit.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                    )
+                }
+                if (playbackBusy) {
+                    CircularProgressIndicator()
+                } else {
+                    IconButton(
+                        onClick = {
+                            player.togglePause()
+                            playing = player.isPlaying
+                        },
+                    ) {
+                        Icon(
+                            if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (playing) "Pause" else "Play",
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            player.stop()
+                            playing = false
+                            nowPlaying = null
+                        },
+                    ) {
+                        Icon(Icons.Default.Stop, contentDescription = "Stop")
                     }
                 }
             }

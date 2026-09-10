@@ -22,6 +22,11 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.json)
     implementation(libs.ktor.client.encoding)
+
+    // Windows desktop CI/package only — OpenJFX media for in-app playback.
+    implementation(variantOf(libs.javafx.base) { classifier("win") })
+    implementation(variantOf(libs.javafx.graphics) { classifier("win") })
+    implementation(variantOf(libs.javafx.media) { classifier("win") })
 }
 
 compose.desktop {
