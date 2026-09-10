@@ -7,6 +7,14 @@
 package com.metrolist.music.desktop
 
 import com.metrolist.innertubex.InnerTube
+import com.metrolist.innertubex.cipher.PlayerConfigRepository
+import com.metrolist.innertubex.cipher.RemotePlayerConfigStore
+import com.metrolist.innertubex.cipher.YouTubeCipherService
+import com.metrolist.innertubex.extraction.AudioQuality
+import com.metrolist.innertubex.extraction.ContentHints
+import com.metrolist.innertubex.extraction.ExtractedStream
+import com.metrolist.innertubex.extraction.InnerTubeExtractor
+import com.metrolist.innertubex.extraction.YtConfigParserImpl
 import com.metrolist.innertubex.models.YouTubeClient.Companion.WEB_REMIX
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -15,6 +23,7 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -33,12 +42,24 @@ data class SearchHit(
 )
 
 /**
- * Thin JVM wrapper around InnerTubeX for desktop search.
+ * Thin JVM wrapper around InnerTubeX for desktop search + stream resolve.
  * ponytail: local JSON walk instead of porting Android page parsers; replace when :innertube is JVM-capable.
  */
 class DesktopInnerTube : AutoCloseable {
     private val httpClient = createClient()
     private val innerTube = InnerTube(httpClient)
+    private val configStore =
+        RemotePlayerConfigStore(
+            httpClient = httpClient,
+            repository = PlayerConfigRepository.disabled(),
+        )
+    private val cipherService = YouTubeCipherService(httpClient, configStore)
+    private val extractor =
+        InnerTubeExtractor(
+            configParser = YtConfigParserImpl(httpClient, innerTube, configStore),
+            cipherService = cipherService,
+            innerTube = innerTube,
+        )
 
     suspend fun searchSongs(query: String): List<SearchHit> {
         val trimmed = query.trim()
@@ -56,7 +77,24 @@ class DesktopInnerTube : AutoCloseable {
         return extractHits(raw)
     }
 
+    suspend fun resolveAudioStream(videoId: String): ExtractedStream {
+        val hints =
+            ContentHints(wantVideo = false).withStreamCapabilities(
+                allowHls = false,
+                allowSabr = false,
+                allowBoundedRange = true,
+            )
+        return extractor.extract(
+            videoId = videoId,
+            hints = hints,
+            audioQuality = AudioQuality.HIGH,
+        ) ?: error("No playable stream for $videoId")
+    }
+
     override fun close() {
+        runBlocking {
+            runCatching { cipherService.dispose() }
+        }
         innerTube.close()
         httpClient.close()
     }

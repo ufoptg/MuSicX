@@ -35,6 +35,7 @@ innertubex = "v0.5.2"
 tinypinyin = "2.0.3"
 protobuf = "4.36.0"
 composeMultiplatform = "1.12.0"
+javafx = "21.0.6"
 
 [libraries]
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
@@ -103,6 +104,11 @@ timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
 
 innertubex = { module = "com.github.MetrolistGroup.innertubex:innertubex", version.ref = "innertubex" }
 innertubex-desktop = { module = "com.github.MetrolistGroup.innertubex:innertubex-desktop", version.ref = "innertubex" }
+
+# Windows-only desktop packaging (build_windows.yml); OpenJFX plays extracted m4a/mp4 audio.
+javafx-base = { module = "org.openjfx:javafx-base", version.ref = "javafx" }
+javafx-graphics = { module = "org.openjfx:javafx-graphics", version.ref = "javafx" }
+javafx-media = { module = "org.openjfx:javafx-media", version.ref = "javafx" }
 
 kuromoji-ipadic = { module = "com.atilika.kuromoji:kuromoji-ipadic", version.ref = "kuromojiIpadic" }
 tinypinyin = { module = "com.github.promeG:tinypinyin", version.ref = "tinypinyin" }
