@@ -45,6 +45,7 @@ rootProject.name = "MuSicX"
 include(":app")
 include(":innertube")
 include(":spotify")
+include(":desktop")
 
 // Use a local copy of NewPipe Extractor by uncommenting the lines below.
 // We assume, that MuSicX (com.metrolist.music-based) and NewPipe Extractor have the same parent directory.
