@@ -102,6 +102,7 @@ junit = { module = "junit:junit", version.ref = "junit" }
 timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
 
 innertubex = { module = "com.github.MetrolistGroup.innertubex:innertubex", version.ref = "innertubex" }
+innertubex-desktop = { module = "com.github.MetrolistGroup.innertubex:innertubex-desktop", version.ref = "innertubex" }
 
 kuromoji-ipadic = { module = "com.atilika.kuromoji:kuromoji-ipadic", version.ref = "kuromojiIpadic" }
 tinypinyin = { module = "com.github.promeG:tinypinyin", version.ref = "tinypinyin" }

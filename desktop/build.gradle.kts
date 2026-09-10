@@ -2,6 +2,7 @@ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.compose.multiplatform)
 }
@@ -14,6 +15,13 @@ dependencies {
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
     implementation(compose.materialIconsExtended)
+
+    implementation(libs.innertubex.desktop)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.json)
+    implementation(libs.ktor.client.encoding)
 }
 
 compose.desktop {
@@ -40,6 +48,7 @@ compose.desktop {
                 upgradeUuid = "A7C3E9F1-2B4D-4E6A-9C8D-1F0E2D3C4B5A"
                 dirChooser = true
                 perUserInstall = true
+                iconFile.set(project.file("artwork/ic_launcher.ico"))
             }
         }
     }
