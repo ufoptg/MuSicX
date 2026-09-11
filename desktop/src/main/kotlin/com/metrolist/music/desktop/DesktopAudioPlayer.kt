@@ -324,12 +324,27 @@ class DesktopAudioPlayer : AutoCloseable {
 }
 
 /**
+ * BaseNativeDiscoveryStrategy.find() requires *every* filename pattern to match in the
+ * directory, so the pattern list must be OS-specific. Passing both the Windows (.dll) and
+ * Linux (.so) patterns together makes discovery impossible — on Windows the .so patterns
+ * never match, so it can never satisfy all four. Only pass patterns for the current OS.
+ */
+private fun bundledVlcLibraryPatterns(): Array<String> {
+    val os = System.getProperty("os.name").orEmpty()
+    return when {
+        os.contains("win", ignoreCase = true) -> arrayOf("libvlc\\.dll", "libvlccore\\.dll")
+        os.contains("mac", ignoreCase = true) -> arrayOf("libvlc\\.dylib", "libvlccore\\.dylib")
+        else -> arrayOf("libvlc\\.so.*", "libvlccore\\.so.*")
+    }
+}
+
+/**
  * Properly loads libvlc DLLs and sets VLC_PLUGIN_PATH (unlike a bare NativeDiscoveryStrategy).
  */
 private class BundledVlcDiscoveryStrategy(
     private val vlcDir: File,
 ) : BaseNativeDiscoveryStrategy(
-        arrayOf("libvlc\\.dll", "libvlccore\\.dll", "libvlc\\.so", "libvlccore\\.so"),
+        bundledVlcLibraryPatterns(),
         arrayOf("%s\\plugins", "%s/plugins"),
     ) {
     override fun supported(): Boolean = vlcDir.isDirectory
