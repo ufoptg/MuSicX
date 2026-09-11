@@ -53,6 +53,7 @@ fun main() = application {
     val client = remember { DesktopInnerTube() }
     val player = remember { DesktopAudioPlayer() }
     DisposableEffect(Unit) {
+        player.prewarm()
         onDispose {
             player.close()
             client.close()
