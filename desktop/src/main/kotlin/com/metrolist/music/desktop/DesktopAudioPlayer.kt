@@ -78,18 +78,27 @@ class DesktopAudioPlayer : AutoCloseable {
     suspend fun play(stream: ExtractedStream) {
         check(stream.sabrBootstrap == null) { "SABR streams are not supported yet" }
         lastError.set(null)
+        DesktopLog.log(
+            "play() itag=${stream.itag} mime=${stream.mimeType} boundedRange=${stream.requireBoundedRange} " +
+                "rangeChunks=${stream.useRangeChunks} host=${stream.audioUrl.substringAfter("//").substringBefore('/')}",
+        )
 
         // Primary: stream the URL directly through VLC (progressive, like Android/ExoPlayer).
+        val startedAt = System.currentTimeMillis()
         val streamedDirectly =
             withContext(Dispatchers.IO) {
-                runCatching { startDirectStream(stream) }.getOrDefault(false)
+                runCatching { startDirectStream(stream) }
+                    .onFailure { DesktopLog.log("direct stream threw", it) }
+                    .getOrDefault(false)
             }
         if (streamedDirectly) {
             isPlaying = true
+            DesktopLog.log("direct stream PLAYING after ${System.currentTimeMillis() - startedAt} ms")
             return
         }
 
         // Fallback: download to a temp file, then play locally.
+        DesktopLog.log("direct stream did not start; falling back to full download")
         withContext(Dispatchers.IO) { downloadThenPlay(stream) }
     }
 
@@ -104,25 +113,40 @@ class DesktopAudioPlayer : AutoCloseable {
 
         val options = buildList {
             add(":no-video")
-            add(":network-caching=5000")
+            // Smaller cache = faster start. googlevideo throttles to ~real-time, so a big
+            // cache just delays the first sample without helping sustained playback.
+            add(":network-caching=2000")
+            add(":http-reconnect")
             stream.headers["User-Agent"]?.takeIf { it.isNotBlank() }?.let { add(":http-user-agent=$it") }
             stream.headers["Referer"]?.takeIf { it.isNotBlank() }?.let { add(":http-referrer=$it") }
         }
+        DesktopLog.log("direct stream: opening url with options=$options")
 
         val started = mediaPlayer.media().play(stream.audioUrl, *options.toTypedArray())
-        if (!started) return false
+        if (!started) {
+            DesktopLog.log("direct stream: media().play returned false")
+            return false
+        }
 
         mediaPlayer.audio().setVolume(100)
         mediaPlayer.audio().setMute(false)
 
-        // Give a streamed source more time to connect + buffer than a local file.
-        repeat(60) {
+        // Streamed sources need time to connect + TLS + fill the cache under throttling.
+        // Wait up to ~40s, but succeed as soon as VLC is playing/buffering.
+        var lastLoggedState: State? = null
+        repeat(400) { i ->
             delay(100)
             lastError.get()?.let {
+                DesktopLog.log("direct stream: error flag set -> $it")
                 stopInternal()
                 return false
             }
-            when (mediaPlayer.status().state()) {
+            val state = mediaPlayer.status().state()
+            if (state != lastLoggedState) {
+                DesktopLog.log("direct stream: state=$state @ ${i * 100}ms")
+                lastLoggedState = state
+            }
+            when (state) {
                 State.PLAYING, State.BUFFERING -> return true
                 State.ERROR, State.ENDED -> {
                     stopInternal()
@@ -131,12 +155,13 @@ class DesktopAudioPlayer : AutoCloseable {
                 else -> Unit
             }
         }
-        // Never reached PLAYING within the window — treat as a failure and fall back.
+        DesktopLog.log("direct stream: never reached PLAYING within 40s (last state=$lastLoggedState)")
         stopInternal()
         return false
     }
 
     private suspend fun downloadThenPlay(stream: ExtractedStream) {
+        val dlStart = System.currentTimeMillis()
         val file =
             withContext(Dispatchers.IO) {
                 val ext =
@@ -150,6 +175,7 @@ class DesktopAudioPlayer : AutoCloseable {
                 if (out.length() < 1024L) {
                     error("Downloaded audio too small (${out.length()} bytes)")
                 }
+                DesktopLog.log("fallback download done: ${out.length()} bytes in ${System.currentTimeMillis() - dlStart} ms")
                 out
             }
 
@@ -267,6 +293,11 @@ class DesktopAudioPlayer : AutoCloseable {
     private fun createFactory(): MediaPlayerFactory {
         val vlcDir = resolveBundledVlcDir()
         val pluginsDir = File(vlcDir, "plugins")
+        DesktopLog.log(
+            "VLC init: resourcesDir=${System.getProperty("compose.application.resources.dir")} " +
+                "vlcDir=${vlcDir.absolutePath} libvlcExists=${File(vlcDir, "libvlc.dll").isFile || File(vlcDir, "libvlc.so").isFile} " +
+                "pluginsExists=${pluginsDir.isDirectory}",
+        )
         require(File(vlcDir, "libvlc.dll").isFile || File(vlcDir, "libvlc.so").isFile) {
             "Bundled LibVLC not found at ${vlcDir.absolutePath}"
         }
@@ -276,6 +307,7 @@ class DesktopAudioPlayer : AutoCloseable {
         if (!discovery.discover()) {
             error("Failed to discover bundled LibVLC at ${vlcDir.absolutePath}")
         }
+        DesktopLog.log("VLC init: discovery OK, creating factory")
 
         val args =
             buildList {
