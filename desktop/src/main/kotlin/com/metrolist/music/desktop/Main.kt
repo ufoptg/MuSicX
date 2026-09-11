@@ -114,13 +114,17 @@ private fun SearchScreen(
             error = null
             nowPlaying = hit
             try {
+                DesktopLog.log("playHit: resolving ${hit.videoId} (${hit.title})")
+                val resolveStart = System.currentTimeMillis()
                 val stream =
                     withContext(Dispatchers.IO) {
                         client.resolveAudioStream(hit.videoId)
                     }
+                DesktopLog.log("playHit: resolved in ${System.currentTimeMillis() - resolveStart} ms")
                 player.play(stream)
                 playing = true
             } catch (t: Throwable) {
+                DesktopLog.log("playHit failed", t)
                 error = t.message ?: t::class.simpleName ?: "Playback failed"
                 playing = false
             } finally {
