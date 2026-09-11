@@ -39,6 +39,7 @@ data class SearchHit(
     val videoId: String,
     val title: String,
     val subtitle: String? = null,
+    val thumbnailUrl: String? = null,
 )
 
 /**
@@ -178,7 +179,22 @@ class DesktopInnerTube : AutoCloseable {
                     ?.jsonObject
                     ?.let { firstText(it) }
 
-            return SearchHit(videoId = videoId, title = title, subtitle = subtitle)
+            val thumbnailUrl =
+                renderer["thumbnail"]
+                    ?.jsonObject
+                    ?.get("musicThumbnailRenderer")
+                    ?.jsonObject
+                    ?.get("thumbnail")
+                    ?.jsonObject
+                    ?.get("thumbnails")
+                    ?.jsonArray
+                    ?.lastOrNull()
+                    ?.jsonObject
+                    ?.get("url")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+
+            return SearchHit(videoId = videoId, title = title, subtitle = subtitle, thumbnailUrl = thumbnailUrl)
         }
 
         private fun findVideoId(el: JsonElement): String? {
