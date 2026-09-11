@@ -62,11 +62,16 @@ class DesktopAudioPlayer : AutoCloseable {
 
                     override fun finished(mediaPlayer: MediaPlayer) {
                         isPlaying = false
+                        onEnded?.invoke()
                     }
                 },
             )
         }
     }
+
+    /** Invoked (on VLC's event thread) when a track reaches its natural end. */
+    @Volatile
+    var onEnded: (() -> Unit)? = null
 
     private val lastError = AtomicReference<String?>(null)
     private var tempFile: File? = null
@@ -232,6 +237,18 @@ class DesktopAudioPlayer : AutoCloseable {
                 isPlaying = mediaPlayer.status().isPlaying
             }
         }
+    }
+
+    /** Current playback position in milliseconds (0 if not ready/playing). */
+    fun positionMs(): Long = if (ready) runCatching { mediaPlayer.status().time() }.getOrDefault(0L).coerceAtLeast(0L) else 0L
+
+    /** Track length in milliseconds (0 if unknown). */
+    fun durationMs(): Long = if (ready) runCatching { mediaPlayer.status().length() }.getOrDefault(0L).coerceAtLeast(0L) else 0L
+
+    /** Seek to a fraction (0f..1f) of the current track. */
+    fun seekToFraction(fraction: Float) {
+        if (!ready) return
+        runCatching { mediaPlayer.controls().setPosition(fraction.coerceIn(0f, 1f)) }
     }
 
     fun stop() {
