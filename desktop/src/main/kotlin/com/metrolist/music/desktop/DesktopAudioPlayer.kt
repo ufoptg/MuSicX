@@ -75,6 +75,10 @@ class DesktopAudioPlayer : AutoCloseable {
     var isPlaying: Boolean = false
         private set
 
+    @Volatile
+    var ready: Boolean = false
+        private set
+
     suspend fun play(stream: ExtractedStream) {
         check(stream.sabrBootstrap == null) { "SABR streams are not supported yet" }
         lastError.set(null)
@@ -312,7 +316,6 @@ class DesktopAudioPlayer : AutoCloseable {
         val args =
             buildList {
                 add("--plugin-path=${pluginsDir.absolutePath}")
-                add("--no-plugins-cache")
                 add("--aout=directsound")
                 add("--no-video")
                 add("--intf")
@@ -322,6 +325,27 @@ class DesktopAudioPlayer : AutoCloseable {
             }
 
         return MediaPlayerFactory(discovery, *args.toTypedArray())
+    }
+
+    /**
+     * Eagerly initialise LibVLC on a background thread. libvlc_new scans every bundled plugin,
+     * which takes a while on first launch — doing it at app start (while the user is typing a
+     * search) means the first Play is instant instead of blocking for seconds.
+     */
+    fun prewarm() {
+        Thread(
+            {
+                val t0 = System.currentTimeMillis()
+                DesktopLog.log("prewarm: initialising LibVLC…")
+                runCatching { mediaPlayer.status() }
+                    .onSuccess {
+                        ready = true
+                        DesktopLog.log("prewarm: ready in ${System.currentTimeMillis() - t0} ms")
+                    }
+                    .onFailure { DesktopLog.log("prewarm failed", it) }
+            },
+            "vlc-prewarm",
+        ).apply { isDaemon = true }.start()
     }
 
     companion object {

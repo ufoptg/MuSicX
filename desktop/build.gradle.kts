@@ -16,7 +16,10 @@ val appResourcesDir = layout.projectDirectory.dir("appResources")
 
 vlcSetup {
     vlcVersion = "3.0.21"
-    shouldCompressVlcFiles = true
+    // UPX-compressing the VLC libs makes libvlc decompress+probe every plugin during
+    // NativeDiscovery (libvlc_new), which cost ~108s on first launch. Keep them uncompressed
+    // for fast startup; the jpackage installer compresses the payload anyway.
+    shouldCompressVlcFiles = false
     // Filtered plugin set lacks HTTP access + some demuxers; include all for reliable audio.
     shouldIncludeAllVlcFiles = true
     pathToCopyVlcWindowsFilesTo = appResourcesDir.dir("windows/vlc").asFile
