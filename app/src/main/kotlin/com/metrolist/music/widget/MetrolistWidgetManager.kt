@@ -149,9 +149,6 @@ class MetrolistWidgetManager @Inject constructor(
         )
     }
 
-<<<<<<< HEAD
-    private suspend fun createRemoteViewsForSize(
-=======
     fun updateProgress(
         duration: Long,
         currentPosition: Long,
@@ -179,8 +176,7 @@ class MetrolistWidgetManager @Inject constructor(
         playlistWidgetManager.updateProgress(duration, currentPosition)
     }
 
-    private fun createRemoteViewsForSize(
->>>>>>> upstream/main
+    private suspend fun createRemoteViewsForSize(
         options: Bundle,
         title: String,
         artist: String,
