@@ -33,6 +33,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.datastore.preferences.core.Preferences
@@ -588,6 +589,7 @@ class MusicService :
                 when (intent.action) {
                     Intent.ACTION_SCREEN_OFF -> {
                         isScreenOff = true
+                        stopWidgetUpdates()
                         Timber.tag("DiscordSvc").i("SCREEN_OFF: cancelling pause timeout, delaying disconnect 10m")
                         screenOffHandler.removeCallbacks(pauseTimeout)
                         screenOffHandler.postDelayed(screenOffTimeout, 600_000)
@@ -595,6 +597,9 @@ class MusicService :
 
                     Intent.ACTION_SCREEN_ON -> {
                         isScreenOff = false
+                        if (::player.isInitialized && player.isPlaying) {
+                            startWidgetUpdates()
+                        }
                         Timber.tag("DiscordSvc").i("SCREEN_ON: removing disconnect delay")
                         screenOffHandler.removeCallbacks(screenOffTimeout)
                         screenOffHandler.removeCallbacks(pauseTimeout)
@@ -779,6 +784,7 @@ class MusicService :
         connectivityManager = getSystemService()!!
         connectivityObserver = NetworkConnectivityObserver(this)
 
+        isScreenOff = getSystemService<PowerManager>()?.isInteractive == false
         val screenStateFilter =
             IntentFilter().apply {
                 addAction(Intent.ACTION_SCREEN_ON)
@@ -1393,23 +1399,23 @@ class MusicService :
         // Save queue periodically to prevent queue loss from crash or force kill
         scope.launch {
             while (isActive) {
-                delay(15.seconds)
+                delay(60.seconds)
                 if (cachedPersistentQueue) {
                     saveQueueToDisk()
-                }
-                val currentMetadata = player.currentMediaItem?.metadata
-                if (currentMetadata?.isEpisode == true && player.isPlaying && player.currentPosition > 0) {
-                    previousEpisodePosition = player.currentPosition
-                    saveEpisodePosition(currentMetadata.id, player.currentPosition)
                 }
             }
         }
 
         scope.launch {
             while (isActive) {
-                delay(10.seconds)
-                if (cachedPersistentQueue && player.isPlaying) {
-                    saveQueueToDisk()
+                delay(15.seconds)
+                if (cachedPersistentQueue) {
+                    savePlayerStateToDisk()
+                }
+                val currentMetadata = player.currentMediaItem?.metadata
+                if (currentMetadata?.isEpisode == true && player.isPlaying && player.currentPosition > 0) {
+                    previousEpisodePosition = player.currentPosition
+                    saveEpisodePosition(currentMetadata.id, player.currentPosition)
                 }
             }
         }
@@ -4681,17 +4687,6 @@ class MusicService :
                     position = 0,
                 )
 
-            val persistPlayerState =
-                PersistPlayerState(
-                    playWhenReady = player.playWhenReady,
-                    repeatMode = player.repeatMode,
-                    shuffleModeEnabled = player.shuffleModeEnabled,
-                    volume = playerVolume.value,
-                    currentPosition = player.currentPosition,
-                    currentMediaItemIndex = player.currentMediaItemIndex,
-                    playbackState = player.playbackState,
-                )
-
             runCatching {
                 filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
                     ObjectOutputStream(fos).use { oos ->
@@ -4715,21 +4710,34 @@ class MusicService :
                 Timber.tag(TAG).e(it, "Failed to save automix")
                 reportException(it)
             }
-
-            runCatching {
-                filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
-                    ObjectOutputStream(fos).use { oos ->
-                        oos.writeObject(persistPlayerState)
-                    }
-                }
-                Timber.tag(TAG).d("Player state saved successfully")
-            }.onFailure {
-                Timber.tag(TAG).e(it, "Failed to save player state")
-                reportException(it)
-            }
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error during queue save operation")
             reportException(e)
+        }
+    }
+
+    private fun savePlayerStateToDisk() {
+        if (player.mediaItemCount == 0) return
+
+        val playerState = PersistPlayerState(
+            playWhenReady = player.playWhenReady,
+            repeatMode = player.repeatMode,
+            shuffleModeEnabled = player.shuffleModeEnabled,
+            volume = playerVolume.value,
+            currentPosition = player.currentPosition,
+            currentMediaItemIndex = player.currentMediaItemIndex,
+            playbackState = player.playbackState,
+        )
+        runCatching {
+            filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
+                ObjectOutputStream(fos).use { oos ->
+                    oos.writeObject(playerState)
+                }
+            }
+            Timber.tag(TAG).d("Player state saved successfully")
+        }.onFailure {
+            Timber.tag(TAG).e(it, "Failed to save player state")
+            reportException(it)
         }
     }
 
@@ -4871,6 +4879,7 @@ class MusicService :
         castConnectionHandler?.release()
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
+            savePlayerStateToDisk()
         }
         screenOffHandler.removeCallbacks(screenOffTimeout)
         screenOffHandler.removeCallbacks(pauseTimeout)
@@ -5319,13 +5328,20 @@ class MusicService :
 
     private fun startWidgetUpdates() {
         widgetUpdateJob?.cancel()
+        if (isScreenOff) {
+            widgetUpdateJob = null
+            return
+        }
         widgetUpdateJob =
             scope.launch {
                 while (isActive) {
+                    delay(1.seconds)
                     if (player.isPlaying) {
-                        updateWidgetUI(true)
+                        widgetManager.updateProgress(
+                            duration = if (player.duration != C.TIME_UNSET) player.duration else 0,
+                            currentPosition = player.currentPosition,
+                        )
                     }
-                    delay(200)
                 }
             }
     }
