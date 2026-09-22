@@ -84,6 +84,17 @@ class DesktopAudioPlayer : AutoCloseable {
     var ready: Boolean = false
         private set
 
+    @Volatile
+    var volume: Int = 100
+        private set
+
+    /** Set output volume as a 0..100 percentage. */
+    fun setVolume(percent: Int) {
+        val clamped = percent.coerceIn(0, 100)
+        volume = clamped
+        if (ready) runCatching { mediaPlayer.audio().setVolume(clamped) }
+    }
+
     suspend fun play(stream: ExtractedStream) {
         check(stream.sabrBootstrap == null) { "SABR streams are not supported yet" }
         lastError.set(null)
@@ -137,7 +148,7 @@ class DesktopAudioPlayer : AutoCloseable {
             return false
         }
 
-        mediaPlayer.audio().setVolume(100)
+        mediaPlayer.audio().setVolume(volume)
         mediaPlayer.audio().setMute(false)
 
         // Streamed sources need time to connect + TLS + fill the cache under throttling.
@@ -196,7 +207,7 @@ class DesktopAudioPlayer : AutoCloseable {
             if (!started) {
                 error("VLC could not open ${file.name} (itag ${stream.itag}, ${stream.mimeType})")
             }
-            mediaPlayer.audio().setVolume(100)
+            mediaPlayer.audio().setVolume(volume)
             mediaPlayer.audio().setMute(false)
 
             repeat(30) {
