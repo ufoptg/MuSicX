@@ -57,13 +57,19 @@ class YouTubeQueue(
                         var items = nextResult.items
                         val relEndpoint = nextResult.relatedEndpoint
 
-                        if (isRadioRequest && continuation == null && items.size <= 1) {
-                            if (endpoint.playlistId?.startsWith("RDAMVM") == true) {
+                        if (isRadioRequest && continuation == null) {
+                            if (items.size <= 1 && endpoint.playlistId?.startsWith("RDAMVM") == true) {
                                 throw EmptyRadioQueueException()
-                            } else if (relEndpoint != null) {
+                            }
+                            // Broaden the radio scope: seed with related songs so "start radio"
+                            // pulls a wider variety instead of a narrow same-song mix.
+                            if (relEndpoint != null) {
                                 val relatedPage = YouTube.related(relEndpoint).getOrNull()
                                 if (relatedPage != null && relatedPage.songs.isNotEmpty()) {
-                                    val relatedSongs = relatedPage.songs.filter { it.id != endpoint.videoId }
+                                    val existingIds = items.map { it.id }.toHashSet()
+                                    val relatedSongs = relatedPage.songs.filter {
+                                        it.id != endpoint.videoId && existingIds.add(it.id)
+                                    }
                                     items = items + relatedSongs
                                 }
                             }
