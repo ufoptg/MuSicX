@@ -107,6 +107,7 @@ import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.PlaylistItem
+import com.metrolist.innertube.models.SongItem
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalNavController
@@ -448,7 +449,7 @@ fun LocalPlaylistScreen(
             lazyListState = lazyListState,
             scrollThresholdPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
         ) { from, to ->
-            if (to.index >= headerItems && from.index >= headerItems) {
+            if (!enhanceEnabled && to.index >= headerItems && from.index >= headerItems) {
                 val currentDragInfo = dragInfo
                 dragInfo =
                     if (currentDragInfo == null) {
@@ -577,11 +578,104 @@ fun LocalPlaylistScreen(
             }
 
             val displayedSongs = if (isSearching) filteredSongs else mutableSongs
+            val playlistRows = buildPlaylistRows(
+                songs = displayedSongs,
+                recommendations = enhanceTracks,
+                interleave = enhanceEnabled && !isSearching,
+            )
 
             itemsIndexed(
-                items = displayedSongs,
-                key = { _, song -> song.map.id },
-            ) { index, song ->
+                items = playlistRows,
+                key = { _, row ->
+                    when (row) {
+                        is PlaylistRow.SongEntry -> row.song.map.id
+                        is PlaylistRow.Recommendation -> "enhance_${row.track.id}"
+                    }
+                },
+            ) { _, row ->
+                if (row is PlaylistRow.Recommendation) {
+                    val recTrack = row.track
+                    val isRecActive = mediaMetadata?.id == recTrack.id
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f),
+                            )
+                            .animateItem(),
+                    ) {
+                        ListItem(
+                            title = recTrack.title,
+                            subtitle = joinByBullet(
+                                recTrack.artists.joinToString { it.name },
+                                recTrack.duration?.let { makeTimeString(it.toLong() * 1000) },
+                            ),
+                            isActive = isRecActive,
+                            thumbnailContent = {
+                                Box(contentAlignment = Alignment.BottomEnd) {
+                                    ItemThumbnail(
+                                        thumbnailUrl = recTrack.thumbnail,
+                                        isActive = isRecActive,
+                                        isPlaying = isPlaying,
+                                        shape = RoundedCornerShape(ThumbnailCornerRadius),
+                                        modifier = Modifier.size(ListThumbnailSize),
+                                    )
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .padding(2.dp)
+                                            .size(18.dp)
+                                            .background(
+                                                color = MaterialTheme.colorScheme.primary,
+                                                shape = CircleShape,
+                                            ),
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.sparkles),
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(12.dp),
+                                        )
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .combinedClickable(
+                                    onClick = {
+                                        playerConnection.playQueue(
+                                            ListQueue(
+                                                title = context.getString(R.string.enhance_recommendation_label),
+                                                items = (listOf(recTrack) + enhanceTracks.filter { it.id != recTrack.id })
+                                                    .map { it.toMediaMetadata().toMediaItem() },
+                                            ),
+                                        )
+                                    },
+                                    onLongClick = {
+                                        menuState.show {
+                                            YouTubeSongMenu(
+                                                song = recTrack,
+                                                onDismiss = menuState::dismiss,
+                                                onAddToThisPlaylist = {
+                                                    viewModel.addEnhanceTrackToPlaylist(recTrack)
+                                                    Toast.makeText(
+                                                        context,
+                                                        context.getString(R.string.enhance_added_to_playlist),
+                                                        Toast.LENGTH_SHORT,
+                                                    ).show()
+                                                },
+                                            )
+                                        }
+                                    },
+                                ),
+                        )
+                    }
+                    return@itemsIndexed
+                }
+
+                val songEntry = row as PlaylistRow.SongEntry
+                val index = songEntry.index
+                val song = songEntry.song
                 ReorderableItem(
                     state = reorderableState,
                     key = song.map.id,
@@ -671,7 +765,7 @@ fun LocalPlaylistScreen(
                                         )
                                     }
 
-                                    if (sortType == PlaylistSongSortType.CUSTOM && !locked && !inSelectMode && !isSearching && editable) {
+                                    if (sortType == PlaylistSongSortType.CUSTOM && !locked && !inSelectMode && !isSearching && editable && !enhanceEnabled) {
                                         IconButton(
                                             onClick = { },
                                             modifier = Modifier.draggableHandle(),
@@ -745,110 +839,6 @@ fun LocalPlaylistScreen(
                         ) {
                             content()
                         }
-                    }
-                }
-            }
-
-            if (enhanceEnabled && !isSearching && enhanceTracks.isNotEmpty()) {
-                item(key = "enhance_header") {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.sparkles),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp),
-                        )
-                        Spacer(modifier = Modifier.size(8.dp))
-                        Text(
-                            text = stringResource(R.string.enhance_recommendation_label),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
-                itemsIndexed(
-                    items = enhanceTracks,
-                    key = { _, t -> "enhance_${t.id}" },
-                ) { _, recTrack ->
-                    val isRecActive = mediaMetadata?.id == recTrack.id
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f),
-                            )
-                            .animateItem(),
-                    ) {
-                        ListItem(
-                            title = recTrack.title,
-                            subtitle = joinByBullet(
-                                recTrack.artists.joinToString { it.name },
-                                recTrack.duration?.let { makeTimeString(it.toLong() * 1000) },
-                            ),
-                            isActive = isRecActive,
-                            thumbnailContent = {
-                                Box(contentAlignment = Alignment.BottomEnd) {
-                                    ItemThumbnail(
-                                        thumbnailUrl = recTrack.thumbnail,
-                                        isActive = isRecActive,
-                                        isPlaying = isPlaying,
-                                        shape = RoundedCornerShape(ThumbnailCornerRadius),
-                                        modifier = Modifier.size(ListThumbnailSize),
-                                    )
-                                    Box(
-                                        contentAlignment = Alignment.Center,
-                                        modifier = Modifier
-                                            .padding(2.dp)
-                                            .size(18.dp)
-                                            .background(
-                                                color = MaterialTheme.colorScheme.primary,
-                                                shape = CircleShape,
-                                            ),
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.sparkles),
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onPrimary,
-                                            modifier = Modifier.size(12.dp),
-                                        )
-                                    }
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .combinedClickable(
-                                    onClick = {
-                                        playerConnection.playQueue(
-                                            ListQueue(
-                                                title = context.getString(R.string.enhance_recommendation_label),
-                                                items = (listOf(recTrack) + enhanceTracks.filter { it.id != recTrack.id })
-                                                    .map { it.toMediaMetadata().toMediaItem() },
-                                            ),
-                                        )
-                                    },
-                                    onLongClick = {
-                                        menuState.show {
-                                            YouTubeSongMenu(
-                                                song = recTrack,
-                                                onDismiss = menuState::dismiss,
-                                                onAddToThisPlaylist = {
-                                                    viewModel.addEnhanceTrackToPlaylist(recTrack)
-                                                    Toast.makeText(
-                                                        context,
-                                                        context.getString(R.string.enhance_added_to_playlist),
-                                                        Toast.LENGTH_SHORT,
-                                                    ).show()
-                                                },
-                                            )
-                                        }
-                                    },
-                                ),
-                        )
                     }
                 }
             }
@@ -1620,3 +1610,39 @@ fun uriToByteArray(
     } catch (_: SecurityException) {
         null
     }
+
+private const val RECOMMENDATION_INTERVAL = 3
+
+private sealed interface PlaylistRow {
+    data class SongEntry(val index: Int, val song: PlaylistSong) : PlaylistRow
+
+    data class Recommendation(val track: SongItem) : PlaylistRow
+}
+
+/**
+ * Builds the list rendered in a local playlist. When [interleave] is on (the "recommended"
+ * toggle), one recommended track is inserted after every [RECOMMENDATION_INTERVAL] songs
+ * instead of dumping all recommendations at the bottom. Any leftover recommendations are
+ * appended at the end.
+ */
+private fun buildPlaylistRows(
+    songs: List<PlaylistSong>,
+    recommendations: List<SongItem>,
+    interleave: Boolean,
+): List<PlaylistRow> {
+    val songRows = songs.mapIndexed { index, song -> PlaylistRow.SongEntry(index, song) }
+    if (!interleave || recommendations.isEmpty()) return songRows
+
+    val rows = ArrayList<PlaylistRow>(songs.size + recommendations.size)
+    var recPtr = 0
+    songRows.forEachIndexed { position, songRow ->
+        rows.add(songRow)
+        if ((position + 1) % RECOMMENDATION_INTERVAL == 0 && recPtr < recommendations.size) {
+            rows.add(PlaylistRow.Recommendation(recommendations[recPtr++]))
+        }
+    }
+    while (recPtr < recommendations.size) {
+        rows.add(PlaylistRow.Recommendation(recommendations[recPtr++]))
+    }
+    return rows
+}
