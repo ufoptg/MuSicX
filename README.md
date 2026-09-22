@@ -23,7 +23,7 @@ https://metrolist.cc/listen?code=04UMRJ89
 > [!NOTE]
 > **MuSicX** is a maintained fork of [Metrolist](https://github.com/MetrolistGroup/Metrolist) with additional integrations (Spotify, SponsorBlock, Music Recognition, Podcasts, LyricsPlus, Expressive player, playlist Enhance, and experimental FLAC / Hi-Res streaming via Qobuz), crash reporting, and an automated nightly upstream sync. Same great UX, more music sources, more resilience.
 >
-> Latest stable: **v13.11**
+> Latest stable: **v13.12**
 
 > [!WARNING]
 > **Regional Restriction** — If YouTube Music is unavailable in your region, this app will not work without a **VPN or proxy** connecting to a supported region.
@@ -55,6 +55,8 @@ Features added on top of Metrolist upstream:
 
 | Feature | Status | Notes |
 |---|---|---|
+| 🟢 **Interleaved playlist recommendations** ✨ new | Shipped v13.12 | The playlist *Enhance* (recommended) toggle now **interleaves** one recommended track after every 3 songs instead of dumping them all at the bottom, so suggestions are discovered in context. Drag-to-reorder is disabled while Enhance is on so playlist order can't be corrupted; any leftover recommendations still append at the end. |
+| 🟢 **Wider Start Radio scope** ✨ new | Shipped v13.12 | *Start radio* now seeds the radio with related songs (deduped) on the first page for a broader, more varied mix instead of a narrow same-song loop — while keeping the empty-radio retry fallback. |
 | 🟢 **Spotify integration** | Shipped | Log in with your own Spotify account via in-app WebView (uses `sp_dc` cookie — no client secret needed). Home, Library, Search & Now-Playing hooks bridge tracks to YouTube Music equivalents. |
 | 🟢 **SponsorBlock** | Shipped | Auto-skip sponsor segments and non-music intros/outros in videos, powered by the [SponsorBlock](https://sponsor.ajay.app) community API. Settings live under Player Settings → Misc. |
 | 🟢 **Crash reporting to GitHub Issues** | Shipped | Unhandled crashes are packaged (device info + sanitized stacktrace) and opened as GitHub Issues automatically, so bugs never get lost. |
