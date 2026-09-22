@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -28,6 +29,8 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -121,6 +124,7 @@ private fun MuSicXApp(
     var positionMs by remember { mutableStateOf(0L) }
     var durationMs by remember { mutableStateOf(0L) }
     var seekPreview by remember { mutableStateOf<Float?>(null) }
+    var volume by remember { mutableStateOf(100) }
     val scope = rememberCoroutineScope()
 
     val nowPlaying = results.getOrNull(currentIndex)
@@ -234,6 +238,11 @@ private fun MuSicXApp(
             seekPreview = seekPreview,
             hasNext = currentIndex + 1 < results.size,
             hasPrevious = currentIndex > 0,
+            volume = volume,
+            onVolumeChange = {
+                volume = it
+                player.setVolume(it)
+            },
             onTogglePlay = {
                 if (nowPlaying != null) {
                     player.togglePause()
@@ -376,6 +385,8 @@ private fun NowPlayingBar(
     seekPreview: Float?,
     hasNext: Boolean,
     hasPrevious: Boolean,
+    volume: Int,
+    onVolumeChange: (Int) -> Unit,
     onTogglePlay: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
@@ -439,6 +450,28 @@ private fun NowPlayingBar(
                 }
                 IconButton(onClick = onNext, enabled = hasNext && !busy) {
                     Icon(Icons.Default.SkipNext, contentDescription = "Next", modifier = Modifier.size(30.dp))
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    modifier = Modifier.padding(start = 8.dp),
+                ) {
+                    Icon(
+                        imageVector = if (volume == 0) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                        contentDescription = "Volume",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Slider(
+                        value = volume / 100f,
+                        onValueChange = { onVolumeChange((it * 100).toInt()) },
+                        modifier = Modifier.width(110.dp),
+                        colors =
+                            SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                            ),
+                    )
                 }
             }
 
