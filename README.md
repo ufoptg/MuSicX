@@ -23,7 +23,7 @@ https://metrolist.cc/listen?code=04UMRJ89
 > [!NOTE]
 > **MuSicX** is a maintained fork of [Metrolist](https://github.com/MetrolistGroup/Metrolist) with additional integrations (Spotify, SponsorBlock, Music Recognition, Podcasts, LyricsPlus, Expressive player, playlist Enhance, and experimental FLAC / Hi-Res streaming via Qobuz), crash reporting, and an automated nightly upstream sync. Same great UX, more music sources, more resilience.
 >
-> Latest stable: **v13.12**
+> Latest stable: **v13.14**
 
 > [!WARNING]
 > **Regional Restriction** — If YouTube Music is unavailable in your region, this app will not work without a **VPN or proxy** connecting to a supported region.
@@ -55,8 +55,11 @@ Features added on top of Metrolist upstream:
 
 | Feature | Status | Notes |
 |---|---|---|
-| 🟢 **Interleaved playlist recommendations** ✨ new | Shipped v13.12 | The playlist *Enhance* (recommended) toggle now **interleaves** one recommended track after every 3 songs instead of dumping them all at the bottom, so suggestions are discovered in context. Drag-to-reorder is disabled while Enhance is on so playlist order can't be corrupted; any leftover recommendations still append at the end. |
-| 🟢 **Wider Start Radio scope** ✨ new | Shipped v13.12 | *Start radio* now seeds the radio with related songs (deduped) on the first page for a broader, more varied mix instead of a narrow same-song loop — while keeping the empty-radio retry fallback. |
+| 🟢 **Interleaved playlist recommendations** ✨ new | Shipped v13.12 → v13.14 | The playlist *Enhance* (recommended) toggle **interleaves** one recommended track after every 3 songs instead of dumping them all at the bottom, so suggestions are discovered in context. As of **v13.14** this is unified across **all three** playlist types — Local, online YouTube Music, *and* Spotify — via a single shared `buildPlaylistRows` so the behaviour can't drift between screens (online YT and Spotify were converted from the old bottom-dump "Recommended" section). Drag-to-reorder is disabled while Enhance is on so playlist order can't be corrupted; queue start indices stay correct and any leftover recommendations still append at the end. |
+| 🟢 **Wider Start Radio scope** ✨ new | Shipped v13.13 | *Start radio* now **round-robin interleaves** related songs *through* the mix (after the current track) instead of appending them at the tail — so variety shows up early instead of after 20+ same-artist tracks. Any throttle/error during expansion falls back gracefully to the narrow mix, and the empty-radio retry fallback is preserved. |
+| 🟢 **Smarter Enhance seeding + fallbacks** ✨ new | Shipped v13.13 | The Enhance recommendation engine adds per-seed diagnostics and a **watch-next → radio fallback** when a seed's `related()` shelf comes back empty, plus a throttled sequential retry when a parallel pass yields nothing — so Enhance returns tracks instead of an "no results" toast. |
+| 🟢 **Spotify login reliability fix** ✨ new | Shipped v13.13 | The in-app Spotify login WebView now grants protected-media (Widevine EME) permission via a `WebChromeClient`, fixing a regression where the Spotify login page rendered **blank** and never came up. JS console is mirrored to logcat for diagnostics. |
+| 🟢 **Layout & density options** ✨ new | Shipped v13.14 | New *Force bottom navigation bar* toggle (keeps the bottom nav on tablets / landscape instead of the side rail) and two additional UI density scales — **Large (125%)** and **Slightly Large (115%)** — under *Settings → Appearance*. |
 | 🟢 **Spotify integration** | Shipped | Log in with your own Spotify account via in-app WebView (uses `sp_dc` cookie — no client secret needed). Home, Library, Search & Now-Playing hooks bridge tracks to YouTube Music equivalents. |
 | 🟢 **SponsorBlock** | Shipped | Auto-skip sponsor segments and non-music intros/outros in videos, powered by the [SponsorBlock](https://sponsor.ajay.app) community API. Settings live under Player Settings → Misc. |
 | 🟢 **Crash reporting to GitHub Issues** | Shipped | Unhandled crashes are packaged (device info + sanitized stacktrace) and opened as GitHub Issues automatically, so bugs never get lost. |
@@ -72,7 +75,7 @@ Features added on top of Metrolist upstream:
 | 🟢 **Listen Together — orbs artwork** | Shipped v13.8.7 | The Listen Together screen header now uses a dedicated three-orbs artwork (`R.drawable.listen_together_orbs`, 17 KB WebP) instead of the plain two-people icon. |
 | 🟢 **Expressive Player redesign** | Shipped v13.9.x | Redesigned, default-on Now Playing: palette-extracted blurred album-art backdrop, dominant-color-tinted pause pill + progress slider, queue peek sheet, long-press artwork to toggle lyrics, and a **one-line active lyric strip under the title** that follows synced lyrics in real time. Classic player kept behind *Settings → Appearance → Expressive player*. |
 | 🟢 **Spotify search + track menu + Start radio** | Shipped v13.9.4–13.9.7 | Spotify search results play on tap; long-press opens the full track menu (Play next / Queue / Add to playlist / Change YouTube version / View artist). **Start radio** resolves the track to YouTube Music and starts a proper radio mix. |
-| 🟢 **Playlist Enhance** | Shipped v13.9.15–13.9.18 | Sparkles toggle next to Play/Shuffle on **Spotify**, **Local**, and **online YouTube Music** playlists. Appends an ephemeral “Recommended” section seeded from the playlist (Spotify recommender / YT Music `related`). Long-press a rec to add it to the playlist (Local) or open the song menu (Online YT). |
+| 🟢 **Playlist Enhance** | Shipped v13.9.15–v13.14 | Sparkles toggle next to Play/Shuffle on **Spotify**, **Local**, and **online YouTube Music** playlists. Seeds ephemeral recommendations from the playlist (Spotify recommender / YT Music `related`) and — as of **v13.14** — **interleaves** them one-every-3-songs across all three screens instead of a bottom "Recommended" section. Long-press a rec to add it to the playlist or open the song menu. |
 | 🟢 **Now-playing widgets + Flex Window** | Shipped v13.9.13 | 4×1, 4×2, and **4×4** large now-playing widgets with prev / play / next. Optional Galaxy Z Flip Flex Window cover-screen widget. |
 | 🟢 **Notification swipe-to-dismiss** | Shipped v13.9.11+ | Swipe the media notification away while paused to fully tear down playback / queue / service (not just pause). |
 | 🟢 **InnerTubeX stream extraction** ✨ new | Shipped v13.11 | Upstream Metrolist sync adopts [InnerTubeX](https://github.com/MetrolistGroup/innertubex) as the sole YouTube stream extractor (replacing the older NewPipe-based path), with MuSicX Spotify / Qobuz / SponsorBlock / Enhance stacks kept intact. |
@@ -171,6 +174,8 @@ Features added on top of Metrolist upstream:
 #### Interface
 - **4×1 / 4×2 / 4×4 now-playing widgets** (+ Z Flip Flex Window) ✨
 - **Expressive Player — blurred album-art backdrop, palette-tinted controls & active lyric strip** ✨
+- **Interleaved playlist recommendations across Local / YouTube / Spotify** ✨
+- **Force bottom navigation bar + Large / Slightly-Large UI density** ✨
 - Light / Dark / Black / Dynamic theme modes
 - Dynamic color + 19 preset color palettes
 - Built with Material 3 (+ Expressive)
