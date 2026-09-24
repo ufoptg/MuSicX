@@ -94,8 +94,8 @@ constructor(
                 val recs = com.metrolist.music.playback.SpotifyRecommendationEngine
                     .getRecommendationsForPlaylist(
                         playlistTracks = current,
-                        limit = 20,
-                        seedCount = 4,
+                        limit = com.metrolist.music.ui.screens.playlist.enhanceRecommendationTarget(current.size),
+                        seedCount = com.metrolist.music.ui.screens.playlist.enhanceSeedCount(current.size),
                         context = context,
                         database = database,
                     )
@@ -259,6 +259,16 @@ constructor(
                     _mutationError.value = e.message ?: "Failed to rename playlist"
                 }
         }
+    }
+
+    /**
+     * Permanently adds an Enhance recommendation to this Spotify playlist and removes it from the
+     * ephemeral Enhance list so its sparkle row disappears once added (it will reappear as a real
+     * playlist track after the reload triggered by [addTracks]).
+     */
+    fun addEnhanceTrackToPlaylist(track: SpotifyTrack) {
+        _enhanceTracks.value = _enhanceTracks.value.filterNot { it.id == track.id }
+        addTracks(listOf(track.uri ?: "spotify:track:${track.id}"))
     }
 
     /**
