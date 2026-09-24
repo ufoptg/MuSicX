@@ -244,6 +244,7 @@ fun SpotifyPlaylistScreen(
         lazyListState = lazyListState,
         scrollThresholdPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
     ) { from, to ->
+        if (enhanceEnabled) return@rememberReorderableLazyListState
         if (to.index >= headerItems && from.index >= headerItems) {
             val currentDragInfo = dragInfo
             dragInfo = if (currentDragInfo == null) {
@@ -496,262 +497,250 @@ fun SpotifyPlaylistScreen(
             }
 
             val displayItems = if (isSearching) filteredItems else mutableItems.toList()
-            val reorderEnabled = sortType == SpotifySortType.ORIGINAL && !sortDescending && !locked && !isSearching
-            itemsIndexed(
-                items = displayItems,
-                key = { index, item -> item.uid ?: "item_${item.track?.id}_$index" },
-            ) { index, item ->
-                val track = item.track ?: return@itemsIndexed
-                ReorderableItem(
-                    state = reorderableState,
-                    key = item.uid ?: "item_${track.id}_$index",
-                ) {
-                    val currentTrack by rememberUpdatedState(track)
-                    val thumbnailUrl = SpotifyMapper.getTrackThumbnail(track)
+            val reorderEnabled = sortType == SpotifySortType.ORIGINAL && !sortDescending && !locked && !isSearching && !enhanceEnabled
+
+            val playlistRows = buildPlaylistRows(
+                songEntries = displayItems.mapIndexed { displayIdx, item ->
                     val originalIndex = if (isSearching) {
                         mutableItems.indexOfFirst { it.uid == item.uid }.coerceAtLeast(0)
                     } else {
-                        index
+                        displayIdx
+                    }
+                    PlaylistRow.SongEntry(originalIndex, item)
+                },
+                recommendations = enhanceTracks,
+                interleave = enhanceEnabled && !isSearching,
+            )
+
+            itemsIndexed(
+                items = playlistRows,
+                key = { _, row ->
+                    when (row) {
+                        is PlaylistRow.SongEntry -> row.song.uid ?: "item_${row.song.track?.id}_${row.index}"
+                        is PlaylistRow.Recommendation -> "enhance_${row.track.id}"
+                    }
+                },
+            ) { _, row ->
+                when (row) {
+                    is PlaylistRow.Recommendation -> {
+                        val recTrack = row.track
+                        val recThumb = SpotifyMapper.getTrackThumbnail(recTrack)
+                        val isRecActive = currentSpotifyId != null && currentSpotifyId == recTrack.id
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f),
+                                )
+                                .animateItem(),
+                        ) {
+                            ListItem(
+                                title = recTrack.name,
+                                subtitle = joinByBullet(
+                                    recTrack.artists.joinToString { it.name },
+                                    makeTimeString((recTrack.durationMs).toLong()),
+                                ),
+                                isActive = isRecActive,
+                                thumbnailContent = {
+                                    Box(contentAlignment = Alignment.BottomEnd) {
+                                        ItemThumbnail(
+                                            thumbnailUrl = recThumb,
+                                            isActive = isRecActive,
+                                            isPlaying = isPlaying,
+                                            shape = RoundedCornerShape(ThumbnailCornerRadius),
+                                            modifier = Modifier.size(ListThumbnailSize),
+                                        )
+                                        // Sparkle badge on the thumbnail as the
+                                        // distinct visual indicator (issue #26)
+                                        Box(
+                                            contentAlignment = Alignment.Center,
+                                            modifier = Modifier
+                                                .padding(2.dp)
+                                                .size(18.dp)
+                                                .background(
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                                ),
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.sparkles),
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onPrimary,
+                                                modifier = Modifier.size(12.dp),
+                                            )
+                                        }
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .combinedClickable(
+                                        onClick = {
+                                            // Play the recommendation as a
+                                            // one-shot queue seeded from itself.
+                                            // Reusing SpotifyPlaylistQueue keeps
+                                            // the Spotify → YT mapping path.
+                                            playerConnection.playQueue(
+                                                SpotifyPlaylistQueue(
+                                                    playlistId = viewModel.playlistId,
+                                                    initialTracks = listOf(recTrack) + enhanceTracks.filter { it.id != recTrack.id },
+                                                    startIndex = 0,
+                                                    mapper = viewModel.mapper,
+                                                ),
+                                            )
+                                        },
+                                        onLongClick = {
+                                            menuState.show {
+                                                SpotifyTrackMenu(
+                                                    track = recTrack,
+                                                    mapper = mapper,
+                                                    onDismiss = menuState::dismiss,
+                                                    navController = navController,
+                                                    onAddToThisPlaylist = {
+                                                        viewModel.addTracks(
+                                                            listOf(
+                                                                recTrack.uri
+                                                                    ?: "spotify:track:${recTrack.id}",
+                                                            ),
+                                                        )
+                                                        Toast.makeText(
+                                                            context,
+                                                            context.getString(
+                                                                R.string.enhance_added_to_playlist,
+                                                            ),
+                                                            Toast.LENGTH_SHORT,
+                                                        ).show()
+                                                    },
+                                                )
+                                            }
+                                        },
+                                    ),
+                            )
+                        }
                     }
 
-                    val dismissBoxState = rememberSwipeToDismissBoxState(
-                        positionalThreshold = { totalDistance -> totalDistance },
-                    )
-                    var processedDismiss by remember { mutableStateOf(false) }
-                    LaunchedEffect(dismissBoxState.currentValue) {
-                        val dv = dismissBoxState.currentValue
-                        if (swipeRemoveEnabled && !processedDismiss && (
-                                dv == SwipeToDismissBoxValue.StartToEnd ||
-                                    dv == SwipeToDismissBoxValue.EndToStart
-                                )
+                    is PlaylistRow.SongEntry -> {
+                        val item = row.song
+                        val index = row.index
+                        val track = item.track ?: return@itemsIndexed
+                        ReorderableItem(
+                            state = reorderableState,
+                            key = item.uid ?: "item_${track.id}_$index",
                         ) {
-                            processedDismiss = true
-                            viewModel.removeTrack(currentTrack)
-                            coroutineScope.launch {
-                                val result = snackbarHostState.showSnackbar(
-                                    message = context.getString(R.string.spotify_track_removed),
-                                    actionLabel = context.getString(R.string.undo),
-                                    duration = SnackbarDuration.Short,
+                            val currentTrack by rememberUpdatedState(track)
+                            val thumbnailUrl = SpotifyMapper.getTrackThumbnail(track)
+
+                            val dismissBoxState = rememberSwipeToDismissBoxState(
+                                positionalThreshold = { totalDistance -> totalDistance },
+                            )
+                            var processedDismiss by remember { mutableStateOf(false) }
+                            LaunchedEffect(dismissBoxState.currentValue) {
+                                val dv = dismissBoxState.currentValue
+                                if (swipeRemoveEnabled && !processedDismiss && (
+                                        dv == SwipeToDismissBoxValue.StartToEnd ||
+                                            dv == SwipeToDismissBoxValue.EndToStart
+                                        )
+                                ) {
+                                    processedDismiss = true
+                                    viewModel.removeTrack(currentTrack)
+                                    coroutineScope.launch {
+                                        val result = snackbarHostState.showSnackbar(
+                                            message = context.getString(R.string.spotify_track_removed),
+                                            actionLabel = context.getString(R.string.undo),
+                                            duration = SnackbarDuration.Short,
+                                        )
+                                        if (result == SnackbarResult.ActionPerformed) {
+                                            viewModel.addTracks(
+                                                listOf(currentTrack.uri ?: "spotify:track:${currentTrack.id}"),
+                                            )
+                                        }
+                                    }
+                                }
+                                if (dv == SwipeToDismissBoxValue.Settled) {
+                                    processedDismiss = false
+                                }
+                            }
+
+                            val isActive = currentSpotifyId != null && currentSpotifyId == track.id
+                            val content: @Composable () -> Unit = {
+                                ListItem(
+                                    title = track.name,
+                                    subtitle = joinByBullet(
+                                        track.artists.joinToString { it.name },
+                                        makeTimeString((track.durationMs).toLong()),
+                                    ),
+                                    isActive = isActive,
+                                    thumbnailContent = {
+                                        ItemThumbnail(
+                                            thumbnailUrl = thumbnailUrl,
+                                            isActive = isActive,
+                                            isPlaying = isPlaying,
+                                            shape = RoundedCornerShape(ThumbnailCornerRadius),
+                                            modifier = Modifier.size(ListThumbnailSize),
+                                        )
+                                    },
+                                    trailingContent = {
+                                        if (reorderEnabled) {
+                                            com.metrolist.music.ui.component.IconButton(
+                                                onClick = { },
+                                                onLongClick = { },
+                                                modifier = Modifier.draggableHandle(),
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.drag_handle),
+                                                    contentDescription = null,
+                                                )
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .combinedClickable(
+                                            onClick = {
+                                                playerConnection.playQueue(
+                                                    SpotifyPlaylistQueue(
+                                                        playlistId = viewModel.playlistId,
+                                                        initialTracks = mutableItems.mapNotNull { it.track },
+                                                        startIndex = index,
+                                                        mapper = viewModel.mapper,
+                                                    ),
+                                                )
+                                            },
+                                            onLongClick = {
+                                                menuState.show {
+                                                    SpotifyTrackMenu(
+                                                        track = track,
+                                                        mapper = mapper,
+                                                        onDismiss = menuState::dismiss,
+                                                        navController = navController,
+                                                        onRemoveFromPlaylist = {
+                                                            viewModel.removeTrack(track)
+                                                            Toast.makeText(
+                                                                context,
+                                                                context.getString(R.string.spotify_track_removed),
+                                                                Toast.LENGTH_SHORT,
+                                                            ).show()
+                                                        },
+                                                    )
+                                                }
+                                            },
+                                        ),
                                 )
-                                if (result == SnackbarResult.ActionPerformed) {
-                                    viewModel.addTracks(
-                                        listOf(currentTrack.uri ?: "spotify:track:${currentTrack.id}"),
-                                    )
+                            }
+
+                            if (locked || !swipeRemoveEnabled) {
+                                Box(modifier = Modifier.animateItem()) {
+                                    content()
+                                }
+                            } else {
+                                SwipeToDismissBox(
+                                    state = dismissBoxState,
+                                    backgroundContent = {},
+                                    modifier = Modifier.animateItem(),
+                                ) {
+                                    content()
                                 }
                             }
                         }
-                        if (dv == SwipeToDismissBoxValue.Settled) {
-                            processedDismiss = false
-                        }
-                    }
-
-                    val isActive = currentSpotifyId != null && currentSpotifyId == track.id
-                    val content: @Composable () -> Unit = {
-                        ListItem(
-                            title = track.name,
-                            subtitle = joinByBullet(
-                                track.artists.joinToString { it.name },
-                                makeTimeString((track.durationMs).toLong()),
-                            ),
-                            isActive = isActive,
-                            thumbnailContent = {
-                                ItemThumbnail(
-                                    thumbnailUrl = thumbnailUrl,
-                                    isActive = isActive,
-                                    isPlaying = isPlaying,
-                                    shape = RoundedCornerShape(ThumbnailCornerRadius),
-                                    modifier = Modifier.size(ListThumbnailSize),
-                                )
-                            },
-                            trailingContent = {
-                                if (reorderEnabled) {
-                                    com.metrolist.music.ui.component.IconButton(
-                                        onClick = { },
-                                        onLongClick = { },
-                                        modifier = Modifier.draggableHandle(),
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.drag_handle),
-                                            contentDescription = null,
-                                        )
-                                    }
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .combinedClickable(
-                                    onClick = {
-                                        playerConnection.playQueue(
-                                            SpotifyPlaylistQueue(
-                                                playlistId = viewModel.playlistId,
-                                                initialTracks = mutableItems.mapNotNull { it.track },
-                                                startIndex = originalIndex,
-                                                mapper = viewModel.mapper,
-                                            ),
-                                        )
-                                    },
-                                    onLongClick = {
-                                        menuState.show {
-                                            SpotifyTrackMenu(
-                                                track = track,
-                                                mapper = mapper,
-                                                onDismiss = menuState::dismiss,
-                                                navController = navController,
-                                                onRemoveFromPlaylist = {
-                                                    viewModel.removeTrack(track)
-                                                    Toast.makeText(
-                                                        context,
-                                                        context.getString(R.string.spotify_track_removed),
-                                                        Toast.LENGTH_SHORT,
-                                                    ).show()
-                                                },
-                                            )
-                                        }
-                                    },
-                                ),
-                        )
-                    }
-
-                    if (locked || !swipeRemoveEnabled) {
-                        Box(modifier = Modifier.animateItem()) {
-                            content()
-                        }
-                    } else {
-                        SwipeToDismissBox(
-                            state = dismissBoxState,
-                            backgroundContent = {},
-                            modifier = Modifier.animateItem(),
-                        ) {
-                            content()
-                        }
-                    }
-                }
-            }
-
-            // ── Enhance recommendations (issue #26) ───────────────────────
-            // Rendered as a bottom section rather than interleaved so we
-            // don't disturb the playlist's reorderable/swipe-remove logic
-            // (those assume real playlist items with uids). Recommendations
-            // are ephemeral — they disappear when Enhance is toggled off
-            // and are not persisted to the Spotify playlist unless the user
-            // taps "Add to this playlist" on the row menu.
-            if (enhanceEnabled && !isSearching && enhanceTracks.isNotEmpty()) {
-                item(key = "enhance_header") {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.sparkles),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp),
-                        )
-                        Spacer(modifier = Modifier.size(8.dp))
-                        Text(
-                            text = stringResource(R.string.enhance_recommendation_label),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
-                itemsIndexed(
-                    items = enhanceTracks,
-                    key = { _, t -> "enhance_${t.id}" },
-                ) { _, recTrack ->
-                    val recThumb = SpotifyMapper.getTrackThumbnail(recTrack)
-                    val isRecActive = currentSpotifyId != null && currentSpotifyId == recTrack.id
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f),
-                            )
-                            .animateItem(),
-                    ) {
-                        ListItem(
-                            title = recTrack.name,
-                            subtitle = joinByBullet(
-                                recTrack.artists.joinToString { it.name },
-                                makeTimeString((recTrack.durationMs).toLong()),
-                            ),
-                            isActive = isRecActive,
-                            thumbnailContent = {
-                                Box(contentAlignment = Alignment.BottomEnd) {
-                                    ItemThumbnail(
-                                        thumbnailUrl = recThumb,
-                                        isActive = isRecActive,
-                                        isPlaying = isPlaying,
-                                        shape = RoundedCornerShape(ThumbnailCornerRadius),
-                                        modifier = Modifier.size(ListThumbnailSize),
-                                    )
-                                    // Sparkle badge on the thumbnail as the
-                                    // distinct visual indicator (issue #26)
-                                    Box(
-                                        contentAlignment = Alignment.Center,
-                                        modifier = Modifier
-                                            .padding(2.dp)
-                                            .size(18.dp)
-                                            .background(
-                                                color = MaterialTheme.colorScheme.primary,
-                                                shape = androidx.compose.foundation.shape.CircleShape,
-                                            ),
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.sparkles),
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onPrimary,
-                                            modifier = Modifier.size(12.dp),
-                                        )
-                                    }
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .combinedClickable(
-                                    onClick = {
-                                        // Play the recommendation as a
-                                        // one-shot queue seeded from itself.
-                                        // Reusing SpotifyPlaylistQueue keeps
-                                        // the Spotify → YT mapping path.
-                                        playerConnection.playQueue(
-                                            SpotifyPlaylistQueue(
-                                                playlistId = viewModel.playlistId,
-                                                initialTracks = listOf(recTrack) + enhanceTracks.filter { it.id != recTrack.id },
-                                                startIndex = 0,
-                                                mapper = viewModel.mapper,
-                                            ),
-                                        )
-                                    },
-                                    onLongClick = {
-                                        menuState.show {
-                                            SpotifyTrackMenu(
-                                                track = recTrack,
-                                                mapper = mapper,
-                                                onDismiss = menuState::dismiss,
-                                                navController = navController,
-                                                onAddToThisPlaylist = {
-                                                    viewModel.addTracks(
-                                                        listOf(
-                                                            recTrack.uri
-                                                                ?: "spotify:track:${recTrack.id}",
-                                                        ),
-                                                    )
-                                                    Toast.makeText(
-                                                        context,
-                                                        context.getString(
-                                                            R.string.enhance_added_to_playlist,
-                                                        ),
-                                                        Toast.LENGTH_SHORT,
-                                                    ).show()
-                                                },
-                                            )
-                                        }
-                                    },
-                                ),
-                        )
                     }
                 }
             }

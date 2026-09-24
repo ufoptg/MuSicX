@@ -6,27 +6,27 @@
 
 package com.metrolist.music.ui.screens.playlist
 
-import com.metrolist.innertube.models.SongItem
-
 /**
  * One recommended (Enhance) track is inserted after every [RECOMMENDATION_INTERVAL] songs.
- * Shared by both [LocalPlaylistScreen] and [OnlinePlaylistScreen] so the interleave behaviour
+ * Shared by the Local, Online (YouTube) and Spotify playlist screens so the interleave behaviour
  * stays identical across screens and can't drift.
  */
 const val RECOMMENDATION_INTERVAL = 3
 
 /**
- * A single row rendered inside a playlist list. [T] is the concrete song model of the screen
- * (local uses `PlaylistSong`, online uses `SongItem`) so both screens reuse [buildPlaylistRows].
+ * A single row rendered inside a playlist list. [S] is the concrete song model of the screen
+ * (Local `PlaylistSong`, Online `SongItem`, Spotify `SpotifyPlaylistTrack`) and [R] is the
+ * recommendation model (`SongItem` for Local/Online, `SpotifyTrack` for Spotify) so every screen
+ * reuses [buildPlaylistRows].
  */
-sealed interface PlaylistRow<out T> {
+sealed interface PlaylistRow<out S, out R> {
     /**
      * @param index the song's index within the *songs* list (NOT the mixed-row index) so callers
      * can start playback queues at the correct position even when recommendations are interleaved.
      */
-    data class SongEntry<out T>(val index: Int, val song: T) : PlaylistRow<T>
+    data class SongEntry<out S>(val index: Int, val song: S) : PlaylistRow<S, Nothing>
 
-    data class Recommendation(val track: SongItem) : PlaylistRow<Nothing>
+    data class Recommendation<out R>(val track: R) : PlaylistRow<Nothing, R>
 }
 
 /**
@@ -39,14 +39,14 @@ sealed interface PlaylistRow<out T> {
  * The interval is based on the *display position* of each entry, while [PlaylistRow.SongEntry.index]
  * carries the original songs-list index used for queue start positions.
  */
-fun <T> buildPlaylistRows(
-    songEntries: List<PlaylistRow.SongEntry<T>>,
-    recommendations: List<SongItem>,
+fun <S, R> buildPlaylistRows(
+    songEntries: List<PlaylistRow.SongEntry<S>>,
+    recommendations: List<R>,
     interleave: Boolean,
-): List<PlaylistRow<T>> {
+): List<PlaylistRow<S, R>> {
     if (!interleave || recommendations.isEmpty()) return songEntries
 
-    val rows = ArrayList<PlaylistRow<T>>(songEntries.size + recommendations.size)
+    val rows = ArrayList<PlaylistRow<S, R>>(songEntries.size + recommendations.size)
     var recPtr = 0
     songEntries.forEachIndexed { position, entry ->
         rows.add(entry)
