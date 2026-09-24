@@ -24,6 +24,10 @@ import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -40,6 +44,12 @@ data class SearchHit(
     val title: String,
     val subtitle: String? = null,
     val thumbnailUrl: String? = null,
+)
+
+/** A titled row of songs for the Home feed (Spotify-style shelves seeded from YTM search). */
+data class HomeRow(
+    val title: String,
+    val items: List<SearchHit>,
 )
 
 /**
@@ -78,6 +88,26 @@ class DesktopInnerTube : AutoCloseable {
         return extractHits(raw)
     }
 
+    /**
+     * Builds a lightweight Home feed as a set of titled shelves. YTM's real home browse isn't
+     * wired into the desktop InnerTubeX wrapper yet, so each shelf is seeded from a category
+     * search (fetched in parallel). Spotify-style shell mapping (see PR #53), not Android parity.
+     */
+    suspend fun homeFeed(): List<HomeRow> =
+        coroutineScope {
+            HOME_CATEGORIES
+                .map { (title, query) ->
+                    async(Dispatchers.IO) {
+                        val items =
+                            runCatching { searchSongs(query) }
+                                .getOrDefault(emptyList())
+                                .take(12)
+                        HomeRow(title, items)
+                    }
+                }.awaitAll()
+                .filter { it.items.isNotEmpty() }
+        }
+
     suspend fun resolveAudioStream(videoId: String): ExtractedStream {
         // VLC plays WebM/Opus and AAC; disable SABR/HLS and prefer non-bounded progressive URLs.
         val hints =
@@ -103,6 +133,16 @@ class DesktopInnerTube : AutoCloseable {
 
     companion object {
         private const val FILTER_SONG = "EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D"
+
+        private val HOME_CATEGORIES =
+            listOf(
+                "Quick picks" to "today's top hits",
+                "Trending" to "trending music",
+                "Chill" to "chill music mix",
+                "Focus" to "focus instrumental",
+                "Throwbacks" to "throwback hits",
+                "Workout" to "workout music",
+            )
 
         @OptIn(ExperimentalSerializationApi::class)
         private val jsonConfig =
