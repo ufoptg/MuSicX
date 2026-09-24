@@ -579,7 +579,7 @@ fun LocalPlaylistScreen(
 
             val displayedSongs = if (isSearching) filteredSongs else mutableSongs
             val playlistRows = buildPlaylistRows(
-                songs = displayedSongs,
+                songEntries = displayedSongs.mapIndexed { i, s -> PlaylistRow.SongEntry(i, s) },
                 recommendations = enhanceTracks,
                 interleave = enhanceEnabled && !isSearching,
             )
@@ -611,6 +611,24 @@ fun LocalPlaylistScreen(
                                 recTrack.duration?.let { makeTimeString(it.toLong() * 1000) },
                             ),
                             isActive = isRecActive,
+                            trailingContent = {
+                                IconButton(
+                                    onClick = {
+                                        viewModel.addEnhanceTrackToPlaylist(recTrack)
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.enhance_added_to_playlist),
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    },
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.add),
+                                        contentDescription = stringResource(R.string.enhance_add_to_playlist),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            },
                             thumbnailContent = {
                                 Box(contentAlignment = Alignment.BottomEnd) {
                                     ItemThumbnail(
@@ -673,7 +691,7 @@ fun LocalPlaylistScreen(
                     return@itemsIndexed
                 }
 
-                val songEntry = row as PlaylistRow.SongEntry
+                val songEntry = row as PlaylistRow.SongEntry<PlaylistSong>
                 val index = songEntry.index
                 val song = songEntry.song
                 ReorderableItem(
@@ -1611,38 +1629,3 @@ fun uriToByteArray(
         null
     }
 
-private const val RECOMMENDATION_INTERVAL = 3
-
-private sealed interface PlaylistRow {
-    data class SongEntry(val index: Int, val song: PlaylistSong) : PlaylistRow
-
-    data class Recommendation(val track: SongItem) : PlaylistRow
-}
-
-/**
- * Builds the list rendered in a local playlist. When [interleave] is on (the "recommended"
- * toggle), one recommended track is inserted after every [RECOMMENDATION_INTERVAL] songs
- * instead of dumping all recommendations at the bottom. Any leftover recommendations are
- * appended at the end.
- */
-private fun buildPlaylistRows(
-    songs: List<PlaylistSong>,
-    recommendations: List<SongItem>,
-    interleave: Boolean,
-): List<PlaylistRow> {
-    val songRows = songs.mapIndexed { index, song -> PlaylistRow.SongEntry(index, song) }
-    if (!interleave || recommendations.isEmpty()) return songRows
-
-    val rows = ArrayList<PlaylistRow>(songs.size + recommendations.size)
-    var recPtr = 0
-    songRows.forEachIndexed { position, songRow ->
-        rows.add(songRow)
-        if ((position + 1) % RECOMMENDATION_INTERVAL == 0 && recPtr < recommendations.size) {
-            rows.add(PlaylistRow.Recommendation(recommendations[recPtr++]))
-        }
-    }
-    while (recPtr < recommendations.size) {
-        rows.add(PlaylistRow.Recommendation(recommendations[recPtr++]))
-    }
-    return rows
-}

@@ -30,7 +30,10 @@ object SpotifyAuth {
     private const val USER_AGENT =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
-    const val LOGIN_URL = "https://accounts.spotify.com/login?continue=https%3A%2F%2Fopen.spotify.com%2F"
+    // Continue to accounts status — NOT open.spotify.com. The web player is a dark SPA that
+    // needs Widevine and often renders as a black screen in WebView after login.
+    const val LOGIN_URL =
+        "https://accounts.spotify.com/login?continue=https%3A%2F%2Faccounts.spotify.com%2Fstatus"
 
     private val json = Json {
         isLenient = true

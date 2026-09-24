@@ -21,6 +21,9 @@ import com.metrolist.music.constants.HideVideoSongsKey
 import com.metrolist.music.constants.SongSortType
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.playback.YouTubeRecommendationEngine
+import com.metrolist.music.models.toMediaMetadata
+import com.metrolist.music.ui.screens.playlist.enhanceRecommendationTarget
+import com.metrolist.music.ui.screens.playlist.enhanceSeedCount
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
 import com.metrolist.music.utils.reportException
@@ -87,8 +90,8 @@ class OnlinePlaylistViewModel @Inject constructor(
                 val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
                 val recs = YouTubeRecommendationEngine.getRecommendationsForPlaylist(
                     playlistSongs = current,
-                    limit = 20,
-                    seedCount = 4,
+                    limit = enhanceRecommendationTarget(current.size),
+                    seedCount = enhanceSeedCount(current.size),
                     hideVideoSongs = hideVideoSongs,
                 )
                 _enhanceTracks.value = recs
@@ -106,6 +109,30 @@ class OnlinePlaylistViewModel @Inject constructor(
 
     val dbPlaylist = database.playlistByBrowseId(playlistId)
         .stateIn(viewModelScope, SharingStarted.Lazily, null)
+
+    /**
+     * Permanently adds an Enhance recommendation to this online playlist. Pushes to the remote
+     * YouTube playlist (only exposed in the UI when the playlist is editable) and mirrors it into
+     * the local DB when the playlist is saved. Removes the track from the ephemeral Enhance list
+     * so its sparkle row disappears once it's been added.
+     */
+    fun addEnhanceTrackToPlaylist(song: SongItem) {
+        _enhanceTracks.value = _enhanceTracks.value.filterNot { it.id == song.id }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                YouTube.addToPlaylist(normalizedPlaylistId, song.id)
+                val saved = dbPlaylist.value
+                if (saved != null) {
+                    database.withTransaction {
+                        insert(song.toMediaMetadata())
+                        addSongsToPlaylist(saved, listOf(song.id to song.setVideoId))
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "addEnhanceTrackToPlaylist failed")
+            }
+        }
+    }
 
     var continuation: String? = null
         private set
