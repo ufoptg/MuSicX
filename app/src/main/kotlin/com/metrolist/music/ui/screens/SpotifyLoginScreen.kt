@@ -6,8 +6,8 @@
  * Spotify login using an embedded WebView.
  * Loads Spotify's web login page, which supports all auth methods
  * (email/password, Facebook, Google, Apple). After successful login,
- * the WebView redirect to open.spotify.com is intercepted and the
- * sp_dc cookie is extracted to fetch an access token.
+ * the WebView lands on accounts.spotify.com/status (not the web player);
+ * sp_dc is extracted and used to fetch an access token.
  *
  * Token acquisition uses TOTP (Time-based One-Time Password) generated
  * from a community-maintained shared secret, following the approach used
@@ -48,6 +48,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -113,95 +114,68 @@ fun SpotifyLoginScreen(navController: NavController) {
         }
 
         Box(modifier = Modifier.fillMaxSize()) {
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { ctx ->
-                    val cookieManager = CookieManager.getInstance()
-                    cookieManager.setAcceptCookie(true)
-                    cookieManager.removeAllCookies(null)
-                    cookieManager.flush()
+            // key(retryCount) so Retry after about:blank recreates the WebView
+            key(retryCount) {
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { ctx ->
+                        val cookieManager = CookieManager.getInstance()
+                        cookieManager.setAcceptCookie(true)
 
-                    WebView(ctx).apply {
-                        cookieManager.setAcceptThirdPartyCookies(this, true)
+                        WebView(ctx).apply {
+                            cookieManager.setAcceptThirdPartyCookies(this, true)
 
-                        settings.javaScriptEnabled = true
-                        settings.domStorageEnabled = true
-                        settings.databaseEnabled = true
-                        settings.loadWithOverviewMode = true
-                        settings.useWideViewPort = true
-                        settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-                        settings.javaScriptCanOpenWindowsAutomatically = true
-                        settings.setSupportMultipleWindows(false)
-                        settings.mediaPlaybackRequiresUserGesture = false
-                        settings.userAgentString = USER_AGENT_DESKTOP
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+                            settings.databaseEnabled = true
+                            settings.loadWithOverviewMode = true
+                            settings.useWideViewPort = true
+                            settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+                            settings.javaScriptCanOpenWindowsAutomatically = true
+                            settings.setSupportMultipleWindows(false)
+                            settings.mediaPlaybackRequiresUserGesture = false
+                            settings.userAgentString = desktopUserAgent(settings.userAgentString)
 
-                        // Spotify's login/player pages request protected-media (Widevine EME)
-                        // playback permission. Without a WebChromeClient granting it, recent
-                        // Spotify pages render blank in an embedded WebView — which is why the
-                        // login screen "doesn't come up". Also mirror JS console errors to logcat
-                        // (tag SpotifyLogin[web]) so blind builds can be diagnosed on-device.
-                        webChromeClient = object : WebChromeClient() {
-                            override fun onPermissionRequest(request: PermissionRequest?) {
-                                val resources = request?.resources
-                                if (resources != null &&
-                                    resources.contains(PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID)
-                                ) {
-                                    Timber.d("SpotifyLogin: granting protected-media permission")
-                                    request.grant(resources)
-                                } else {
-                                    super.onPermissionRequest(request)
+                            // Spotify pages may request protected-media (Widevine EME). Without
+                            // granting it, some Spotify SPAs render blank in WebView.
+                            webChromeClient = object : WebChromeClient() {
+                                override fun onPermissionRequest(request: PermissionRequest?) {
+                                    val resources = request?.resources
+                                    if (resources != null &&
+                                        resources.contains(PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID)
+                                    ) {
+                                        Timber.d("SpotifyLogin: granting protected-media permission")
+                                        request.grant(resources)
+                                    } else {
+                                        super.onPermissionRequest(request)
+                                    }
+                                }
+
+                                override fun onConsoleMessage(message: ConsoleMessage?): Boolean {
+                                    message?.let {
+                                        Timber.d(
+                                            "SpotifyLogin[web]: ${it.message()} " +
+                                                "@${it.sourceId()}:${it.lineNumber()}",
+                                        )
+                                    }
+                                    return true
                                 }
                             }
 
-                            override fun onConsoleMessage(message: ConsoleMessage?): Boolean {
-                                message?.let {
-                                    Timber.d(
-                                        "SpotifyLogin[web]: ${it.message()} " +
-                                            "@${it.sourceId()}:${it.lineNumber()}",
-                                    )
+                            webViewClient = object : WebViewClient() {
+                                override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                                    isLoading = true
+                                    Timber.d("SpotifyLogin: page started: $url")
                                 }
-                                return true
-                            }
-                        }
 
-                        webViewClient = object : WebViewClient() {
-                            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                                isLoading = true
-                                Timber.d("SpotifyLogin: page started: $url")
-                            }
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    isLoading = false
+                                    Timber.d("SpotifyLogin: page finished: $url")
 
-                            override fun onPageFinished(view: WebView?, url: String?) {
-                                isLoading = false
-                                Timber.d("SpotifyLogin: page finished: $url")
-
-                                if (url?.startsWith("https://open.spotify.com") == true &&
-                                    tokenFetchStarted.compareAndSet(false, true)
-                                ) {
-                                    Timber.d("SpotifyLogin: extracting token from onPageFinished")
-                                    extractAndFetchToken(
-                                        view = view,
-                                        context = context,
-                                        scope = scope,
-                                        navController = navController,
-                                        setProcessing = { isProcessing = it },
-                                        setStatus = { statusMessage = it },
-                                        setError = { hasError = it },
-                                        tokenFetchStarted = tokenFetchStarted,
-                                    )
-                                }
-                            }
-
-                            override fun shouldOverrideUrlLoading(
-                                view: WebView?,
-                                request: WebResourceRequest?,
-                            ): Boolean {
-                                val requestUrl = request?.url?.toString() ?: return false
-                                Timber.d("SpotifyLogin: navigating to: $requestUrl")
-
-                                if (requestUrl.startsWith("https://open.spotify.com")) {
-                                    val spDc = extractSpDcCookie()
-                                    if (spDc != null && tokenFetchStarted.compareAndSet(false, true)) {
-                                        Timber.d("SpotifyLogin: sp_dc available at redirect, processing immediately")
+                                    if (isPostLoginUrl(url) &&
+                                        tokenFetchStarted.compareAndSet(false, true)
+                                    ) {
+                                        Timber.d("SpotifyLogin: extracting token from onPageFinished")
                                         extractAndFetchToken(
                                             view = view,
                                             context = context,
@@ -212,22 +186,52 @@ fun SpotifyLoginScreen(navController: NavController) {
                                             setError = { hasError = it },
                                             tokenFetchStarted = tokenFetchStarted,
                                         )
-                                        return true
                                     }
-                                    // sp_dc not ready yet — let the page load so
-                                    // onPageFinished can pick up the cookie later
-                                    Timber.d("SpotifyLogin: sp_dc not ready at redirect, deferring to onPageFinished")
-                                    return false
                                 }
 
-                                return false
+                                override fun shouldOverrideUrlLoading(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                ): Boolean {
+                                    val requestUrl = request?.url?.toString() ?: return false
+                                    Timber.d("SpotifyLogin: navigating to: $requestUrl")
+
+                                    if (isPostLoginUrl(requestUrl)) {
+                                        val spDc = extractSpDcCookie()
+                                        if (spDc != null && tokenFetchStarted.compareAndSet(false, true)) {
+                                            Timber.d("SpotifyLogin: sp_dc available at redirect, processing immediately")
+                                            extractAndFetchToken(
+                                                view = view,
+                                                context = context,
+                                                scope = scope,
+                                                navController = navController,
+                                                setProcessing = { isProcessing = it },
+                                                setStatus = { statusMessage = it },
+                                                setError = { hasError = it },
+                                                tokenFetchStarted = tokenFetchStarted,
+                                            )
+                                            return true
+                                        }
+                                        // sp_dc not ready yet — let the page load so
+                                        // onPageFinished can pick up the cookie later
+                                        Timber.d("SpotifyLogin: sp_dc not ready at redirect, deferring to onPageFinished")
+                                        return false
+                                    }
+
+                                    return false
+                                }
+                            }
+
+                            // removeAllCookies is async — load only after clear finishes so a
+                            // lingering session can't auto-redirect into the black web player.
+                            cookieManager.removeAllCookies {
+                                cookieManager.flush()
+                                loadUrl(SpotifyAuth.LOGIN_URL)
                             }
                         }
-
-                        loadUrl(SpotifyAuth.LOGIN_URL)
-                    }
-                },
-            )
+                    },
+                )
+            }
 
             if (isProcessing) {
                 Box(
@@ -279,16 +283,50 @@ fun SpotifyLoginScreen(navController: NavController) {
  * Returns null if the cookie is not yet available.
  */
 private fun extractSpDcCookie(): String? {
-    val allCookies = CookieManager.getInstance().getCookie("https://open.spotify.com")
-    if (allCookies.isNullOrBlank()) return null
+    for (domain in COOKIE_DOMAINS) {
+        val allCookies = CookieManager.getInstance().getCookie(domain) ?: continue
+        if (allCookies.isBlank()) continue
 
-    return allCookies.split(";")
-        .mapNotNull { cookie ->
-            val parts = cookie.trim().split("=", limit = 2)
-            if (parts.size == 2) parts[0].trim() to parts[1].trim() else null
-        }
-        .firstOrNull { it.first == "sp_dc" && it.second.isNotBlank() }
-        ?.second
+        val spDc = allCookies.split(";")
+            .mapNotNull { cookie ->
+                val parts = cookie.trim().split("=", limit = 2)
+                if (parts.size == 2) parts[0].trim() to parts[1].trim() else null
+            }
+            .firstOrNull { it.first == "sp_dc" && it.second.isNotBlank() }
+            ?.second
+        if (spDc != null) return spDc
+    }
+    return null
+}
+
+/**
+ * Post-login landing pages where sp_dc should be available.
+ * Prefer accounts/.../status (lightweight) over open.spotify.com (black web player).
+ */
+private fun isPostLoginUrl(url: String?): Boolean {
+    if (url.isNullOrBlank()) return false
+    if (url.startsWith("https://open.spotify.com")) return true
+    // accounts.spotify.com/status or /en/status (optional query string)
+    return STATUS_URL_REGEX.containsMatchIn(url)
+}
+
+private val STATUS_URL_REGEX =
+    Regex("^https://accounts\\.spotify\\.com/(?:[^/]+/)?status(?:[/?#].*)?$", RegexOption.IGNORE_CASE)
+
+private val COOKIE_DOMAINS = listOf(
+    "https://accounts.spotify.com",
+    "https://open.spotify.com",
+)
+
+/**
+ * Desktop Chrome UA built from the WebView's real Chrome version so feature
+ * checks don't see a fake Chrome/131 on a newer (or older) engine.
+ * Desktop UA avoids Facebook/Google mobile JS incompatibilities in WebView.
+ */
+private fun desktopUserAgent(defaultUa: String): String {
+    val chrome = Regex("""Chrome/[\d.]+""").find(defaultUa)?.value ?: "Chrome/131.0.0.0"
+    return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+        "(KHTML, like Gecko) $chrome Safari/537.36"
 }
 
 /**
@@ -309,22 +347,22 @@ private fun extractAndFetchToken(
     tokenFetchStarted: AtomicBoolean,
 ) {
     val cookieManager = CookieManager.getInstance()
-    val allCookies = cookieManager.getCookie("https://open.spotify.com")
-    Timber.d("SpotifyLogin: cookies present: ${!allCookies.isNullOrBlank()}")
-
-    val cookieMap = allCookies?.split(";")
-        ?.mapNotNull { cookie ->
-            val parts = cookie.trim().split("=", limit = 2)
-            if (parts.size == 2 && parts[0].trim().isNotEmpty()) {
-                parts[0].trim() to parts[1].trim()
-            } else {
-                null
+    val cookies = buildMap {
+        for (domain in COOKIE_DOMAINS) {
+            val raw = cookieManager.getCookie(domain) ?: continue
+            raw.split(";").forEach { cookie ->
+                val parts = cookie.trim().split("=", limit = 2)
+                if (parts.size == 2 && parts[0].trim().isNotEmpty()) {
+                    put(parts[0].trim(), parts[1].trim())
+                }
             }
-        }?.toMap() ?: emptyMap()
+        }
+    }
+    Timber.d("SpotifyLogin: cookies present: ${cookies.isNotEmpty()} keys=${cookies.keys}")
 
-    val spDc = cookieMap["sp_dc"]
+    val spDc = cookies["sp_dc"]
     if (spDc.isNullOrBlank()) {
-        Timber.w("SpotifyLogin: sp_dc not found in cookies (keys: ${cookieMap.keys})")
+        Timber.w("SpotifyLogin: sp_dc not found in cookies (keys: ${cookies.keys})")
         setProcessing(true)
         setStatus(context.getString(R.string.spotify_login_error_no_cookie))
         setError(true)
@@ -332,7 +370,7 @@ private fun extractAndFetchToken(
         return
     }
 
-    val spKey = cookieMap["sp_key"] ?: ""
+    val spKey = cookies["sp_key"] ?: ""
     Timber.d("SpotifyLogin: sp_dc found (${spDc.take(8)}...), starting token fetch")
 
     setProcessing(true)
@@ -421,11 +459,3 @@ private fun classifyLoginError(context: Context, e: Exception): String {
             context.getString(R.string.spotify_login_error)
     }
 }
-
-/**
- * Desktop Chrome User-Agent. Using desktop UA is critical because:
- * - Facebook's mobile JS has compatibility issues with Android WebView
- * - Spotify and social login providers render more stable desktop pages
- */
-private const val USER_AGENT_DESKTOP =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
