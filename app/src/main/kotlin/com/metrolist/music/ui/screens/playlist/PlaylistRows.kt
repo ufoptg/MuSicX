@@ -14,6 +14,31 @@ package com.metrolist.music.ui.screens.playlist
 const val RECOMMENDATION_INTERVAL = 3
 
 /**
+ * Safety cap on how many Enhance recommendations a single build will fetch, so an enormous
+ * playlist can't trigger a runaway number of related()/recommendation API calls (403/throttle
+ * risk). Covers a playlist of up to [MAX_ENHANCE_RECOMMENDATIONS] * [RECOMMENDATION_INTERVAL] songs.
+ */
+const val MAX_ENHANCE_RECOMMENDATIONS = 200
+
+/**
+ * How many recommendations Enhance should fetch for a playlist of [songCount] songs so it can keep
+ * inserting one after every [RECOMMENDATION_INTERVAL] songs all the way to the end of the list
+ * (instead of stopping after a fixed count). Roughly ceil(songCount / interval), clamped to
+ * [MAX_ENHANCE_RECOMMENDATIONS] so very large playlists stay bounded.
+ */
+fun enhanceRecommendationTarget(songCount: Int): Int =
+    ((songCount + RECOMMENDATION_INTERVAL - 1) / RECOMMENDATION_INTERVAL)
+        .coerceIn(1, MAX_ENHANCE_RECOMMENDATIONS)
+
+/**
+ * How many diverse seed tracks to sample across the playlist, scaled up with the recommendation
+ * target so longer playlists are seeded more widely (and thus produce enough unique candidates to
+ * cover the whole list). Kept modest to limit 403/throttle risk.
+ */
+fun enhanceSeedCount(songCount: Int): Int =
+    (enhanceRecommendationTarget(songCount) / 5).coerceIn(4, 12)
+
+/**
  * A single row rendered inside a playlist list. [S] is the concrete song model of the screen
  * (Local `PlaylistSong`, Online `SongItem`, Spotify `SpotifyPlaylistTrack`) and [R] is the
  * recommendation model (`SongItem` for Local/Online, `SpotifyTrack` for Spotify) so every screen

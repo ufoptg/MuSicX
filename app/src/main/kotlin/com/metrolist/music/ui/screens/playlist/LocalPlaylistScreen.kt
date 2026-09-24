@@ -611,6 +611,24 @@ fun LocalPlaylistScreen(
                                 recTrack.duration?.let { makeTimeString(it.toLong() * 1000) },
                             ),
                             isActive = isRecActive,
+                            trailingContent = {
+                                IconButton(
+                                    onClick = {
+                                        viewModel.addEnhanceTrackToPlaylist(recTrack)
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.enhance_added_to_playlist),
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    },
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.add),
+                                        contentDescription = stringResource(R.string.enhance_add_to_playlist),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            },
                             thumbnailContent = {
                                 Box(contentAlignment = Alignment.BottomEnd) {
                                     ItemThumbnail(

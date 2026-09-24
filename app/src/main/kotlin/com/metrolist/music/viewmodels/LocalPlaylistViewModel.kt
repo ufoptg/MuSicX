@@ -26,6 +26,8 @@ import com.metrolist.music.extensions.reversed
 import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.YouTubeRecommendationEngine
+import com.metrolist.music.ui.screens.playlist.enhanceRecommendationTarget
+import com.metrolist.music.ui.screens.playlist.enhanceSeedCount
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -86,8 +88,8 @@ constructor(
                 val seeds = current.map { it.toSongItem() }
                 val recs = YouTubeRecommendationEngine.getRecommendationsForPlaylist(
                     playlistSongs = seeds,
-                    limit = 20,
-                    seedCount = 4,
+                    limit = enhanceRecommendationTarget(seeds.size),
+                    seedCount = enhanceSeedCount(seeds.size),
                     hideVideoSongs = hideVideoSongs,
                 )
                 _enhanceTracks.value = recs
@@ -104,6 +106,9 @@ constructor(
     }
 
     fun addEnhanceTrackToPlaylist(song: SongItem) {
+        // Remove from the ephemeral Enhance list immediately so the sparkle row for this track
+        // disappears once it's been permanently added (it will now show as a real playlist song).
+        _enhanceTracks.value = _enhanceTracks.value.filterNot { it.id == song.id }
         viewModelScope.launch(Dispatchers.IO) {
             val pl = playlist.value ?: return@launch
             database.withTransaction {
