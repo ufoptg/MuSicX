@@ -18,12 +18,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
@@ -35,6 +40,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -55,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -83,6 +92,21 @@ private val MuSicXColors =
         onSurfaceVariant = Color(0xFFB6B6C0),
         error = Color(0xFFFF6B6B),
     )
+
+/**
+ * Top-level navigation destinations, mirroring the Android app's bottom-navigation sections.
+ * On desktop these are shown in a left-hand [NavigationRail] (Android-layout groundwork). Search
+ * is the only functional destination for now; Home and Library are placeholders to be filled in
+ * as the desktop client grows toward feature parity.
+ */
+private enum class Destination(
+    val label: String,
+    val icon: ImageVector,
+) {
+    Home("Home", Icons.Default.Home),
+    Search("Search", Icons.Default.Search),
+    Library("Library", Icons.Default.LibraryMusic),
+}
 
 fun main() = application {
     val client = remember { DesktopInnerTube() }
@@ -125,6 +149,7 @@ private fun MuSicXApp(
     var durationMs by remember { mutableStateOf(0L) }
     var seekPreview by remember { mutableStateOf<Float?>(null) }
     var volume by remember { mutableStateOf(100) }
+    var destination by remember { mutableStateOf(Destination.Search) }
     val scope = rememberCoroutineScope()
 
     val nowPlaying = results.getOrNull(currentIndex)
@@ -197,34 +222,35 @@ private fun MuSicXApp(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 28.dp)) {
-            Header()
-            SearchBar(query = query, onQueryChange = { query = it }, enabled = !loading, onSearch = ::runSearch)
-
-            error?.let {
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(top = 12.dp),
-                )
-            }
-
-            if (loading) {
-                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
-            } else {
-                LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
-                    items(results, key = { it.videoId }) { hit ->
-                        val index = results.indexOf(hit)
-                        ResultRow(
-                            hit = hit,
-                            isActive = hit.videoId == nowPlaying?.videoId,
-                            isBusy = busyId == hit.videoId,
-                            onClick = { playIndex(index) },
+        Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            AppNavigationRail(
+                selected = destination,
+                onSelect = { destination = it },
+            )
+            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                when (destination) {
+                    Destination.Search ->
+                        SearchScreen(
+                            query = query,
+                            onQueryChange = { query = it },
+                            loading = loading,
+                            error = error,
+                            results = results,
+                            nowPlayingId = nowPlaying?.videoId,
+                            busyId = busyId,
+                            onSearch = ::runSearch,
+                            onPlayIndex = ::playIndex,
                         )
-                    }
+                    Destination.Home ->
+                        PlaceholderScreen(
+                            title = "Home",
+                            message = "Recommendations and recently played will live here.",
+                        )
+                    Destination.Library ->
+                        PlaceholderScreen(
+                            title = "Library",
+                            message = "Your saved songs and playlists will live here.",
+                        )
                 }
             }
         }
@@ -256,6 +282,118 @@ private fun MuSicXApp(
                 player.seekToFraction(it)
                 seekPreview = null
             },
+        )
+    }
+}
+
+@Composable
+private fun AppNavigationRail(
+    selected: Destination,
+    onSelect: (Destination) -> Unit,
+) {
+    NavigationRail(
+        containerColor = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxHeight(),
+    ) {
+        Spacer(modifier = Modifier.height(16.dp))
+        Image(
+            painter = painterResource("ic_launcher.png"),
+            contentDescription = "MuSicX",
+            modifier = Modifier.size(36.dp).clip(RoundedCornerShape(9.dp)),
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Destination.entries.forEach { item ->
+            NavigationRailItem(
+                selected = selected == item,
+                onClick = { onSelect(item) },
+                icon = { Icon(item.icon, contentDescription = item.label) },
+                label = { Text(item.label) },
+                colors =
+                    NavigationRailItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SearchScreen(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    loading: Boolean,
+    error: String?,
+    results: List<SearchHit>,
+    nowPlayingId: String?,
+    busyId: String?,
+    onSearch: () -> Unit,
+    onPlayIndex: (Int) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
+        Header()
+        SearchBar(query = query, onQueryChange = onQueryChange, enabled = !loading, onSearch = onSearch)
+
+        error?.let {
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        }
+
+        if (loading) {
+            Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            }
+        } else {
+            LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
+                items(results, key = { it.videoId }) { hit ->
+                    val index = results.indexOf(hit)
+                    ResultRow(
+                        hit = hit,
+                        isActive = hit.videoId == nowPlayingId,
+                        isBusy = busyId == hit.videoId,
+                        onClick = { onPlayIndex(index) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaceholderScreen(
+    title: String,
+    message: String,
+) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(
+            Icons.Default.MusicNote,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.surfaceVariant,
+            modifier = Modifier.size(64.dp),
+        )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp),
         )
     }
 }
