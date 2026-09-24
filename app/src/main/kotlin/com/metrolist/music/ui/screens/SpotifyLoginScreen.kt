@@ -132,6 +132,7 @@ fun SpotifyLoginScreen(navController: NavController) {
                         settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
                         settings.javaScriptCanOpenWindowsAutomatically = true
                         settings.setSupportMultipleWindows(false)
+                        settings.mediaPlaybackRequiresUserGesture = false
                         settings.userAgentString = USER_AGENT_DESKTOP
 
                         // Spotify's login/player pages request protected-media (Widevine EME)
