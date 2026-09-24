@@ -21,11 +21,15 @@ package com.metrolist.music.ui.screens
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.os.Build
+import android.view.ContextThemeWrapper
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -47,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -78,6 +83,7 @@ import com.metrolist.spotify.SpotifyAuth
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -95,6 +101,28 @@ fun SpotifyLoginScreen(navController: NavController) {
     var hasError by remember { mutableStateOf(false) }
     var retryCount by remember { mutableIntStateOf(0) }
     val tokenFetchStarted = remember { AtomicBoolean(false) }
+    var webViewRef by remember { mutableStateOf<WebView?>(null) }
+
+    // Backup: poll for sp_dc in case redirect interception misses the cookie.
+    LaunchedEffect(retryCount) {
+        while (isActive) {
+            delay(1000)
+            if (tokenFetchStarted.get() || isProcessing) continue
+            val spDc = extractSpDcCookie() ?: continue
+            if (!tokenFetchStarted.compareAndSet(false, true)) continue
+            Timber.d("SpotifyLogin: sp_dc found via cookie poll")
+            extractAndFetchToken(
+                view = webViewRef,
+                context = context,
+                scope = scope,
+                navController = navController,
+                setProcessing = { isProcessing = it },
+                setStatus = { statusMessage = it },
+                setError = { hasError = it },
+                tokenFetchStarted = tokenFetchStarted,
+            )
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
@@ -121,34 +149,45 @@ fun SpotifyLoginScreen(navController: NavController) {
                     factory = { ctx ->
                         val cookieManager = CookieManager.getInstance()
                         cookieManager.setAcceptCookie(true)
+                        // Fire-and-forget — never gate loadUrl on this callback (it can stall
+                        // and leave a permanent blank WebView).
+                        cookieManager.removeAllCookies(null)
+                        cookieManager.flush()
 
-                        WebView(ctx).apply {
+                        // App is dark-themed; WebView inherits isLightTheme=false which can
+                        // algorithmically crush Spotify's already-dark login into a blank page.
+                        // Force a light DayNight context so the page paints normally.
+                        WebView(lightWebViewContext(ctx)).apply {
+                            webViewRef = this
+                            layoutParams = android.view.ViewGroup.LayoutParams(
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                            )
                             cookieManager.setAcceptThirdPartyCookies(this, true)
+                            setBackgroundColor(android.graphics.Color.WHITE)
 
                             settings.javaScriptEnabled = true
                             settings.domStorageEnabled = true
                             settings.databaseEnabled = true
                             settings.loadWithOverviewMode = true
                             settings.useWideViewPort = true
-                            settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+                            settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                             settings.javaScriptCanOpenWindowsAutomatically = true
                             settings.setSupportMultipleWindows(false)
                             settings.mediaPlaybackRequiresUserGesture = false
+                            settings.cacheMode = WebSettings.LOAD_DEFAULT
                             settings.userAgentString = desktopUserAgent(settings.userAgentString)
+                            disableWebViewDarkening(settings)
 
-                            // Spotify pages may request protected-media (Widevine EME). Without
-                            // granting it, some Spotify SPAs render blank in WebView.
                             webChromeClient = object : WebChromeClient() {
                                 override fun onPermissionRequest(request: PermissionRequest?) {
-                                    val resources = request?.resources
-                                    if (resources != null &&
-                                        resources.contains(PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID)
-                                    ) {
-                                        Timber.d("SpotifyLogin: granting protected-media permission")
-                                        request.grant(resources)
-                                    } else {
-                                        super.onPermissionRequest(request)
-                                    }
+                                    // Grant protected-media (and any bundled resources) so EME
+                                    // pages don't hang blank. Spotube does the same.
+                                    val resources = request?.resources ?: return
+                                    Timber.d(
+                                        "SpotifyLogin: granting WebView permissions: ${resources.toList()}",
+                                    )
+                                    request.grant(resources)
                                 }
 
                                 override fun onConsoleMessage(message: ConsoleMessage?): Boolean {
@@ -165,6 +204,7 @@ fun SpotifyLoginScreen(navController: NavController) {
                             webViewClient = object : WebViewClient() {
                                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                                     isLoading = true
+                                    hasError = false
                                     Timber.d("SpotifyLogin: page started: $url")
                                 }
 
@@ -187,6 +227,20 @@ fun SpotifyLoginScreen(navController: NavController) {
                                             tokenFetchStarted = tokenFetchStarted,
                                         )
                                     }
+                                }
+
+                                override fun onReceivedError(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                    error: WebResourceError?,
+                                ) {
+                                    if (request?.isForMainFrame != true) return
+                                    val desc = error?.description?.toString().orEmpty()
+                                    Timber.w("SpotifyLogin: main-frame error: $desc (${request.url})")
+                                    isLoading = false
+                                    isProcessing = true
+                                    statusMessage = context.getString(R.string.spotify_login_error_network)
+                                    hasError = true
                                 }
 
                                 override fun shouldOverrideUrlLoading(
@@ -212,8 +266,6 @@ fun SpotifyLoginScreen(navController: NavController) {
                                             )
                                             return true
                                         }
-                                        // sp_dc not ready yet — let the page load so
-                                        // onPageFinished can pick up the cookie later
                                         Timber.d("SpotifyLogin: sp_dc not ready at redirect, deferring to onPageFinished")
                                         return false
                                     }
@@ -222,12 +274,7 @@ fun SpotifyLoginScreen(navController: NavController) {
                                 }
                             }
 
-                            // removeAllCookies is async — load only after clear finishes so a
-                            // lingering session can't auto-redirect into the black web player.
-                            cookieManager.removeAllCookies {
-                                cookieManager.flush()
-                                loadUrl(SpotifyAuth.LOGIN_URL)
-                            }
+                            loadUrl(SpotifyAuth.LOGIN_URL)
                         }
                     },
                 )
@@ -275,6 +322,27 @@ fun SpotifyLoginScreen(navController: NavController) {
                 }
             }
         }
+    }
+}
+
+/** WebView context that reports light theme so dark-app algorithmic darkening doesn't apply. */
+private fun lightWebViewContext(base: Context): Context {
+    val config = Configuration(base.resources.configuration).apply {
+        uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or Configuration.UI_MODE_NIGHT_NO
+    }
+    return ContextThemeWrapper(
+        base.createConfigurationContext(config),
+        android.R.style.Theme_DeviceDefault_Light_NoActionBar,
+    )
+}
+
+@Suppress("DEPRECATION")
+private fun disableWebViewDarkening(settings: WebSettings) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        runCatching { settings.isAlgorithmicDarkeningAllowed = false }
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        runCatching { settings.forceDark = WebSettings.FORCE_DARK_OFF }
     }
 }
 
