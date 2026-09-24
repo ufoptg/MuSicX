@@ -297,85 +297,183 @@ fun OnlinePlaylistScreen(
                         }
                     }
 
-                    itemsIndexed(filteredSongs) { index, (_, songItem) ->
-                        val onCheckedChange: (Boolean) -> Unit = {
-                            if (it) {
-                                selection.add(songItem.id)
-                            } else {
-                                selection.remove(songItem.id)
+                    val playlistRows = buildPlaylistRows(
+                        songEntries = filteredSongs.mapIndexed { i, (_, item) ->
+                            PlaylistRow.SongEntry(i, item)
+                        },
+                        recommendations = enhanceTracks,
+                        interleave = enhanceEnabled && !isSearching && !isPodcastPlaylist,
+                    )
+
+                    itemsIndexed(
+                        items = playlistRows,
+                        key = { _, row ->
+                            when (row) {
+                                is PlaylistRow.SongEntry -> "song_${row.song.id}_${row.index}"
+                                is PlaylistRow.Recommendation -> "enhance_${row.track.id}"
                             }
-                        }
-
-                        YouTubeListItem(
-                            item = songItem,
-                            isActive = mediaMetadata?.id == songItem.id,
-                            isPlaying = isPlaying,
-                            isSelected = inSelectMode && songItem.id in selection,
-                            modifier =
-                                Modifier
-                                    .combinedClickable(
-                                        enabled = !hideExplicit || !songItem.explicit,
-                                        onClick = {
-                                            if (inSelectMode) {
-                                                onCheckedChange(songItem.id !in selection)
-                                            } else if (songItem.id == mediaMetadata?.id) {
-                                                playerConnection.togglePlayPause()
-                                            } else {
-                                                playerConnection.playQueue(
-                                                    YouTubePlaylistQueue(
-                                                        playlistId = playlist.id,
-                                                        playlistTitle = playlist.title,
-                                                        initialSongs = filteredSongs.map { it.second },
-                                                        initialContinuation = viewModel.continuation,
-                                                        startIndex = index,
-                                                    ),
+                        },
+                    ) { _, row ->
+                        when (row) {
+                            is PlaylistRow.Recommendation -> {
+                                val recTrack = row.track
+                                val isRecActive = mediaMetadata?.id == recTrack.id
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f),
+                                        )
+                                        .animateItem(),
+                                ) {
+                                    ListItem(
+                                        title = recTrack.title,
+                                        subtitle = joinByBullet(
+                                            recTrack.artists.joinToString { it.name },
+                                            recTrack.duration?.let { makeTimeString(it.toLong() * 1000) },
+                                        ),
+                                        isActive = isRecActive,
+                                        thumbnailContent = {
+                                            Box(contentAlignment = Alignment.BottomEnd) {
+                                                ItemThumbnail(
+                                                    thumbnailUrl = recTrack.thumbnail,
+                                                    isActive = isRecActive,
+                                                    isPlaying = isPlaying,
+                                                    shape = RoundedCornerShape(ThumbnailCornerRadius),
+                                                    modifier = Modifier.size(ListThumbnailSize),
                                                 )
-                                            }
-                                        },
-                                        onLongClick = {
-                                            if (!inSelectMode) {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                inSelectMode = true
-                                                onCheckedChange(true)
-                                                selectionAnchorSongId = songItem.id
-                                            } else {
-                                                val anchorIndex =
-                                                    selectionAnchorSongId?.let { anchorSongId ->
-                                                        filteredSongs.indexOfFirst { it.second.id == anchorSongId }
-                                                    } ?: -1
-
-                                                if (anchorIndex == -1) {
-                                                    onCheckedChange(true)
-                                                    selectionAnchorSongId = songItem.id
-                                                } else {
-                                                    val range = if (anchorIndex <= index) anchorIndex..index else index..anchorIndex
-                                                    for (rangeIndex in range) {
-                                                        val rangeSongId = filteredSongs[rangeIndex].second.id
-                                                        if (rangeSongId !in selection) {
-                                                            selection.add(rangeSongId)
-                                                        }
-                                                    }
+                                                Box(
+                                                    contentAlignment = Alignment.Center,
+                                                    modifier = Modifier
+                                                        .padding(2.dp)
+                                                        .size(18.dp)
+                                                        .background(
+                                                            color = MaterialTheme.colorScheme.primary,
+                                                            shape = CircleShape,
+                                                        ),
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.sparkles),
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                                        modifier = Modifier.size(12.dp),
+                                                    )
                                                 }
                                             }
                                         },
-                                    ).animateItem(),
-                            trailingContent = {
-                                if (inSelectMode) {
-                                    Checkbox(
-                                        checked = songItem.id in selection,
-                                        onCheckedChange = onCheckedChange,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .combinedClickable(
+                                                onClick = {
+                                                    playerConnection.playQueue(
+                                                        YouTubePlaylistQueue(
+                                                            playlistId = playlist.id,
+                                                            playlistTitle = context.getString(
+                                                                R.string.enhance_recommendation_label,
+                                                            ),
+                                                            initialSongs = listOf(recTrack) +
+                                                                enhanceTracks.filter { it.id != recTrack.id },
+                                                            initialContinuation = null,
+                                                            startIndex = 0,
+                                                        ),
+                                                    )
+                                                },
+                                                onLongClick = {
+                                                    menuState.show {
+                                                        YouTubeSongMenu(
+                                                            song = recTrack,
+                                                            onDismiss = menuState::dismiss,
+                                                        )
+                                                    }
+                                                },
+                                            ),
                                     )
-                                } else {
-                                    IconButton(onClick = {
-                                        menuState.show {
-                                            YouTubeSongMenu(songItem, menuState::dismiss)
-                                        }
-                                    }) {
-                                        Icon(painterResource(R.drawable.more_vert), null)
+                                }
+                            }
+
+                            is PlaylistRow.SongEntry -> {
+                                val songItem = row.song
+                                val index = row.index
+                                val onCheckedChange: (Boolean) -> Unit = {
+                                    if (it) {
+                                        selection.add(songItem.id)
+                                    } else {
+                                        selection.remove(songItem.id)
                                     }
                                 }
-                            },
-                        )
+
+                                YouTubeListItem(
+                                    item = songItem,
+                                    isActive = mediaMetadata?.id == songItem.id,
+                                    isPlaying = isPlaying,
+                                    isSelected = inSelectMode && songItem.id in selection,
+                                    modifier =
+                                        Modifier
+                                            .combinedClickable(
+                                                enabled = !hideExplicit || !songItem.explicit,
+                                                onClick = {
+                                                    if (inSelectMode) {
+                                                        onCheckedChange(songItem.id !in selection)
+                                                    } else if (songItem.id == mediaMetadata?.id) {
+                                                        playerConnection.togglePlayPause()
+                                                    } else {
+                                                        playerConnection.playQueue(
+                                                            YouTubePlaylistQueue(
+                                                                playlistId = playlist.id,
+                                                                playlistTitle = playlist.title,
+                                                                initialSongs = filteredSongs.map { it.second },
+                                                                initialContinuation = viewModel.continuation,
+                                                                startIndex = index,
+                                                            ),
+                                                        )
+                                                    }
+                                                },
+                                                onLongClick = {
+                                                    if (!inSelectMode) {
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        inSelectMode = true
+                                                        onCheckedChange(true)
+                                                        selectionAnchorSongId = songItem.id
+                                                    } else {
+                                                        val anchorIndex =
+                                                            selectionAnchorSongId?.let { anchorSongId ->
+                                                                filteredSongs.indexOfFirst { it.second.id == anchorSongId }
+                                                            } ?: -1
+
+                                                        if (anchorIndex == -1) {
+                                                            onCheckedChange(true)
+                                                            selectionAnchorSongId = songItem.id
+                                                        } else {
+                                                            val range = if (anchorIndex <= index) anchorIndex..index else index..anchorIndex
+                                                            for (rangeIndex in range) {
+                                                                val rangeSongId = filteredSongs[rangeIndex].second.id
+                                                                if (rangeSongId !in selection) {
+                                                                    selection.add(rangeSongId)
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                            ).animateItem(),
+                                    trailingContent = {
+                                        if (inSelectMode) {
+                                            Checkbox(
+                                                checked = songItem.id in selection,
+                                                onCheckedChange = onCheckedChange,
+                                            )
+                                        } else {
+                                            IconButton(onClick = {
+                                                menuState.show {
+                                                    YouTubeSongMenu(songItem, menuState::dismiss)
+                                                }
+                                            }) {
+                                                Icon(painterResource(R.drawable.more_vert), null)
+                                            }
+                                        }
+                                    },
+                                )
+                            }
+                        }
                     }
 
                     if (isLoadingMore) {
@@ -388,107 +486,6 @@ fun OnlinePlaylistScreen(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 ContainedLoadingIndicator()
-                            }
-                        }
-                    }
-
-                    if (enhanceEnabled && !isSearching && !isPodcastPlaylist && enhanceTracks.isNotEmpty()) {
-                        item(key = "enhance_header") {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.sparkles),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                                Spacer(modifier = Modifier.size(8.dp))
-                                Text(
-                                    text = stringResource(R.string.enhance_recommendation_label),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        }
-                        itemsIndexed(
-                            items = enhanceTracks,
-                            key = { _, t -> "enhance_${t.id}" },
-                        ) { _, recTrack ->
-                            val isRecActive = mediaMetadata?.id == recTrack.id
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(
-                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f),
-                                    )
-                                    .animateItem(),
-                            ) {
-                                ListItem(
-                                    title = recTrack.title,
-                                    subtitle = joinByBullet(
-                                        recTrack.artists.joinToString { it.name },
-                                        recTrack.duration?.let { makeTimeString(it.toLong() * 1000) },
-                                    ),
-                                    isActive = isRecActive,
-                                    thumbnailContent = {
-                                        Box(contentAlignment = Alignment.BottomEnd) {
-                                            ItemThumbnail(
-                                                thumbnailUrl = recTrack.thumbnail,
-                                                isActive = isRecActive,
-                                                isPlaying = isPlaying,
-                                                shape = RoundedCornerShape(ThumbnailCornerRadius),
-                                                modifier = Modifier.size(ListThumbnailSize),
-                                            )
-                                            Box(
-                                                contentAlignment = Alignment.Center,
-                                                modifier = Modifier
-                                                    .padding(2.dp)
-                                                    .size(18.dp)
-                                                    .background(
-                                                        color = MaterialTheme.colorScheme.primary,
-                                                        shape = CircleShape,
-                                                    ),
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.sparkles),
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.onPrimary,
-                                                    modifier = Modifier.size(12.dp),
-                                                )
-                                            }
-                                        }
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .combinedClickable(
-                                            onClick = {
-                                                playerConnection.playQueue(
-                                                    YouTubePlaylistQueue(
-                                                        playlistId = playlist.id,
-                                                        playlistTitle = context.getString(
-                                                            R.string.enhance_recommendation_label,
-                                                        ),
-                                                        initialSongs = listOf(recTrack) +
-                                                            enhanceTracks.filter { it.id != recTrack.id },
-                                                        initialContinuation = null,
-                                                        startIndex = 0,
-                                                    ),
-                                                )
-                                            },
-                                            onLongClick = {
-                                                menuState.show {
-                                                    YouTubeSongMenu(
-                                                        song = recTrack,
-                                                        onDismiss = menuState::dismiss,
-                                                    )
-                                                }
-                                            },
-                                        ),
-                                )
                             }
                         }
                     }

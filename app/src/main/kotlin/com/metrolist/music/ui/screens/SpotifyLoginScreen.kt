@@ -22,7 +22,10 @@ package com.metrolist.music.ui.screens
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
+import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
+import android.webkit.PermissionRequest
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -129,7 +132,37 @@ fun SpotifyLoginScreen(navController: NavController) {
                         settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
                         settings.javaScriptCanOpenWindowsAutomatically = true
                         settings.setSupportMultipleWindows(false)
+                        settings.mediaPlaybackRequiresUserGesture = false
                         settings.userAgentString = USER_AGENT_DESKTOP
+
+                        // Spotify's login/player pages request protected-media (Widevine EME)
+                        // playback permission. Without a WebChromeClient granting it, recent
+                        // Spotify pages render blank in an embedded WebView — which is why the
+                        // login screen "doesn't come up". Also mirror JS console errors to logcat
+                        // (tag SpotifyLogin[web]) so blind builds can be diagnosed on-device.
+                        webChromeClient = object : WebChromeClient() {
+                            override fun onPermissionRequest(request: PermissionRequest?) {
+                                val resources = request?.resources
+                                if (resources != null &&
+                                    resources.contains(PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID)
+                                ) {
+                                    Timber.d("SpotifyLogin: granting protected-media permission")
+                                    request.grant(resources)
+                                } else {
+                                    super.onPermissionRequest(request)
+                                }
+                            }
+
+                            override fun onConsoleMessage(message: ConsoleMessage?): Boolean {
+                                message?.let {
+                                    Timber.d(
+                                        "SpotifyLogin[web]: ${it.message()} " +
+                                            "@${it.sourceId()}:${it.lineNumber()}",
+                                    )
+                                }
+                                return true
+                            }
+                        }
 
                         webViewClient = object : WebViewClient() {
                             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {

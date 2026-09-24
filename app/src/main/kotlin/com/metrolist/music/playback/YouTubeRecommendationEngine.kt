@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 
@@ -27,6 +28,9 @@ import timber.log.Timber
 object YouTubeRecommendationEngine {
 
     private const val TAG = "YouTubeRecEngine"
+
+    /** Throttle guard between sequential related() calls when retrying after an all-empty pass. */
+    private const val SEQUENTIAL_THROTTLE_MS = 350L
 
     /**
      * @param playlistSongs full (or currently loaded) playlist track list
@@ -52,12 +56,22 @@ object YouTubeRecommendationEngine {
 
         val alreadyIn = valid.map { it.id }.toHashSet()
 
-        val recsPerSeed = coroutineScope {
+        var recsPerSeed = coroutineScope {
             seeds.map { seed ->
                 async {
                     relatedSongsFor(seed.id, hideVideoSongs)
                 }
             }.awaitAll()
+        }
+
+        // Sequential retry (throttled) if the parallel pass produced nothing for every seed —
+        // parallel bursts are the most likely to trip 403/throttle without a PoToken.
+        if (recsPerSeed.all { it.isEmpty() }) {
+            Timber.w("$TAG: all ${seeds.size} seeds empty on parallel pass, retrying sequentially")
+            recsPerSeed = seeds.mapIndexed { i, seed ->
+                if (i > 0) delay(SEQUENTIAL_THROTTLE_MS)
+                relatedSongsFor(seed.id, hideVideoSongs)
+            }
         }
 
         val merged = mutableListOf<SongItem>()
@@ -78,20 +92,53 @@ object YouTubeRecommendationEngine {
         merged
     }
 
+    /**
+     * Related songs for a single seed. Tries `next → relatedEndpoint → related` first, then falls
+     * back to the watch-next up-next queue, then to an RDAMVM radio mix — so a seed whose
+     * `related()` shelf is empty still contributes recommendations instead of silently dropping out.
+     * Emits per-seed diagnostics for logcat verification (blind CI builds).
+     */
     private suspend fun relatedSongsFor(
         videoId: String,
         hideVideoSongs: Boolean,
     ): List<SongItem> {
-        val relatedEndpoint = YouTube.next(WatchEndpoint(videoId = videoId))
-            .getOrNull()
-            ?.relatedEndpoint
-            ?: return emptyList()
-
-        val page = YouTube.related(relatedEndpoint).getOrNull() ?: return emptyList()
-        return page.songs.filter { song ->
-            if (song.id.isEmpty() || song.id == videoId) return@filter false
-            if (hideVideoSongs && song.isVideoSong) return@filter false
-            true
+        val nextResult = YouTube.next(WatchEndpoint(videoId = videoId)).getOrNull()
+        if (nextResult == null) {
+            Timber.w("$TAG: seed=$videoId next() returned null")
+            return emptyList()
         }
+
+        val relatedEndpoint = nextResult.relatedEndpoint
+        Timber.d(
+            "$TAG: seed=$videoId relatedEndpoint=${relatedEndpoint != null} " +
+                "watchNextItems=${nextResult.items.size}",
+        )
+
+        if (relatedEndpoint != null) {
+            val page = YouTube.related(relatedEndpoint).getOrNull()
+            Timber.d("$TAG: seed=$videoId related.songs=${page?.songs?.size ?: -1}")
+            val related = page?.songs.orEmpty().filter { keep(it, videoId, hideVideoSongs) }
+            if (related.isNotEmpty()) return related
+        }
+
+        // Fallback 1: the watch-next up-next queue (already fetched above).
+        val watchNext = nextResult.items.filter { keep(it, videoId, hideVideoSongs) }
+        if (watchNext.isNotEmpty()) {
+            Timber.d("$TAG: seed=$videoId related empty → watch-next fallback yielded ${watchNext.size}")
+            return watchNext
+        }
+
+        // Fallback 2: an explicit RDAMVM radio mix.
+        val radio = YouTube.next(
+            WatchEndpoint(videoId = videoId, playlistId = "RDAMVM$videoId"),
+        ).getOrNull()?.items.orEmpty().filter { keep(it, videoId, hideVideoSongs) }
+        Timber.d("$TAG: seed=$videoId related+watch-next empty → radio fallback yielded ${radio.size}")
+        return radio
+    }
+
+    private fun keep(song: SongItem, seedId: String, hideVideoSongs: Boolean): Boolean {
+        if (song.id.isEmpty() || song.id == seedId) return false
+        if (hideVideoSongs && song.isVideoSong) return false
+        return true
     }
 }
