@@ -452,13 +452,17 @@ class MusicService :
             djWakeWantsMicForeground = false
             refreshDjForegroundTypes()
         }
+        // Restore full volume when mic listen ends (unless host is speaking).
+        if (djBanterJob?.isActive != true) {
+            djDuckVolumeMultiplier.value = 1f
+        }
     }
 
     private fun updateDjWakeListening() {
         val shouldListen =
             currentQueue is DjQueue &&
                 ::player.isInitialized &&
-                player.playWhenReady &&
+                // Stay listening while paused so “Hey DJ 6 resume” still works.
                 dataStore.get(AiDjListenCommandsKey, false) &&
                 ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) ==
                 android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -472,20 +476,23 @@ class MusicService :
                         scope = scope,
                         onCommand = { command -> handleDjVoiceCommand(command) },
                         onWakeHeard = {
-                            // Confirm wake; pause mic so TTS isn’t heard as a command.
                             scope.launch {
                                 try {
                                     djWakeCommander?.setPaused(true)
-                                    djDuckVolumeMultiplier.value = 0.25f
+                                    djDuckVolumeMultiplier.value = 0.2f
                                     ensureDjTts().speak("Yeah?")
                                 } finally {
-                                    djDuckVolumeMultiplier.value = 1f
+                                    djDuckVolumeMultiplier.value = WAKE_LISTEN_DUCK
                                     djWakeCommander?.setPaused(false)
                                 }
                             }
                         },
                         onReady = {
                             Timber.tag(TAG).i("DJ 6 wake listening ready")
+                            // Soft-duck music so the mic can hear commands over playback.
+                            if (djBanterJob?.isActive != true) {
+                                djDuckVolumeMultiplier.value = WAKE_LISTEN_DUCK
+                            }
                         },
                         onFailed = { reason ->
                             Timber.tag(TAG).w("DJ 6 wake failed: $reason")
@@ -493,6 +500,9 @@ class MusicService :
                     )
             }
             djWakeCommander?.start()
+            if (djBanterJob?.isActive != true) {
+                djDuckVolumeMultiplier.value = WAKE_LISTEN_DUCK
+            }
         } else {
             stopDjWakeListening()
         }
@@ -574,7 +584,8 @@ class MusicService :
                     djDuckVolumeMultiplier.value = 0.2f
                     ensureDjTts().speak(text)
                 } finally {
-                    djDuckVolumeMultiplier.value = 1f
+                    djDuckVolumeMultiplier.value =
+                        if (djWakeCommander != null) WAKE_LISTEN_DUCK else 1f
                     djWakeCommander?.setPaused(false)
                 }
             }
@@ -599,7 +610,8 @@ class MusicService :
                     djDuckVolumeMultiplier.value = 0.15f
                     ensureDjTts().speak(banter)
                 } finally {
-                    djDuckVolumeMultiplier.value = 1f
+                    djDuckVolumeMultiplier.value =
+                        if (djWakeCommander != null) WAKE_LISTEN_DUCK else 1f
                     djWakeCommander?.setPaused(false)
                 }
             }
@@ -3184,13 +3196,14 @@ class MusicService :
 
         if (!playWhenReady) {
             stopDjBanter()
-            stopDjWakeListening()
+            // Keep Hey DJ 6 wake alive while paused so resume/skip still work.
             val currentMetadata = player.currentMediaItem?.metadata
             if (currentMetadata?.isEpisode == true && player.currentPosition > 0) {
                 saveEpisodePosition(currentMetadata.id, player.currentPosition)
                 previousEpisodePosition = player.currentPosition
             }
-        } else if (currentQueue is DjQueue) {
+        }
+        if (currentQueue is DjQueue) {
             updateDjWakeListening()
         }
 
@@ -5926,6 +5939,8 @@ class MusicService :
 
         const val CHANNEL_ID = "music_channel_01"
         const val NOTIFICATION_ID = 888
+        /** Soft-duck level while Hey DJ 6 mic listen is active so commands aren’t drowned out. */
+        private const val WAKE_LISTEN_DUCK = 0.45f
         const val ERROR_CODE_NO_STREAM = 1000001
         const val CHUNK_LENGTH = 512 * 1024L
         const val PERSISTENT_QUEUE_FILE = "persistent_queue.data"

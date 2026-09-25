@@ -42,6 +42,12 @@ object DjCommandParser {
             .replace(Regex("""\bd\s*j\b"""), "dj")
             .replace(Regex("""\bdj\s*six\b"""), "dj 6")
             .replace(Regex("""\bdj6\b"""), "dj 6")
+            // Common STT mishearings for command words
+            .replace(Regex("""\bscap\b|\bskit\b|\bscip\b"""), "skip")
+            .replace(Regex("""\bnecks\b|\bnex\b"""), "next")
+            .replace(Regex("""\bprevi?ous\b|\bprevous\b"""), "previous")
+            .replace(Regex("""\bpaws\b|\bpors\b"""), "pause")
+            .replace(Regex("""\bresum\b|\bresume play\b"""), "resume")
             .replace(Regex("""\s+"""), " ")
             .trim()
 
@@ -85,18 +91,25 @@ object DjCommandParser {
         val lower = rest.lowercase()
 
         when {
-            lower.matches(Regex("""^(skip|next)(\s+(song|track|one))?$""")) ||
-                lower in listOf("skip this", "skip it", "next track") ->
+            lower.matches(Regex("""^(skip|next)(\s+(song|track|one|please))?$""")) ||
+                lower.startsWith("skip") ||
+                lower.startsWith("next") ||
+                lower in listOf("skip this", "skip it", "next track", "next one", "forward") ->
                 return DjCommand.Skip
 
-            lower.matches(Regex("""^(previous|prev|back|last)(\s+(song|track|one))?$""")) ||
-                lower in listOf("play previous", "play previous song", "go back") ->
+            lower.matches(Regex("""^(previous|prev|back|last)(\s+(song|track|one|please))?$""")) ||
+                lower.startsWith("previous") ||
+                lower.startsWith("prev") ||
+                lower in listOf("play previous", "play previous song", "go back", "go back one") ->
                 return DjCommand.Previous
 
-            lower.matches(Regex("""^(pause|stop)(\s+(music|playback|please))?$""")) ->
+            lower.matches(Regex("""^(pause|stop)(\s+(music|playback|please|song))?$""")) ||
+                lower.startsWith("pause") ||
+                lower == "stop" ->
                 return DjCommand.Pause
 
-            lower.matches(Regex("""^(resume|continue|unpause|play)$""")) ->
+            lower.matches(Regex("""^(resume|continue|unpause|start)(\s+(music|playback|please))?$""")) ||
+                lower in listOf("resume", "continue", "unpause", "play", "start") ->
                 return DjCommand.Resume
         }
 
