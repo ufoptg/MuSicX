@@ -24,8 +24,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -47,11 +45,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
-import com.metrolist.music.constants.AiDjPersonaKey
-import com.metrolist.music.constants.AiDjTalkEnabledKey
 import com.metrolist.music.constants.AiProviderKey
 import com.metrolist.music.constants.AiSystemPromptKey
-import com.metrolist.music.constants.DEFAULT_AI_DJ_PERSONA
 import com.metrolist.music.constants.DEFAULT_AI_SYSTEM_PROMPT
 import com.metrolist.music.constants.DeeplApiKey
 import com.metrolist.music.constants.DeeplFormalityKey
@@ -79,8 +74,6 @@ fun AiSettings(navController: NavController) {
     var deeplApiKey by rememberPreference(DeeplApiKey, "")
     var deeplFormality by rememberPreference(DeeplFormalityKey, "default")
     var aiSystemPrompt by rememberPreference(AiSystemPromptKey, "")
-    var aiDjTalkEnabled by rememberPreference(AiDjTalkEnabledKey, true)
-    var aiDjPersona by rememberPreference(AiDjPersonaKey, DEFAULT_AI_DJ_PERSONA)
 
     val aiProviders =
         mapOf(
@@ -186,7 +179,6 @@ fun AiSettings(navController: NavController) {
     var showModelDialog by rememberSaveable { mutableStateOf(false) }
     var showCustomModelInput by rememberSaveable { mutableStateOf(false) }
     var showSystemPromptDialog by rememberSaveable { mutableStateOf(false) }
-    var showDjPersonaDialog by rememberSaveable { mutableStateOf(false) }
 
     if (showProviderHelpDialog) {
         AlertDialog(
@@ -483,21 +475,6 @@ fun AiSettings(navController: NavController) {
         )
     }
 
-    if (showDjPersonaDialog) {
-        TextFieldDialog(
-            title = { Text(stringResource(R.string.ai_dj_persona)) },
-            icon = { Icon(painterResource(R.drawable.mic), null) },
-            initialTextFieldValue = TextFieldValue(text = aiDjPersona.ifBlank { DEFAULT_AI_DJ_PERSONA }),
-            singleLine = true,
-            isInputValid = { it.isNotBlank() },
-            onDone = {
-                aiDjPersona = it.trim().ifBlank { DEFAULT_AI_DJ_PERSONA }
-                showDjPersonaDialog = false
-            },
-            onDismiss = { showDjPersonaDialog = false },
-        )
-    }
-
     Column(
         Modifier
             .windowInsetsPadding(
@@ -676,44 +653,6 @@ fun AiSettings(navController: NavController) {
                         ),
                     )
                 },
-        )
-
-        Spacer(modifier = Modifier.height(27.dp))
-
-        Material3SettingsGroup(
-            title = stringResource(R.string.ai_dj),
-            items =
-                listOf(
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.mic),
-                        title = { Text(stringResource(R.string.ai_dj_talk_enabled)) },
-                        description = { Text(stringResource(R.string.ai_dj_talk_enabled_desc)) },
-                        trailingContent = {
-                            Switch(
-                                checked = aiDjTalkEnabled,
-                                onCheckedChange = { aiDjTalkEnabled = it },
-                                thumbContent = {
-                                    Icon(
-                                        painter =
-                                            painterResource(
-                                                id = if (aiDjTalkEnabled) R.drawable.check else R.drawable.close,
-                                            ),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(SwitchDefaults.IconSize),
-                                    )
-                                },
-                            )
-                        },
-                    ),
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.edit),
-                        title = { Text(stringResource(R.string.ai_dj_persona)) },
-                        description = {
-                            Text(aiDjPersona.ifBlank { DEFAULT_AI_DJ_PERSONA })
-                        },
-                        onClick = { showDjPersonaDialog = true },
-                    ),
-                ),
         )
 
         Spacer(modifier = Modifier.height(16.dp))

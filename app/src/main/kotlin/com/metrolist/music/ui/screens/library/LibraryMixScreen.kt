@@ -49,12 +49,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import android.widget.Toast
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -70,6 +72,7 @@ import com.metrolist.music.constants.LibraryViewType
 import com.metrolist.music.constants.MixSortDescendingKey
 import com.metrolist.music.constants.MixSortType
 import com.metrolist.music.constants.MixSortTypeKey
+import com.metrolist.music.constants.OpenRouterApiKey
 import com.metrolist.music.constants.ShowCachedPlaylistKey
 import com.metrolist.music.constants.ShowDownloadedPlaylistKey
 import com.metrolist.music.constants.ShowLikedPlaylistKey
@@ -85,7 +88,10 @@ import com.metrolist.music.extensions.matchesNormalizedQuery
 import com.metrolist.music.extensions.normalizeForSearch
 import com.metrolist.music.extensions.reversed
 import com.metrolist.music.extensions.toMediaItem
+import com.metrolist.music.playback.queues.DjQueue
 import com.metrolist.music.playback.queues.ListQueue
+import com.metrolist.music.utils.dataStore
+import com.metrolist.music.utils.get
 import com.metrolist.music.ui.component.AlbumGridItem
 import com.metrolist.music.ui.component.AlbumListItem
 import com.metrolist.music.ui.component.ArtistGridItem
@@ -129,6 +135,7 @@ fun LibraryMixScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val queueSearchedSongsStr = stringResource(R.string.queue_searched_songs)
     val playerConnection = LocalPlayerConnection.current ?: return
+    val context = LocalContext.current
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
@@ -172,6 +179,17 @@ fun LibraryMixScreen(
                 PlaylistEntity(
                     id = UUID.randomUUID().toString(),
                     name = stringResource(R.string.liked),
+                ),
+            songCount = 0,
+            songThumbnails = emptyList(),
+        )
+
+    val djPlaylist =
+        Playlist(
+            playlist =
+                PlaylistEntity(
+                    id = "dj6",
+                    name = stringResource(R.string.ai_dj),
                 ),
             songCount = 0,
             songThumbnails = emptyList(),
@@ -228,12 +246,29 @@ fun LibraryMixScreen(
     val (showUploaded) = rememberPreference(ShowUploadedPlaylistKey, true)
     
     val showLikedPlaylist = showLiked && matchesNormalizedQuery(normalizedQuery, likedPlaylist.playlist.name)
+    val showDjPlaylist = matchesNormalizedQuery(normalizedQuery, djPlaylist.playlist.name)
     val showDownloadedPlaylist =
         showDownloaded && matchesNormalizedQuery(normalizedQuery, downloadPlaylist.playlist.name)
     val showTopPlaylists = showTop && matchesNormalizedQuery(normalizedQuery, topPlaylist.playlist.name)
     val showUploadedPlaylists =
         showUploaded && matchesNormalizedQuery(normalizedQuery, uploadedPlaylist.playlist.name)
     val showCachedPlaylists = showCached && matchesNormalizedQuery(normalizedQuery, cachedPlaylist.playlist.name)
+
+    val startDj6: () -> Unit = {
+        val seed = mediaMetadata
+        when {
+            seed == null -> {
+                Toast.makeText(context, R.string.ai_dj_need_song, Toast.LENGTH_SHORT).show()
+            }
+            context.dataStore.get(OpenRouterApiKey, "").isBlank() -> {
+                Toast.makeText(context, R.string.ai_dj_api_key_required, Toast.LENGTH_LONG).show()
+            }
+            else -> {
+                Toast.makeText(context, R.string.ai_dj_starting, Toast.LENGTH_SHORT).show()
+                playerConnection.playQueue(DjQueue.fromSeed(context, seed))
+            }
+        }
+    }
 
 
     val albums = viewModel.albums.collectAsStateWithLifecycle()
@@ -474,6 +509,23 @@ fun LibraryMixScreen(
                         contentType = CONTENT_TYPE_HEADER,
                     ) {
                         headerContent()
+                    }
+
+                    if (showDjPlaylist) {
+                        item(
+                            key = "djPlaylist",
+                            contentType = { CONTENT_TYPE_PLAYLIST },
+                        ) {
+                            PlaylistListItem(
+                                playlist = djPlaylist,
+                                autoPlaylist = true,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clickable(onClick = startDj6)
+                                        .animateItem(),
+                            )
+                        }
                     }
 
                     if (showLikedPlaylist) {
@@ -805,6 +857,24 @@ fun LibraryMixScreen(
                         contentType = CONTENT_TYPE_HEADER,
                     ) {
                         headerContent()
+                    }
+
+                    if (showDjPlaylist) {
+                        item(
+                            key = "djPlaylist",
+                            contentType = { CONTENT_TYPE_PLAYLIST },
+                        ) {
+                            PlaylistGridItem(
+                                playlist = djPlaylist,
+                                fillMaxWidth = true,
+                                autoPlaylist = true,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .combinedClickable(onClick = startDj6)
+                                        .animateItem(),
+                            )
+                        }
                     }
 
                     if (showLikedPlaylist) {

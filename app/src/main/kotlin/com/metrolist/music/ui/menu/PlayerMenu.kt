@@ -366,7 +366,7 @@ fun PlayerMenu(
                             NewAction(
                                 icon = {
                                     Icon(
-                                        painter = painterResource(R.drawable.mic),
+                                        painter = painterResource(R.drawable.graphic_eq),
                                         contentDescription = null,
                                         modifier = Modifier.size(32.dp),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
