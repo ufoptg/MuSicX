@@ -219,6 +219,7 @@ import com.metrolist.music.dj.DjCommandParser
 import com.metrolist.music.dj.DjHostTts
 import com.metrolist.music.dj.DjStartRequest
 import com.metrolist.music.dj.DjWakeCommander
+import com.metrolist.music.dj.DjWakeSound
 import com.metrolist.music.playback.queues.DjQueue
 import com.metrolist.music.playback.queues.EmptyQueue
 import com.metrolist.music.playback.queues.ListQueue
@@ -476,15 +477,13 @@ class MusicService :
                         scope = scope,
                         onCommand = { command -> handleDjVoiceCommand(command) },
                         onWakeHeard = {
-                            scope.launch {
-                                try {
-                                    djWakeCommander?.setPaused(true)
-                                    djDuckVolumeMultiplier.value = 0.2f
-                                    ensureDjTts().speak("Yeah?")
-                                } finally {
-                                    djDuckVolumeMultiplier.value = WAKE_LISTEN_DUCK
-                                    djWakeCommander?.setPaused(false)
-                                }
+                            // Bixby-style: chirp, then listen for the command (no TTS fighting the mic).
+                            DjWakeSound.playChirp()
+                            djDuckVolumeMultiplier.value = 0.3f
+                        },
+                        onReturnedToWake = {
+                            if (djBanterJob?.isActive != true) {
+                                djDuckVolumeMultiplier.value = WAKE_LISTEN_DUCK
                             }
                         },
                         onReady = {

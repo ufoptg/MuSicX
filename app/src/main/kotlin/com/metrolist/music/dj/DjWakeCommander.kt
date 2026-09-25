@@ -31,6 +31,7 @@ class DjWakeCommander(
     private val scope: CoroutineScope,
     private val onCommand: (DjCommand) -> Unit,
     private val onWakeHeard: (() -> Unit)? = null,
+    private val onReturnedToWake: (() -> Unit)? = null,
     private val onReady: (() -> Unit)? = null,
     private val onFailed: ((String) -> Unit)? = null,
 ) {
@@ -126,9 +127,13 @@ class DjWakeCommander(
 
     private fun startWakeListening() {
         if (!active.get() || paused.get()) return
+        val wasCommand = mode == Mode.COMMAND
         mode = Mode.WAKE
         handling.set(false)
         restartService(timeoutSec = 0)
+        if (wasCommand) {
+            onReturnedToWake?.invoke()
+        }
     }
 
     private fun startCommandListening() {
@@ -242,8 +247,11 @@ class DjWakeCommander(
                     if (!handling.compareAndSet(false, true)) return
                     clearCommandTimeout()
                     Timber.i("DjWakeCommander: command $withWake")
+                    // One-shot phrase still gets the assistant chirp for feedback.
+                    onWakeHeard?.invoke()
                     onCommand(withWake)
                     handling.set(false)
+                    onReturnedToWake?.invoke()
                     return
                 }
 
