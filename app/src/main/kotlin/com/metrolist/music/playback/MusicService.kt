@@ -467,9 +467,30 @@ class MusicService :
             refreshDjForegroundTypes()
             if (djWakeCommander == null) {
                 djWakeCommander =
-                    DjWakeCommander(this, scope) { command ->
-                        handleDjVoiceCommand(command)
-                    }
+                    DjWakeCommander(
+                        context = this,
+                        scope = scope,
+                        onCommand = { command -> handleDjVoiceCommand(command) },
+                        onWakeHeard = {
+                            // Confirm wake; pause mic so TTS isn’t heard as a command.
+                            scope.launch {
+                                try {
+                                    djWakeCommander?.setPaused(true)
+                                    djDuckVolumeMultiplier.value = 0.25f
+                                    ensureDjTts().speak("Yeah?")
+                                } finally {
+                                    djDuckVolumeMultiplier.value = 1f
+                                    djWakeCommander?.setPaused(false)
+                                }
+                            }
+                        },
+                        onReady = {
+                            Timber.tag(TAG).i("DJ 6 wake listening ready")
+                        },
+                        onFailed = { reason ->
+                            Timber.tag(TAG).w("DJ 6 wake failed: $reason")
+                        },
+                    )
             }
             djWakeCommander?.start()
         } else {

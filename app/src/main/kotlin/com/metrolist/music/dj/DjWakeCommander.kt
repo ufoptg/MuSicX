@@ -23,13 +23,16 @@ import timber.log.Timber
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Silent on-device wake listening (Vosk) for “Hey DJ 6 …”, then captures the command.
- * Does not use Google SpeechRecognizer, so it will not chirp / steal focus in a loop.
+ * Silent on-device wake listening (Vosk) for “Hey DJ 6 …”.
+ * Uses free-form recognition (not a tiny grammar) so real speech isn’t discarded as [unk].
  */
 class DjWakeCommander(
     context: Context,
     private val scope: CoroutineScope,
     private val onCommand: (DjCommand) -> Unit,
+    private val onWakeHeard: (() -> Unit)? = null,
+    private val onReady: (() -> Unit)? = null,
+    private val onFailed: ((String) -> Unit)? = null,
 ) {
     private val appContext = context.applicationContext
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -42,30 +45,46 @@ class DjWakeCommander(
     private var mode = Mode.WAKE
     private var prepareJob: Job? = null
     private var commandTimeout: Runnable? = null
+    private var lastHeardLogged = ""
 
     fun start() {
-        if (active.getAndSet(true)) return
+        if (active.get()) {
+            // Already supposed to be running — revive a dead mic session.
+            mainHandler.post { ensureListening() }
+            return
+        }
+        active.set(true)
         prepareJob?.cancel()
         prepareJob =
-            scope.launch {
+            scope.launch(Dispatchers.IO) {
                 val ready =
                     DjVoskModel.ensureReady(appContext).getOrElse {
                         Timber.w(it, "DjWakeCommander: model not ready")
                         active.set(false)
+                        withContext(Dispatchers.Main) {
+                            onFailed?.invoke(it.message ?: "model")
+                        }
                         return@launch
                     }
-                withContext(Dispatchers.Main) {
-                    if (!active.get()) return@withContext
-                    try {
-                        model?.close()
-                        model = Model(ready.absolutePath)
-                        startWakeListening()
-                    } catch (t: Throwable) {
-                        // UnsatisfiedLinkError (JNA/R8) is an Error, not Exception
-                        Timber.w(t, "DjWakeCommander: failed to start")
-                        active.set(false)
+                try {
+                    // Model load is heavy / JNI — keep it off the main thread.
+                    val loaded = Model(ready.absolutePath)
+                    withContext(Dispatchers.Main) {
+                        if (!active.get()) {
+                            loaded.close()
+                            return@withContext
+                        }
                         runCatching { model?.close() }
-                        model = null
+                        model = loaded
+                        startWakeListening()
+                        onReady?.invoke()
+                        Timber.i("DjWakeCommander: listening for Hey DJ 6")
+                    }
+                } catch (t: Throwable) {
+                    Timber.w(t, "DjWakeCommander: failed to start")
+                    active.set(false)
+                    withContext(Dispatchers.Main) {
+                        onFailed?.invoke(t.javaClass.simpleName)
                     }
                 }
             }
@@ -88,35 +107,39 @@ class DjWakeCommander(
     fun setPaused(value: Boolean) {
         paused.set(value)
         speechService?.setPause(value)
-        if (value) {
-            clearCommandTimeout()
-            handling.set(false)
-            mode = Mode.WAKE
-        } else if (active.get()) {
-            // Resume in wake mode after host TTS
-            mainHandler.post {
-                if (active.get() && !paused.get()) {
-                    startWakeListening()
+        if (!value && active.get()) {
+            // Keep current mode (wake vs command); only revive a dead session.
+            mainHandler.postDelayed({
+                if (active.get() && !paused.get() && speechService == null) {
+                    ensureListening()
                 }
-            }
+            }, 300)
+        }
+    }
+
+    private fun ensureListening() {
+        if (!active.get() || paused.get() || model == null) return
+        if (speechService == null) {
+            if (mode == Mode.COMMAND) startCommandListening() else startWakeListening()
         }
     }
 
     private fun startWakeListening() {
         if (!active.get() || paused.get()) return
         mode = Mode.WAKE
-        restartService(grammar = WAKE_GRAMMAR, timeoutSec = 0)
+        handling.set(false)
+        restartService(timeoutSec = 0)
     }
 
     private fun startCommandListening() {
         if (!active.get() || paused.get()) return
         mode = Mode.COMMAND
-        restartService(grammar = null, timeoutSec = COMMAND_TIMEOUT_SEC)
+        restartService(timeoutSec = COMMAND_TIMEOUT_SEC)
         clearCommandTimeout()
         val timeout =
             Runnable {
                 if (mode == Mode.COMMAND && active.get()) {
-                    Timber.d("DjWakeCommander: command window expired")
+                    Timber.i("DjWakeCommander: command window expired")
                     handling.set(false)
                     startWakeListening()
                 }
@@ -125,19 +148,12 @@ class DjWakeCommander(
         mainHandler.postDelayed(timeout, COMMAND_TIMEOUT_SEC * 1000L)
     }
 
-    private fun restartService(
-        grammar: String?,
-        timeoutSec: Int,
-    ) {
+    private fun restartService(timeoutSec: Int) {
         val m = model ?: return
         shutdownService()
         try {
-            val recognizer =
-                if (grammar != null) {
-                    Recognizer(m, SAMPLE_RATE, grammar)
-                } else {
-                    Recognizer(m, SAMPLE_RATE)
-                }
+            val recognizer = Recognizer(m, SAMPLE_RATE)
+            recognizer.setPartialWords(true)
             val service = SpeechService(recognizer, SAMPLE_RATE)
             speechService = service
             val started =
@@ -148,9 +164,12 @@ class DjWakeCommander(
                 }
             if (!started) {
                 Timber.w("DjWakeCommander: startListening returned false")
+                mainHandler.postDelayed({ ensureListening() }, 2000)
             }
-        } catch (e: Exception) {
-            Timber.w(e, "DjWakeCommander: restartService failed")
+        } catch (t: Throwable) {
+            Timber.w(t, "DjWakeCommander: restartService failed")
+            speechService = null
+            mainHandler.postDelayed({ ensureListening() }, 2000)
         }
     }
 
@@ -187,8 +206,9 @@ class DjWakeCommander(
 
             override fun onError(exception: Exception?) {
                 Timber.w(exception, "DjWakeCommander: recognition error")
+                speechService = null
                 if (active.get() && !paused.get()) {
-                    mainHandler.postDelayed({ startWakeListening() }, 1500)
+                    mainHandler.postDelayed({ ensureListening() }, 1500)
                 }
             }
 
@@ -208,24 +228,33 @@ class DjWakeCommander(
         val spoken = extractText(hypothesis) ?: return
         if (spoken.isBlank()) return
         val normalized = DjCommandParser.normalizeSpoken(spoken)
-        Timber.d("DjWakeCommander[$mode]: $normalized (final=$isFinal)")
+        if (normalized != lastHeardLogged) {
+            lastHeardLogged = normalized
+            Timber.i("DjWakeCommander[$mode] heard: \"$normalized\" final=$isFinal")
+        }
 
         when (mode) {
             Mode.WAKE -> {
+                if (!DjCommandParser.containsWake(normalized)) return
+
                 val withWake = DjCommandParser.parse(normalized, requireWake = true)
                 if (withWake != null) {
                     if (!handling.compareAndSet(false, true)) return
                     clearCommandTimeout()
+                    Timber.i("DjWakeCommander: command $withWake")
                     onCommand(withWake)
                     handling.set(false)
-                    // Stay in wake mode for the next utterance
-                    if (isFinal) startWakeListening()
                     return
                 }
-                if (DjCommandParser.isWakeOnly(normalized)) {
+
+                // Wake heard without a command yet (or only fillers after wake).
+                if (isFinal || DjCommandParser.isWakeOnly(normalized) ||
+                    DjCommandParser.stripWake(normalized).isBlank()
+                ) {
                     if (!handling.compareAndSet(false, true)) return
-                    Timber.i("DjWakeCommander: wake heard, listening for command")
+                    Timber.i("DjWakeCommander: wake — listening for command")
                     startCommandListening()
+                    onWakeHeard?.invoke()
                 }
             }
             Mode.COMMAND -> {
@@ -233,7 +262,12 @@ class DjWakeCommander(
                     DjCommandParser.parse(normalized, requireWake = false)
                         ?: DjCommandParser.parse(normalized, requireWake = true)
                 if (cmd != null) {
+                    if (!isFinal && cmd is DjCommand.Play) {
+                        // Wait for a fuller “play …” phrase on finals when possible.
+                        return
+                    }
                     clearCommandTimeout()
+                    Timber.i("DjWakeCommander: command $cmd")
                     onCommand(cmd)
                     handling.set(false)
                     startWakeListening()
@@ -246,12 +280,12 @@ class DjWakeCommander(
         try {
             val obj = JSONObject(hypothesis)
             when {
-                obj.has("text") -> obj.optString("text")
-                obj.has("partial") -> obj.optString("partial")
+                obj.has("text") -> obj.optString("text").takeIf { it.isNotBlank() }
+                obj.has("partial") -> obj.optString("partial").takeIf { it.isNotBlank() }
                 else -> null
             }
         } catch (_: Exception) {
-            hypothesis
+            hypothesis.takeIf { it.isNotBlank() }
         }
 
     private enum class Mode {
@@ -261,31 +295,6 @@ class DjWakeCommander(
 
     companion object {
         private const val SAMPLE_RATE = 16000.0f
-        private const val COMMAND_TIMEOUT_SEC = 6
-
-        /**
-         * Restricted grammar keeps wake detection snappy and reduces lyric false-positives.
-         * Free-form listening is used only after wake for arbitrary “play …” queries.
-         */
-        private val WAKE_GRAMMAR =
-            """
-            ["hey dj six",
-             "hey dj 6",
-             "dj six",
-             "dj 6",
-             "hey dj six skip",
-             "hey dj six skip song",
-             "hey dj six next",
-             "hey dj six previous",
-             "hey dj six pause",
-             "hey dj six resume",
-             "hey dj six play",
-             "dj six skip",
-             "dj six next",
-             "dj six previous",
-             "dj six pause",
-             "dj six resume",
-             "[unk]"]
-            """.trimIndent().replace("\n", " ")
+        private const val COMMAND_TIMEOUT_SEC = 8
     }
 }

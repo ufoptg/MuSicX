@@ -141,6 +141,8 @@ class DjEngineTest {
         assertEquals("God Mode by Eminem", play.query)
         assertTrue(DjCommandParser.isWakeOnly("Hey DJ 6"))
         assertTrue(DjCommandParser.isWakeOnly("hey dj six"))
+        assertTrue(DjCommandParser.containsWake("um hey dj six please"))
+        assertEquals("skip", DjCommandParser.stripWake("hey dj six skip"))
         // Plain “DJ” (no 6) must not wake.
         assertEquals(null, DjCommandParser.parse("DJ skip"))
         assertEquals(null, DjCommandParser.parse("dj skip song"))

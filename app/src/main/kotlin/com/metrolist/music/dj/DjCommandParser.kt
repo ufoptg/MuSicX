@@ -28,20 +28,36 @@ object DjCommandParser {
     private val wakeOnly =
         Regex("""(?i)^(?:hey\s+)?dj\s*6\b[,.!?]*$""")
 
+    private val fillers =
+        Regex("""(?i)^(please|uh|um|erm|okay|ok|so)?$""")
+
     /**
      * Vosk / speech often hears the digit as the word “six”.
      */
     fun normalizeSpoken(raw: String): String =
         raw
             .trim()
-            .replace(Regex("""(?i)\bdj\s*six\b"""), "dj 6")
-            .replace(Regex("""(?i)\bhey\s+dj\s*six\b"""), "hey dj 6")
+            .lowercase()
+            .replace(Regex("""\bdee\s*jay\b"""), "dj")
+            .replace(Regex("""\bd\s*j\b"""), "dj")
+            .replace(Regex("""\bdj\s*six\b"""), "dj 6")
+            .replace(Regex("""\bdj6\b"""), "dj 6")
             .replace(Regex("""\s+"""), " ")
             .trim()
 
+    fun containsWake(raw: String): Boolean = wake.containsMatchIn(normalizeSpoken(raw))
+
+    fun stripWake(raw: String): String {
+        val text = normalizeSpoken(raw)
+        return wake.replaceFirst(text, "").trim().trim(',', '.', '!', '?')
+    }
+
     fun isWakeOnly(raw: String): Boolean {
         val text = normalizeSpoken(raw)
-        return wakeOnly.matches(text)
+        if (wakeOnly.matches(text)) return true
+        if (!containsWake(text)) return false
+        val rest = stripWake(text)
+        return rest.isBlank() || fillers.matches(rest)
     }
 
     private fun hasWake(text: String): Boolean = wake.containsMatchIn(text)
@@ -60,7 +76,7 @@ object DjCommandParser {
 
         var rest =
             if (addressed) {
-                wake.replaceFirst(text, "").trim()
+                stripWake(text)
             } else {
                 text
             }
