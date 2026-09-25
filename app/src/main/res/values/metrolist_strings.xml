@@ -736,7 +736,6 @@
     <string name="ai_dj_voice_prompt">Tell DJ 6 what to play</string>
     <string name="ai_dj_voice_unavailable">Voice input isn’t available on this device</string>
     <string name="ai_dj_listen_commands">Hey DJ 6 voice commands</string>
-    <string name="ai_dj_listen_commands">Hey DJ 6 voice commands</string>
     <string name="ai_dj_listen_commands_desc">Works like an assistant: say “Hey DJ 6”, hear a chirp, then say skip / previous / pause / resume / play …. Or one phrase: “Hey DJ 6 skip”. Stays listening while DJ 6 is active. Player menu → Talk to DJ 6 is a backup.</string>
     <string name="ai_dj_talk_command">Talk to DJ 6</string>
     <string name="ai_dj_talk_command_prompt">Say “DJ 6 skip”, “DJ 6 previous”, or “DJ 6 play …”</string>
