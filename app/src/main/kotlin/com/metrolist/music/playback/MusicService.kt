@@ -387,6 +387,7 @@ class MusicService :
     private val djDuckVolumeMultiplier = MutableStateFlow(1f)
     private var djHostTts: DjHostTts? = null
     private var djBanterJob: Job? = null
+    private var lastDjSpokenMediaId: String? = null
 
     fun toggleMute() {
         val newMutedState = !isMuted.value
@@ -432,13 +433,10 @@ class MusicService :
             queue.takeBanter(mediaId)
             return
         }
-        val meta = player.currentMediaItem?.metadata
-        val banter =
-            queue.takeBanter(mediaId)
-                ?: meta?.let {
-                    queue.fallbackBanter(it.title, it.artists.joinToString { a -> a.name })
-                }?.takeIf { it.isNotBlank() }
-                ?: return
+        // Only speak queued lines once per track — no fallback (that caused double "up next").
+        if (mediaId == lastDjSpokenMediaId) return
+        val banter = queue.takeBanter(mediaId)?.takeIf { it.isNotBlank() } ?: return
+        lastDjSpokenMediaId = mediaId
         stopDjBanter()
         djBanterJob =
             scope.launch {
@@ -1957,6 +1955,7 @@ class MusicService :
         }
 
         stopDjBanter()
+        lastDjSpokenMediaId = null
         if (queue !is DjQueue) {
             djHostTts?.shutdown()
             djHostTts = null

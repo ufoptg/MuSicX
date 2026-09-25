@@ -30,7 +30,10 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import timber.log.Timber
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -38,7 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 
 /**
- * DJ host voice: OpenRouter cloud TTS when configured, otherwise on-device TextToSpeech.
+ * DJ host voice: OpenRouter cloud TTS (Deepgram Flux by default), else on-device TextToSpeech.
  */
 class DjHostTts(
     context: Context,
@@ -107,46 +110,84 @@ class DjHostTts(
             if (apiKey.isBlank()) return@withContext false
             val chatUrl = appContext.dataStore.get(OpenRouterBaseUrlKey, OpenRouterDefaultBaseUrl)
             val speechUrl = speechEndpoint(chatUrl)
-            val model = appContext.dataStore.get(AiDjTtsModelKey, DEFAULT_AI_DJ_TTS_MODEL)
-            val voice = appContext.dataStore.get(AiDjTtsVoiceKey, DEFAULT_AI_DJ_TTS_VOICE)
-            val body =
-                buildJsonObject {
-                    put("model", model)
-                    put("input", text)
-                    put("voice", voice)
-                    put("response_format", "mp3")
-                }
-            val request =
-                Request
-                    .Builder()
-                    .url(speechUrl)
-                    .addHeader("Authorization", "Bearer ${apiKey.trim()}")
-                    .addHeader("Content-Type", "application/json")
-                    .addHeader("HTTP-Referer", "https://github.com/MetrolistGroup/Metrolist")
-                    .addHeader("X-Title", "Metrolist")
-                    .post(body.toString().toRequestBody(jsonMediaType))
-                    .build()
-            try {
-                http.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        Timber.w("DjHostTts: speech HTTP ${response.code}")
-                        return@withContext false
-                    }
-                    val bytes = response.body.bytes()
-                    if (bytes.isEmpty()) return@withContext false
-                    val file = File(appContext.cacheDir, "dj6_${UUID.randomUUID()}.mp3")
-                    file.writeBytes(bytes)
-                    try {
-                        playFile(file)
-                    } finally {
-                        file.delete()
-                    }
-                }
-            } catch (e: Exception) {
-                Timber.w(e, "DjHostTts: cloud speak failed")
-                false
+            val model =
+                normalizeTtsModel(appContext.dataStore.get(AiDjTtsModelKey, DEFAULT_AI_DJ_TTS_MODEL))
+            val voice =
+                normalizeTtsVoice(appContext.dataStore.get(AiDjTtsVoiceKey, DEFAULT_AI_DJ_TTS_VOICE))
+
+            // Prefer mp3; Deepgram Flux often returns PCM — retry pcm if needed.
+            for (format in listOf("mp3", "pcm")) {
+                val ok = requestAndPlay(speechUrl, apiKey, model, voice, text, format)
+                if (ok) return@withContext true
             }
+            false
         }
+
+    private suspend fun requestAndPlay(
+        speechUrl: String,
+        apiKey: String,
+        model: String,
+        voice: String,
+        text: String,
+        format: String,
+    ): Boolean {
+        val body =
+            buildJsonObject {
+                put("model", model)
+                put("input", text)
+                put("voice", voice)
+                put("response_format", format)
+            }
+        val request =
+            Request
+                .Builder()
+                .url(speechUrl)
+                .addHeader("Authorization", "Bearer ${apiKey.trim()}")
+                .addHeader("Content-Type", "application/json")
+                .addHeader("HTTP-Referer", "https://github.com/MetrolistGroup/Metrolist")
+                .addHeader("X-Title", "Metrolist")
+                .post(body.toString().toRequestBody(jsonMediaType))
+                .build()
+        return try {
+            val (bytes, contentType) =
+                withContext(Dispatchers.IO) {
+                    http.newCall(request).execute().use { response ->
+                        val bodyBytes = response.body.bytes()
+                        if (!response.isSuccessful) {
+                            val err = bodyBytes.decodeToString().take(300)
+                            Timber.w(
+                                "DjHostTts: speech HTTP ${response.code} format=$format " +
+                                    "model=$model voice=$voice err=$err",
+                            )
+                            return@withContext null to ""
+                        }
+                        bodyBytes to response.header("Content-Type").orEmpty()
+                    }
+                }
+            if (bytes == null || bytes.isEmpty()) return false
+            val file =
+                when {
+                    format == "mp3" || contentType.contains("mpeg") || contentType.contains("mp3") -> {
+                        File(appContext.cacheDir, "dj6_${UUID.randomUUID()}.mp3").also {
+                            it.writeBytes(bytes)
+                        }
+                    }
+                    else -> {
+                        File(appContext.cacheDir, "dj6_${UUID.randomUUID()}.wav").also {
+                            it.writeBytes(pcmToWav(bytes, sampleRate = 24000))
+                        }
+                    }
+                }
+            try {
+                playFile(file)
+            } finally {
+                file.delete()
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "DjHostTts: cloud speak failed format=$format")
+            false
+        }
+    }
 
     private suspend fun playFile(file: File): Boolean =
         suspendCancellableCoroutine { cont ->
@@ -164,7 +205,8 @@ class DjHostTts(
                     if (mediaPlayer === player) mediaPlayer = null
                     if (cont.isActive) cont.resume(true)
                 }
-                player.setOnErrorListener { _, _, _ ->
+                player.setOnErrorListener { _, what, extra ->
+                    Timber.w("DjHostTts: MediaPlayer error what=$what extra=$extra")
                     speaking.set(false)
                     try {
                         player.release()
@@ -251,5 +293,48 @@ class DjHostTts(
                 else -> "https://openrouter.ai/api/v1/audio/speech"
             }
         }
+
+        /** Migrate away from the old OpenAI TTS defaults. */
+        fun normalizeTtsModel(model: String): String {
+            val m = model.trim()
+            return if (m.isBlank() || m.startsWith("openai/")) DEFAULT_AI_DJ_TTS_MODEL else m
+        }
+
+        fun normalizeTtsVoice(voice: String): String {
+            val v = voice.trim()
+            return if (v.isBlank() || !v.startsWith("flux-")) DEFAULT_AI_DJ_TTS_VOICE else v
+        }
+
+        fun pcmToWav(
+            pcm: ByteArray,
+            sampleRate: Int,
+            channels: Int = 1,
+            bitsPerSample: Int = 16,
+        ): ByteArray {
+            val byteRate = sampleRate * channels * bitsPerSample / 8
+            val blockAlign = (channels * bitsPerSample / 8).toShort()
+            val out = ByteArrayOutputStream(44 + pcm.size)
+            out.write("RIFF".toByteArray())
+            out.write(intLE(36 + pcm.size))
+            out.write("WAVE".toByteArray())
+            out.write("fmt ".toByteArray())
+            out.write(intLE(16))
+            out.write(shortLE(1)) // PCM
+            out.write(shortLE(channels.toShort()))
+            out.write(intLE(sampleRate))
+            out.write(intLE(byteRate))
+            out.write(shortLE(blockAlign))
+            out.write(shortLE(bitsPerSample.toShort()))
+            out.write("data".toByteArray())
+            out.write(intLE(pcm.size))
+            out.write(pcm)
+            return out.toByteArray()
+        }
+
+        private fun intLE(value: Int): ByteArray =
+            ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(value).array()
+
+        private fun shortLE(value: Short): ByteArray =
+            ByteBuffer.allocate(2).order(ByteOrder.LITTLE_ENDIAN).putShort(value).array()
     }
 }

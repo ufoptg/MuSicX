@@ -739,6 +739,7 @@
     <string name="ai_dj_tts_model">TTS model</string>
     <string name="ai_dj_tts_voice">Voice</string>
     <string name="ai_dj_curation_model">Curation model</string>
+    <string name="ai_dj_tts_model_hint">Use deepgram/flux-tts:free for Free Flux voices</string>
 
     <!-- Crash Handler -->
     <string name="crash_title">App crashed</string>

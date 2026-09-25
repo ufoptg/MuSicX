@@ -52,18 +52,6 @@ class DjQueue(
 
     fun takeBanter(mediaId: String): String? = banterByMediaId.remove(mediaId)
 
-    /** Fallback announcement when no precomputed banter is queued for this id. */
-    fun fallbackBanter(
-        title: String,
-        artist: String,
-    ): String =
-        DjEngine.buildHostLine(
-            isIntro = false,
-            previous = recentLabels.getOrNull(recentLabels.lastIndex - 1),
-            nextTitle = title,
-            nextArtist = artist,
-        )
-
     override suspend fun getInitialStatus(): Queue.Status =
         withContext(Dispatchers.IO) {
             pageMutex.withLock {
@@ -136,28 +124,32 @@ class DjQueue(
         }
 
         if (talkEnabled) {
-            val announceMeta =
-                if (!introAttached) {
-                    seed
-                } else {
-                    resolved.first().metadata
-                }
-            val nextTitle = announceMeta?.title ?: seed.title
-            val nextArtist =
-                announceMeta?.artists?.joinToString { it.name }
-                    ?: seed.artists.joinToString { it.name }
-            val line =
-                DjEngine.buildHostLine(
-                    isIntro = !introAttached,
-                    previous = if (introAttached) previousLabel else null,
-                    nextTitle = nextTitle,
-                    nextArtist = nextArtist,
-                    flavor = llm.banter,
-                )
-            if (line.isNotBlank()) {
-                val attachId = if (!introAttached) seed.id else resolved.first().mediaId
-                banterByMediaId[attachId] = line
+            // Intro once for the seed track currently starting.
+            if (!introAttached) {
+                banterByMediaId[seed.id] =
+                    DjEngine.buildHostLine(
+                        isIntro = true,
+                        previous = null,
+                        nextTitle = seed.title,
+                        nextArtist = seed.artists.joinToString { it.name },
+                        flavor = llm.banter,
+                    )
                 introAttached = true
+            }
+            // One announcement per upcoming track: previous → next (no duplicates).
+            var prev = previousLabel
+            for (item in resolved) {
+                val meta = item.metadata ?: continue
+                val title = meta.title
+                val artist = meta.artists.joinToString { it.name }
+                banterByMediaId[item.mediaId] =
+                    DjEngine.buildHostLine(
+                        isIntro = false,
+                        previous = prev,
+                        nextTitle = title,
+                        nextArtist = artist,
+                    )
+                prev = "$title — $artist"
             }
         }
         wantBanter = !wantBanter

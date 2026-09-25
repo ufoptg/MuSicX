@@ -46,6 +46,8 @@ import com.metrolist.music.constants.DEFAULT_AI_DJ_TTS_MODEL
 import com.metrolist.music.constants.DEFAULT_AI_DJ_TTS_VOICE
 import com.metrolist.music.constants.OpenRouterApiKey
 import com.metrolist.music.constants.OpenRouterModelKey
+import com.metrolist.music.dj.DjFluxVoices
+import com.metrolist.music.dj.DjHostTts
 import com.metrolist.music.ui.component.EnumDialog
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
@@ -53,6 +55,7 @@ import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.TextFieldDialog
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.utils.rememberPreference
+import androidx.compose.runtime.LaunchedEffect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,6 +68,14 @@ fun DjSettings(navController: NavController) {
     var openRouterApiKey by rememberPreference(OpenRouterApiKey, "")
     var openRouterModel by rememberPreference(OpenRouterModelKey, "google/gemini-2.5-flash-lite")
 
+    // One-shot migrate away from old OpenAI TTS defaults.
+    LaunchedEffect(Unit) {
+        val normalizedModel = DjHostTts.normalizeTtsModel(ttsModel)
+        val normalizedVoice = DjHostTts.normalizeTtsVoice(ttsVoice)
+        if (normalizedModel != ttsModel) ttsModel = normalizedModel
+        if (normalizedVoice != ttsVoice) ttsVoice = normalizedVoice
+    }
+
     var showPersonaDialog by rememberSaveable { mutableStateOf(false) }
     var showApiKeyDialog by rememberSaveable { mutableStateOf(false) }
     var showModelDialog by rememberSaveable { mutableStateOf(false) }
@@ -73,20 +84,7 @@ fun DjSettings(navController: NavController) {
     var showTtsVoiceDialog by rememberSaveable { mutableStateOf(false) }
 
     val voiceEngines = listOf("openrouter", "system")
-    val ttsVoices =
-        listOf(
-            "alloy",
-            "ash",
-            "ballad",
-            "coral",
-            "echo",
-            "fable",
-            "onyx",
-            "nova",
-            "sage",
-            "shimmer",
-            "verse",
-        )
+    val ttsVoices = DjFluxVoices.all.map { it.id }
 
     if (showPersonaDialog) {
         TextFieldDialog(
@@ -183,7 +181,7 @@ fun DjSettings(navController: NavController) {
             title = stringResource(R.string.ai_dj_tts_voice),
             current = ttsVoice,
             values = ttsVoices,
-            valueText = { it },
+            valueText = { DjFluxVoices.labelFor(it) },
         )
     }
 
@@ -271,7 +269,13 @@ fun DjSettings(navController: NavController) {
                             Material3SettingsItem(
                                 icon = painterResource(R.drawable.discover_tune),
                                 title = { Text(stringResource(R.string.ai_dj_tts_model)) },
-                                description = { Text(ttsModel.ifBlank { DEFAULT_AI_DJ_TTS_MODEL }) },
+                                description = {
+                                    Text(
+                                        ttsModel.ifBlank { DEFAULT_AI_DJ_TTS_MODEL }.let {
+                                            "$it\n${stringResource(R.string.ai_dj_tts_model_hint)}"
+                                        },
+                                    )
+                                },
                                 onClick = { showTtsModelDialog = true },
                             ),
                         )
@@ -279,7 +283,9 @@ fun DjSettings(navController: NavController) {
                             Material3SettingsItem(
                                 icon = painterResource(R.drawable.mic),
                                 title = { Text(stringResource(R.string.ai_dj_tts_voice)) },
-                                description = { Text(ttsVoice.ifBlank { DEFAULT_AI_DJ_TTS_VOICE }) },
+                                description = {
+                                    Text(DjFluxVoices.labelFor(ttsVoice.ifBlank { DEFAULT_AI_DJ_TTS_VOICE }))
+                                },
                                 onClick = { showTtsVoiceDialog = true },
                             ),
                         )

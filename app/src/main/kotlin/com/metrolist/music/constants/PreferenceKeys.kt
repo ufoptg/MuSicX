@@ -534,8 +534,8 @@ val AiDjTtsModelKey = stringPreferencesKey("aiDjTtsModel")
 val AiDjTtsVoiceKey = stringPreferencesKey("aiDjTtsVoice")
 
 const val DEFAULT_AI_DJ_PERSONA = "DJ 6, a friendly radio DJ"
-const val DEFAULT_AI_DJ_TTS_MODEL = "openai/gpt-4o-mini-tts"
-const val DEFAULT_AI_DJ_TTS_VOICE = "alloy"
+const val DEFAULT_AI_DJ_TTS_MODEL = "deepgram/flux-tts:free"
+const val DEFAULT_AI_DJ_TTS_VOICE = "flux-alexis-en"
 
 const val DEFAULT_AI_SYSTEM_PROMPT = """You are a precise lyrics translation assistant. Your output must ALWAYS be a valid JSON object of the form {"lines": ["line1", "line2", "line3"]}.
 

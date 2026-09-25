@@ -78,4 +78,22 @@ class DjEngineTest {
             DjHostTts.speechEndpoint("https://openrouter.ai/api/v1/chat/completions"),
         )
     }
+
+    @Test
+    fun `normalizeTtsModel migrates openai defaults to flux`() {
+        assertEquals(
+            "deepgram/flux-tts:free",
+            DjHostTts.normalizeTtsModel("openai/gpt-4o-mini-tts"),
+        )
+        assertEquals(
+            "deepgram/flux-tts:free",
+            DjHostTts.normalizeTtsModel("deepgram/flux-tts:free"),
+        )
+    }
+
+    @Test
+    fun `normalizeTtsVoice migrates alloy to flux voice`() {
+        assertEquals("flux-alexis-en", DjHostTts.normalizeTtsVoice("alloy"))
+        assertEquals("flux-kit-en", DjHostTts.normalizeTtsVoice("flux-kit-en"))
+    }
 }
