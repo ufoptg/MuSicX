@@ -18,6 +18,7 @@ import com.metrolist.music.constants.OpenRouterDefaultBaseUrl
 import com.metrolist.music.constants.OpenRouterDefaultModel
 import com.metrolist.music.constants.OpenRouterModelKey
 import com.metrolist.music.dj.DjEngine
+import com.metrolist.music.dj.DjStartRequest
 import com.metrolist.music.extensions.metadata
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.models.MediaMetadata
@@ -37,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap
 class DjQueue(
     private val seed: MediaMetadata,
     private val context: Context,
+    private val userRequest: String? = null,
     private val persona: String = context.dataStore.get(AiDjPersonaKey, DEFAULT_AI_DJ_PERSONA),
 ) : Queue {
     override val preloadItem: MediaMetadata = seed
@@ -45,10 +47,10 @@ class DjQueue(
     private val seenIds = LinkedHashSet<String>().apply { add(seed.id) }
     private val recentLabels = mutableListOf("${seed.title} — ${seed.artists.joinToString { it.name }}")
     private val banterByMediaId = ConcurrentHashMap<String, String>()
-    private var wantBanter = true
     private var introAttached = false
     private var radioFallback: YouTubeQueue? = null
     private var llmFailures = 0
+    private val parsedRequest = userRequest?.let { DjStartRequest.parsePlayQuery(it) }?.takeIf { it.isNotBlank() }
 
     fun takeBanter(mediaId: String): String? = banterByMediaId.remove(mediaId)
 
@@ -96,11 +98,12 @@ class DjQueue(
                     seedArtist = seed.artists.joinToString { it.name },
                     recent = recentLabels.toList(),
                     persona = persona.ifBlank { DEFAULT_AI_DJ_PERSONA },
-                    wantBanter = talkEnabled && wantBanter,
+                    wantBanter = talkEnabled,
                     trackCount = batchSize,
                     apiKey = apiKey,
                     baseUrl = context.dataStore.get(OpenRouterBaseUrlKey, OpenRouterDefaultBaseUrl),
                     model = context.dataStore.get(OpenRouterModelKey, OpenRouterDefaultModel),
+                    userRequest = parsedRequest,
                 ).getOrElse {
                     Timber.w(it, "DjQueue: LLM pick failed")
                     llmFailures++
@@ -124,35 +127,47 @@ class DjQueue(
         }
 
         if (talkEnabled) {
-            // Intro once for the seed track currently starting.
             if (!introAttached) {
-                banterByMediaId[seed.id] =
-                    DjEngine.buildHostLine(
+                val intro =
+                    DjEngine.composeHostLine(
+                        kind = DjEngine.TalkKind.BANTER,
                         isIntro = true,
                         previous = null,
                         nextTitle = seed.title,
                         nextArtist = seed.artists.joinToString { it.name },
                         flavor = llm.banter,
+                        userRequest = parsedRequest,
                     )
+                if (intro.isNotBlank()) banterByMediaId[seed.id] = intro
                 introAttached = true
             }
-            // One announcement per upcoming track: previous → next (no duplicates).
+
             var prev = previousLabel
+            var flavorAvailable = llm.banter
             for (item in resolved) {
                 val meta = item.metadata ?: continue
                 val title = meta.title
                 val artist = meta.artists.joinToString { it.name }
-                banterByMediaId[item.mediaId] =
-                    DjEngine.buildHostLine(
+                val kind = DjEngine.pickTalkKind(isIntro = false)
+                val flavor =
+                    if (kind != DjEngine.TalkKind.SILENT && flavorAvailable.isNotBlank()) {
+                        flavorAvailable.also { flavorAvailable = "" }
+                    } else {
+                        ""
+                    }
+                val line =
+                    DjEngine.composeHostLine(
+                        kind = kind,
                         isIntro = false,
                         previous = prev,
                         nextTitle = title,
                         nextArtist = artist,
+                        flavor = flavor,
                     )
+                if (line.isNotBlank()) banterByMediaId[item.mediaId] = line
                 prev = "$title — $artist"
             }
         }
-        wantBanter = !wantBanter
         return resolved
     }
 
@@ -172,6 +187,12 @@ class DjQueue(
         fun fromSeed(
             context: Context,
             seed: MediaMetadata,
-        ): DjQueue = DjQueue(seed = seed, context = context.applicationContext)
+            userRequest: String? = null,
+        ): DjQueue =
+            DjQueue(
+                seed = seed,
+                context = context.applicationContext,
+                userRequest = userRequest,
+            )
     }
 }

@@ -60,6 +60,7 @@ object DjEngine {
         apiKey: String,
         baseUrl: String,
         model: String,
+        userRequest: String? = null,
     ): Result<DjLlmResult> =
         withContext(Dispatchers.IO) {
             if (apiKey.isBlank()) {
@@ -67,16 +68,19 @@ object DjEngine {
             }
             val system =
                 """
-                You are $persona, an AI radio DJ.
+                You are $persona — a warm, conversational radio DJ hosting a live set.
                 Output ONLY a JSON object: {"banter":"...","tracks":[{"title":"...","artist":"..."}]}
                 Rules:
-                - banter: ${if (wantBanter) "1 short spoken sentence of vibe/energy only (max 18 words), no emojis, do NOT name song titles (the app announces those)" else "empty string"}
+                - banter: ${if (wantBanter) "one natural spoken line (max 22 words), like talking to a friend in the car. No emojis. Never name song titles or artists — the desk handles that. Vary energy: sometimes hype, sometimes chill, sometimes playful." else "empty string"}
                 - tracks: exactly $trackCount real songs that fit the vibe; no duplicates of the recent list
-                - Prefer variety of artists
+                - Prefer variety of artists while staying in the same mood lane
                 """.trimIndent()
             val user =
                 buildString {
                     append("Seed: \"$seedTitle\" by $seedArtist.\n")
+                    if (!userRequest.isNullOrBlank()) {
+                        append("Listener request: $userRequest\n")
+                    }
                     if (recent.isNotEmpty()) {
                         append("Recently played (do not repeat):\n")
                         recent.takeLast(20).forEach { append("- $it\n") }
@@ -86,37 +90,97 @@ object DjEngine {
             chat(system, user, apiKey, baseUrl, model).mapCatching { parseDjResponse(it) }
         }
 
-    /** Spoken line that names what just played / what's up next. */
+    enum class TalkKind {
+        SILENT,
+        BANTER,
+        ANNOUNCE,
+    }
+
+    /**
+     * Varied host talk: often silent or banter-only; only sometimes names previous/next.
+     */
+    fun pickTalkKind(
+        isIntro: Boolean,
+        random: kotlin.random.Random = kotlin.random.Random.Default,
+    ): TalkKind {
+        if (isIntro) return TalkKind.BANTER
+        // Sparse talk feels more like a real set: mostly music, occasional host.
+        return when (random.nextInt(100)) {
+            in 0 until 55 -> TalkKind.SILENT
+            in 55 until 85 -> TalkKind.BANTER
+            else -> TalkKind.ANNOUNCE
+        }
+    }
+
+    fun composeHostLine(
+        kind: TalkKind,
+        isIntro: Boolean,
+        previous: String?,
+        nextTitle: String,
+        nextArtist: String,
+        flavor: String = "",
+        userRequest: String? = null,
+    ): String {
+        val next = listOf(nextTitle, nextArtist).filter { it.isNotBlank() }.joinToString(" by ")
+        val cleanFlavor = flavor.trim().trimEnd('.', '!', '?')
+        val requestBit =
+            userRequest
+                ?.let { DjStartRequest.parsePlayQuery(it) }
+                ?.takeIf { it.isNotBlank() }
+
+        return when (kind) {
+            TalkKind.SILENT -> ""
+            TalkKind.BANTER ->
+                when {
+                    isIntro && requestBit != null ->
+                        buildString {
+                            append("DJ 6 here — $requestBit, coming right up")
+                            if (cleanFlavor.isNotEmpty()) append(". $cleanFlavor")
+                            append(".")
+                        }
+                    isIntro ->
+                        if (cleanFlavor.isNotEmpty()) {
+                            "$cleanFlavor."
+                        } else {
+                            "You're locked in with DJ 6."
+                        }
+                    cleanFlavor.isNotEmpty() -> "$cleanFlavor."
+                    else -> ""
+                }
+            TalkKind.ANNOUNCE ->
+                when {
+                    previous != null && next.isNotBlank() ->
+                        buildString {
+                            if (cleanFlavor.isNotEmpty()) append("$cleanFlavor. ")
+                            append("That was $previous. Up next, $next.")
+                        }
+                    next.isNotBlank() ->
+                        buildString {
+                            if (cleanFlavor.isNotEmpty()) append("$cleanFlavor. ")
+                            append("Up next, $next.")
+                        }
+                    cleanFlavor.isNotEmpty() -> "$cleanFlavor."
+                    else -> ""
+                }
+        }
+    }
+
+    @Deprecated("Use composeHostLine + pickTalkKind", ReplaceWith("composeHostLine(TalkKind.ANNOUNCE, isIntro, previous, nextTitle, nextArtist, flavor)"))
     fun buildHostLine(
         isIntro: Boolean,
         previous: String?,
         nextTitle: String,
         nextArtist: String,
         flavor: String = "",
-    ): String {
-        val next = listOf(nextTitle, nextArtist).filter { it.isNotBlank() }.joinToString(" by ")
-        val cleanFlavor = flavor.trim().trimEnd('.', '!', '?')
-        return when {
-            isIntro && next.isNotBlank() ->
-                buildString {
-                    if (cleanFlavor.isNotEmpty()) append("$cleanFlavor. ")
-                    append("This is DJ 6. Up next: $next.")
-                }
-            previous != null && next.isNotBlank() ->
-                buildString {
-                    append("That was $previous.")
-                    if (cleanFlavor.isNotEmpty()) append(" $cleanFlavor.")
-                    append(" Coming up: $next.")
-                }
-            next.isNotBlank() ->
-                buildString {
-                    if (cleanFlavor.isNotEmpty()) append("$cleanFlavor. ")
-                    append("Up next: $next.")
-                }
-            cleanFlavor.isNotEmpty() -> "$cleanFlavor."
-            else -> ""
-        }
-    }
+    ): String =
+        composeHostLine(
+            kind = if (isIntro) TalkKind.BANTER else TalkKind.ANNOUNCE,
+            isIntro = isIntro,
+            previous = previous,
+            nextTitle = nextTitle,
+            nextArtist = nextArtist,
+            flavor = flavor,
+        )
 
     suspend fun resolveTrack(
         title: String,

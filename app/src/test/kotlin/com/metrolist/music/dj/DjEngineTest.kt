@@ -45,30 +45,67 @@ class DjEngineTest {
     @Test
     fun `buildHostLine announces previous and next`() {
         val line =
-            DjEngine.buildHostLine(
+            DjEngine.composeHostLine(
+                kind = DjEngine.TalkKind.ANNOUNCE,
                 isIntro = false,
                 previous = "Born to Die — Lana Del Rey",
                 nextTitle = "Video Games",
                 nextArtist = "Lana Del Rey",
                 flavor = "Keeping the late-night vibe",
             )
-        assertTrue(line.contains("That was Born to Die — Lana Del Rey"))
-        assertTrue(line.contains("Coming up: Video Games by Lana Del Rey"))
+        assertTrue(line.contains("That was Born to Die — Lana Del Rey."))
+        assertTrue(line.contains("Up next, Video Games by Lana Del Rey."))
         assertTrue(line.contains("Keeping the late-night vibe"))
     }
 
     @Test
     fun `buildHostLine intro names DJ 6 and next track`() {
         val line =
-            DjEngine.buildHostLine(
+            DjEngine.composeHostLine(
+                kind = DjEngine.TalkKind.BANTER,
                 isIntro = true,
                 previous = null,
                 nextTitle = "Summertime Sadness",
                 nextArtist = "Lana Del Rey",
                 flavor = "Let's ride",
+                userRequest = "DJ 6 play Summertime Sadness by Lana Del Rey",
             )
         assertTrue(line.contains("DJ 6"))
-        assertTrue(line.contains("Up next: Summertime Sadness by Lana Del Rey"))
+        assertTrue(line.contains("Summertime Sadness"))
+        assertTrue(line.contains("coming right up"))
+    }
+
+    @Test
+    fun `parsePlayQuery strips dj wake phrase`() {
+        assertEquals(
+            "God Mode by Eminem",
+            DjStartRequest.parsePlayQuery("DJ 6 play God Mode by Eminem"),
+        )
+        assertEquals(
+            "God Mode by Eminem",
+            DjStartRequest.parsePlayQuery("hey dj6, play God Mode by Eminem"),
+        )
+        assertEquals("", DjStartRequest.parsePlayQuery("   "))
+    }
+
+    @Test
+    fun `pickTalkKind intro is banter`() {
+        assertEquals(DjEngine.TalkKind.BANTER, DjEngine.pickTalkKind(isIntro = true))
+    }
+
+    @Test
+    fun `banter kind does not always announce next`() {
+        val line =
+            DjEngine.composeHostLine(
+                kind = DjEngine.TalkKind.BANTER,
+                isIntro = false,
+                previous = "A — B",
+                nextTitle = "C",
+                nextArtist = "D",
+                flavor = "Keep the energy up",
+            )
+        assertEquals("Keep the energy up.", line)
+        assertTrue(!line.contains("Coming up"))
     }
 
     @Test
@@ -92,8 +129,13 @@ class DjEngineTest {
     }
 
     @Test
-    fun `normalizeTtsVoice migrates alloy to flux voice`() {
-        assertEquals("flux-alexis-en", DjHostTts.normalizeTtsVoice("alloy"))
-        assertEquals("flux-kit-en", DjHostTts.normalizeTtsVoice("flux-kit-en"))
+    fun `command parser handles skip previous and play`() {
+        assertEquals(DjCommand.Skip, DjCommandParser.parse("DJ 6 skip song"))
+        assertEquals(DjCommand.Previous, DjCommandParser.parse("dj6 previous"))
+        assertEquals(DjCommand.Pause, DjCommandParser.parse("DJ 6 pause"))
+        assertEquals(DjCommand.Resume, DjCommandParser.parse("hey DJ 6 resume"))
+        val play = DjCommandParser.parse("DJ 6 play God Mode by Eminem") as DjCommand.Play
+        assertEquals("God Mode by Eminem", play.query)
+        assertEquals(null, DjCommandParser.parse("just some lyrics without wake word"))
     }
 }

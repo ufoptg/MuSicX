@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
+import com.metrolist.music.constants.AiDjListenCommandsKey
 import com.metrolist.music.constants.AiDjPersonaKey
 import com.metrolist.music.constants.AiDjTalkEnabledKey
 import com.metrolist.music.constants.AiDjTtsModelKey
@@ -61,6 +62,7 @@ import androidx.compose.runtime.LaunchedEffect
 @Composable
 fun DjSettings(navController: NavController) {
     var aiDjTalkEnabled by rememberPreference(AiDjTalkEnabledKey, true)
+    var aiDjListenCommands by rememberPreference(AiDjListenCommandsKey, true)
     var aiDjPersona by rememberPreference(AiDjPersonaKey, DEFAULT_AI_DJ_PERSONA)
     var voiceEngine by rememberPreference(AiDjVoiceEngineKey, "openrouter")
     var ttsModel by rememberPreference(AiDjTtsModelKey, DEFAULT_AI_DJ_TTS_MODEL)
@@ -224,6 +226,27 @@ fun DjSettings(navController: NavController) {
                                         painter =
                                             painterResource(
                                                 id = if (aiDjTalkEnabled) R.drawable.check else R.drawable.close,
+                                            ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize),
+                                    )
+                                },
+                            )
+                        },
+                    ),
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.mic),
+                        title = { Text(stringResource(R.string.ai_dj_listen_commands)) },
+                        description = { Text(stringResource(R.string.ai_dj_listen_commands_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = aiDjListenCommands,
+                                onCheckedChange = { aiDjListenCommands = it },
+                                thumbContent = {
+                                    Icon(
+                                        painter =
+                                            painterResource(
+                                                id = if (aiDjListenCommands) R.drawable.check else R.drawable.close,
                                             ),
                                         contentDescription = null,
                                         modifier = Modifier.size(SwitchDefaults.IconSize),

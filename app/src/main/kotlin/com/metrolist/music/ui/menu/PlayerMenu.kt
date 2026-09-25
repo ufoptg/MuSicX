@@ -95,6 +95,7 @@ import com.metrolist.music.playback.ExoDownloadService
 import com.metrolist.music.db.entities.Song
 import com.metrolist.music.db.entities.SpeedDialItem
 import com.metrolist.music.ui.component.BottomSheetState
+import com.metrolist.music.ui.component.DjStartDialog
 import com.metrolist.music.ui.component.ListDialog
 import com.metrolist.music.ui.component.Material3MenuGroup
 import com.metrolist.music.ui.component.Material3MenuItemData
@@ -159,6 +160,7 @@ fun PlayerMenu(
 
     // MuSicX: Add-to-Spotify-Playlist wiring
     var showAddToSpotifyDialog by rememberSaveable { mutableStateOf(false) }
+    var showDjStartDialog by rememberSaveable { mutableStateOf(false) }
     val musicxSpotifyEnabled by com.metrolist.music.utils.rememberPreference(
         com.metrolist.music.constants.EnableSpotifyKey,
         defaultValue = false,
@@ -176,6 +178,14 @@ fun PlayerMenu(
         show = showAddToSpotifyDialog && musicxSpotifyEnabled && musicxSpotifySpDc.isNotEmpty(),
         spotifyUri = musicxSpotifyUri,
         onDismiss = { showAddToSpotifyDialog = false },
+    )
+
+    DjStartDialog(
+        show = showDjStartDialog,
+        fallbackSeed = mediaMetadata,
+        playerConnection = playerConnection,
+        onDismiss = { showDjStartDialog = false },
+        onStarted = onDismiss,
     )
 
     var showListenTogetherDialog by rememberSaveable {
@@ -386,21 +396,10 @@ fun PlayerMenu(
                                                 context.getString(R.string.ai_dj_api_key_required),
                                                 Toast.LENGTH_LONG,
                                             ).show()
+                                        onDismiss()
                                     } else {
-                                        Toast
-                                            .makeText(
-                                                context,
-                                                context.getString(R.string.ai_dj_starting),
-                                                Toast.LENGTH_SHORT,
-                                            ).show()
-                                        playerConnection.playQueue(
-                                            com.metrolist.music.playback.queues.DjQueue.fromSeed(
-                                                context,
-                                                mediaMetadata,
-                                            ),
-                                        )
+                                        showDjStartDialog = true
                                     }
-                                    onDismiss()
                                 },
                             )
                         } else {

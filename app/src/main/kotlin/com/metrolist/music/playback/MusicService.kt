@@ -38,6 +38,7 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.datastore.preferences.core.Preferences
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
@@ -213,7 +214,10 @@ import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.alarm.MusicAlarmScheduler
 import com.metrolist.music.playback.alarm.MusicAlarmStore
 import com.metrolist.music.playback.audio.SilenceDetectorAudioProcessor
+import com.metrolist.music.dj.DjCommand
 import com.metrolist.music.dj.DjHostTts
+import com.metrolist.music.dj.DjStartRequest
+import com.metrolist.music.dj.DjVoiceCommander
 import com.metrolist.music.playback.queues.DjQueue
 import com.metrolist.music.playback.queues.EmptyQueue
 import com.metrolist.music.playback.queues.ListQueue
@@ -224,6 +228,7 @@ import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.playback.queues.YouTubePlaylistQueue
 import com.metrolist.music.playback.queues.filterExplicit
 import com.metrolist.music.playback.queues.filterVideoSongs
+import com.metrolist.music.constants.AiDjListenCommandsKey
 import com.metrolist.music.constants.AiDjTalkEnabledKey
 import com.metrolist.music.constants.LoudnessLevel
 import com.metrolist.music.constants.LoudnessLevelKey
@@ -388,6 +393,7 @@ class MusicService :
     private var djHostTts: DjHostTts? = null
     private var djBanterJob: Job? = null
     private var lastDjSpokenMediaId: String? = null
+    private var djVoiceCommander: DjVoiceCommander? = null
 
     fun toggleMute() {
         val newMutedState = !isMuted.value
@@ -424,6 +430,86 @@ class MusicService :
         djBanterJob = null
         djHostTts?.stop()
         djDuckVolumeMultiplier.value = 1f
+        djVoiceCommander?.setPaused(false)
+    }
+
+    private fun updateDjVoiceListening() {
+        val shouldListen =
+            currentQueue is DjQueue &&
+                dataStore.get(AiDjListenCommandsKey, true) &&
+                ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (shouldListen) {
+            if (djVoiceCommander == null) {
+                djVoiceCommander =
+                    DjVoiceCommander(this) { command ->
+                        handleDjVoiceCommand(command)
+                    }
+            }
+            djVoiceCommander?.start()
+        } else {
+            djVoiceCommander?.stop()
+            djVoiceCommander = null
+        }
+    }
+
+    private fun handleDjVoiceCommand(command: DjCommand) {
+        if (currentQueue !is DjQueue || !::player.isInitialized) return
+        when (command) {
+            DjCommand.Skip -> {
+                speakDjAck("Skipping ahead.")
+                player.seekToNext()
+            }
+            DjCommand.Previous -> {
+                speakDjAck("Going back.")
+                player.seekToPrevious()
+            }
+            DjCommand.Pause -> {
+                speakDjAck("Holding it there.")
+                player.pause()
+            }
+            DjCommand.Resume -> {
+                speakDjAck("And we're back.")
+                player.play()
+            }
+            is DjCommand.Play -> {
+                speakDjAck("On it.")
+                scope.launch {
+                    val seed =
+                        DjStartRequest.resolveSeed(
+                            context = this@MusicService,
+                            request = command.query,
+                            fallback = null,
+                        )
+                    if (seed == null) {
+                        speakDjAck("Couldn't find that one.")
+                        return@launch
+                    }
+                    playQueue(
+                        DjQueue.fromSeed(
+                            context = this@MusicService,
+                            seed = seed,
+                            userRequest = command.query,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
+    private fun speakDjAck(text: String) {
+        djBanterJob?.cancel()
+        djBanterJob =
+            scope.launch {
+                try {
+                    djVoiceCommander?.setPaused(true)
+                    djDuckVolumeMultiplier.value = 0.2f
+                    ensureDjTts().speak(text)
+                } finally {
+                    djDuckVolumeMultiplier.value = 1f
+                    djVoiceCommander?.setPaused(false)
+                }
+            }
     }
 
     private fun maybeSpeakDjBanter(mediaId: String?) {
@@ -441,10 +527,12 @@ class MusicService :
         djBanterJob =
             scope.launch {
                 try {
+                    djVoiceCommander?.setPaused(true)
                     djDuckVolumeMultiplier.value = 0.15f
                     ensureDjTts().speak(banter)
                 } finally {
                     djDuckVolumeMultiplier.value = 1f
+                    djVoiceCommander?.setPaused(false)
                 }
             }
     }
@@ -1961,6 +2049,7 @@ class MusicService :
             djHostTts = null
         }
         currentQueue = queue
+        updateDjVoiceListening()
         queueTitle = null
         val persistShuffleAcrossQueues = dataStore.get(PersistentShuffleAcrossQueuesKey, false)
         if (!persistShuffleAcrossQueues && !restoringQueue) {
@@ -2021,6 +2110,9 @@ class MusicService :
 
             if (queue is DjQueue) {
                 maybeSpeakDjBanter(player.currentMediaItem?.mediaId)
+                updateDjVoiceListening()
+            } else {
+                updateDjVoiceListening()
             }
 
             // ---- Background initial-queue growth ----
@@ -4915,6 +5007,8 @@ class MusicService :
         isRunning = false
         sponsorBlockJob?.cancel()
         stopDjBanter()
+        djVoiceCommander?.stop()
+        djVoiceCommander = null
         djHostTts?.shutdown()
         djHostTts = null
 

@@ -88,8 +88,8 @@ import com.metrolist.music.extensions.matchesNormalizedQuery
 import com.metrolist.music.extensions.normalizeForSearch
 import com.metrolist.music.extensions.reversed
 import com.metrolist.music.extensions.toMediaItem
-import com.metrolist.music.playback.queues.DjQueue
 import com.metrolist.music.playback.queues.ListQueue
+import com.metrolist.music.ui.component.DjStartDialog
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
 import com.metrolist.music.ui.component.AlbumGridItem
@@ -254,20 +254,23 @@ fun LibraryMixScreen(
         showUploaded && matchesNormalizedQuery(normalizedQuery, uploadedPlaylist.playlist.name)
     val showCachedPlaylists = showCached && matchesNormalizedQuery(normalizedQuery, cachedPlaylist.playlist.name)
 
+    val (showDjStartDialog, setShowDjStartDialog) = rememberSaveable { mutableStateOf(false) }
+
     val startDj6: () -> Unit = {
-        val seed = mediaMetadata
-        when {
-            seed == null -> {
-                Toast.makeText(context, R.string.ai_dj_need_song, Toast.LENGTH_SHORT).show()
-            }
-            context.dataStore.get(OpenRouterApiKey, "").isBlank() -> {
-                Toast.makeText(context, R.string.ai_dj_api_key_required, Toast.LENGTH_LONG).show()
-            }
-            else -> {
-                Toast.makeText(context, R.string.ai_dj_starting, Toast.LENGTH_SHORT).show()
-                playerConnection.playQueue(DjQueue.fromSeed(context, seed))
-            }
+        if (context.dataStore.get(OpenRouterApiKey, "").isBlank()) {
+            Toast.makeText(context, R.string.ai_dj_api_key_required, Toast.LENGTH_LONG).show()
+        } else {
+            setShowDjStartDialog(true)
         }
+    }
+
+    if (showDjStartDialog) {
+        DjStartDialog(
+            show = true,
+            fallbackSeed = mediaMetadata,
+            playerConnection = playerConnection,
+            onDismiss = { setShowDjStartDialog(false) },
+        )
     }
 
 
