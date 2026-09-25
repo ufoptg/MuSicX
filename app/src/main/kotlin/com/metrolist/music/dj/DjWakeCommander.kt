@@ -30,7 +30,8 @@ class DjWakeCommander(
     context: Context,
     private val scope: CoroutineScope,
     private val onCommand: (DjCommand) -> Unit,
-    private val onWakeHeard: (() -> Unit)? = null,
+    /** [commandAlreadyParsed] true when Vosk got the full “Hey DJ 6 skip” in one breath. */
+    private val onWake: (commandAlreadyParsed: Boolean) -> Unit,
     private val onReturnedToWake: (() -> Unit)? = null,
     private val onReady: (() -> Unit)? = null,
     private val onFailed: ((String) -> Unit)? = null,
@@ -109,7 +110,7 @@ class DjWakeCommander(
         paused.set(value)
         speechService?.setPause(value)
         if (!value && active.get()) {
-            // Keep current mode (wake vs command); only revive a dead session.
+            handling.set(false)
             mainHandler.postDelayed({
                 if (active.get() && !paused.get() && speechService == null) {
                     ensureListening()
@@ -246,36 +247,22 @@ class DjWakeCommander(
                 if (withWake != null) {
                     if (!handling.compareAndSet(false, true)) return
                     clearCommandTimeout()
-                    Timber.i("DjWakeCommander: command $withWake")
-                    onWakeHeard?.invoke()
+                    Timber.i("DjWakeCommander: one-shot command $withWake")
+                    onWake(true)
                     onCommand(withWake)
                     handling.set(false)
                     onReturnedToWake?.invoke()
                     return
                 }
 
-                // As soon as we hear “Hey DJ 6” (even mid-phrase / partial), chirp and open
-                // the command window — don’t wait for a perfectly clean final transcript.
+                // Wake only — hand off to system Speak-now UI (same as push-to-talk).
                 if (!handling.compareAndSet(false, true)) return
-                Timber.i("DjWakeCommander: wake — listening for command (“$normalized”)")
-                startCommandListening()
-                onWakeHeard?.invoke()
+                Timber.i("DjWakeCommander: wake — launching command UI (“$normalized”)")
+                onWake(false)
             }
             Mode.COMMAND -> {
-                val cmd =
-                    DjCommandParser.parse(normalized, requireWake = false)
-                        ?: DjCommandParser.parse(normalized, requireWake = true)
-                if (cmd != null) {
-                    if (!isFinal && cmd is DjCommand.Play) {
-                        // Wait for a fuller “play …” phrase on finals when possible.
-                        return
-                    }
-                    clearCommandTimeout()
-                    Timber.i("DjWakeCommander: command $cmd")
-                    onCommand(cmd)
-                    handling.set(false)
-                    startWakeListening()
-                }
+                // Unused: commands come from system speech UI after wake.
+                startWakeListening()
             }
         }
     }

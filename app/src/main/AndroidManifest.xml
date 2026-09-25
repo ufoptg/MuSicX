@@ -237,6 +237,14 @@
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
 
         <activity
+            android:name=".dj.DjCommandListenActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:theme="@style/Theme.Metrolist.Transparent" />
+
+        <activity
             android:name=".recognition.RecognitionLaunchActivity"
             android:excludeFromRecents="true"
             android:exported="false"
