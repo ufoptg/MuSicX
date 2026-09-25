@@ -10,6 +10,7 @@ import android.content.Context
 import androidx.media3.common.MediaItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.music.constants.AiDjPersonaKey
+import com.metrolist.music.constants.AiDjTalkEnabledKey
 import com.metrolist.music.constants.DEFAULT_AI_DJ_PERSONA
 import com.metrolist.music.constants.OpenRouterApiKey
 import com.metrolist.music.constants.OpenRouterBaseUrlKey
@@ -17,6 +18,7 @@ import com.metrolist.music.constants.OpenRouterDefaultBaseUrl
 import com.metrolist.music.constants.OpenRouterDefaultModel
 import com.metrolist.music.constants.OpenRouterModelKey
 import com.metrolist.music.dj.DjEngine
+import com.metrolist.music.extensions.metadata
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.utils.dataStore
@@ -50,12 +52,24 @@ class DjQueue(
 
     fun takeBanter(mediaId: String): String? = banterByMediaId.remove(mediaId)
 
+    /** Fallback announcement when no precomputed banter is queued for this id. */
+    fun fallbackBanter(
+        title: String,
+        artist: String,
+    ): String =
+        DjEngine.buildHostLine(
+            isIntro = false,
+            previous = recentLabels.getOrNull(recentLabels.lastIndex - 1),
+            nextTitle = title,
+            nextArtist = artist,
+        )
+
     override suspend fun getInitialStatus(): Queue.Status =
         withContext(Dispatchers.IO) {
             pageMutex.withLock {
                 val extras = fetchAndResolve(batchSize = INITIAL_BATCH)
                 Queue.Status(
-                    title = "AI DJ",
+                    title = "DJ 6",
                     items = listOf(seed.toMediaItem()) + extras,
                     mediaItemIndex = 0,
                 )
@@ -75,6 +89,7 @@ class DjQueue(
         }
 
     private suspend fun fetchAndResolve(batchSize: Int): List<MediaItem> {
+        val talkEnabled = context.dataStore.get(AiDjTalkEnabledKey, true)
         val apiKey = context.dataStore.get(OpenRouterApiKey, "")
         if (apiKey.isBlank()) {
             Timber.w("DjQueue: no API key, using radio fallback")
@@ -93,7 +108,7 @@ class DjQueue(
                     seedArtist = seed.artists.joinToString { it.name },
                     recent = recentLabels.toList(),
                     persona = persona.ifBlank { DEFAULT_AI_DJ_PERSONA },
-                    wantBanter = wantBanter,
+                    wantBanter = talkEnabled && wantBanter,
                     trackCount = batchSize,
                     apiKey = apiKey,
                     baseUrl = context.dataStore.get(OpenRouterBaseUrlKey, OpenRouterDefaultBaseUrl),
@@ -105,6 +120,7 @@ class DjQueue(
                 }
 
         llmFailures = 0
+        val previousLabel = recentLabels.lastOrNull()
         val resolved = mutableListOf<MediaItem>()
         for (pick in llm.tracks) {
             val song = DjEngine.resolveTrack(pick.title, pick.artist, seenIds) ?: continue
@@ -119,15 +135,30 @@ class DjQueue(
             return emptyList()
         }
 
-        if (wantBanter && llm.banter.isNotBlank()) {
-            val attachId =
+        if (talkEnabled) {
+            val announceMeta =
                 if (!introAttached) {
-                    introAttached = true
-                    seed.id
+                    seed
                 } else {
-                    resolved.first().mediaId
+                    resolved.first().metadata
                 }
-            banterByMediaId[attachId] = llm.banter
+            val nextTitle = announceMeta?.title ?: seed.title
+            val nextArtist =
+                announceMeta?.artists?.joinToString { it.name }
+                    ?: seed.artists.joinToString { it.name }
+            val line =
+                DjEngine.buildHostLine(
+                    isIntro = !introAttached,
+                    previous = if (introAttached) previousLabel else null,
+                    nextTitle = nextTitle,
+                    nextArtist = nextArtist,
+                    flavor = llm.banter,
+                )
+            if (line.isNotBlank()) {
+                val attachId = if (!introAttached) seed.id else resolved.first().mediaId
+                banterByMediaId[attachId] = line
+                introAttached = true
+            }
         }
         wantBanter = !wantBanter
         return resolved

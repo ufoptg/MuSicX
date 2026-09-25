@@ -41,4 +41,41 @@ class DjEngineTest {
         assertTrue(raw!!.startsWith("{"))
         assertTrue(raw.endsWith("}"))
     }
+
+    @Test
+    fun `buildHostLine announces previous and next`() {
+        val line =
+            DjEngine.buildHostLine(
+                isIntro = false,
+                previous = "Born to Die — Lana Del Rey",
+                nextTitle = "Video Games",
+                nextArtist = "Lana Del Rey",
+                flavor = "Keeping the late-night vibe",
+            )
+        assertTrue(line.contains("That was Born to Die — Lana Del Rey"))
+        assertTrue(line.contains("Coming up: Video Games by Lana Del Rey"))
+        assertTrue(line.contains("Keeping the late-night vibe"))
+    }
+
+    @Test
+    fun `buildHostLine intro names DJ 6 and next track`() {
+        val line =
+            DjEngine.buildHostLine(
+                isIntro = true,
+                previous = null,
+                nextTitle = "Summertime Sadness",
+                nextArtist = "Lana Del Rey",
+                flavor = "Let's ride",
+            )
+        assertTrue(line.contains("DJ 6"))
+        assertTrue(line.contains("Up next: Summertime Sadness by Lana Del Rey"))
+    }
+
+    @Test
+    fun `speechEndpoint maps chat completions url`() {
+        assertEquals(
+            "https://openrouter.ai/api/v1/audio/speech",
+            DjHostTts.speechEndpoint("https://openrouter.ai/api/v1/chat/completions"),
+        )
+    }
 }

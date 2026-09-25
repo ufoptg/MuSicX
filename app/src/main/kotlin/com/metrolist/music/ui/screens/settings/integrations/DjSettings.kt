@@ -38,9 +38,15 @@ import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
 import com.metrolist.music.constants.AiDjPersonaKey
 import com.metrolist.music.constants.AiDjTalkEnabledKey
+import com.metrolist.music.constants.AiDjTtsModelKey
+import com.metrolist.music.constants.AiDjTtsVoiceKey
+import com.metrolist.music.constants.AiDjVoiceEngineKey
 import com.metrolist.music.constants.DEFAULT_AI_DJ_PERSONA
+import com.metrolist.music.constants.DEFAULT_AI_DJ_TTS_MODEL
+import com.metrolist.music.constants.DEFAULT_AI_DJ_TTS_VOICE
 import com.metrolist.music.constants.OpenRouterApiKey
 import com.metrolist.music.constants.OpenRouterModelKey
+import com.metrolist.music.ui.component.EnumDialog
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
@@ -53,12 +59,34 @@ import com.metrolist.music.utils.rememberPreference
 fun DjSettings(navController: NavController) {
     var aiDjTalkEnabled by rememberPreference(AiDjTalkEnabledKey, true)
     var aiDjPersona by rememberPreference(AiDjPersonaKey, DEFAULT_AI_DJ_PERSONA)
+    var voiceEngine by rememberPreference(AiDjVoiceEngineKey, "openrouter")
+    var ttsModel by rememberPreference(AiDjTtsModelKey, DEFAULT_AI_DJ_TTS_MODEL)
+    var ttsVoice by rememberPreference(AiDjTtsVoiceKey, DEFAULT_AI_DJ_TTS_VOICE)
     var openRouterApiKey by rememberPreference(OpenRouterApiKey, "")
     var openRouterModel by rememberPreference(OpenRouterModelKey, "google/gemini-2.5-flash-lite")
 
     var showPersonaDialog by rememberSaveable { mutableStateOf(false) }
     var showApiKeyDialog by rememberSaveable { mutableStateOf(false) }
     var showModelDialog by rememberSaveable { mutableStateOf(false) }
+    var showVoiceEngineDialog by rememberSaveable { mutableStateOf(false) }
+    var showTtsModelDialog by rememberSaveable { mutableStateOf(false) }
+    var showTtsVoiceDialog by rememberSaveable { mutableStateOf(false) }
+
+    val voiceEngines = listOf("openrouter", "system")
+    val ttsVoices =
+        listOf(
+            "alloy",
+            "ash",
+            "ballad",
+            "coral",
+            "echo",
+            "fable",
+            "onyx",
+            "nova",
+            "sage",
+            "shimmer",
+            "verse",
+        )
 
     if (showPersonaDialog) {
         TextFieldDialog(
@@ -92,7 +120,7 @@ fun DjSettings(navController: NavController) {
 
     if (showModelDialog) {
         TextFieldDialog(
-            title = { Text(stringResource(R.string.ai_model)) },
+            title = { Text(stringResource(R.string.ai_dj_curation_model)) },
             icon = { Icon(painterResource(R.drawable.discover_tune), null) },
             initialTextFieldValue = TextFieldValue(text = openRouterModel),
             singleLine = true,
@@ -102,6 +130,60 @@ fun DjSettings(navController: NavController) {
                 showModelDialog = false
             },
             onDismiss = { showModelDialog = false },
+        )
+    }
+
+    if (showVoiceEngineDialog) {
+        EnumDialog(
+            onDismiss = { showVoiceEngineDialog = false },
+            onSelect = {
+                voiceEngine = it
+                showVoiceEngineDialog = false
+            },
+            title = stringResource(R.string.ai_dj_voice_engine),
+            current = voiceEngine,
+            values = voiceEngines,
+            valueText = {
+                when (it) {
+                    "openrouter" -> stringResource(R.string.ai_dj_voice_engine_openrouter)
+                    else -> stringResource(R.string.ai_dj_voice_engine_system)
+                }
+            },
+            valueDescription = {
+                when (it) {
+                    "openrouter" -> stringResource(R.string.ai_dj_voice_engine_openrouter_desc)
+                    else -> stringResource(R.string.ai_dj_voice_engine_system_desc)
+                }
+            },
+        )
+    }
+
+    if (showTtsModelDialog) {
+        TextFieldDialog(
+            title = { Text(stringResource(R.string.ai_dj_tts_model)) },
+            icon = { Icon(painterResource(R.drawable.discover_tune), null) },
+            initialTextFieldValue = TextFieldValue(text = ttsModel.ifBlank { DEFAULT_AI_DJ_TTS_MODEL }),
+            singleLine = true,
+            isInputValid = { it.isNotBlank() },
+            onDone = {
+                ttsModel = it.trim().ifBlank { DEFAULT_AI_DJ_TTS_MODEL }
+                showTtsModelDialog = false
+            },
+            onDismiss = { showTtsModelDialog = false },
+        )
+    }
+
+    if (showTtsVoiceDialog) {
+        EnumDialog(
+            onDismiss = { showTtsVoiceDialog = false },
+            onSelect = {
+                ttsVoice = it
+                showTtsVoiceDialog = false
+            },
+            title = stringResource(R.string.ai_dj_tts_voice),
+            current = ttsVoice,
+            values = ttsVoices,
+            valueText = { it },
         )
     }
 
@@ -166,6 +248,48 @@ fun DjSettings(navController: NavController) {
         Spacer(modifier = Modifier.height(27.dp))
 
         Material3SettingsGroup(
+            title = stringResource(R.string.ai_dj_voice_section),
+            items =
+                buildList {
+                    add(
+                        Material3SettingsItem(
+                            icon = painterResource(R.drawable.graphic_eq),
+                            title = { Text(stringResource(R.string.ai_dj_voice_engine)) },
+                            description = {
+                                Text(
+                                    when (voiceEngine) {
+                                        "openrouter" -> stringResource(R.string.ai_dj_voice_engine_openrouter)
+                                        else -> stringResource(R.string.ai_dj_voice_engine_system)
+                                    },
+                                )
+                            },
+                            onClick = { showVoiceEngineDialog = true },
+                        ),
+                    )
+                    if (voiceEngine == "openrouter") {
+                        add(
+                            Material3SettingsItem(
+                                icon = painterResource(R.drawable.discover_tune),
+                                title = { Text(stringResource(R.string.ai_dj_tts_model)) },
+                                description = { Text(ttsModel.ifBlank { DEFAULT_AI_DJ_TTS_MODEL }) },
+                                onClick = { showTtsModelDialog = true },
+                            ),
+                        )
+                        add(
+                            Material3SettingsItem(
+                                icon = painterResource(R.drawable.mic),
+                                title = { Text(stringResource(R.string.ai_dj_tts_voice)) },
+                                description = { Text(ttsVoice.ifBlank { DEFAULT_AI_DJ_TTS_VOICE }) },
+                                onClick = { showTtsVoiceDialog = true },
+                            ),
+                        )
+                    }
+                },
+        )
+
+        Spacer(modifier = Modifier.height(27.dp))
+
+        Material3SettingsGroup(
             title = stringResource(R.string.ai_setup_guide),
             items =
                 listOf(
@@ -185,7 +309,7 @@ fun DjSettings(navController: NavController) {
                     ),
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.discover_tune),
-                        title = { Text(stringResource(R.string.ai_model)) },
+                        title = { Text(stringResource(R.string.ai_dj_curation_model)) },
                         description = { Text(openRouterModel.ifBlank { stringResource(R.string.not_set) }) },
                         onClick = { showModelDialog = true },
                     ),

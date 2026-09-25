@@ -724,12 +724,21 @@
     <string name="ai_dj_start">DJ 6</string>
     <string name="ai_dj_starting">Starting DJ 6…</string>
     <string name="ai_dj_talk_enabled">Talking host</string>
-    <string name="ai_dj_talk_enabled_desc">Speak short intros between songs with on-device text-to-speech</string>
+    <string name="ai_dj_talk_enabled_desc">Announce what just played and what\'s up next between songs</string>
     <string name="ai_dj_persona">DJ persona</string>
     <string name="ai_dj_api_key_required">Set an API key in Settings → Integrations → DJ 6</string>
     <string name="ai_dj_need_song">Play a song first, then start DJ 6</string>
-    <string name="ai_dj_settings_desc">AI DJ that picks the next tracks and can talk between songs. Uses the same API key format as OpenRouter-compatible providers.</string>
+    <string name="ai_dj_settings_desc">AI DJ that picks the next tracks and can talk between songs. Cloud voice uses your OpenRouter key for higher-quality speech.</string>
     <string name="ai_dj_integration">DJ 6</string>
+    <string name="ai_dj_voice_section">Voice</string>
+    <string name="ai_dj_voice_engine">Voice engine</string>
+    <string name="ai_dj_voice_engine_openrouter">OpenRouter (cloud)</string>
+    <string name="ai_dj_voice_engine_openrouter_desc">Natural voices via OpenRouter TTS. Uses API credits.</string>
+    <string name="ai_dj_voice_engine_system">Device TTS</string>
+    <string name="ai_dj_voice_engine_system_desc">Free on-device voice. Quality depends on your phone\'s TTS pack.</string>
+    <string name="ai_dj_tts_model">TTS model</string>
+    <string name="ai_dj_tts_voice">Voice</string>
+    <string name="ai_dj_curation_model">Curation model</string>
 
     <!-- Crash Handler -->
     <string name="crash_title">App crashed</string>

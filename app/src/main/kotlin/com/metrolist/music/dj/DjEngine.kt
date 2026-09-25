@@ -70,7 +70,7 @@ object DjEngine {
                 You are $persona, an AI radio DJ.
                 Output ONLY a JSON object: {"banter":"...","tracks":[{"title":"...","artist":"..."}]}
                 Rules:
-                - banter: ${if (wantBanter) "1 short spoken sentence (max 25 words), no emojis" else "empty string"}
+                - banter: ${if (wantBanter) "1 short spoken sentence of vibe/energy only (max 18 words), no emojis, do NOT name song titles (the app announces those)" else "empty string"}
                 - tracks: exactly $trackCount real songs that fit the vibe; no duplicates of the recent list
                 - Prefer variety of artists
                 """.trimIndent()
@@ -85,6 +85,38 @@ object DjEngine {
                 }
             chat(system, user, apiKey, baseUrl, model).mapCatching { parseDjResponse(it) }
         }
+
+    /** Spoken line that names what just played / what's up next. */
+    fun buildHostLine(
+        isIntro: Boolean,
+        previous: String?,
+        nextTitle: String,
+        nextArtist: String,
+        flavor: String = "",
+    ): String {
+        val next = listOf(nextTitle, nextArtist).filter { it.isNotBlank() }.joinToString(" by ")
+        val cleanFlavor = flavor.trim().trimEnd('.', '!', '?')
+        return when {
+            isIntro && next.isNotBlank() ->
+                buildString {
+                    if (cleanFlavor.isNotEmpty()) append("$cleanFlavor. ")
+                    append("This is DJ 6. Up next: $next.")
+                }
+            previous != null && next.isNotBlank() ->
+                buildString {
+                    append("That was $previous.")
+                    if (cleanFlavor.isNotEmpty()) append(" $cleanFlavor.")
+                    append(" Coming up: $next.")
+                }
+            next.isNotBlank() ->
+                buildString {
+                    if (cleanFlavor.isNotEmpty()) append("$cleanFlavor. ")
+                    append("Up next: $next.")
+                }
+            cleanFlavor.isNotEmpty() -> "$cleanFlavor."
+            else -> ""
+        }
+    }
 
     suspend fun resolveTrack(
         title: String,

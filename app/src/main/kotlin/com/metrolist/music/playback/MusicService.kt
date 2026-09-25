@@ -432,7 +432,13 @@ class MusicService :
             queue.takeBanter(mediaId)
             return
         }
-        val banter = queue.takeBanter(mediaId) ?: return
+        val meta = player.currentMediaItem?.metadata
+        val banter =
+            queue.takeBanter(mediaId)
+                ?: meta?.let {
+                    queue.fallbackBanter(it.title, it.artists.joinToString { a -> a.name })
+                }?.takeIf { it.isNotBlank() }
+                ?: return
         stopDjBanter()
         djBanterJob =
             scope.launch {
