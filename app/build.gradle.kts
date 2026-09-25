@@ -202,6 +202,8 @@ android {
                     "**/libandroidx.graphics.path.so",
                     "**/libdatastore_shared_counter.so",
                 )
+            // JNA ships libjnidispatch in the AAR; avoid merge clashes with transitive copies.
+            pickFirsts += listOf("**/libjnidispatch.so")
         }
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
