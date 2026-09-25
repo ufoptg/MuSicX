@@ -131,11 +131,22 @@ class DjEngineTest {
     @Test
     fun `command parser handles skip previous and play`() {
         assertEquals(DjCommand.Skip, DjCommandParser.parse("DJ 6 skip song"))
+        assertEquals(DjCommand.Skip, DjCommandParser.parse("DJ 6, Skip song"))
+        assertEquals(DjCommand.Skip, DjCommandParser.parse("skip"))
+        assertEquals(DjCommand.Skip, DjCommandParser.parse("skip song"))
         assertEquals(DjCommand.Previous, DjCommandParser.parse("dj6 previous"))
+        assertEquals(DjCommand.Previous, DjCommandParser.parse("previous"))
         assertEquals(DjCommand.Pause, DjCommandParser.parse("DJ 6 pause"))
         assertEquals(DjCommand.Resume, DjCommandParser.parse("hey DJ 6 resume"))
         val play = DjCommandParser.parse("DJ 6 play God Mode by Eminem") as DjCommand.Play
         assertEquals("God Mode by Eminem", play.query)
-        assertEquals(null, DjCommandParser.parse("just some lyrics without wake word"))
+        val barePlay = DjCommandParser.parse("play God Mode by Eminem") as DjCommand.Play
+        assertEquals("God Mode by Eminem", barePlay.query)
+        assertEquals(null, DjCommandParser.parse("just some lyrics without a command"))
+        assertEquals(
+            null,
+            DjCommandParser.parse("just some lyrics without a command", requireWake = true),
+        )
+        assertEquals(null, DjCommandParser.parse("skip", requireWake = true))
     }
 }

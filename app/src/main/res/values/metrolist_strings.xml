@@ -736,7 +736,7 @@
     <string name="ai_dj_voice_prompt">Tell DJ 6 what to play</string>
     <string name="ai_dj_voice_unavailable">Voice input isn’t available on this device</string>
     <string name="ai_dj_listen_commands">Listen for DJ 6 commands</string>
-    <string name="ai_dj_listen_commands_desc">While DJ 6 is playing, say “DJ 6 skip”, “DJ 6 previous”, or “DJ 6 play …” anytime. Needs microphone permission.</string>
+    <string name="ai_dj_listen_commands_desc">While DJ 6 is playing, say “skip”, “previous”, or “play …” — or “DJ 6, skip song” if you prefer. Needs microphone permission.</string>
     <string name="ai_dj_voice_section">Voice</string>
     <string name="ai_dj_voice_engine">Voice engine</string>
     <string name="ai_dj_voice_engine_openrouter">OpenRouter (cloud)</string>
