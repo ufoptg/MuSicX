@@ -21,7 +21,7 @@ https://metrolist.cc/listen?code=04UMRJ89
 </div>
 
 > [!NOTE]
-> **MuSicX** is a maintained fork of [Metrolist](https://github.com/MetrolistGroup/Metrolist) with additional integrations (Spotify, SponsorBlock, Music Recognition, Podcasts, LyricsPlus, Expressive player, playlist Enhance, and experimental FLAC / Hi-Res streaming via Qobuz), crash reporting, and an automated nightly upstream sync. Same great UX, more music sources, more resilience.
+> **MuSicX** is a maintained fork of [Metrolist](https://github.com/MetrolistGroup/Metrolist) with additional integrations (Spotify, SponsorBlock, Music Recognition, Podcasts, LyricsPlus, Expressive player, playlist Enhance, **DJ 6** AI host, and experimental FLAC / Hi-Res streaming via Qobuz), crash reporting, and an automated nightly upstream sync. Same great UX, more music sources, more resilience.
 >
 > Latest stable: **v13.14**
 
@@ -55,6 +55,7 @@ Features added on top of Metrolist upstream:
 
 | Feature | Status | Notes |
 |---|---|---|
+| 🟢 **DJ 6 AI host** ✨ new | PR [#67](https://github.com/ufoptg/MuSicX/pull/67) | In-app AI DJ that curates next tracks (OpenRouter) with sparse natural banter and cloud TTS (Deepgram Flux) or device TTS. Start from *Library Mix → DJ 6*, the player menu, or “DJ 6 play …”. Settings under *Integrations → DJ 6*. Optional assistant-style **Hey DJ 6** wake (on-device Vosk model, chirp then command; stays on while paused; soft-ducks music) plus **Talk to DJ 6** push-to-talk backup — wake must include **DJ 6**. |
 | 🟢 **Interleaved playlist recommendations** ✨ new | Shipped v13.12 → v13.14 | The playlist *Enhance* (recommended) toggle **interleaves** one recommended track after every 3 songs instead of dumping them all at the bottom, so suggestions are discovered in context. As of **v13.14** this is unified across **all three** playlist types — Local, online YouTube Music, *and* Spotify — via a single shared `buildPlaylistRows` so the behaviour can't drift between screens (online YT and Spotify were converted from the old bottom-dump "Recommended" section). Drag-to-reorder is disabled while Enhance is on so playlist order can't be corrupted; queue start indices stay correct and any leftover recommendations still append at the end. |
 | 🟢 **Wider Start Radio scope** ✨ new | Shipped v13.13 | *Start radio* now **round-robin interleaves** related songs *through* the mix (after the current track) instead of appending them at the tail — so variety shows up early instead of after 20+ same-artist tracks. Any throttle/error during expansion falls back gracefully to the narrow mix, and the empty-radio retry fallback is preserved. |
 | 🟢 **Smarter Enhance seeding + fallbacks** ✨ new | Shipped v13.13 | The Enhance recommendation engine adds per-seed diagnostics and a **watch-next → radio fallback** when a seed's `related()` shelf comes back empty, plus a throttled sequential retry when a parallel pass yields nothing — so Enhance returns tracks instead of an "no results" toast. |
@@ -119,6 +120,7 @@ Features added on top of Metrolist upstream:
 - **Continue Listening hero card** on Home ✨
 - **Shuffle across every loaded track** on all playlist screens ✨
 - **Playlist Enhance** — recommended tracks on Spotify / Local / YT playlists ✨
+- **DJ 6 AI host** — curated radio + natural banter + Hey DJ 6 wake commands ✨
 
 </td>
     <td width="50%" valign="top">
@@ -144,6 +146,7 @@ Features added on top of Metrolist upstream:
 - **Music Recognition (Shazam-style)** — home widget + Quick Settings tile ✨
 - Search songs, albums, artists, videos, playlists, **podcasts & episodes** ✨
 - **Spotify search** with long-press menu + Start radio ✨
+- **DJ 6** — Library Mix tile + Integrations settings + Hey DJ 6 chirp wake / Talk to DJ 6 ✨
 
 </td>
     <td width="50%" valign="top">
