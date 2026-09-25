@@ -477,9 +477,12 @@ class MusicService :
                         scope = scope,
                         onCommand = { command -> handleDjVoiceCommand(command) },
                         onWakeHeard = {
-                            // Bixby-style: chirp, then listen for the command (no TTS fighting the mic).
-                            DjWakeSound.playChirp()
-                            djDuckVolumeMultiplier.value = 0.3f
+                            // Audible + haptic “assistant woke” cue, then command window.
+                            DjWakeSound.playChirp(this@MusicService)
+                            djDuckVolumeMultiplier.value = 0.25f
+                            android.widget.Toast
+                                .makeText(this@MusicService, R.string.ai_dj_wake_listening, android.widget.Toast.LENGTH_SHORT)
+                                .show()
                         },
                         onReturnedToWake = {
                             if (djBanterJob?.isActive != true) {

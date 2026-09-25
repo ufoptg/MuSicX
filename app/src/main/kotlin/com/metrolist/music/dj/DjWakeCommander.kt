@@ -247,7 +247,6 @@ class DjWakeCommander(
                     if (!handling.compareAndSet(false, true)) return
                     clearCommandTimeout()
                     Timber.i("DjWakeCommander: command $withWake")
-                    // One-shot phrase still gets the assistant chirp for feedback.
                     onWakeHeard?.invoke()
                     onCommand(withWake)
                     handling.set(false)
@@ -255,15 +254,12 @@ class DjWakeCommander(
                     return
                 }
 
-                // Wake heard without a command yet (or only fillers after wake).
-                if (isFinal || DjCommandParser.isWakeOnly(normalized) ||
-                    DjCommandParser.stripWake(normalized).isBlank()
-                ) {
-                    if (!handling.compareAndSet(false, true)) return
-                    Timber.i("DjWakeCommander: wake — listening for command")
-                    startCommandListening()
-                    onWakeHeard?.invoke()
-                }
+                // As soon as we hear “Hey DJ 6” (even mid-phrase / partial), chirp and open
+                // the command window — don’t wait for a perfectly clean final transcript.
+                if (!handling.compareAndSet(false, true)) return
+                Timber.i("DjWakeCommander: wake — listening for command (“$normalized”)")
+                startCommandListening()
+                onWakeHeard?.invoke()
             }
             Mode.COMMAND -> {
                 val cmd =

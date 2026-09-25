@@ -51,11 +51,21 @@ object DjCommandParser {
             .replace(Regex("""\s+"""), " ")
             .trim()
 
-    fun containsWake(raw: String): Boolean = wake.containsMatchIn(normalizeSpoken(raw))
+    fun containsWake(raw: String): Boolean {
+        val t = normalizeSpoken(raw)
+        if (wake.containsMatchIn(t)) return true
+        // Loose match for noisy Vosk partials: "dj" near "6"/"six"
+        return Regex("""(?i)\bdj.{0,5}(6|six)\b""").containsMatchIn(t)
+    }
 
     fun stripWake(raw: String): String {
         val text = normalizeSpoken(raw)
-        return wake.replaceFirst(text, "").trim().trim(',', '.', '!', '?')
+        val stripped = wake.replaceFirst(text, "").trim()
+        if (stripped != text) return stripped.trim(',', '.', '!', '?')
+        return text
+            .replace(Regex("""(?i)(?:hey\s+)?dj.{0,5}(6|six)\b[,:]?\s*"""), "")
+            .trim()
+            .trim(',', '.', '!', '?')
     }
 
     fun isWakeOnly(raw: String): Boolean {
@@ -77,7 +87,7 @@ object DjCommandParser {
     ): DjCommand? {
         val text = normalizeSpoken(raw)
         if (text.isBlank()) return null
-        val addressed = hasWake(text)
+        val addressed = hasWake(text) || containsWake(text)
         if (requireWake && !addressed) return null
 
         var rest =
