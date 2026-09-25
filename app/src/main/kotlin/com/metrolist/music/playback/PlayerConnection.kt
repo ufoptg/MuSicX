@@ -257,6 +257,12 @@ class PlayerConnection(
         }
     }
 
+    fun isDjQueueActive(): Boolean = service.isDjQueueActive()
+
+    fun submitDjSpokenUtterance(spoken: String) {
+        service.submitDjSpokenUtterance(spoken)
+    }
+
     fun refreshSongMetadata(song: Song) {
         val player = getPlayerOrNull() ?: return
         val updatedMetadata = song.toMediaMetadata()

@@ -9,9 +9,11 @@ package com.metrolist.music.ui.menu
 import android.content.Context
 import android.content.Intent
 import android.media.audiofx.AudioEffect
+import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.res.Configuration
+import android.app.Activity
 import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
@@ -88,6 +90,9 @@ import com.metrolist.music.R
 import com.metrolist.music.ui.component.spotify.SpotifyAddToPlaylistDialog
 import com.metrolist.music.constants.ListItemHeight
 import com.metrolist.music.constants.VarispeedKey
+import com.metrolist.music.constants.AiDjListenCommandsKey
+import com.metrolist.music.dj.DjCommandParser
+import java.util.Locale
 import com.metrolist.music.listentogether.ConnectionState
 import com.metrolist.music.listentogether.ListenTogetherEvent
 import com.metrolist.music.models.MediaMetadata
@@ -161,6 +166,26 @@ fun PlayerMenu(
     // MuSicX: Add-to-Spotify-Playlist wiring
     var showAddToSpotifyDialog by rememberSaveable { mutableStateOf(false) }
     var showDjStartDialog by rememberSaveable { mutableStateOf(false) }
+    val aiDjVoiceCommands by com.metrolist.music.utils.rememberPreference(
+        AiDjListenCommandsKey,
+        defaultValue = false,
+    )
+    val djCommandLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode != Activity.RESULT_OK) return@rememberLauncherForActivityResult
+            val spoken =
+                result.data
+                    ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                    ?.firstOrNull()
+                    .orEmpty()
+            if (spoken.isBlank()) return@rememberLauncherForActivityResult
+            if (DjCommandParser.parse(spoken, requireWake = true) == null) {
+                Toast.makeText(context, R.string.ai_dj_command_not_understood, Toast.LENGTH_SHORT).show()
+                return@rememberLauncherForActivityResult
+            }
+            playerConnection.submitDjSpokenUtterance(spoken)
+            onDismiss()
+        }
     val musicxSpotifyEnabled by com.metrolist.music.utils.rememberPreference(
         com.metrolist.music.constants.EnableSpotifyKey,
         defaultValue = false,
@@ -399,6 +424,48 @@ fun PlayerMenu(
                                         onDismiss()
                                     } else {
                                         showDjStartDialog = true
+                                    }
+                                },
+                            )
+                        } else {
+                            null
+                        },
+                        if (!isListenTogetherGuest &&
+                            aiDjVoiceCommands &&
+                            playerConnection.isDjQueueActive()
+                        ) {
+                            NewAction(
+                                icon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.mic),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(32.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                },
+                                text = stringResource(R.string.ai_dj_talk_command),
+                                onClick = {
+                                    val intent =
+                                        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                            putExtra(
+                                                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                                                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
+                                            )
+                                            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+                                            putExtra(
+                                                RecognizerIntent.EXTRA_PROMPT,
+                                                context.getString(R.string.ai_dj_talk_command_prompt),
+                                            )
+                                        }
+                                    try {
+                                        djCommandLauncher.launch(intent)
+                                    } catch (_: Exception) {
+                                        Toast
+                                            .makeText(
+                                                context,
+                                                R.string.ai_dj_voice_unavailable,
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
                                     }
                                 },
                             )

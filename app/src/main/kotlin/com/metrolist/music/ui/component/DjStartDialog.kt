@@ -6,10 +6,8 @@
 
 package com.metrolist.music.ui.component
 
-import android.Manifest
 import android.app.Activity
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.speech.RecognizerIntent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -38,9 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import com.metrolist.music.R
-import com.metrolist.music.constants.AiDjListenCommandsKey
 import com.metrolist.music.constants.OpenRouterApiKey
 import com.metrolist.music.dj.DjStartRequest
 import com.metrolist.music.models.MediaMetadata
@@ -68,17 +64,6 @@ fun DjStartDialog(
     val scope = rememberCoroutineScope()
     var request by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
-    var pendingStart by remember { mutableStateOf(false) }
-
-    val micPermissionLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (pendingStart) {
-                pendingStart = false
-                doStart(context, scope, request, fallbackSeed, playerConnection, onDismiss, onStarted) {
-                    loading = it
-                }
-            }
-        }
 
     val speechLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -108,15 +93,6 @@ fun DjStartDialog(
     fun confirmStart() {
         if (context.dataStore.get(OpenRouterApiKey, "").isBlank()) {
             Toast.makeText(context, R.string.ai_dj_api_key_required, Toast.LENGTH_LONG).show()
-            return
-        }
-        val wantsListen = context.dataStore.get(AiDjListenCommandsKey, false)
-        val hasMic =
-            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-                PackageManager.PERMISSION_GRANTED
-        if (wantsListen && !hasMic) {
-            pendingStart = true
-            micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             return
         }
         doStart(context, scope, request, fallbackSeed, playerConnection, onDismiss, onStarted) {

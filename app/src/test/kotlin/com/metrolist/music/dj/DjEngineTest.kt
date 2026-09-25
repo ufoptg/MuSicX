@@ -130,17 +130,18 @@ class DjEngineTest {
 
     @Test
     fun `command parser handles skip previous and play`() {
-        assertEquals(DjCommand.Skip, DjCommandParser.parse("DJ 6 skip song", requireWake = true))
-        assertEquals(DjCommand.Skip, DjCommandParser.parse("DJ 6, Skip song", requireWake = true))
-        assertEquals(DjCommand.Previous, DjCommandParser.parse("dj6 previous", requireWake = true))
-        assertEquals(DjCommand.Pause, DjCommandParser.parse("DJ 6 pause", requireWake = true))
-        assertEquals(DjCommand.Resume, DjCommandParser.parse("hey DJ 6 resume", requireWake = true))
-        val play = DjCommandParser.parse("DJ 6 play God Mode by Eminem", requireWake = true) as DjCommand.Play
+        assertEquals(DjCommand.Skip, DjCommandParser.parse("DJ 6 skip song"))
+        assertEquals(DjCommand.Skip, DjCommandParser.parse("DJ 6, Skip song"))
+        assertEquals(DjCommand.Previous, DjCommandParser.parse("dj6 previous"))
+        assertEquals(DjCommand.Pause, DjCommandParser.parse("DJ 6 pause"))
+        assertEquals(DjCommand.Resume, DjCommandParser.parse("hey DJ 6 resume"))
+        val play = DjCommandParser.parse("DJ 6 play God Mode by Eminem") as DjCommand.Play
         assertEquals("God Mode by Eminem", play.query)
-        // Live listen requires wake so conversation ("skip that") does not control playback.
-        assertEquals(null, DjCommandParser.parse("skip", requireWake = true))
-        assertEquals(null, DjCommandParser.parse("skip song", requireWake = true))
-        assertEquals(null, DjCommandParser.parse("play God Mode by Eminem", requireWake = true))
-        assertEquals(null, DjCommandParser.parse("just some lyrics without a command", requireWake = true))
+        // Plain “DJ” (no 6) must not wake.
+        assertEquals(null, DjCommandParser.parse("DJ skip"))
+        assertEquals(null, DjCommandParser.parse("dj skip song"))
+        assertEquals(null, DjCommandParser.parse("skip"))
+        assertEquals(null, DjCommandParser.parse("play God Mode by Eminem"))
+        assertEquals(null, DjCommandParser.parse("just some lyrics without a command"))
     }
 }

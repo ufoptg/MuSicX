@@ -735,8 +735,11 @@
     <string name="ai_dj_start_hint">DJ 6 play God Mode by Eminem</string>
     <string name="ai_dj_voice_prompt">Tell DJ 6 what to play</string>
     <string name="ai_dj_voice_unavailable">Voice input isn’t available on this device</string>
-    <string name="ai_dj_listen_commands">Listen for DJ 6 commands</string>
-    <string name="ai_dj_listen_commands_desc">Optional. While DJ 6 plays, say “DJ 6 skip”, “DJ 6 previous”, or “DJ 6 play …”. Off by default — continuous listening uses the mic and may briefly chirp when each listen session starts.</string>
+    <string name="ai_dj_listen_commands">Voice commands</string>
+    <string name="ai_dj_listen_commands_desc">When on, player menu shows Talk to DJ 6. Tap it, then say “DJ 6 skip”, “DJ 6 previous”, or “DJ 6 play …”. Must say DJ 6 — plain “DJ” is ignored. No continuous mic listening.</string>
+    <string name="ai_dj_talk_command">Talk to DJ 6</string>
+    <string name="ai_dj_talk_command_prompt">Say “DJ 6 skip”, “DJ 6 previous”, or “DJ 6 play …”</string>
+    <string name="ai_dj_command_not_understood">Didn’t catch a DJ 6 command</string>
     <string name="ai_dj_voice_section">Voice</string>
     <string name="ai_dj_voice_engine">Voice engine</string>
     <string name="ai_dj_voice_engine_openrouter">OpenRouter (cloud)</string>

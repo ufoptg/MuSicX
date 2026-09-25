@@ -21,21 +21,18 @@ sealed class DjCommand {
 }
 
 object DjCommandParser {
+    /** Wake must include 6: “DJ 6 …”, “dj6 …”, “hey DJ 6 …”. Plain “DJ …” does not match. */
     private val wake =
         Regex("""(?i)(?:hey\s+)?dj\s*6\b[,:]?\s*""")
 
-    private fun hasWake(text: String): Boolean =
-        wake.containsMatchIn(text) ||
-            text.lowercase().contains("dj 6") ||
-            text.lowercase().contains("dj6")
+    private fun hasWake(text: String): Boolean = wake.containsMatchIn(text)
 
     /**
-     * @param requireWake when true, ignore utterances that don't address DJ 6
-     * (avoids normal conversation / lyrics controlling playback). Live listen uses true.
+     * @param requireWake when true, only utterances that address “DJ 6” are accepted.
      */
     fun parse(
         raw: String,
-        requireWake: Boolean = false,
+        requireWake: Boolean = true,
     ): DjCommand? {
         val text = raw.trim()
         if (text.isBlank()) return null
@@ -44,9 +41,7 @@ object DjCommandParser {
 
         var rest =
             if (addressed) {
-                wake.replaceFirst(text, "").trim().ifBlank {
-                    text.replace(Regex("""(?i)dj\s*6"""), "").trim()
-                }
+                wake.replaceFirst(text, "").trim()
             } else {
                 text
             }
@@ -70,8 +65,6 @@ object DjCommandParser {
                 return DjCommand.Resume
         }
 
-        // "play …" without a wake word is easy to false-trigger from lyrics —
-        // only accept bare play when the utterance is short/clear, or always with wake.
         val playMatch =
             Regex("""(?i)^(?:please\s+)?(?:play|put on|queue)\s+(.+)$""").find(rest)
         if (playMatch != null) {
@@ -80,9 +73,7 @@ object DjCommandParser {
             if (query.isNotBlank() &&
                 qLower !in listOf("previous", "previous song", "next", "next song")
             ) {
-                if (addressed || query.split(Regex("""\s+""")).size <= 8) {
-                    return DjCommand.Play(query)
-                }
+                return DjCommand.Play(query)
             }
         }
         return null

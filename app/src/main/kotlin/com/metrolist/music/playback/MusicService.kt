@@ -38,7 +38,6 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.datastore.preferences.core.Preferences
 import androidx.core.app.ServiceCompat
-import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
@@ -215,9 +214,9 @@ import com.metrolist.music.playback.alarm.MusicAlarmScheduler
 import com.metrolist.music.playback.alarm.MusicAlarmStore
 import com.metrolist.music.playback.audio.SilenceDetectorAudioProcessor
 import com.metrolist.music.dj.DjCommand
+import com.metrolist.music.dj.DjCommandParser
 import com.metrolist.music.dj.DjHostTts
 import com.metrolist.music.dj.DjStartRequest
-import com.metrolist.music.dj.DjVoiceCommander
 import com.metrolist.music.playback.queues.DjQueue
 import com.metrolist.music.playback.queues.EmptyQueue
 import com.metrolist.music.playback.queues.ListQueue
@@ -228,7 +227,6 @@ import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.playback.queues.YouTubePlaylistQueue
 import com.metrolist.music.playback.queues.filterExplicit
 import com.metrolist.music.playback.queues.filterVideoSongs
-import com.metrolist.music.constants.AiDjListenCommandsKey
 import com.metrolist.music.constants.AiDjTalkEnabledKey
 import com.metrolist.music.constants.LoudnessLevel
 import com.metrolist.music.constants.LoudnessLevelKey
@@ -393,7 +391,6 @@ class MusicService :
     private var djHostTts: DjHostTts? = null
     private var djBanterJob: Job? = null
     private var lastDjSpokenMediaId: String? = null
-    private var djVoiceCommander: DjVoiceCommander? = null
 
     fun toggleMute() {
         val newMutedState = !isMuted.value
@@ -432,30 +429,16 @@ class MusicService :
         djDuckVolumeMultiplier.value = 1f
     }
 
-    private fun stopDjVoiceListening() {
-        djVoiceCommander?.stop()
-        djVoiceCommander = null
-    }
+    fun isDjQueueActive(): Boolean = currentQueue is DjQueue
 
-    private fun updateDjVoiceListening() {
-        val shouldListen =
-            currentQueue is DjQueue &&
-                ::player.isInitialized &&
-                player.playWhenReady &&
-                dataStore.get(AiDjListenCommandsKey, false) &&
-                ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) ==
-                android.content.pm.PackageManager.PERMISSION_GRANTED
-        if (shouldListen) {
-            if (djVoiceCommander == null) {
-                djVoiceCommander =
-                    DjVoiceCommander(this) { command ->
-                        handleDjVoiceCommand(command)
-                    }
-            }
-            djVoiceCommander?.start()
-        } else {
-            stopDjVoiceListening()
-        }
+    /**
+     * One-shot voice command from the UI (push-to-talk). Continuous mic listening
+     * is intentionally not used — it chirps and steals audio focus from playback.
+     */
+    fun submitDjSpokenUtterance(spoken: String) {
+        // Always require “DJ 6” so plain “DJ skip” / conversation does not control playback.
+        val command = DjCommandParser.parse(spoken, requireWake = true) ?: return
+        handleDjVoiceCommand(command)
     }
 
     private fun handleDjVoiceCommand(command: DjCommand) {
@@ -507,12 +490,10 @@ class MusicService :
         djBanterJob =
             scope.launch {
                 try {
-                    djVoiceCommander?.setPaused(true)
                     djDuckVolumeMultiplier.value = 0.2f
                     ensureDjTts().speak(text)
                 } finally {
                     djDuckVolumeMultiplier.value = 1f
-                    djVoiceCommander?.setPaused(false)
                 }
             }
     }
@@ -532,12 +513,10 @@ class MusicService :
         djBanterJob =
             scope.launch {
                 try {
-                    djVoiceCommander?.setPaused(true)
                     djDuckVolumeMultiplier.value = 0.15f
                     ensureDjTts().speak(banter)
                 } finally {
                     djDuckVolumeMultiplier.value = 1f
-                    djVoiceCommander?.setPaused(false)
                 }
             }
     }
@@ -2047,8 +2026,6 @@ class MusicService :
             return
         }
 
-        // Kill mic listen first — a stuck SpeechRecognizer loop blocks pause/stop/queue changes.
-        stopDjVoiceListening()
         stopDjBanter()
         lastDjSpokenMediaId = null
         if (queue !is DjQueue) {
@@ -2116,9 +2093,6 @@ class MusicService :
 
             if (queue is DjQueue) {
                 maybeSpeakDjBanter(player.currentMediaItem?.mediaId)
-                updateDjVoiceListening()
-            } else {
-                updateDjVoiceListening()
             }
 
             // ---- Background initial-queue growth ----
@@ -3122,14 +3096,11 @@ class MusicService :
 
         if (!playWhenReady) {
             stopDjBanter()
-            stopDjVoiceListening()
             val currentMetadata = player.currentMediaItem?.metadata
             if (currentMetadata?.isEpisode == true && player.currentPosition > 0) {
                 saveEpisodePosition(currentMetadata.id, player.currentPosition)
                 previousEpisodePosition = player.currentPosition
             }
-        } else if (currentQueue is DjQueue) {
-            updateDjVoiceListening()
         }
 
         if (playWhenReady) {
@@ -5016,7 +4987,6 @@ class MusicService :
         isRunning = false
         sponsorBlockJob?.cancel()
         stopDjBanter()
-        stopDjVoiceListening()
         djHostTts?.shutdown()
         djHostTts = null
 
