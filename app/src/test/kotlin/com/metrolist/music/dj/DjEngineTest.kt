@@ -130,23 +130,17 @@ class DjEngineTest {
 
     @Test
     fun `command parser handles skip previous and play`() {
-        assertEquals(DjCommand.Skip, DjCommandParser.parse("DJ 6 skip song"))
-        assertEquals(DjCommand.Skip, DjCommandParser.parse("DJ 6, Skip song"))
-        assertEquals(DjCommand.Skip, DjCommandParser.parse("skip"))
-        assertEquals(DjCommand.Skip, DjCommandParser.parse("skip song"))
-        assertEquals(DjCommand.Previous, DjCommandParser.parse("dj6 previous"))
-        assertEquals(DjCommand.Previous, DjCommandParser.parse("previous"))
-        assertEquals(DjCommand.Pause, DjCommandParser.parse("DJ 6 pause"))
-        assertEquals(DjCommand.Resume, DjCommandParser.parse("hey DJ 6 resume"))
-        val play = DjCommandParser.parse("DJ 6 play God Mode by Eminem") as DjCommand.Play
+        assertEquals(DjCommand.Skip, DjCommandParser.parse("DJ 6 skip song", requireWake = true))
+        assertEquals(DjCommand.Skip, DjCommandParser.parse("DJ 6, Skip song", requireWake = true))
+        assertEquals(DjCommand.Previous, DjCommandParser.parse("dj6 previous", requireWake = true))
+        assertEquals(DjCommand.Pause, DjCommandParser.parse("DJ 6 pause", requireWake = true))
+        assertEquals(DjCommand.Resume, DjCommandParser.parse("hey DJ 6 resume", requireWake = true))
+        val play = DjCommandParser.parse("DJ 6 play God Mode by Eminem", requireWake = true) as DjCommand.Play
         assertEquals("God Mode by Eminem", play.query)
-        val barePlay = DjCommandParser.parse("play God Mode by Eminem") as DjCommand.Play
-        assertEquals("God Mode by Eminem", barePlay.query)
-        assertEquals(null, DjCommandParser.parse("just some lyrics without a command"))
-        assertEquals(
-            null,
-            DjCommandParser.parse("just some lyrics without a command", requireWake = true),
-        )
+        // Live listen requires wake so conversation ("skip that") does not control playback.
         assertEquals(null, DjCommandParser.parse("skip", requireWake = true))
+        assertEquals(null, DjCommandParser.parse("skip song", requireWake = true))
+        assertEquals(null, DjCommandParser.parse("play God Mode by Eminem", requireWake = true))
+        assertEquals(null, DjCommandParser.parse("just some lyrics without a command", requireWake = true))
     }
 }

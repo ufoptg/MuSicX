@@ -108,7 +108,8 @@ class DjVoiceCommander(
                                     .orEmpty()
                             if (spoken.isNotBlank()) {
                                 Timber.d("DjVoiceCommander heard: $spoken")
-                                DjCommandParser.parse(spoken)?.let(onCommand)
+                                // Wake phrase required so normal chat ("skip that") won't control playback.
+                                DjCommandParser.parse(spoken, requireWake = true)?.let(onCommand)
                             }
                             if (active.get()) listenSoon(350)
                         }

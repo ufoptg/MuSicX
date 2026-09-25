@@ -31,8 +31,7 @@ object DjCommandParser {
 
     /**
      * @param requireWake when true, ignore utterances that don't address DJ 6
-     * (safer against lyrics). Live listen mode passes false so short commands
-     * like "skip" / "skip song" work without repeating the name every time.
+     * (avoids normal conversation / lyrics controlling playback). Live listen uses true.
      */
     fun parse(
         raw: String,
