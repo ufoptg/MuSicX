@@ -735,11 +735,15 @@
     <string name="ai_dj_start_hint">DJ 6 play God Mode by Eminem</string>
     <string name="ai_dj_voice_prompt">Tell DJ 6 what to play</string>
     <string name="ai_dj_voice_unavailable">Voice input isn’t available on this device</string>
-    <string name="ai_dj_listen_commands">Voice commands</string>
-    <string name="ai_dj_listen_commands_desc">When on, player menu shows Talk to DJ 6. Tap it, then say “DJ 6 skip”, “DJ 6 previous”, or “DJ 6 play …”. Must say DJ 6 — plain “DJ” is ignored. No continuous mic listening.</string>
+    <string name="ai_dj_listen_commands">Hey DJ 6 voice commands</string>
+    <string name="ai_dj_listen_commands_desc">While DJ 6 is playing, say “Hey DJ 6 skip”, “Hey DJ 6 previous”, or “Hey DJ 6 play …”. Uses on-device wake listening (downloads a small speech model once). Must say DJ 6 — plain “DJ” is ignored. Player menu → Talk to DJ 6 still works as a backup.</string>
     <string name="ai_dj_talk_command">Talk to DJ 6</string>
     <string name="ai_dj_talk_command_prompt">Say “DJ 6 skip”, “DJ 6 previous”, or “DJ 6 play …”</string>
     <string name="ai_dj_command_not_understood">Didn’t catch a DJ 6 command</string>
+    <string name="ai_dj_wake_model_downloading">Downloading DJ 6 voice model…</string>
+    <string name="ai_dj_wake_model_ready">DJ 6 voice model ready</string>
+    <string name="ai_dj_wake_model_failed">Couldn’t download DJ 6 voice model</string>
+    <string name="ai_dj_mic_required">Microphone permission is required for Hey DJ 6 commands</string>
     <string name="ai_dj_voice_section">Voice</string>
     <string name="ai_dj_voice_engine">Voice engine</string>
     <string name="ai_dj_voice_engine_openrouter">OpenRouter (cloud)</string>

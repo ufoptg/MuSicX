@@ -132,16 +132,22 @@ class DjEngineTest {
     fun `command parser handles skip previous and play`() {
         assertEquals(DjCommand.Skip, DjCommandParser.parse("DJ 6 skip song"))
         assertEquals(DjCommand.Skip, DjCommandParser.parse("DJ 6, Skip song"))
+        assertEquals(DjCommand.Skip, DjCommandParser.parse("hey DJ 6 skip"))
+        assertEquals(DjCommand.Skip, DjCommandParser.parse("hey dj six skip"))
         assertEquals(DjCommand.Previous, DjCommandParser.parse("dj6 previous"))
         assertEquals(DjCommand.Pause, DjCommandParser.parse("DJ 6 pause"))
         assertEquals(DjCommand.Resume, DjCommandParser.parse("hey DJ 6 resume"))
         val play = DjCommandParser.parse("DJ 6 play God Mode by Eminem") as DjCommand.Play
         assertEquals("God Mode by Eminem", play.query)
+        assertTrue(DjCommandParser.isWakeOnly("Hey DJ 6"))
+        assertTrue(DjCommandParser.isWakeOnly("hey dj six"))
         // Plain “DJ” (no 6) must not wake.
         assertEquals(null, DjCommandParser.parse("DJ skip"))
         assertEquals(null, DjCommandParser.parse("dj skip song"))
         assertEquals(null, DjCommandParser.parse("skip"))
         assertEquals(null, DjCommandParser.parse("play God Mode by Eminem"))
         assertEquals(null, DjCommandParser.parse("just some lyrics without a command"))
+        // After wake, short commands are accepted without repeating the name.
+        assertEquals(DjCommand.Skip, DjCommandParser.parse("skip", requireWake = false))
     }
 }

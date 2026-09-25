@@ -38,6 +38,7 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.datastore.preferences.core.Preferences
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
@@ -217,6 +218,7 @@ import com.metrolist.music.dj.DjCommand
 import com.metrolist.music.dj.DjCommandParser
 import com.metrolist.music.dj.DjHostTts
 import com.metrolist.music.dj.DjStartRequest
+import com.metrolist.music.dj.DjWakeCommander
 import com.metrolist.music.playback.queues.DjQueue
 import com.metrolist.music.playback.queues.EmptyQueue
 import com.metrolist.music.playback.queues.ListQueue
@@ -227,6 +229,7 @@ import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.playback.queues.YouTubePlaylistQueue
 import com.metrolist.music.playback.queues.filterExplicit
 import com.metrolist.music.playback.queues.filterVideoSongs
+import com.metrolist.music.constants.AiDjListenCommandsKey
 import com.metrolist.music.constants.AiDjTalkEnabledKey
 import com.metrolist.music.constants.LoudnessLevel
 import com.metrolist.music.constants.LoudnessLevelKey
@@ -391,6 +394,8 @@ class MusicService :
     private var djHostTts: DjHostTts? = null
     private var djBanterJob: Job? = null
     private var lastDjSpokenMediaId: String? = null
+    private var djWakeCommander: DjWakeCommander? = null
+    private var djWakeWantsMicForeground = false
 
     fun toggleMute() {
         val newMutedState = !isMuted.value
@@ -432,13 +437,67 @@ class MusicService :
     fun isDjQueueActive(): Boolean = currentQueue is DjQueue
 
     /**
-     * One-shot voice command from the UI (push-to-talk). Continuous mic listening
-     * is intentionally not used — it chirps and steals audio focus from playback.
+     * One-shot voice command from the UI (push-to-talk fallback).
+     * Hands-free path uses [DjWakeCommander] (“Hey DJ 6 …”).
      */
     fun submitDjSpokenUtterance(spoken: String) {
-        // Always require “DJ 6” so plain “DJ skip” / conversation does not control playback.
         val command = DjCommandParser.parse(spoken, requireWake = true) ?: return
         handleDjVoiceCommand(command)
+    }
+
+    private fun stopDjWakeListening() {
+        djWakeCommander?.stop()
+        djWakeCommander = null
+        if (djWakeWantsMicForeground) {
+            djWakeWantsMicForeground = false
+            refreshDjForegroundTypes()
+        }
+    }
+
+    private fun updateDjWakeListening() {
+        val shouldListen =
+            currentQueue is DjQueue &&
+                ::player.isInitialized &&
+                player.playWhenReady &&
+                dataStore.get(AiDjListenCommandsKey, false) &&
+                ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (shouldListen) {
+            djWakeWantsMicForeground = true
+            refreshDjForegroundTypes()
+            if (djWakeCommander == null) {
+                djWakeCommander =
+                    DjWakeCommander(this, scope) { command ->
+                        handleDjVoiceCommand(command)
+                    }
+            }
+            djWakeCommander?.start()
+        } else {
+            stopDjWakeListening()
+        }
+    }
+
+    private fun refreshDjForegroundTypes() {
+        if (!::player.isInitialized) return
+        try {
+            val existing =
+                getSystemService<android.app.NotificationManager>()
+                    ?.activeNotifications
+                    ?.firstOrNull { it.id == NOTIFICATION_ID }
+                    ?.notification
+                    ?: return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                var types = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                if (djWakeWantsMicForeground &&
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                ) {
+                    types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                }
+                startForeground(NOTIFICATION_ID, existing, types)
+            }
+        } catch (e: Exception) {
+            Timber.tag(TAG).w(e, "refreshDjForegroundTypes failed")
+        }
     }
 
     private fun handleDjVoiceCommand(command: DjCommand) {
@@ -490,10 +549,12 @@ class MusicService :
         djBanterJob =
             scope.launch {
                 try {
+                    djWakeCommander?.setPaused(true)
                     djDuckVolumeMultiplier.value = 0.2f
                     ensureDjTts().speak(text)
                 } finally {
                     djDuckVolumeMultiplier.value = 1f
+                    djWakeCommander?.setPaused(false)
                 }
             }
     }
@@ -513,10 +574,12 @@ class MusicService :
         djBanterJob =
             scope.launch {
                 try {
+                    djWakeCommander?.setPaused(true)
                     djDuckVolumeMultiplier.value = 0.15f
                     ensureDjTts().speak(banter)
                 } finally {
                     djDuckVolumeMultiplier.value = 1f
+                    djWakeCommander?.setPaused(false)
                 }
             }
     }
@@ -2026,6 +2089,7 @@ class MusicService :
             return
         }
 
+        stopDjWakeListening()
         stopDjBanter()
         lastDjSpokenMediaId = null
         if (queue !is DjQueue) {
@@ -2093,6 +2157,9 @@ class MusicService :
 
             if (queue is DjQueue) {
                 maybeSpeakDjBanter(player.currentMediaItem?.mediaId)
+                updateDjWakeListening()
+            } else {
+                updateDjWakeListening()
             }
 
             // ---- Background initial-queue growth ----
@@ -3096,11 +3163,14 @@ class MusicService :
 
         if (!playWhenReady) {
             stopDjBanter()
+            stopDjWakeListening()
             val currentMetadata = player.currentMediaItem?.metadata
             if (currentMetadata?.isEpisode == true && player.currentPosition > 0) {
                 saveEpisodePosition(currentMetadata.id, player.currentPosition)
                 previousEpisodePosition = player.currentPosition
             }
+        } else if (currentQueue is DjQueue) {
+            updateDjWakeListening()
         }
 
         if (playWhenReady) {
@@ -4959,10 +5029,16 @@ class MusicService :
     ): Boolean =
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                var types = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                if (djWakeWantsMicForeground &&
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                ) {
+                    types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                }
                 startForeground(
                     NOTIFICATION_ID,
                     notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
+                    types,
                 )
             } else {
                 startForeground(NOTIFICATION_ID, notification)
@@ -4987,6 +5063,7 @@ class MusicService :
         isRunning = false
         sponsorBlockJob?.cancel()
         stopDjBanter()
+        stopDjWakeListening()
         djHostTts?.shutdown()
         djHostTts = null
 

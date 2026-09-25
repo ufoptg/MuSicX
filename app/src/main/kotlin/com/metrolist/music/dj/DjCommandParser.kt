@@ -25,6 +25,25 @@ object DjCommandParser {
     private val wake =
         Regex("""(?i)(?:hey\s+)?dj\s*6\b[,:]?\s*""")
 
+    private val wakeOnly =
+        Regex("""(?i)^(?:hey\s+)?dj\s*6\b[,.!?]*$""")
+
+    /**
+     * Vosk / speech often hears the digit as the word “six”.
+     */
+    fun normalizeSpoken(raw: String): String =
+        raw
+            .trim()
+            .replace(Regex("""(?i)\bdj\s*six\b"""), "dj 6")
+            .replace(Regex("""(?i)\bhey\s+dj\s*six\b"""), "hey dj 6")
+            .replace(Regex("""\s+"""), " ")
+            .trim()
+
+    fun isWakeOnly(raw: String): Boolean {
+        val text = normalizeSpoken(raw)
+        return wakeOnly.matches(text)
+    }
+
     private fun hasWake(text: String): Boolean = wake.containsMatchIn(text)
 
     /**
@@ -34,7 +53,7 @@ object DjCommandParser {
         raw: String,
         requireWake: Boolean = true,
     ): DjCommand? {
-        val text = raw.trim()
+        val text = normalizeSpoken(raw)
         if (text.isBlank()) return null
         val addressed = hasWake(text)
         if (requireWake && !addressed) return null

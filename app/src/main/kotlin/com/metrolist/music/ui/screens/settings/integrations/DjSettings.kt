@@ -6,6 +6,11 @@
 
 package com.metrolist.music.ui.screens.settings.integrations
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -26,13 +31,16 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
@@ -49,6 +57,7 @@ import com.metrolist.music.constants.OpenRouterApiKey
 import com.metrolist.music.constants.OpenRouterModelKey
 import com.metrolist.music.dj.DjFluxVoices
 import com.metrolist.music.dj.DjHostTts
+import com.metrolist.music.dj.DjVoskModel
 import com.metrolist.music.ui.component.EnumDialog
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
@@ -57,10 +66,13 @@ import com.metrolist.music.ui.component.TextFieldDialog
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.utils.rememberPreference
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DjSettings(navController: NavController) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var aiDjTalkEnabled by rememberPreference(AiDjTalkEnabledKey, true)
     var aiDjListenCommands by rememberPreference(AiDjListenCommandsKey, false)
     var aiDjPersona by rememberPreference(AiDjPersonaKey, DEFAULT_AI_DJ_PERSONA)
@@ -69,6 +81,52 @@ fun DjSettings(navController: NavController) {
     var ttsVoice by rememberPreference(AiDjTtsVoiceKey, DEFAULT_AI_DJ_TTS_VOICE)
     var openRouterApiKey by rememberPreference(OpenRouterApiKey, "")
     var openRouterModel by rememberPreference(OpenRouterModelKey, "google/gemini-2.5-flash-lite")
+    var preparingWake by rememberSaveable { mutableStateOf(false) }
+
+    fun enableWakeCommands() {
+        preparingWake = true
+        Toast.makeText(context, R.string.ai_dj_wake_model_downloading, Toast.LENGTH_SHORT).show()
+        scope.launch {
+            val result = DjVoskModel.ensureReady(context)
+            preparingWake = false
+            if (result.isSuccess) {
+                aiDjListenCommands = true
+                Toast.makeText(context, R.string.ai_dj_wake_model_ready, Toast.LENGTH_SHORT).show()
+            } else {
+                aiDjListenCommands = false
+                Toast.makeText(context, R.string.ai_dj_wake_model_failed, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    val micPermissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                enableWakeCommands()
+            } else {
+                aiDjListenCommands = false
+                Toast.makeText(context, R.string.ai_dj_mic_required, Toast.LENGTH_LONG).show()
+            }
+        }
+
+    fun onListenCommandsChanged(enabled: Boolean) {
+        if (!enabled) {
+            aiDjListenCommands = false
+            return
+        }
+        val hasMic =
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED
+        if (!hasMic) {
+            micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            return
+        }
+        if (DjVoskModel.isReady(context)) {
+            aiDjListenCommands = true
+        } else {
+            enableWakeCommands()
+        }
+    }
 
     // One-shot migrate away from old OpenAI TTS defaults.
     LaunchedEffect(Unit) {
@@ -241,7 +299,8 @@ fun DjSettings(navController: NavController) {
                         trailingContent = {
                             Switch(
                                 checked = aiDjListenCommands,
-                                onCheckedChange = { aiDjListenCommands = it },
+                                onCheckedChange = { onListenCommandsChanged(it) },
+                                enabled = !preparingWake,
                                 thumbContent = {
                                     Icon(
                                         painter =
