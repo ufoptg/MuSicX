@@ -720,6 +720,13 @@
     <string name="ai_system_prompt">System prompt</string>
     <string name="ai_system_prompt_default">Default</string>
     <string name="ai_system_prompt_reset">Reset to default</string>
+    <string name="ai_dj">AI DJ</string>
+    <string name="ai_dj_start">Start AI DJ</string>
+    <string name="ai_dj_starting">Starting AI DJ…</string>
+    <string name="ai_dj_talk_enabled">Talking host</string>
+    <string name="ai_dj_talk_enabled_desc">Speak short intros between songs with on-device text-to-speech</string>
+    <string name="ai_dj_persona">DJ persona</string>
+    <string name="ai_dj_api_key_required">Set an AI API key in Settings → AI to use AI DJ</string>
 
     <!-- Crash Handler -->
     <string name="crash_title">App crashed</string>

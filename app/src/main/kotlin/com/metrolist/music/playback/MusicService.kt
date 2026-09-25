@@ -213,6 +213,8 @@ import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.alarm.MusicAlarmScheduler
 import com.metrolist.music.playback.alarm.MusicAlarmStore
 import com.metrolist.music.playback.audio.SilenceDetectorAudioProcessor
+import com.metrolist.music.dj.DjHostTts
+import com.metrolist.music.playback.queues.DjQueue
 import com.metrolist.music.playback.queues.EmptyQueue
 import com.metrolist.music.playback.queues.ListQueue
 import com.metrolist.music.playback.queues.LocalAlbumRadio
@@ -222,6 +224,7 @@ import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.playback.queues.YouTubePlaylistQueue
 import com.metrolist.music.playback.queues.filterExplicit
 import com.metrolist.music.playback.queues.filterVideoSongs
+import com.metrolist.music.constants.AiDjTalkEnabledKey
 import com.metrolist.music.constants.LoudnessLevel
 import com.metrolist.music.constants.LoudnessLevelKey
 import com.metrolist.music.utils.CoilBitmapLoader
@@ -381,6 +384,9 @@ class MusicService :
     val isMuted = MutableStateFlow(false)
     private val sleepTimerVolumeMultiplier = MutableStateFlow(1f)
     private val audioFocusVolumeMultiplier = MutableStateFlow(1f)
+    private val djDuckVolumeMultiplier = MutableStateFlow(1f)
+    private var djHostTts: DjHostTts? = null
+    private var djBanterJob: Job? = null
 
     fun toggleMute() {
         val newMutedState = !isMuted.value
@@ -398,9 +404,45 @@ class MusicService :
         muted: Boolean = isMuted.value,
         sleepTimerMultiplier: Float = sleepTimerVolumeMultiplier.value,
         focusMultiplier: Float = audioFocusVolumeMultiplier.value,
+        djDuck: Float = djDuckVolumeMultiplier.value,
     ): Float {
         if (muted) return 0f
-        return (volume * sleepTimerMultiplier * focusMultiplier).coerceIn(0f, 1f)
+        return (volume * sleepTimerMultiplier * focusMultiplier * djDuck).coerceIn(0f, 1f)
+    }
+
+    private fun ensureDjTts(): DjHostTts {
+        djHostTts?.let { return it }
+        return DjHostTts(this).also {
+            it.init()
+            djHostTts = it
+        }
+    }
+
+    private fun stopDjBanter() {
+        djBanterJob?.cancel()
+        djBanterJob = null
+        djHostTts?.stop()
+        djDuckVolumeMultiplier.value = 1f
+    }
+
+    private fun maybeSpeakDjBanter(mediaId: String?) {
+        val queue = currentQueue as? DjQueue ?: return
+        if (mediaId.isNullOrBlank()) return
+        if (!dataStore.get(AiDjTalkEnabledKey, true)) {
+            queue.takeBanter(mediaId)
+            return
+        }
+        val banter = queue.takeBanter(mediaId) ?: return
+        stopDjBanter()
+        djBanterJob =
+            scope.launch {
+                try {
+                    djDuckVolumeMultiplier.value = 0.15f
+                    ensureDjTts().speak(banter)
+                } finally {
+                    djDuckVolumeMultiplier.value = 1f
+                }
+            }
     }
 
     private fun applyEffectiveVolume() {
@@ -987,12 +1029,14 @@ class MusicService :
             isMuted,
             sleepTimerVolumeMultiplier,
             audioFocusVolumeMultiplier,
-        ) { volume, muted, timerMultiplier, focusMultiplier ->
+            djDuckVolumeMultiplier,
+        ) { volume, muted, timerMultiplier, focusMultiplier, djDuck ->
             calculateEffectiveVolume(
                 volume = volume,
                 muted = muted,
                 sleepTimerMultiplier = timerMultiplier,
                 focusMultiplier = focusMultiplier,
+                djDuck = djDuck,
             )
         }.collectLatest(scope) {
             if (!isCrossfading) {
@@ -1906,6 +1950,11 @@ class MusicService :
             return
         }
 
+        stopDjBanter()
+        if (queue !is DjQueue) {
+            djHostTts?.shutdown()
+            djHostTts = null
+        }
         currentQueue = queue
         queueTitle = null
         val persistShuffleAcrossQueues = dataStore.get(PersistentShuffleAcrossQueuesKey, false)
@@ -1963,6 +2012,10 @@ class MusicService :
             if (player.shuffleModeEnabled) {
                 val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
                 applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
+            }
+
+            if (queue is DjQueue) {
+                maybeSpeakDjBanter(player.currentMediaItem?.mediaId)
             }
 
             // ---- Background initial-queue growth ----
@@ -2749,6 +2802,8 @@ class MusicService :
             scrobbleManager?.onSongStart(player.currentMetadata, duration = player.duration)
         }
 
+        maybeSpeakDjBanter(mediaItem?.mediaId)
+
         // Skip if this change was triggered by Cast sync (to prevent loops)
         if (castConnectionHandler?.isCasting?.value == true &&
             castConnectionHandler?.isSyncingFromCast != true &&
@@ -2963,6 +3018,7 @@ class MusicService :
         }
 
         if (!playWhenReady) {
+            stopDjBanter()
             val currentMetadata = player.currentMediaItem?.metadata
             if (currentMetadata?.isEpisode == true && player.currentPosition > 0) {
                 saveEpisodePosition(currentMetadata.id, player.currentPosition)
@@ -4853,6 +4909,9 @@ class MusicService :
     override fun onDestroy() {
         isRunning = false
         sponsorBlockJob?.cancel()
+        stopDjBanter()
+        djHostTts?.shutdown()
+        djHostTts = null
 
         if (!::player.isInitialized) {
             try {

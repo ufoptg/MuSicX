@@ -82,6 +82,8 @@ import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerConnection
+import com.metrolist.music.utils.dataStore
+import com.metrolist.music.utils.get
 import com.metrolist.music.R
 import com.metrolist.music.ui.component.spotify.SpotifyAddToPlaylistDialog
 import com.metrolist.music.constants.ListItemHeight
@@ -354,6 +356,50 @@ fun PlayerMenu(
                                 onClick = {
                                     Toast.makeText(context, startingRadioText, Toast.LENGTH_SHORT).show()
                                     playerConnection.startRadioSeamlessly()
+                                    onDismiss()
+                                },
+                            )
+                        } else {
+                            null
+                        },
+                        if (!isListenTogetherGuest) {
+                            NewAction(
+                                icon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.mic),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(32.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                },
+                                text = stringResource(R.string.ai_dj_start),
+                                onClick = {
+                                    val apiKey =
+                                        context.dataStore.get(
+                                            com.metrolist.music.constants.OpenRouterApiKey,
+                                            "",
+                                        )
+                                    if (apiKey.isBlank()) {
+                                        Toast
+                                            .makeText(
+                                                context,
+                                                context.getString(R.string.ai_dj_api_key_required),
+                                                Toast.LENGTH_LONG,
+                                            ).show()
+                                    } else {
+                                        Toast
+                                            .makeText(
+                                                context,
+                                                context.getString(R.string.ai_dj_starting),
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
+                                        playerConnection.playQueue(
+                                            com.metrolist.music.playback.queues.DjQueue.fromSeed(
+                                                context,
+                                                mediaMetadata,
+                                            ),
+                                        )
+                                    }
                                     onDismiss()
                                 },
                             )
