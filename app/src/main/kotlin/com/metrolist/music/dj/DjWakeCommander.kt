@@ -60,9 +60,12 @@ class DjWakeCommander(
                         model?.close()
                         model = Model(ready.absolutePath)
                         startWakeListening()
-                    } catch (e: Exception) {
-                        Timber.w(e, "DjWakeCommander: failed to start")
+                    } catch (t: Throwable) {
+                        // UnsatisfiedLinkError (JNA/R8) is an Error, not Exception
+                        Timber.w(t, "DjWakeCommander: failed to start")
                         active.set(false)
+                        runCatching { model?.close() }
+                        model = null
                     }
                 }
             }

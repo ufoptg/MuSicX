@@ -329,7 +329,9 @@ dependencies {
 
     implementation(libs.timber)
 
+    // Vosk wake listening — force JNA AAR (Android natives). Plain JAR breaks R8/JNI.
     implementation(libs.vosk.android)
+    implementation("net.java.dev.jna:jna:5.18.1@aar")
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
