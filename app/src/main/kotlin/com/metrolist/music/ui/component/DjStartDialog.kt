@@ -110,7 +110,7 @@ fun DjStartDialog(
             Toast.makeText(context, R.string.ai_dj_api_key_required, Toast.LENGTH_LONG).show()
             return
         }
-        val wantsListen = context.dataStore.get(AiDjListenCommandsKey, true)
+        val wantsListen = context.dataStore.get(AiDjListenCommandsKey, false)
         val hasMic =
             ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
                 PackageManager.PERMISSION_GRANTED

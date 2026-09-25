@@ -430,13 +430,19 @@ class MusicService :
         djBanterJob = null
         djHostTts?.stop()
         djDuckVolumeMultiplier.value = 1f
-        djVoiceCommander?.setPaused(false)
+    }
+
+    private fun stopDjVoiceListening() {
+        djVoiceCommander?.stop()
+        djVoiceCommander = null
     }
 
     private fun updateDjVoiceListening() {
         val shouldListen =
             currentQueue is DjQueue &&
-                dataStore.get(AiDjListenCommandsKey, true) &&
+                ::player.isInitialized &&
+                player.playWhenReady &&
+                dataStore.get(AiDjListenCommandsKey, false) &&
                 ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) ==
                 android.content.pm.PackageManager.PERMISSION_GRANTED
         if (shouldListen) {
@@ -448,8 +454,7 @@ class MusicService :
             }
             djVoiceCommander?.start()
         } else {
-            djVoiceCommander?.stop()
-            djVoiceCommander = null
+            stopDjVoiceListening()
         }
     }
 
@@ -2042,6 +2047,8 @@ class MusicService :
             return
         }
 
+        // Kill mic listen first — a stuck SpeechRecognizer loop blocks pause/stop/queue changes.
+        stopDjVoiceListening()
         stopDjBanter()
         lastDjSpokenMediaId = null
         if (queue !is DjQueue) {
@@ -2049,7 +2056,6 @@ class MusicService :
             djHostTts = null
         }
         currentQueue = queue
-        updateDjVoiceListening()
         queueTitle = null
         val persistShuffleAcrossQueues = dataStore.get(PersistentShuffleAcrossQueuesKey, false)
         if (!persistShuffleAcrossQueues && !restoringQueue) {
@@ -3116,11 +3122,14 @@ class MusicService :
 
         if (!playWhenReady) {
             stopDjBanter()
+            stopDjVoiceListening()
             val currentMetadata = player.currentMediaItem?.metadata
             if (currentMetadata?.isEpisode == true && player.currentPosition > 0) {
                 saveEpisodePosition(currentMetadata.id, player.currentPosition)
                 previousEpisodePosition = player.currentPosition
             }
+        } else if (currentQueue is DjQueue) {
+            updateDjVoiceListening()
         }
 
         if (playWhenReady) {
@@ -5007,8 +5016,7 @@ class MusicService :
         isRunning = false
         sponsorBlockJob?.cancel()
         stopDjBanter()
-        djVoiceCommander?.stop()
-        djVoiceCommander = null
+        stopDjVoiceListening()
         djHostTts?.shutdown()
         djHostTts = null
 

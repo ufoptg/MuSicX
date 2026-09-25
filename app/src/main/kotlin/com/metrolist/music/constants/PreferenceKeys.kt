@@ -532,7 +532,7 @@ val AiDjPersonaKey = stringPreferencesKey("aiDjPersona")
 val AiDjVoiceEngineKey = stringPreferencesKey("aiDjVoiceEngine")
 val AiDjTtsModelKey = stringPreferencesKey("aiDjTtsModel")
 val AiDjTtsVoiceKey = stringPreferencesKey("aiDjTtsVoice")
-val AiDjListenCommandsKey = booleanPreferencesKey("aiDjListenCommands")
+val AiDjListenCommandsKey = booleanPreferencesKey("aiDjListenCommandsOptIn")
 
 const val DEFAULT_AI_DJ_PERSONA = "DJ 6, a friendly radio DJ"
 const val DEFAULT_AI_DJ_TTS_MODEL = "deepgram/flux-tts:free"

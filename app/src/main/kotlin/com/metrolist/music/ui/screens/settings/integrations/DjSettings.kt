@@ -62,7 +62,7 @@ import androidx.compose.runtime.LaunchedEffect
 @Composable
 fun DjSettings(navController: NavController) {
     var aiDjTalkEnabled by rememberPreference(AiDjTalkEnabledKey, true)
-    var aiDjListenCommands by rememberPreference(AiDjListenCommandsKey, true)
+    var aiDjListenCommands by rememberPreference(AiDjListenCommandsKey, false)
     var aiDjPersona by rememberPreference(AiDjPersonaKey, DEFAULT_AI_DJ_PERSONA)
     var voiceEngine by rememberPreference(AiDjVoiceEngineKey, "openrouter")
     var ttsModel by rememberPreference(AiDjTtsModelKey, DEFAULT_AI_DJ_TTS_MODEL)

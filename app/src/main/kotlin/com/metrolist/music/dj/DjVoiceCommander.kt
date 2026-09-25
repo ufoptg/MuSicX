@@ -19,8 +19,9 @@ import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * While DJ 6 is playing, continuously listen for utterances that start with "DJ 6 …".
- * Pauses while the host TTS is speaking so they don't fight over the mic.
+ * While DJ 6 is playing, listen for “DJ 6 …” commands.
+ * Uses a long cooldown between sessions — Android beeps on every startListening,
+ * so a tight retry loop is unusable during music playback.
  */
 class DjVoiceCommander(
     context: Context,
@@ -31,6 +32,11 @@ class DjVoiceCommander(
     private var recognizer: SpeechRecognizer? = null
     private val active = AtomicBoolean(false)
     private val paused = AtomicBoolean(false)
+    private val listening = AtomicBoolean(false)
+    private val listenRunnable =
+        Runnable {
+            beginListen()
+        }
 
     fun start() {
         if (!SpeechRecognizer.isRecognitionAvailable(appContext)) {
@@ -38,14 +44,14 @@ class DjVoiceCommander(
             return
         }
         if (active.getAndSet(true)) return
-        mainHandler.post {
-            ensureRecognizer()
-            listenSoon(0)
-        }
+        scheduleListen(FIRST_LISTEN_DELAY_MS)
     }
 
     fun stop() {
         active.set(false)
+        paused.set(false)
+        listening.set(false)
+        mainHandler.removeCallbacks(listenRunnable)
         mainHandler.post {
             try {
                 recognizer?.cancel()
@@ -58,16 +64,24 @@ class DjVoiceCommander(
 
     fun setPaused(value: Boolean) {
         paused.set(value)
-        if (!value && active.get()) {
-            listenSoon(250)
-        } else if (value) {
+        if (value) {
+            mainHandler.removeCallbacks(listenRunnable)
+            listening.set(false)
             mainHandler.post {
                 try {
                     recognizer?.cancel()
                 } catch (_: Exception) {
                 }
             }
+        } else if (active.get()) {
+            scheduleListen(RESUME_DELAY_MS)
         }
+    }
+
+    private fun scheduleListen(delayMs: Long) {
+        mainHandler.removeCallbacks(listenRunnable)
+        if (!active.get() || paused.get()) return
+        mainHandler.postDelayed(listenRunnable, delayMs)
     }
 
     private fun ensureRecognizer() {
@@ -87,20 +101,23 @@ class DjVoiceCommander(
                         override fun onEndOfSpeech() = Unit
 
                         override fun onError(error: Int) {
-                            if (!active.get()) return
-                            // Don't tight-loop on busy/client errors
+                            listening.set(false)
+                            if (!active.get() || paused.get()) return
                             val delay =
                                 when (error) {
                                     SpeechRecognizer.ERROR_NO_MATCH,
                                     SpeechRecognizer.ERROR_SPEECH_TIMEOUT,
-                                    -> 400L
-                                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> 800L
-                                    else -> 600L
+                                    -> IDLE_COOLDOWN_MS
+                                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY,
+                                    SpeechRecognizer.ERROR_CLIENT,
+                                    -> BUSY_COOLDOWN_MS
+                                    else -> IDLE_COOLDOWN_MS
                                 }
-                            listenSoon(delay)
+                            scheduleListen(delay)
                         }
 
                         override fun onResults(results: Bundle?) {
+                            listening.set(false)
                             val spoken =
                                 results
                                     ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
@@ -108,10 +125,11 @@ class DjVoiceCommander(
                                     .orEmpty()
                             if (spoken.isNotBlank()) {
                                 Timber.d("DjVoiceCommander heard: $spoken")
-                                // Wake phrase required so normal chat ("skip that") won't control playback.
                                 DjCommandParser.parse(spoken, requireWake = true)?.let(onCommand)
                             }
-                            if (active.get()) listenSoon(350)
+                            if (active.get() && !paused.get()) {
+                                scheduleListen(AFTER_RESULT_COOLDOWN_MS)
+                            }
                         }
 
                         override fun onPartialResults(partialResults: Bundle?) = Unit
@@ -125,21 +143,25 @@ class DjVoiceCommander(
             }
     }
 
-    private fun listenSoon(delayMs: Long) {
-        mainHandler.postDelayed({
-            if (!active.get() || paused.get()) return@postDelayed
-            val sr = recognizer ?: return@postDelayed
-            try {
-                sr.cancel()
-            } catch (_: Exception) {
-            }
-            try {
-                sr.startListening(listenIntent())
-            } catch (e: Exception) {
-                Timber.w(e, "DjVoiceCommander: startListening failed")
-                listenSoon(1000)
-            }
-        }, delayMs)
+    private fun beginListen() {
+        if (!active.get() || paused.get()) return
+        if (!listening.compareAndSet(false, true)) {
+            scheduleListen(BUSY_COOLDOWN_MS)
+            return
+        }
+        ensureRecognizer()
+        val sr = recognizer
+        if (sr == null) {
+            listening.set(false)
+            return
+        }
+        try {
+            sr.startListening(listenIntent())
+        } catch (e: Exception) {
+            listening.set(false)
+            Timber.w(e, "DjVoiceCommander: startListening failed")
+            scheduleListen(BUSY_COOLDOWN_MS)
+        }
     }
 
     private fun listenIntent(): Intent =
@@ -148,8 +170,17 @@ class DjVoiceCommander(
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
-            // Shorter silence so commands feel snappy
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1200)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1000)
+            // Longer windows = fewer restart beeps while music plays
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2500)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2000)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1500)
         }
+
+    companion object {
+        private const val FIRST_LISTEN_DELAY_MS = 2500L
+        private const val RESUME_DELAY_MS = 1500L
+        private const val IDLE_COOLDOWN_MS = 4000L
+        private const val AFTER_RESULT_COOLDOWN_MS = 2500L
+        private const val BUSY_COOLDOWN_MS = 5000L
+    }
 }
