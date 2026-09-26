@@ -41,12 +41,16 @@ jobs:
             variantName: Gms
 
     steps:
+<<<<<<< HEAD
       - uses: actions/checkout@v6
         with:
           submodules: recursive
+=======
+      - uses: actions/checkout@v7
+>>>>>>> upstream/main
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           java-version: "21"
           distribution: "temurin"
@@ -79,7 +83,7 @@ jobs:
           keyAlias: ${{ secrets.KEY_ALIAS }}
           keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
-          buildToolsVersion: 35.0.0
+          buildToolsVersion: 36.0.0
 
       - name: Move signed APK
         run: |
@@ -93,7 +97,7 @@ jobs:
           find "$OUTPUT_DIR" -name "*-signed.apk" -o -name "*-unsigned-signed.apk" | xargs -I{} mv {} "$OUTPUT_DIR/out/$TARGET_NAME"
 
       - name: Upload Signed APK
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.variant == 'gms' && 'MuSicX-Nightly-with-Google-Cast' || 'MuSicX-Nightly' }}
           path: app/build/outputs/apk/${{ matrix.variant }}/release/out/*
@@ -115,12 +119,16 @@ jobs:
             variantName: Gms
 
     steps:
+<<<<<<< HEAD
       - uses: actions/checkout@v6
         with:
           submodules: recursive
+=======
+      - uses: actions/checkout@v7
+>>>>>>> upstream/main
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           java-version: "21"
           distribution: "temurin"
@@ -152,7 +160,7 @@ jobs:
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
 
       - name: Upload Debug APK
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.variant == 'gms' && 'MuSicX-Nightly-debug-with-Google-Cast' || 'MuSicX-Nightly-debug' }}
           path: app/build/outputs/apk/${{ matrix.variant }}/debug/*.apk
@@ -178,7 +186,12 @@ jobs:
     permissions:
       contents: write
     steps:
+<<<<<<< HEAD
       - uses: actions/checkout@v6
+=======
+      - name: Download Signed APK
+        uses: actions/download-artifact@v8
+>>>>>>> upstream/main
         with:
           fetch-depth: 0
 
