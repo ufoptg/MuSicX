@@ -33,6 +33,8 @@ materialKolor = "5.0.1"
 kuromojiIpadic = "0.9.0"
 innertubex = "v0.7.0"
 tinypinyin = "2.0.3"
+composeMultiplatform = "1.12.0"
+vlcj = "4.8.3"
 protobuf = "4.36.2"
 
 [libraries]
