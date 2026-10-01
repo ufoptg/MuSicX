@@ -202,6 +202,8 @@ android {
                     "**/libandroidx.graphics.path.so",
                     "**/libdatastore_shared_counter.so",
                 )
+            // JNA ships libjnidispatch in the AAR; avoid merge clashes with transitive copies.
+            pickFirsts += listOf("**/libjnidispatch.so")
         }
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -328,6 +330,10 @@ dependencies {
     coreLibraryDesugaring(libs.desugaring)
 
     implementation(libs.timber)
+
+    // Vosk wake listening — force JNA AAR (Android natives). Plain JAR breaks R8/JNI.
+    implementation(libs.vosk.android)
+    implementation("net.java.dev.jna:jna:5.18.1@aar")
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
