@@ -12,6 +12,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,9 +32,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -45,7 +52,13 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +70,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -90,6 +104,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
+import kotlin.random.Random
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.URL
@@ -123,6 +138,8 @@ private enum class Destination(
     Search("Search", Icons.Default.Search),
     Library("Library", Icons.Default.LibraryMusic),
 }
+
+private enum class RepeatMode { Off, All, One }
 
 fun main() = application {
     val client = remember { DesktopInnerTube() }
@@ -169,6 +186,32 @@ private fun MuSicXApp(
     var queue by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
     var currentIndex by remember { mutableStateOf(-1) }
     var history by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
+    var favorites by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
+    val scope = rememberCoroutineScope()
+
+    // Restore persisted favorites/history, then keep them on disk.
+    LaunchedEffect(Unit) {
+        val data = withContext(Dispatchers.IO) { DesktopLibraryStore.load() }
+        favorites = data.favorites
+        history = data.history
+    }
+
+    fun persistLibrary() {
+        val snapshot = DesktopLibraryData(favorites = favorites, history = history)
+        scope.launch(Dispatchers.IO) { DesktopLibraryStore.save(snapshot) }
+    }
+
+    fun toggleFavorite(hit: SearchHit) {
+        favorites =
+            if (favorites.any { it.videoId == hit.videoId }) {
+                favorites.filterNot { it.videoId == hit.videoId }
+            } else {
+                listOf(hit) + favorites
+            }
+        persistLibrary()
+    }
+
+    fun isFavorite(hit: SearchHit?): Boolean = hit != null && favorites.any { it.videoId == hit.videoId }
 
     var busyId by remember { mutableStateOf<String?>(null) }
     var playing by remember { mutableStateOf(false) }
@@ -179,7 +222,9 @@ private fun MuSicXApp(
 
     var destination by remember { mutableStateOf(Destination.Home) }
     var playerExpanded by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    var queueExpanded by remember { mutableStateOf(false) }
+    var shuffleOn by remember { mutableStateOf(false) }
+    var repeatMode by remember { mutableStateOf(RepeatMode.Off) }
 
     val nowPlaying = queue.getOrNull(currentIndex)
 
@@ -202,6 +247,7 @@ private fun MuSicXApp(
                 playing = true
                 // Push to the front of the session history (most-recent-first, deduped).
                 history = (listOf(hit) + history.filterNot { it.videoId == hit.videoId }).take(50)
+                persistLibrary()
             } catch (t: Throwable) {
                 DesktopLog.log("playHit failed", t)
                 error = t.message ?: t::class.simpleName ?: "Playback failed"
@@ -212,8 +258,22 @@ private fun MuSicXApp(
         }
     }
 
-    fun playNext() {
-        if (currentIndex + 1 < queue.size) playFrom(queue, currentIndex + 1)
+    fun playNext(fromEnded: Boolean = false) {
+        if (fromEnded && repeatMode == RepeatMode.One && currentIndex in queue.indices) {
+            playFrom(queue, currentIndex)
+            return
+        }
+        if (shuffleOn && queue.size > 1) {
+            var next = Random.nextInt(queue.size)
+            while (next == currentIndex) next = Random.nextInt(queue.size)
+            playFrom(queue, next)
+            return
+        }
+        if (currentIndex + 1 < queue.size) {
+            playFrom(queue, currentIndex + 1)
+        } else if (fromEnded && repeatMode == RepeatMode.All && queue.isNotEmpty()) {
+            playFrom(queue, 0)
+        }
     }
 
     fun playPrevious() {
@@ -222,7 +282,7 @@ private fun MuSicXApp(
 
     // Auto-advance to the next queued track when one finishes.
     DisposableEffect(player) {
-        player.onEnded = { scope.launch { playNext() } }
+        player.onEnded = { scope.launch { playNext(fromEnded = true) } }
         onDispose { player.onEnded = null }
     }
 
@@ -302,13 +362,27 @@ private fun MuSicXApp(
                                     busyId = busyId,
                                     onSearch = ::runSearch,
                                     onPlayIndex = { index -> playFrom(results, index) },
+                                    isFavorite = ::isFavorite,
+                                    onToggleFavorite = ::toggleFavorite,
                                 )
                             Destination.Library ->
                                 LibraryScreen(
+                                    favorites = favorites,
                                     history = history,
                                     nowPlayingId = nowPlaying?.videoId,
                                     busyId = busyId,
-                                    onPlayIndex = { index -> playFrom(history, index) },
+                                    onPlayFavorites = { index -> playFrom(favorites, index) },
+                                    onPlayHistory = { index -> playFrom(history, index) },
+                                    isFavorite = ::isFavorite,
+                                    onToggleFavorite = ::toggleFavorite,
+                                    onClearFavorites = {
+                                        favorites = emptyList()
+                                        persistLibrary()
+                                    },
+                                    onClearHistory = {
+                                        history = emptyList()
+                                        persistLibrary()
+                                    },
                                 )
                         }
                     }
@@ -343,6 +417,10 @@ private fun MuSicXApp(
                     seekPreview = null
                 },
                 onExpand = { if (nowPlaying != null) playerExpanded = true },
+                isFavorite = isFavorite(nowPlaying),
+                onToggleFavorite = { nowPlaying?.let(::toggleFavorite) },
+                hasQueue = queue.isNotEmpty(),
+                onToggleQueue = { queueExpanded = !queueExpanded },
             )
         }
 
@@ -379,6 +457,34 @@ private fun MuSicXApp(
                     seekPreview = null
                 },
                 onCollapse = { playerExpanded = false },
+            )
+        }
+
+        AnimatedVisibility(
+            visible = queueExpanded,
+            enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
+            exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(),
+            modifier = Modifier.align(Alignment.CenterEnd),
+        ) {
+            QueuePanel(
+                queue = queue,
+                currentIndex = currentIndex,
+                nowPlayingId = nowPlaying?.videoId,
+                busyId = busyId,
+                shuffleOn = shuffleOn,
+                repeatMode = repeatMode,
+                onToggleShuffle = { shuffleOn = !shuffleOn },
+                onCycleRepeat = {
+                    repeatMode =
+                        when (repeatMode) {
+                            RepeatMode.Off -> RepeatMode.All
+                            RepeatMode.All -> RepeatMode.One
+                            RepeatMode.One -> RepeatMode.Off
+                        }
+                },
+                onPlayIndex = { index -> playFrom(queue, index) },
+                isFavorite = ::isFavorite,
+                onToggleFavorite = ::toggleFavorite,
             )
         }
     }
@@ -556,6 +662,8 @@ private fun SearchScreen(
     busyId: String?,
     onSearch: () -> Unit,
     onPlayIndex: (Int) -> Unit,
+    isFavorite: (SearchHit) -> Boolean,
+    onToggleFavorite: (SearchHit) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
         ScreenTitle(title = "Search", subtitle = "Search YouTube Music — tap a song to play")
@@ -583,6 +691,8 @@ private fun SearchScreen(
                         isActive = hit.videoId == nowPlayingId,
                         isBusy = busyId == hit.videoId,
                         onClick = { onPlayIndex(index) },
+                        isFavorite = isFavorite(hit),
+                        onToggleFavorite = { onToggleFavorite(hit) },
                     )
                 }
             }
@@ -592,34 +702,85 @@ private fun SearchScreen(
 
 @Composable
 private fun LibraryScreen(
+    favorites: List<SearchHit>,
     history: List<SearchHit>,
     nowPlayingId: String?,
     busyId: String?,
-    onPlayIndex: (Int) -> Unit,
+    onPlayFavorites: (Int) -> Unit,
+    onPlayHistory: (Int) -> Unit,
+    isFavorite: (SearchHit) -> Boolean,
+    onToggleFavorite: (SearchHit) -> Unit,
+    onClearFavorites: () -> Unit,
+    onClearHistory: () -> Unit,
 ) {
+    var showFavorites by remember { mutableStateOf(true) }
+    val list = if (showFavorites) favorites else history
+    val onPlayIndex = if (showFavorites) onPlayFavorites else onPlayHistory
+    val onClear = if (showFavorites) onClearFavorites else onClearHistory
+
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
-        ScreenTitle(title = "Library", subtitle = "Recently played this session")
-        if (history.isEmpty()) {
+        ScreenTitle(title = "Library", subtitle = "Your favorites and recently played")
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FilterChip(
+                selected = showFavorites,
+                onClick = { showFavorites = true },
+                label = { Text("Favorites") },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Favorite,
+                        contentDescription = null,
+                        modifier = Modifier.size(FilterChipDefaults.IconSize),
+                    )
+                },
+            )
+            FilterChip(
+                selected = !showFavorites,
+                onClick = { showFavorites = false },
+                label = { Text("History") },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.History,
+                        contentDescription = null,
+                        modifier = Modifier.size(FilterChipDefaults.IconSize),
+                    )
+                },
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            TextButton(onClick = onClear, enabled = list.isNotEmpty()) {
+                Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp))
+                Text("Clear", modifier = Modifier.padding(start = 4.dp))
+            }
+        }
+        if (list.isEmpty()) {
             Column(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Icon(
-                    Icons.Default.LibraryMusic,
+                    if (showFavorites) Icons.Default.FavoriteBorder else Icons.Default.History,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier.size(64.dp),
                 )
                 Text(
-                    text = "Nothing here yet",
+                    text = if (showFavorites) "No favorites yet" else "Nothing played yet",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(top = 12.dp),
                 )
                 Text(
-                    text = "Play a song and it'll show up here.",
+                    text =
+                        if (showFavorites) {
+                            "Tap the heart on any song to save it here."
+                        } else {
+                            "Play a song and it'll show up here."
+                        },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
@@ -627,13 +788,15 @@ private fun LibraryScreen(
             }
         } else {
             LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
-                items(history, key = { it.videoId }) { hit ->
-                    val index = history.indexOf(hit)
+                items(list, key = { it.videoId }) { hit ->
+                    val index = list.indexOf(hit)
                     ResultRow(
                         hit = hit,
                         isActive = hit.videoId == nowPlayingId,
                         isBusy = busyId == hit.videoId,
                         onClick = { onPlayIndex(index) },
+                        isFavorite = isFavorite(hit),
+                        onToggleFavorite = { onToggleFavorite(hit) },
                     )
                 }
             }
@@ -718,6 +881,8 @@ private fun ResultRow(
     isActive: Boolean,
     isBusy: Boolean,
     onClick: () -> Unit,
+    isFavorite: Boolean = false,
+    onToggleFavorite: (() -> Unit)? = null,
 ) {
     Row(
         modifier =
@@ -770,6 +935,86 @@ private fun ResultRow(
                 modifier = Modifier.size(20.dp),
             )
         }
+        if (onToggleFavorite != null) {
+            IconButton(onClick = onToggleFavorite) {
+                Icon(
+                    if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                    tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun QueuePanel(
+    queue: List<SearchHit>,
+    currentIndex: Int,
+    nowPlayingId: String?,
+    busyId: String?,
+    shuffleOn: Boolean,
+    repeatMode: RepeatMode,
+    onToggleShuffle: () -> Unit,
+    onCycleRepeat: () -> Unit,
+    onPlayIndex: (Int) -> Unit,
+    isFavorite: (SearchHit) -> Boolean,
+    onToggleFavorite: (SearchHit) -> Unit,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 12.dp,
+        modifier = Modifier.width(340.dp).fillMaxHeight(),
+    ) {
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 20.dp)) {
+            Text(
+                text = "Queue",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Row(
+                modifier = Modifier.padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                IconButton(onClick = onToggleShuffle) {
+                    Icon(
+                        Icons.Default.Shuffle,
+                        contentDescription = "Shuffle",
+                        tint = if (shuffleOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                IconButton(onClick = onCycleRepeat) {
+                    Icon(
+                        if (repeatMode == RepeatMode.One) Icons.Default.RepeatOne else Icons.Default.Repeat,
+                        contentDescription = "Repeat: $repeatMode",
+                        tint = if (repeatMode != RepeatMode.Off) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (queue.isEmpty()) {
+                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "Queue is empty",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                LazyColumn(modifier = Modifier.weight(1f).padding(top = 8.dp)) {
+                    itemsIndexed(queue, key = { index, hit -> "$index-${hit.videoId}" }) { index, hit ->
+                        ResultRow(
+                            hit = hit,
+                            isActive = hit.videoId == nowPlayingId,
+                            isBusy = busyId == hit.videoId,
+                            onClick = { onPlayIndex(index) },
+                            isFavorite = isFavorite(hit),
+                            onToggleFavorite = { onToggleFavorite(hit) },
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -791,6 +1036,10 @@ private fun NowPlayingBar(
     onSeekChange: (Float) -> Unit,
     onSeekCommit: (Float) -> Unit,
     onExpand: () -> Unit,
+    isFavorite: Boolean = false,
+    onToggleFavorite: (() -> Unit)? = null,
+    hasQueue: Boolean = false,
+    onToggleQueue: (() -> Unit)? = null,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -841,6 +1090,15 @@ private fun NowPlayingBar(
                 IconButton(onClick = onExpand, enabled = nowPlaying != null) {
                     Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Expand player", modifier = Modifier.size(26.dp))
                 }
+                if (onToggleFavorite != null) {
+                    IconButton(onClick = onToggleFavorite, enabled = nowPlaying != null) {
+                        Icon(
+                            if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                            tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
                 IconButton(onClick = onPrevious, enabled = hasPrevious && !busy) {
                     Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(30.dp))
                 }
@@ -864,6 +1122,9 @@ private fun NowPlayingBar(
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     modifier = Modifier.padding(start = 8.dp),
                 ) {
+                    IconButton(onClick = onToggleQueue ?: {}, enabled = hasQueue && onToggleQueue != null) {
+                        Icon(Icons.Default.QueueMusic, contentDescription = "Queue")
+                    }
                     Icon(
                         imageVector = if (volume == 0) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
                         contentDescription = "Volume",
