@@ -67,14 +67,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -85,7 +93,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.URL
-import java.util.concurrent.ConcurrentHashMap
+import java.util.Collections
+import java.util.LinkedHashMap
 
 private val MuSicXRed = Color(0xFFED5564)
 
@@ -668,12 +677,26 @@ private fun SearchBar(
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
-            modifier = Modifier.weight(1f),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .onKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyUp &&
+                            (event.key == Key.Enter || event.key == Key.NumPadEnter)
+                        ) {
+                            if (enabled && query.isNotBlank()) onSearch()
+                            true
+                        } else {
+                            false
+                        }
+                    },
             singleLine = true,
             shape = RoundedCornerShape(28.dp),
             enabled = enabled,
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             placeholder = { Text("Song or artist") },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { if (enabled && query.isNotBlank()) onSearch() }),
         )
         IconButton(
             onClick = onSearch,
@@ -1039,8 +1062,16 @@ private fun SeekRow(
     }
 }
 
-/** In-memory thumbnail cache so lists don't re-download artwork on every recompose/scroll. */
-private val imageCache = ConcurrentHashMap<String, ImageBitmap>()
+/** In-memory thumbnail cache (capped LRU) so lists don't re-download artwork on every recompose/scroll. */
+private const val MAX_IMAGE_CACHE_ENTRIES = 200
+
+private val imageCache: MutableMap<String, ImageBitmap> =
+    Collections.synchronizedMap(
+        object : LinkedHashMap<String, ImageBitmap>(MAX_IMAGE_CACHE_ENTRIES, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ImageBitmap>?): Boolean =
+                size > MAX_IMAGE_CACHE_ENTRIES
+        },
+    )
 
 @Composable
 private fun RemoteImage(

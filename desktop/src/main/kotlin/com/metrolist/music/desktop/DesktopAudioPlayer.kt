@@ -191,12 +191,17 @@ class DesktopAudioPlayer : AutoCloseable {
                     }
                 val out = File.createTempFile("musicx-", ext)
                 out.deleteOnExit()
-                downloadToFile(stream, out)
-                if (out.length() < 1024L) {
-                    error("Downloaded audio too small (${out.length()} bytes)")
+                try {
+                    downloadToFile(stream, out)
+                    if (out.length() < 1024L) {
+                        error("Downloaded audio too small (${out.length()} bytes)")
+                    }
+                    DesktopLog.log("fallback download done: ${out.length()} bytes in ${System.currentTimeMillis() - dlStart} ms")
+                    out
+                } catch (t: Throwable) {
+                    out.delete()
+                    throw t
                 }
-                DesktopLog.log("fallback download done: ${out.length()} bytes in ${System.currentTimeMillis() - dlStart} ms")
-                out
             }
 
         withContext(Dispatchers.IO) {
@@ -361,6 +366,7 @@ class DesktopAudioPlayer : AutoCloseable {
      * search) means the first Play is instant instead of blocking for seconds.
      */
     fun prewarm() {
+        cleanStaleTempFiles()
         Thread(
             {
                 val t0 = System.currentTimeMillis()
@@ -374,6 +380,15 @@ class DesktopAudioPlayer : AutoCloseable {
             },
             "vlc-prewarm",
         ).apply { isDaemon = true }.start()
+    }
+
+    private fun cleanStaleTempFiles() {
+        runCatching {
+            val tmpDir = File(System.getProperty("java.io.tmpdir") ?: ".")
+            tmpDir.listFiles { f ->
+                f.isFile && f.name.startsWith("musicx-") && (f.name.endsWith(".m4a") || f.name.endsWith(".webm"))
+            }?.forEach { it.delete() }
+        }
     }
 
     companion object {
