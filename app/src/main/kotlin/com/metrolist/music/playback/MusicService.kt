@@ -424,7 +424,7 @@ class MusicService :
     private var fadingPlayer: ExoPlayer? = null
     private var isCrossfading = false
     private var crossfadeJob: Job? = null
-    private var isRunning = false
+    private var taskCleared = false
     private var mediaSession: MediaLibrarySession? = null
     private var controllerFuture: com.google.common.util.concurrent.ListenableFuture<MediaController>? = null
 
@@ -684,6 +684,7 @@ class MusicService :
                 ): MediaNotification {
                     val trackingCallback =
                         MediaNotification.Provider.Callback { notification ->
+                            if (taskCleared) return@Callback
                             latestMediaNotification = notification.notification
                             onNotificationChangedCallback.onNotificationChanged(notification)
                         }
@@ -1712,6 +1713,12 @@ class MusicService :
             listOf(
                 CommandButton
                     .Builder()
+                    .setDisplayName(getString(if (player.shuffleModeEnabled) R.string.action_shuffle_off else R.string.action_shuffle_on))
+                    .setIconResId(if (player.shuffleModeEnabled) R.drawable.shuffle_on else R.drawable.shuffle)
+                    .setSessionCommand(CommandToggleShuffle)
+                    .build(),
+                CommandButton
+                    .Builder()
                     .setDisplayName(
                         getString(
                             if (isLiked == true) {
@@ -1743,12 +1750,6 @@ class MusicService :
                             else -> throw IllegalStateException()
                         },
                     ).setSessionCommand(CommandToggleRepeatMode)
-                    .build(),
-                CommandButton
-                    .Builder()
-                    .setDisplayName(getString(if (player.shuffleModeEnabled) R.string.action_shuffle_off else R.string.action_shuffle_on))
-                    .setIconResId(if (player.shuffleModeEnabled) R.drawable.shuffle_on else R.drawable.shuffle)
-                    .setSessionCommand(CommandToggleShuffle)
                     .build(),
                 CommandButton
                     .Builder()
@@ -1897,6 +1898,7 @@ class MusicService :
         playWhenReady: Boolean = true,
         restoringQueue: Boolean = false,
     ) {
+        if (taskCleared) return
         if (!playerInitialized.value) {
             Timber.tag(TAG).w("playQueue called before player initialization, queuing request")
             scope.launch {
@@ -4916,36 +4918,54 @@ class MusicService :
         shutdownDeferred.complete(Unit)
     }
 
-    override fun onBind(intent: Intent?) = super.onBind(intent) ?: binder
+    override fun onBind(intent: Intent?) =
+        super.onBind(intent) ?: binder.also {
+            // The app UI rebinding to a still-alive instance means the user is back.
+            taskCleared = false
+        }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         if (dataStore.get(StopMusicOnTaskClearKey, false)) {
-            if (!::player.isInitialized) {
-                stopSelf()
-                return
-            }
-            // Remote playback (Cast) is independent of the local ExoPlayer; ending the session
-            // is required or audio keeps playing on the Cast device.
-            runCatching {
-                if (castConnectionHandler?.isCasting?.value == true) {
-                    castConnectionHandler?.disconnect()
-                }
-                player.stop()
-                ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-                controllerFuture?.let { MediaController.releaseFuture(it) }
-                controllerFuture = null
-                // Media3: coordinates notification/foreground teardown and stopSelf; required when
-                // playback was ongoing (default super.onTaskRemoved keeps the service alive).
-                pauseAllPlayersAndStopSelf()
-            }.onFailure { e ->
-                Timber.tag(TAG).e(e, "Failed to stop playback on task clear")
-                controllerFuture?.let { MediaController.releaseFuture(it) }
-                controllerFuture = null
-                runCatching { pauseAllPlayersAndStopSelf() }.onFailure { stopSelf() }
-            }
-            return
+            stopOnTaskClear()
+        } else {
+            super.onTaskRemoved(rootIntent)
         }
-        super.onTaskRemoved(rootIntent)
+    }
+
+    /**
+     * Idempotent hard stop: besides the current player, in-flight playQueue work, crossfade
+     * players and late Media3 notification updates can otherwise resume audio or repost the
+     * notification after the task is cleared.
+     */
+    fun stopOnTaskClear() {
+        if (taskCleared) return
+        taskCleared = true
+        crossfadeJob?.cancel()
+        crossfadeJob = null
+        crossfadeMessage?.cancel()
+        // Remote playback (Cast) is independent of the local ExoPlayer; ending the session
+        // is required or audio keeps playing on the Cast device.
+        runCatching {
+            if (castConnectionHandler?.isCasting?.value == true) {
+                castConnectionHandler?.disconnect()
+            }
+            if (::player.isInitialized) {
+                listOfNotNull(player, secondaryPlayer, fadingPlayer).forEach {
+                    it.pause()
+                    it.stop()
+                }
+                wasPlayingBeforeAudioFocusLoss = false
+                abandonAudioFocus()
+            }
+        }.onFailure { Timber.tag(TAG).e(it, "Failed to stop playback on task clear") }
+        controllerFuture?.let { MediaController.releaseFuture(it) }
+        controllerFuture = null
+        latestMediaNotification = null
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        getSystemService(NotificationManager::class.java)?.cancel(NOTIFICATION_ID)
+        // Media3: coordinates notification/foreground teardown and stopSelf; required when
+        // playback was ongoing (default super.onTaskRemoved keeps the service alive).
+        runCatching { pauseAllPlayersAndStopSelf() }.onFailure { stopSelf() }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
@@ -4954,6 +4974,7 @@ class MusicService :
         session: MediaSession,
         startInForegroundRequired: Boolean,
     ) {
+        if (taskCleared) return
         try {
             super.onUpdateNotification(session, startInForegroundRequired)
             // NOTE: v13.9.12 detached the service from the foreground state
@@ -4979,6 +5000,10 @@ class MusicService :
         flags: Int,
         startId: Int,
     ): Int {
+        if (taskCleared) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
         // On Android O+, every startForegroundService() call requires
         // Service.startForeground() to be called within a short timeout.
         // Some OEMs (e.g. MIUI) strictly enforce this even when the
