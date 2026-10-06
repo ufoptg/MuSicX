@@ -144,8 +144,11 @@ object BrowserCookieImporter {
 
     /** Reads the Local State file and runs its DPAPI-encrypted AES key through dpapiUnprotect. */
     private fun deriveAesKey(localState: File): ByteArray? {
-        if (!localState.isFile) return null
-        return runCatching {
+        if (!localState.isFile) {
+            DesktopLog.log("Local State not found at ${localState.absolutePath}")
+            return null
+        }
+        return try {
             val json = Json.parseToJsonElement(localState.readText()).jsonObject
             val encKeyB64 =
                 json["os_crypt"]
@@ -153,15 +156,30 @@ object BrowserCookieImporter {
                     ?.get("encrypted_key")
                     ?.jsonPrimitive
                     ?.contentOrNull
-                    ?: return null
+                    ?: error("os_crypt.encrypted_key not present in ${localState.absolutePath}")
             val raw = Base64.getDecoder().decode(encKeyB64)
             // raw starts with the 5 bytes "DPAPI", rest is the DPAPI blob.
             val blob = raw.copyOfRange(5, raw.size)
             dpapiUnprotect(blob)
-        }.getOrNull()
+        } catch (t: Throwable) {
+            DesktopLog.log("Failed to derive browser AES key", t)
+            throw IllegalStateException(
+                "Could not read the browser encryption key from ${localState.parentFile?.absolutePath}",
+                t,
+            )
+        }
     }
 
-    private fun dpapiUnprotect(blob: ByteArray): ByteArray {
+    private fun dpapiUnprotect(blob: ByteArray): ByteArray =
+        try {
+            // Prefer direct Win32 CryptUnprotectData via JNA; no external process needed.
+            com.sun.jna.platform.win32.Crypt32Util.cryptUnprotectData(blob)
+        } catch (t: Throwable) {
+            DesktopLog.log("JNA DPAPI unprotect unavailable, falling back to PowerShell", t)
+            dpapiUnprotectViaPowerShell(blob)
+        }
+
+    private fun dpapiUnprotectViaPowerShell(blob: ByteArray): ByteArray {
         val b64 = Base64.getEncoder().encodeToString(blob)
         val command =
             listOf(

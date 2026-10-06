@@ -53,6 +53,8 @@ dependencies {
 
     // Reads the Chrome/Edge temp profile cookie DB for the browser-based login flow.
     implementation("org.xerial:sqlite-jdbc:3.46.1.3")
+    implementation("net.java.dev.jna:jna:5.14.0")
+    implementation("net.java.dev.jna:jna-platform:5.14.0")
 }
 
 compose.desktop {
