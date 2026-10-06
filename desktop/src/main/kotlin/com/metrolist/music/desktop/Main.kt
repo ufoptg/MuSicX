@@ -1042,6 +1042,9 @@ private fun LoginScreen(
     var cookieText by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var showLoginWindow by remember { mutableStateOf(false) }
+    var signInError by remember { mutableStateOf<String?>(null) }
+    var signInActive by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     if (showLoginWindow) {
         LoginWebViewWindow(
@@ -1062,14 +1065,31 @@ private fun LoginScreen(
             TextButton(onClick = onSignOut) { Text("Sign out") }
         } else {
             Text(
-                "Tap \"Sign in (embedded browser)\" to sign in right here, or use the system browser and paste the cookie below.",
+                "Tap \"Sign in with Chrome/Edge\" to open a dedicated browser, complete the Google sign-in there, then close the window. The app reads the session cookie automatically — no DevTools needed.",
                 style = MaterialTheme.typography.bodyMedium,
             )
             Spacer(modifier = Modifier.height(16.dp))
-            TextButton(onClick = {
-                showLoginWindow = true
-                DesktopLog.log("LoginScreen: embedded sign-in tapped")
-            }) { Text("Sign in (embedded browser)") }
+            TextButton(
+                enabled = !signInActive,
+                onClick = {
+                    signInActive = true
+                    signInError = null
+                    scope.launch(Dispatchers.IO) {
+                        runCatching { BrowserCookieImporter.import() }
+                            .onSuccess { cookie ->
+                                onSignIn(cookie)
+                                signInActive = false
+                            }.onFailure { t ->
+                                signInError = t.message
+                                signInActive = false
+                            }
+                    }
+                },
+            ) { Text(if (signInActive) "Waiting for sign-in... close the browser window when done" else "Sign in with Chrome/Edge") }
+            if (signInError != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(signInError!!, color = MaterialTheme.colorScheme.error)
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Text("or sign in via system browser and paste the cookie below:")
             TextButton(onClick = {

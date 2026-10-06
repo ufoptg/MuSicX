@@ -50,6 +50,9 @@ dependencies {
     implementation("org.openjfx:javafx-controls:$javafxVersion:win")
     implementation("org.openjfx:javafx-web:$javafxVersion:win")
     implementation("org.openjfx:javafx-swing:$javafxVersion:win")
+
+    // Reads the Chrome/Edge temp profile cookie DB for the browser-based login flow.
+    implementation("org.xerial:sqlite-jdbc:3.46.1.3")
 }
 
 compose.desktop {
