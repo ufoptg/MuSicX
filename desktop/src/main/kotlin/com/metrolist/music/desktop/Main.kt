@@ -564,6 +564,7 @@ private fun MuSicXApp(
                             RepeatMode.One -> RepeatMode.Off
                         }
                 },
+                onClose = { queueExpanded = false },
                 onPlayIndex = { index -> playFrom(queue, index) },
                 isFavorite = ::isFavorite,
                 onToggleFavorite = ::toggleFavorite,
@@ -1250,6 +1251,7 @@ private fun QueuePanel(
     repeatMode: RepeatMode,
     onToggleShuffle: () -> Unit,
     onCycleRepeat: () -> Unit,
+    onClose: () -> Unit,
     onPlayIndex: (Int) -> Unit,
     isFavorite: (SearchHit) -> Boolean,
     onToggleFavorite: (SearchHit) -> Unit,
@@ -1260,12 +1262,19 @@ private fun QueuePanel(
         modifier = Modifier.width(340.dp).fillMaxHeight(),
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 20.dp)) {
-            Text(
-                text = "Queue",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Queue",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onClose) { Text("Close") }
+            }
             Row(
                 modifier = Modifier.padding(top = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
