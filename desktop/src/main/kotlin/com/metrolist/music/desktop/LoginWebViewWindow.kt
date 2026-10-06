@@ -42,6 +42,15 @@ fun LoginWebViewWindow(
                         javafx.scene.Scene(webView, 900.0, 700.0)
                     var captured = false
                     engine.loadWorker.stateProperty().addListener { _, _, state ->
+                        DesktopLog.log("WebView load state=$state location=${engine.location}")
+                        if (state == javafx.concurrent.Worker.State.FAILED) {
+                            engine.loadWorker.exceptionProperty().value?.let {
+                                DesktopLog.log("WebView load FAILED", it)
+                            }
+                            engine.loadWorker.messageProperty().value?.let {
+                                DesktopLog.log("WebView load message: $it")
+                            }
+                        }
                         if (state == javafx.concurrent.Worker.State.SUCCEEDED && !captured) {
                             runCatching {
                                 val cookies = engine.executeScript("document.cookie") as? String

@@ -55,6 +55,10 @@ compose.desktop {
     application {
         mainClass = "com.metrolist.music.desktop.MainKt"
         jvmArgs += "--add-opens=java.base/java.nio=ALL-UNNAMED"
+        // JavaFX may render as a blank white surface when compositing with the Skia/Compose
+        // window on Windows; force the software pipeline in the packaged app.
+        jvmArgs += "-Dprism.order=sw"
+        jvmArgs += "-Djavafx.embed.singleThread=false"
 
         // ProGuard on windows-latest hits a Compose Desktop NPE (getStandardOutput must not be null).
         buildTypes.release.proguard {
