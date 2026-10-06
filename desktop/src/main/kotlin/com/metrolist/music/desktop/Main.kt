@@ -841,6 +841,17 @@ private fun LoginScreen(
 ) {
     var cookieText by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    var showLoginWindow by remember { mutableStateOf(false) }
+
+    if (showLoginWindow) {
+        LoginWebViewWindow(
+            onSignedIn = { cookie ->
+                showLoginWindow = false
+                onSignIn(cookie)
+            },
+            onClose = { showLoginWindow = false },
+        )
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 24.dp)) {
         ScreenTitle(title = "Account", subtitle = "Sign in to YouTube Music")
@@ -851,12 +862,13 @@ private fun LoginScreen(
             TextButton(onClick = onSignOut) { Text("Sign out") }
         } else {
             Text(
-                "1. Sign in to YouTube Music in your browser.\n" +
-                    "2. Open DevTools → Application → Cookies → music.youtube.com.\n" +
-                    "3. Copy the full Cookie header value and paste it below.",
+                "Tap \"Sign in (embedded browser)\" to sign in right here, or use the system browser and paste the cookie below.",
                 style = MaterialTheme.typography.bodyMedium,
             )
             Spacer(modifier = Modifier.height(16.dp))
+            TextButton(onClick = { showLoginWindow = true }) { Text("Sign in (embedded browser)") }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text("or sign in via system browser and paste the cookie below:")
             TextButton(onClick = {
                 runCatching { java.awt.Desktop.getDesktop().browse(URI("https://music.youtube.com")) }
             }) { Text("Open YouTube Music in browser") }

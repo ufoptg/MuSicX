@@ -41,6 +41,13 @@ dependencies {
 
     implementation(libs.vlcj)
     implementation(libs.vlcj.natives)
+
+    // JavaFX WebView for the embedded sign-in browser (Android parity login).
+    val javafxVersion = "21.0.5"
+    implementation("org.openjfx:javafx-base:$javafxVersion")
+    implementation("org.openjfx:javafx-graphics:$javafxVersion")
+    implementation("org.openjfx:javafx-web:$javafxVersion")
+    implementation("org.openjfx:javafx-swing:$javafxVersion")
 }
 
 compose.desktop {
