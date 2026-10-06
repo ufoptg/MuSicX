@@ -59,6 +59,7 @@ import com.metrolist.music.ui.screens.settings.StorageSettings
 import com.metrolist.music.ui.screens.settings.ThemeScreen
 import com.metrolist.music.ui.screens.settings.UpdaterScreen
 import com.metrolist.music.ui.screens.settings.integrations.DiscordSettings
+import com.metrolist.music.ui.screens.settings.integrations.DjSettings
 import com.metrolist.music.ui.screens.settings.integrations.IntegrationScreen
 import com.metrolist.music.ui.screens.settings.integrations.LastFMSettings
 import com.metrolist.music.ui.screens.settings.integrations.ListenTogetherSettings
@@ -417,6 +418,10 @@ fun NavGraphBuilder.navigationBuilder(
     // Spotify integration routes (ported from ufoptg/meld)
     composable("settings/integrations/spotify") {
         SpotifySettings(navController)
+    }
+
+    composable("settings/integrations/dj6") {
+        DjSettings(navController)
     }
 
     composable("settings/integrations/spotify/preload") {

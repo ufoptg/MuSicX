@@ -234,3 +234,14 @@
 -keepclassmembers class * extends androidx.room.migration.Migration {
     void migrate(androidx.sqlite.db.SupportSQLiteDatabase);
 }
+
+## DJ 6 wake listening (Vosk + JNA)
+# JNA looks up Native.fromNative via JNI; R8 must not strip or rename those
+# members or Model/LibVosk init crashes with UnsatisfiedLinkError.
+-keep class com.sun.jna.** { *; }
+-keep class * implements com.sun.jna.** { *; }
+-keepclassmembers class * extends com.sun.jna.** { *; }
+-dontwarn com.sun.jna.**
+-keep class org.vosk.** { *; }
+-keepclassmembers class org.vosk.** { *; }
+-dontwarn org.vosk.**

@@ -527,6 +527,16 @@ val TranslateLanguageKey = stringPreferencesKey("translateLanguage")
 val DeeplApiKey = stringPreferencesKey("deeplApiKey")
 val DeeplFormalityKey = stringPreferencesKey("deeplFormality")
 val AiSystemPromptKey = stringPreferencesKey("aiSystemPrompt")
+val AiDjTalkEnabledKey = booleanPreferencesKey("aiDjTalkEnabled")
+val AiDjPersonaKey = stringPreferencesKey("aiDjPersona")
+val AiDjVoiceEngineKey = stringPreferencesKey("aiDjVoiceEngine")
+val AiDjTtsModelKey = stringPreferencesKey("aiDjTtsModel")
+val AiDjTtsVoiceKey = stringPreferencesKey("aiDjTtsVoice")
+val AiDjListenCommandsKey = booleanPreferencesKey("aiDjListenCommandsOptIn")
+
+const val DEFAULT_AI_DJ_PERSONA = "DJ 6, a friendly radio DJ"
+const val DEFAULT_AI_DJ_TTS_MODEL = "deepgram/flux-tts:free"
+const val DEFAULT_AI_DJ_TTS_VOICE = "flux-alexis-en"
 
 const val DEFAULT_AI_SYSTEM_PROMPT = """You are a precise lyrics translation assistant. Your output must ALWAYS be a valid JSON object of the form {"lines": ["line1", "line2", "line3"]}.
 
