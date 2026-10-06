@@ -72,7 +72,7 @@ fun LoginWebViewWindow(
                         )
                     val cefPanel = JPanel().apply {
                         layout = BorderLayout()
-                        add(browser.UIComponent, BorderLayout.CENTER)
+                        add(browser.getUIComponent(), BorderLayout.CENTER)
                     }
 
                     // Poll the cookie store in the embedded browser for the Google
