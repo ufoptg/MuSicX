@@ -125,7 +125,7 @@ class DesktopInnerTube : AutoCloseable {
     private suspend fun homeRows(): List<HomeRow> {
         val raw =
             innerTube
-                .browse(client = WEB_REMIX, browseId = "FEmusic_home", setLogin = false)
+                .browse(client = WEB_REMIX, browseId = "FEmusic_home", setLogin = true)
                 .body<JsonObject>()
         val rows = mutableListOf<HomeRow>()
         fun walkShelves(el: JsonElement) {
