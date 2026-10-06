@@ -225,9 +225,20 @@ constructor(
                 upsert(updatedSong)
             }
 
+<<<<<<< HEAD
             // Use a clean stream URL (no baked-in range=). Media3 DownloadManager
             // requests byte ranges itself; baking range=0-N caused hangs/failures.
             val streamUrl = playbackData.streamUrl
+=======
+            // googlevideo throttles unbounded requests to roughly playback speed; a range param covering
+            // the whole file lets the download run at full speed.
+            val streamUrl =
+                if (actualContentLength != null && "&range=" !in playbackData.streamUrl) {
+                    "${playbackData.streamUrl}&range=0-${actualContentLength - 1}"
+                } else {
+                    playbackData.streamUrl
+                }
+>>>>>>> upstream/main
 
             songUrlCache.put(
                 mediaId = mediaId,
