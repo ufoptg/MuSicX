@@ -53,3 +53,15 @@
 
 - [ ] Commit + push; verify CI Windows installer build passes (downloads javafx jars).
 - [ ] Update roadmap (Slice C2 landed) + PR #53 body/comment; docs commit.
+
+## Status note (deferred)
+
+The embedded JavaFX WebView path compiles and renders pages, but Google
+refuses account sign-in from JavaFX WebKit: after submit it redirects to
+`www.youtube.com/oops`. This is a Google client restriction, not a code bug.
+
+**Primary sign-in for now:** open `music.youtube.com` in the system browser,
+copy the Cookie header from DevTools (Application > Cookies), and paste it in
+the Account screen. JavaFX jars and `LoginWebViewWindow` remain in the tree
+for a future slice; a real in-app login would need a different web stack
+(CEF/WebView2) or an OAuth-style localhost callback flow.
