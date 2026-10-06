@@ -70,7 +70,7 @@ compose.desktop {
             // EXE only while iterating slices (faster CI than MSI+WiX).
             targetFormats(TargetFormat.Exe)
             packageName = "MuSicX"
-            packageVersion = "13.11.0"
+            packageVersion = "13.14.2b"
             description = "MuSicX Desktop — YouTube Music client with Spotify integration"
             copyright = "© 2026 ufoptg / MuSicX contributors"
             vendor = "ufoptg"
