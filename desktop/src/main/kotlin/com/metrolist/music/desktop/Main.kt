@@ -1066,7 +1066,10 @@ private fun LoginScreen(
                 style = MaterialTheme.typography.bodyMedium,
             )
             Spacer(modifier = Modifier.height(16.dp))
-            TextButton(onClick = { showLoginWindow = true }) { Text("Sign in (embedded browser)") }
+            TextButton(onClick = {
+                showLoginWindow = true
+                DesktopLog.log("LoginScreen: embedded sign-in tapped")
+            }) { Text("Sign in (embedded browser)") }
             Spacer(modifier = Modifier.height(4.dp))
             Text("or sign in via system browser and paste the cookie below:")
             TextButton(onClick = {

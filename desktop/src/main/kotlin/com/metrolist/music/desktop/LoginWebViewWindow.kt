@@ -28,46 +28,59 @@ fun LoginWebViewWindow(
         onCloseRequest = onClose,
         title = "Sign in to YouTube Music",
     ) {
+        DesktopLog.log("LoginWebViewWindow composing")
         SwingPanel(
             factory = {
-                val panel = JPanel()
-                panel.layout = java.awt.BorderLayout()
-                // JFXPanel construction starts the JavaFX toolkit.
-                panel.add(JFXPanel(), java.awt.BorderLayout.CENTER)
-                javafx.application.Platform.setImplicitExit(false)
-                javafx.application.Platform.runLater {
-                    val webView = javafx.scene.web.WebView()
-                    val engine = webView.engine
-                    (panel.components.first() as JFXPanel).scene =
-                        javafx.scene.Scene(webView, 900.0, 700.0)
-                    var captured = false
-                    engine.loadWorker.stateProperty().addListener { _, _, state ->
-                        DesktopLog.log("WebView load state=$state location=${engine.location}")
-                        if (state == javafx.concurrent.Worker.State.FAILED) {
-                            engine.loadWorker.exceptionProperty().value?.let {
-                                DesktopLog.log("WebView load FAILED", it)
-                            }
-                            engine.loadWorker.messageProperty().value?.let {
-                                DesktopLog.log("WebView load message: $it")
-                            }
-                        }
-                        if (state == javafx.concurrent.Worker.State.SUCCEEDED && !captured) {
-                            runCatching {
-                                val cookies = engine.executeScript("document.cookie") as? String
-                                val location = engine.location ?: ""
-                                if (!cookies.isNullOrBlank() &&
-                                    "SAPISID=" in cookies &&
-                                    location.substringAfter("://").substringBefore('/').endsWith("youtube.com")
-                                ) {
-                                    captured = true
-                                    javax.swing.SwingUtilities.invokeLater { onSignedIn(cookies) }
+                try {
+                    val panel = JPanel()
+                    panel.layout = java.awt.BorderLayout()
+                    DesktopLog.log("Creating JFXPanel")
+                    // JFXPanel construction starts the JavaFX toolkit.
+                    val jfxPanel = JFXPanel()
+                    panel.add(jfxPanel, java.awt.BorderLayout.CENTER)
+                    DesktopLog.log("JFXPanel created")
+                    javafx.application.Platform.setImplicitExit(false)
+                    javafx.application.Platform.runLater {
+                        DesktopLog.log("JavaFX Platform running, creating WebView")
+                        runCatching {
+                            val webView = javafx.scene.web.WebView()
+                            val engine = webView.engine
+                            jfxPanel.scene =
+                                javafx.scene.Scene(webView, 900.0, 700.0)
+                            var captured = false
+                            engine.loadWorker.stateProperty().addListener { _, _, state ->
+                                DesktopLog.log("WebView load state=$state location=${engine.location}")
+                                if (state == javafx.concurrent.Worker.State.FAILED) {
+                                    engine.loadWorker.exceptionProperty().value?.let {
+                                        DesktopLog.log("WebView load FAILED", it)
+                                    }
+                                    engine.loadWorker.messageProperty().value?.let {
+                                        DesktopLog.log("WebView load message: $it")
+                                    }
+                                }
+                                if (state == javafx.concurrent.Worker.State.SUCCEEDED && !captured) {
+                                    runCatching {
+                                        val cookies = engine.executeScript("document.cookie") as? String
+                                        val location = engine.location ?: ""
+                                        if (!cookies.isNullOrBlank() &&
+                                            "SAPISID=" in cookies &&
+                                            location.substringAfter("://").substringBefore('/').endsWith("youtube.com")
+                                        ) {
+                                            captured = true
+                                            javax.swing.SwingUtilities.invokeLater { onSignedIn(cookies) }
+                                        }
+                                    }
                                 }
                             }
-                        }
+                            engine.load("https://music.youtube.com")
+                            DesktopLog.log("WebView engine.load issued")
+                        }.onFailure { DesktopLog.log("WebView setup failed", it) }
                     }
-                    engine.load("https://music.youtube.com")
+                    panel
+                } catch (t: Throwable) {
+                    DesktopLog.log("LoginWebViewWindow factory failed", t)
+                    JPanel()
                 }
-                panel
             },
             modifier = Modifier.fillMaxSize(),
         )
