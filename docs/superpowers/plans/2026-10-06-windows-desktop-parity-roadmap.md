@@ -43,7 +43,8 @@
 - [x] **Slice A: Real YTM home browse** (PR #53 item 18) — real `FEmusic_home` browse + carousel shelf parsing, search-seeded fallback kept. Landed in `4a5e3ef`.
 - [x] **Slice B: Synced library** — Liked + Playlists tabs via InnerTubeX browse, sign-in hint when logged out. Landed in `3ab5c86be` (PR #53 item 21). — pull user playlists/library from YTM account once logged in; merge with local `DesktopLibraryStore` favorites/history.
 - [x] **Slice C: Account shell / login on desktop** — paste-cookie sign-in shell persisting session.json; enables account-backed browse. Landed in `44565f0ed` (PR #53 item 19).
-- [x] **Slice C2: Embedded WebView login** — JavaFX WebView sign-in window capturing the session cookie automatically (Android parity), paste/system-browser kept as fallback. Landed in `a65f55c6d` (PR #53 item 20).
+- [-] **Slice C2: Embedded WebView login** (deferred/failed) — JavaFX WebView compiled and rendered but Google blocks it from completing sign-in (`youtube.com/oops`), so it can never authenticate. Landed compilation artefacts in `a65f55c6d`; the embedded option was removed from the Account screen in `531b2b9ca`'s rewrite.
+- [x] **Slice C3: Browser CDP auto-import login** — primary desktop login: launches a dedicated Chrome/Edge temp-profile window at Google sign-in, polls the DevTools protocol (`Network.getAllCookies`) for `SAPISID`, terminates that helper browser, and hands the cookie header to the existing session store. Landed in `531b2b9ca` (import fix `5832873d0`).
 - [ ] **Slice D: Coral theme polish pass** — align desktop palette/typography/shapes with Android Material 3 coral theme.
 - [ ] **Slice E: Spotify on desktop** — port the Spotify integration to desktop after YTM parity is done.
 - [ ] **Slice F: MSI packaging** — switch CI to also produce `.msi` when ready for release.
