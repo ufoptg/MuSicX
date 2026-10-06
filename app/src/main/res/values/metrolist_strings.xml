@@ -1013,7 +1013,6 @@
     <string name="stream_source_android_vr_desc">Android VR clients (all versions).</string>
     <string name="stream_source_web_creator">WEB_CREATOR</string>
     <string name="stream_source_web_creator_desc">Creator web client.</string>
-<<<<<<< HEAD
     <string name="stream_source_android_creator">ANDROID_CREATOR</string>
     <string name="stream_source_android_creator_desc">Android creator client. Off by default; needs DroidGuard.</string>
 
@@ -1157,8 +1156,6 @@
     <string name="qobuz_provider_health_offline">Offline</string>
     <string name="qobuz_provider_health_checking">Checking…</string>
     <string name="qobuz_provider_health_latency">%1$d ms</string>
-=======
     <string name="top_result">Top result</string>
     <string name="other">Other</string>
->>>>>>> upstream/main
 </resources>
