@@ -29,18 +29,18 @@
 **Files:**
 - Modify: `desktop/src/main/kotlin/com/metrolist/music/desktop/DesktopInnerTube.kt`
 
-- [ ] Step 1: In `extractHits`'s `walk`, also match `el["musicTwoRowItemRenderer"]` and parse it.
-- [ ] Step 2: Add `parseTwoRowRenderer(renderer: JsonObject): SearchHit?` — videoId from `navigationEndpoint.watchEndpoint.videoId` (or `watchPlaylistEndpoint.videoId`) deep-walk fallback via existing `findVideoId`; title from `renderer.title.runs[0].text`; subtitle from `renderer.subtitle.runs.joinToString(" ")`; thumbnail from `thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails.last().url` (fall back to `renderer.thumbnail.musicThumbnailRenderer...` path used by responsive items — reuse `findVideoId`-style walk for `thumbnails`).
-- [ ] Step 3: Typecheck: `./gradlew :desktop:compileKotlin` expect SUCCESS.
+- [x] Step 1: In `extractHits`'s `walk`, also match `el["musicTwoRowItemRenderer"]` and parse it.
+- [x] Step 2: Add `parseTwoRowRenderer(renderer: JsonObject): SearchHit?` — videoId from `navigationEndpoint.watchEndpoint.videoId` (or `watchPlaylistEndpoint.videoId`) deep-walk fallback via existing `findVideoId`; title from `renderer.title.runs[0].text`; subtitle from `renderer.subtitle.runs.joinToString(" ")`; thumbnail from `thumbnailRenderer.musicThumbnailRenderer.thumbnail.thumbnails.last().url` (fall back to `renderer.thumbnail.musicThumbnailRenderer...` path used by responsive items — reuse `findVideoId`-style walk for `thumbnails`).
+- [x] Step 3: Typecheck: `./gradlew :desktop:compileKotlin` expect SUCCESS.
 
 ### Task 2: Real YTM home in `homeFeed()`
 
 **Files:**
 - Modify: `desktop/src/main/kotlin/com/metrolist/music/desktop/DesktopInnerTube.kt`
 
-- [ ] Step 1: Add `suspend fun homeRows(): List<HomeRow>` that browses `FEmusic_home`, walks the root for `musicCarouselShelfRenderer` objects, and for each: title via `header.musicCarouselShelfBasicHeaderRenderer.title.runs[*].text` joined, items via `extractHits(shelfSubtree)` (cap 12), keeping only shelves with ≥1 item.
-- [ ] Step 2: Change `homeFeed()`: `val real = runCatching { homeRows() }.getOrDefault(emptyList()); if (real.isNotEmpty()) real else <existing search-seeded path>`.
-- [ ] Step 3: Typecheck: `./gradlew :desktop:compileKotlin` expect SUCCESS.
+- [x] Step 1: Add `suspend fun homeRows(): List<HomeRow>` that browses `FEmusic_home`, walks the root for `musicCarouselShelfRenderer` objects, and for each: title via `header.musicCarouselShelfBasicHeaderRenderer.title.runs[*].text` joined, items via `extractHits(shelfSubtree)` (cap 12), keeping only shelves with ≥1 item.
+- [x] Step 2: Change `homeFeed()`: `val real = runCatching { homeRows() }.getOrDefault(emptyList()); if (real.isNotEmpty()) real else <existing search-seeded path>`.
+- [x] Step 3: Typecheck: `./gradlew :desktop:compileKotlin` expect SUCCESS.
 
 ### Task 3: Verify
 
