@@ -27,8 +27,14 @@
 13. Android-style Home/Library/full player + smoother UI (`62fff9538`)
 14. Search Enter key, LRU artwork cache, temp cleanup (`da951ee7d`)
 15. Persistent favorites/history + queue panel with shuffle/repeat (`7edfe3e48`)
-19. **Desktop login shell (`44565f0ed`)**: Account rail destination + LoginScreen — browser sign-in, paste Cookie header (validated for SAPISID=), persisted to `%APPDATA%/MuSicX/session.json`, injected into InnerTubeX (`cookie` + `useLoginForBrowse`); Home reloads on sign-in/out.
+15. Persistent favorites/history + queue panel with shuffle/repeat (`7edfe3e48`)
 18. Real YTM home browse with search-seeded fallback (`4a5e3ef`, PR #53 item 18)
+19. **Desktop login shell** (`44565f0ed`): Account rail destination + LoginScreen — paste Cookie header (validated for SAPISID=), persisted to `%APPDATA%/MuSicX/session.json`, injected into InnerTubeX (`cookie` + `useLoginForBrowse`); Home reloads on sign-in/out.
+20. **Embedded WebView login** (deferred/failed) (`a65f55c6d`) — JavaFX WebView; compiled and rendered but Google blocks it from completing sign-in (`youtube.com/oops`).
+21. **Synced library** (`3ab5c86be`) — Liked + Playlists tabs via InnerTubeX browse, sign-in hint when logged out.
+22. Browser CDP auto-import login (`531b2b9ca`) — superseded by #23 after the temp-profile spawn + DPAPI parsing proved unreliable.
+23. **Embedded Chromium JCEF login** (`cead83c59`, native-version pin `0015f2191`, Windows API fix `d657503c0`, global CefApp init `2c1d68a82`, final nullable fix by human `c6a36fed6`) — primary desktop login: embedded Chromium window pointed at Google sign-in URL, 2s cookie poll via `CefCookieManager`, hand off `SAPISID` header to the existing session store. Stray committed `musicx-desktop.log` removed.
+24. Queue panel now has a Close button (`ed0cac3bc`).
 
 ## Global Constraints
 
@@ -43,8 +49,9 @@
 - [x] **Slice A: Real YTM home browse** (PR #53 item 18) — real `FEmusic_home` browse + carousel shelf parsing, search-seeded fallback kept. Landed in `4a5e3ef`.
 - [x] **Slice B: Synced library** — Liked + Playlists tabs via InnerTubeX browse, sign-in hint when logged out. Landed in `3ab5c86be` (PR #53 item 21). — pull user playlists/library from YTM account once logged in; merge with local `DesktopLibraryStore` favorites/history.
 - [x] **Slice C: Account shell / login on desktop** — paste-cookie sign-in shell persisting session.json; enables account-backed browse. Landed in `44565f0ed` (PR #53 item 19).
-- [-] **Slice C2: Embedded WebView login** (deferred/failed) — JavaFX WebView compiled and rendered but Google blocks it from completing sign-in (`youtube.com/oops`), so it can never authenticate. Landed compilation artefacts in `a65f55c6d`; the embedded option was removed from the Account screen in `531b2b9ca`'s rewrite.
-- [x] **Slice C3: Browser CDP auto-import login** — primary desktop login: launches a dedicated Chrome/Edge temp-profile window at Google sign-in, polls the DevTools protocol (`Network.getAllCookies`) for `SAPISID`, terminates that helper browser, and hands the cookie header to the existing session store. Landed in `531b2b9ca` (import fix `5832873d0`).
+- [-] **Slice C2: Embedded WebView login** (deferred/failed) — JavaFX WebView compiled and rendered but Google blocks it from completing sign-in (`youtube.com/oops`), so it can never authenticate. Artefacts in `a65f55c6d`; theembedded option was removed in `531b2b9ca`'s rewrite.
+- [-] **Slice C3: Browser CDP auto-import login** (not used now) — launched a temp-profile Chrome/Edge window, polled CDP `Network.getAllCookies` for `SAPISID`. Implemented in `531b2b9ca`; proved fragile because the temp-profile spawn exited before detection and DPAPI/cookie-store parsing was unreliable.
+- [x] **Slice C4: Embedded Chromium JCEF login** — primary desktop login: Account → "Sign in (embedded browser)" opens an embedded Chromium window (`me.friwi:jcefmaven:152.0.6` + XP native bundle) straight at Google sign-in. Every 2s a cookie poll confirms `SAPISID` via `CefCookieManager`, then the cookie header is given to `DesktopSessionStore` + `client.setSessionCookie`. The window polls reliably (2026-10-07 log shows `JCEF cookies poll ... SAPISID present`). Landed in `cead83c59`, native-version pin in `0015f2191`, Windows API fix in `d657503c0`, global CefApp init in `2c1d68a82`, manual nullable-call fix by the human in `c6a36fed6`.
 - [ ] **Slice D: Coral theme polish pass** — align desktop palette/typography/shapes with Android Material 3 coral theme.
 - [ ] **Slice E: Spotify on desktop** — port the Spotify integration to desktop after YTM parity is done.
 - [ ] **Slice F: MSI packaging** — switch CI to also produce `.msi` when ready for release.
