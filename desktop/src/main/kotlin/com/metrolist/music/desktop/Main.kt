@@ -229,6 +229,13 @@ private fun MuSicXApp(
     var queueExpanded by remember { mutableStateOf(false) }
     var shuffleOn by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(RepeatMode.Off) }
+    var likedSongs by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
+    var likedLoading by remember { mutableStateOf(false) }
+    var libraryPlaylists by remember { mutableStateOf<List<PlaylistHit>>(emptyList()) }
+    var playlistsLoading by remember { mutableStateOf(false) }
+    var openPlaylistTitle by remember { mutableStateOf<String?>(null) }
+    var openPlaylistTracks by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
+    var openPlaylistLoading by remember { mutableStateOf(false) }
 
     val nowPlaying = queue.getOrNull(currentIndex)
 
@@ -342,6 +349,26 @@ private fun MuSicXApp(
         loadHome()
     }
 
+    LaunchedEffect(signedIn, destination) {
+        if (signedIn && destination == Destination.Library &&
+            libraryPlaylists.isEmpty() && !playlistsLoading &&
+            likedSongs.isEmpty() && !likedLoading
+        ) {
+            playlistsLoading = true
+            scope.launch(Dispatchers.IO) {
+                libraryPlaylists =
+                    runCatching { client.likedPlaylists() }.getOrDefault(emptyList())
+                playlistsLoading = false
+            }
+            likedLoading = true
+            scope.launch(Dispatchers.IO) {
+                likedSongs =
+                    runCatching { client.likedSongs() }.getOrDefault(emptyList())
+                likedLoading = false
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -412,6 +439,32 @@ private fun MuSicXApp(
                                         history = emptyList()
                                         persistLibrary()
                                     },
+                                    signedIn = signedIn,
+                                    likedSongs = likedSongs,
+                                    likedLoading = likedLoading,
+                                    libraryPlaylists = libraryPlaylists,
+                                    playlistsLoading = playlistsLoading,
+                                    openPlaylistTitle = openPlaylistTitle,
+                                    openPlaylistTracks = openPlaylistTracks,
+                                    openPlaylistLoading = openPlaylistLoading,
+                                    onOpenPlaylist = { item ->
+                                        openPlaylistTitle = item.title
+                                        openPlaylistLoading = true
+                                        openPlaylistTracks = emptyList()
+                                        scope.launch(Dispatchers.IO) {
+                                            val tracks =
+                                                runCatching { client.playlistTracks(item.id) }
+                                                    .getOrDefault(emptyList())
+                                            openPlaylistTracks = tracks
+                                            openPlaylistLoading = false
+                                        }
+                                    },
+                                    onClosePlaylist = {
+                                        openPlaylistTitle = null
+                                        openPlaylistTracks = emptyList()
+                                    },
+                                    onPlayLiked = { index -> playFrom(likedSongs, index) },
+                                    onPlayPlaylistTracks = { index -> playFrom(openPlaylistTracks, index) },
                                 )
                         }
                     }
@@ -741,11 +794,24 @@ private fun LibraryScreen(
     onToggleFavorite: (SearchHit) -> Unit,
     onClearFavorites: () -> Unit,
     onClearHistory: () -> Unit,
+    signedIn: Boolean,
+    likedSongs: List<SearchHit>,
+    likedLoading: Boolean,
+    libraryPlaylists: List<PlaylistHit>,
+    playlistsLoading: Boolean,
+    openPlaylistTitle: String?,
+    openPlaylistTracks: List<SearchHit>,
+    openPlaylistLoading: Boolean,
+    onOpenPlaylist: (PlaylistHit) -> Unit,
+    onClosePlaylist: () -> Unit,
+    onPlayLiked: (Int) -> Unit,
+    onPlayPlaylistTracks: (Int) -> Unit,
 ) {
-    var showFavorites by remember { mutableStateOf(true) }
-    val list = if (showFavorites) favorites else history
-    val onPlayIndex = if (showFavorites) onPlayFavorites else onPlayHistory
-    val onClear = if (showFavorites) onClearFavorites else onClearHistory
+    var tab by remember { mutableStateOf(0) } // 0 Favorites, 1 History, 2 Playlists, 3 Liked
+    val list = if (tab == 0) favorites else history
+    val onPlayIndex = if (tab == 0) onPlayFavorites else onPlayHistory
+    val onClear = if (tab == 0) onClearFavorites else onClearHistory
+    val showClear = tab <= 1 && list.isNotEmpty()
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
         ScreenTitle(title = "Library", subtitle = "Your favorites and recently played")
@@ -754,81 +820,215 @@ private fun LibraryScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            FilterChip(
-                selected = showFavorites,
-                onClick = { showFavorites = true },
-                label = { Text("Favorites") },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Favorite,
-                        contentDescription = null,
-                        modifier = Modifier.size(FilterChipDefaults.IconSize),
-                    )
-                },
-            )
-            FilterChip(
-                selected = !showFavorites,
-                onClick = { showFavorites = false },
-                label = { Text("History") },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.History,
-                        contentDescription = null,
-                        modifier = Modifier.size(FilterChipDefaults.IconSize),
-                    )
-                },
-            )
+            FilterChip(selected = tab == 0, onClick = { tab = 0 }, label = { Text("Favorites") },
+                leadingIcon = { Icon(Icons.Default.Favorite, null, Modifier.size(FilterChipDefaults.IconSize)) })
+            FilterChip(selected = tab == 1, onClick = { tab = 1 }, label = { Text("History") },
+                leadingIcon = { Icon(Icons.Default.History, null, Modifier.size(FilterChipDefaults.IconSize)) })
+            FilterChip(selected = tab == 2, onClick = { tab = 2 }, label = { Text("Playlists") },
+                leadingIcon = { Icon(Icons.Default.LibraryMusic, null, Modifier.size(FilterChipDefaults.IconSize)) })
+            FilterChip(selected = tab == 3, onClick = { tab = 3 }, label = { Text("Liked") },
+                leadingIcon = { Icon(Icons.Default.MusicNote, null, Modifier.size(FilterChipDefaults.IconSize)) })
             Spacer(modifier = Modifier.weight(1f))
-            TextButton(onClick = onClear, enabled = list.isNotEmpty()) {
-                Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp))
-                Text("Clear", modifier = Modifier.padding(start = 4.dp))
-            }
-        }
-        if (list.isEmpty()) {
-            Column(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Icon(
-                    if (showFavorites) Icons.Default.FavoriteBorder else Icons.Default.History,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.size(64.dp),
-                )
-                Text(
-                    text = if (showFavorites) "No favorites yet" else "Nothing played yet",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(top = 12.dp),
-                )
-                Text(
-                    text =
-                        if (showFavorites) {
-                            "Tap the heart on any song to save it here."
-                        } else {
-                            "Play a song and it'll show up here."
-                        },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-            }
-        } else {
-            LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
-                items(list, key = { it.videoId }) { hit ->
-                    val index = list.indexOf(hit)
-                    ResultRow(
-                        hit = hit,
-                        isActive = hit.videoId == nowPlayingId,
-                        isBusy = busyId == hit.videoId,
-                        onClick = { onPlayIndex(index) },
-                        isFavorite = isFavorite(hit),
-                        onToggleFavorite = { onToggleFavorite(hit) },
-                    )
+            if (showClear) {
+                TextButton(onClick = onClear) {
+                    Icon(Icons.Default.DeleteOutline, null, Modifier.size(18.dp))
+                    Text("Clear", modifier = Modifier.padding(start = 4.dp))
                 }
             }
+        }
+        when (tab) {
+            0, 1 ->
+                run {
+                    if (list.isEmpty()) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().weight(1f),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Icon(
+                                if (tab == 0) Icons.Default.FavoriteBorder else Icons.Default.History,
+                                null,
+                                tint = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.size(64.dp),
+                            )
+                            Text(
+                                if (tab == 0) "No favorites yet" else "Nothing played yet",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 12.dp),
+                            )
+                            Text(
+                                if (tab == 0) "Tap the heart on any song to save it here." else "Play a song and it'll show up here.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
+                            items(list, key = { it.videoId }) { hit ->
+                                val index = list.indexOf(hit)
+                                ResultRow(
+                                    hit = hit,
+                                    isActive = hit.videoId == nowPlayingId,
+                                    isBusy = busyId == hit.videoId,
+                                    onClick = { onPlayIndex(index) },
+                                    isFavorite = isFavorite(hit),
+                                    onToggleFavorite = { onToggleFavorite(hit) },
+                                )
+                            }
+                        }
+                    }
+                }
+            2 ->
+                if (!signedIn) {
+                    SignInHint()
+                } else if (openPlaylistTitle != null) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(onClick = onClosePlaylist) { Text("← Back") }
+                            Text(
+                                openPlaylistTitle,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                        when {
+                            openPlaylistLoading -> {
+                                Box(Modifier.weight(1f).fillMaxWidth()) {
+                                    CircularProgressIndicator(Modifier.align(Alignment.Center))
+                                }
+                            }
+                            openPlaylistTracks.isEmpty() -> {
+                                Box(Modifier.weight(1f).fillMaxWidth()) {
+                                    Text(
+                                        "No tracks found",
+                                        modifier = Modifier.align(Alignment.Center),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            else -> {
+                                LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+                                    items(openPlaylistTracks, key = { it.videoId }) { hit ->
+                                        val index = openPlaylistTracks.indexOf(hit)
+                                        ResultRow(
+                                            hit = hit,
+                                            isActive = hit.videoId == nowPlayingId,
+                                            isBusy = busyId == hit.videoId,
+                                            onClick = { onPlayPlaylistTracks(index) },
+                                            isFavorite = isFavorite(hit),
+                                            onToggleFavorite = { onToggleFavorite(hit) },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else if (playlistsLoading) {
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        CircularProgressIndicator(Modifier.align(Alignment.Center))
+                    }
+                } else if (libraryPlaylists.isEmpty()) {
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        Text(
+                            "No saved playlists",
+                            modifier = Modifier.align(Alignment.Center),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
+                        items(libraryPlaylists, key = { it.id }) { item ->
+                            PlaylistRow(item = item, onClick = { onOpenPlaylist(item) })
+                        }
+                    }
+                }
+            3 ->
+                if (!signedIn) {
+                    SignInHint()
+                } else if (likedLoading) {
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        CircularProgressIndicator(Modifier.align(Alignment.Center))
+                    }
+                } else if (likedSongs.isEmpty()) {
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        Text(
+                            "No liked songs",
+                            modifier = Modifier.align(Alignment.Center),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
+                        items(likedSongs, key = { it.videoId }) { hit ->
+                            val index = likedSongs.indexOf(hit)
+                            ResultRow(
+                                hit = hit,
+                                isActive = hit.videoId == nowPlayingId,
+                                isBusy = busyId == hit.videoId,
+                                onClick = { onPlayLiked(index) },
+                                isFavorite = isFavorite(hit),
+                                onToggleFavorite = { onToggleFavorite(hit) },
+                            )
+                        }
+                    }
+                }
+        }
+    }
+}
+
+@Composable
+private fun SignInHint() {
+    Column(
+        modifier = Modifier.weight(1f).fillMaxWidth(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            "Sign in to sync your library",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            "Use the Account tab to sign in to YouTube Music.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+    }
+}
+
+@Composable
+private fun PlaylistRow(
+    item: PlaylistHit,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RemoteImage(
+            url = item.thumbnailUrl,
+            contentDescription = item.title,
+            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
+        )
+        Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+            Text(item.title, maxLines = 1, style = MaterialTheme.typography.titleMedium)
+            if (!item.subtitle.isNullOrBlank()) {
+                Text(
+                    item.subtitle,
+                    maxLines = 1,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        IconButton(onClick = onClick) {
+            Text("›", style = MaterialTheme.typography.titleLarge)
         }
     }
 }

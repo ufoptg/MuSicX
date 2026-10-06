@@ -54,6 +54,14 @@ data class HomeRow(
     val items: List<SearchHit>,
 )
 
+/** A playlist in the user's library (liked/saved playlists tab). */
+data class PlaylistHit(
+    val id: String,
+    val title: String,
+    val subtitle: String? = null,
+    val thumbnailUrl: String? = null,
+)
+
 /**
  * Thin JVM wrapper around InnerTubeX for desktop search + stream resolve.
  * ponytail: local JSON walk instead of porting Android page parsers; replace when :innertube is JVM-capable.
@@ -149,6 +157,44 @@ class DesktopInnerTube : AutoCloseable {
         }
         walkShelves(raw)
         return rows
+    }
+
+    suspend fun likedSongs(): List<SearchHit> {
+        val raw =
+            innerTube
+                .browse(client = WEB_REMIX, browseId = "FEmusic_liked_videos", setLogin = true)
+                .body<JsonObject>()
+        return extractHits(raw)
+    }
+
+    suspend fun likedPlaylists(): List<PlaylistHit> {
+        val raw =
+            innerTube
+                .browse(client = WEB_REMIX, browseId = "FEmusic_liked_playlists", setLogin = true)
+                .body<JsonObject>()
+        val hits = LinkedHashMap<String, PlaylistHit>()
+        fun walk(el: JsonElement) {
+            when (el) {
+                is JsonObject -> {
+                    el["musicTwoRowItemRenderer"]?.jsonObject?.let { renderer ->
+                        parsePlaylistHit(renderer)?.let { hit -> hits.putIfAbsent(hit.id, hit) }
+                    }
+                    el.values.forEach(::walk)
+                }
+                is JsonArray -> el.forEach(::walk)
+                else -> Unit
+            }
+        }
+        walk(raw)
+        return hits.values.toList()
+    }
+
+    suspend fun playlistTracks(playlistId: String): List<SearchHit> {
+        val raw =
+            innerTube
+                .browse(client = WEB_REMIX, browseId = "VL$playlistId", setLogin = true)
+                .body<JsonObject>()
+        return extractHits(raw)
     }
 
     suspend fun resolveAudioStream(videoId: String): ExtractedStream {
@@ -291,6 +337,48 @@ class DesktopInnerTube : AutoCloseable {
                     ?.contentOrNull
 
             return SearchHit(videoId = videoId, title = title, subtitle = subtitle, thumbnailUrl = thumbnailUrl)
+        }
+
+        private fun parsePlaylistHit(renderer: JsonObject): PlaylistHit? {
+            val browseId =
+                renderer["navigationEndpoint"]
+                    ?.jsonObject
+                    ?.get("browseEndpoint")
+                    ?.jsonObject
+                    ?.get("browseId")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    ?: return null
+            // Playlist browses use "VL<playlistId>"; skip anything else (albums, artists).
+            val playlistId = browseId.removePrefix("VL").takeIf { browseId.startsWith("VL") && it.isNotEmpty() } ?: return null
+            val title =
+                renderer["title"]?.jsonObject?.get("runs")?.jsonArray
+                    ?.joinToString("") { run ->
+                        (run as? JsonObject)?.get("text")?.jsonPrimitive?.contentOrNull.orEmpty()
+                    }?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+                    ?: return null
+            val subtitle =
+                renderer["subtitle"]?.jsonObject?.get("runs")?.jsonArray
+                    ?.joinToString(" ") { run ->
+                        (run as? JsonObject)?.get("text")?.jsonPrimitive?.contentOrNull.orEmpty()
+                    }?.replace("  ", " ")?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+            val thumbnailUrl =
+                renderer["thumbnailRenderer"]
+                    ?.jsonObject
+                    ?.get("musicThumbnailRenderer")
+                    ?.jsonObject
+                    ?.get("thumbnail")
+                    ?.jsonObject
+                    ?.get("thumbnails")
+                    ?.jsonArray
+                    ?.lastOrNull()
+                    ?.jsonObject
+                    ?.get("url")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+            return PlaylistHit(id = playlistId, title = title, subtitle = subtitle, thumbnailUrl = thumbnailUrl)
         }
 
         private fun parseTwoRowRenderer(renderer: JsonObject): SearchHit? {
