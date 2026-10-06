@@ -69,8 +69,11 @@ compose.desktop {
         nativeDistributions {
             // EXE only while iterating slices (faster CI than MSI+WiX).
             targetFormats(TargetFormat.Exe)
+            // Embedded Swing/JavaFX interop (JFXPanel) needs java.desktop's
+            // jdk.swing.interop classes, which the default runtime image strips.
+            includeAllModules = true
             packageName = "MuSicX"
-            packageVersion = "13.14.2b"
+            packageVersion = "13.14.2"
             description = "MuSicX Desktop — YouTube Music client with Spotify integration"
             copyright = "© 2026 ufoptg / MuSicX contributors"
             vendor = "ufoptg"
