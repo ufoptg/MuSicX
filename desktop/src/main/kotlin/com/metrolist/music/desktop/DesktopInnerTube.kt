@@ -166,6 +166,14 @@ class DesktopInnerTube : AutoCloseable {
         ) ?: error("No playable stream for $videoId")
     }
 
+    fun setSessionCookie(cookie: String?) {
+        innerTube.cookie = cookie
+        innerTube.useLoginForBrowse = !cookie.isNullOrBlank()
+    }
+
+    val signedIn: Boolean
+        get() = !innerTube.sessionSnapshot().cookie.isNullOrBlank()
+
     override fun close() {
         runBlocking {
             runCatching { cipherService.dispose() }

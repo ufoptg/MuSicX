@@ -36,6 +36,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -107,6 +108,7 @@ import kotlinx.coroutines.isActive
 import kotlin.random.Random
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.net.URI
 import java.net.URL
 import java.util.Collections
 import java.util.LinkedHashMap
@@ -137,6 +139,7 @@ private enum class Destination(
     Home("Home", Icons.Default.Home),
     Search("Search", Icons.Default.Search),
     Library("Library", Icons.Default.LibraryMusic),
+    Account("Account", Icons.Default.AccountCircle),
 }
 
 private enum class RepeatMode { Off, All, One }
@@ -221,6 +224,7 @@ private fun MuSicXApp(
     var volume by remember { mutableStateOf(100) }
 
     var destination by remember { mutableStateOf(Destination.Home) }
+    var signedIn by remember { mutableStateOf(false) }
     var playerExpanded by remember { mutableStateOf(false) }
     var queueExpanded by remember { mutableStateOf(false) }
     var shuffleOn by remember { mutableStateOf(false) }
@@ -329,7 +333,14 @@ private fun MuSicXApp(
         }
     }
 
-    LaunchedEffect(Unit) { loadHome() }
+    LaunchedEffect(Unit) {
+        val stored = DesktopSessionStore.load()
+        if (!stored.cookie.isNullOrBlank()) {
+            client.setSessionCookie(stored.cookie)
+            signedIn = true
+        }
+        loadHome()
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -364,6 +375,24 @@ private fun MuSicXApp(
                                     onPlayIndex = { index -> playFrom(results, index) },
                                     isFavorite = ::isFavorite,
                                     onToggleFavorite = ::toggleFavorite,
+                                )
+                            Destination.Account ->
+                                LoginScreen(
+                                    signedIn = signedIn,
+                                    onSignIn = { cookie ->
+                                        DesktopSessionStore.save(DesktopSessionData(cookie = cookie))
+                                        client.setSessionCookie(cookie)
+                                        signedIn = true
+                                        homeRows = emptyList()
+                                        loadHome()
+                                    },
+                                    onSignOut = {
+                                        DesktopSessionStore.clear()
+                                        client.setSessionCookie(null)
+                                        signedIn = false
+                                        homeRows = emptyList()
+                                        loadHome()
+                                    },
                                 )
                             Destination.Library ->
                                 LibraryScreen(
@@ -800,6 +829,58 @@ private fun LibraryScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LoginScreen(
+    signedIn: Boolean,
+    onSignIn: (String) -> Unit,
+    onSignOut: () -> Unit,
+) {
+    var cookieText by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 24.dp)) {
+        ScreenTitle(title = "Account", subtitle = "Sign in to YouTube Music")
+        Spacer(modifier = Modifier.height(24.dp))
+        if (signedIn) {
+            Text("Signed in", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(12.dp))
+            TextButton(onClick = onSignOut) { Text("Sign out") }
+        } else {
+            Text(
+                "1. Sign in to YouTube Music in your browser.\n" +
+                    "2. Open DevTools → Application → Cookies → music.youtube.com.\n" +
+                    "3. Copy the full Cookie header value and paste it below.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            TextButton(onClick = {
+                runCatching { java.awt.Desktop.getDesktop().browse(URI("https://music.youtube.com")) }
+            }) { Text("Open YouTube Music in browser") }
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = cookieText,
+                onValueChange = { cookieText = it; error = null },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Cookie header") },
+                singleLine = true,
+            )
+            if (error != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(error!!, color = MaterialTheme.colorScheme.error)
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            TextButton(onClick = {
+                val trimmed = cookieText.trim()
+                if ("SAPISID=" in trimmed) {
+                    onSignIn(trimmed)
+                } else {
+                    error = "Cookie must contain SAPISID= — make sure you copied the full cookie header."
+                }
+            }) { Text("Sign in") }
         }
     }
 }
