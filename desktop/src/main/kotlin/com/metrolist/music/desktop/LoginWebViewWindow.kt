@@ -116,14 +116,19 @@ fun LoginWebViewWindow(
  * manager containing cookies for the given URL.
  */
 private fun collectYoutubeCookies(): List<Pair<String, String>> {
-    val manager: CefCookieManager? =
+    val manager: CefCookieManager =
         runCatching { CefCookieManager.getGlobalManager() }.getOrNull() ?: return emptyList()
     val found = mutableListOf<Pair<String, String>>()
     val visitor =
         object : CefCookieVisitor {
-            override fun visit(cookie: org.cef.network.CefCookie, count: Int, total: Int, delete: BoolRef): Boolean {
-                if (cookie.domain == "youtube.com" || cookie.domain.endsWith(".youtube.com")) {
-                    found += cookie.name to cookie.value
+            override fun visit(cookie: org.cef.network.CefCookie?, count: Int, total: Int, delete: org.cef.misc.BoolRef?): Boolean {
+                if (cookie != null) {
+                    val domain = cookie.domain ?: ""
+                    if (domain == "youtube.com" || domain.endsWith(".youtube.com")) {
+                        val name = cookie.name ?: ""
+                        val value = cookie.value ?: ""
+                        found += name to value
+                    }
                 }
                 return true
             }
@@ -131,3 +136,4 @@ private fun collectYoutubeCookies(): List<Pair<String, String>> {
     runCatching { manager.visitAllCookies(visitor) }
     return found
 }
+
