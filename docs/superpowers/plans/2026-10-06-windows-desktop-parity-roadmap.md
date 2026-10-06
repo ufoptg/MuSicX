@@ -27,7 +27,8 @@
 13. Android-style Home/Library/full player + smoother UI (`62fff9538`)
 14. Search Enter key, LRU artwork cache, temp cleanup (`259fdcc`)
 15. Persistent favorites/history + queue panel with shuffle/repeat (`fd1b19d`)
-16. Real YTM home browse with search-seeded fallback (`9804215`, PR #53 item 18)
+19. **Desktop login shell (`f7c39716c`)**: Account rail destination + LoginScreen — browser sign-in, paste Cookie header (validated for SAPISID=), persisted to `%APPDATA%/MuSicX/session.json`, injected into InnerTubeX (`cookie` + `useLoginForBrowse`); Home reloads on sign-in/out.
+18. Real YTM home browse with search-seeded fallback (`9804215`, PR #53 item 18)
 
 ## Global Constraints
 
@@ -41,7 +42,7 @@
 
 - [x] **Slice A: Real YTM home browse** (PR #53 item 18) — real `FEmusic_home` browse + carousel shelf parsing, search-seeded fallback kept. Landed in `9804215`.
 - [ ] **Slice B: Synced library/playlists** — pull user playlists/library from YTM account once logged in; merge with local `DesktopLibraryStore` favorites/history.
-- [ ] **Slice C: Account shell / login on desktop** — Google/YTM login in a desktop-safe way (embedded WebView or external browser flow); gate Slice B.
+- [x] **Slice C: Account shell / login on desktop** — paste-cookie sign-in shell persisting session.json; enables account-backed browse. Landed in `f7c39716c` (PR #53 item 19).
 - [ ] **Slice D: Coral theme polish pass** — align desktop palette/typography/shapes with Android Material 3 coral theme.
 - [ ] **Slice E: Spotify on desktop** — port the Spotify integration to desktop after YTM parity is done.
 - [ ] **Slice F: MSI packaging** — switch CI to also produce `.msi` when ready for release.
