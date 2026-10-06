@@ -50,17 +50,9 @@ fun LoginWebViewWindow(
                             "MuSicX/cef-profile",
                         ).apply { mkdirs() }
 
-                    val builder = CefAppBuilder()
-                    builder.setInstallDir(File(profileDir, "jcef-bundle"))
-                    builder.getCefSettings().windowless_rendering_enabled = false
-                    builder.getCefSettings().cache_path = profileDir.absolutePath
-                    builder.setAppHandler(object : MavenCefAppHandlerAdapter() {
-                        override fun stateHasChanged(state: CefAppState) {
-                            DesktopLog.log("CefApp state: $state")
-                        }
-                    })
-                    DesktopLog.log("Initialising CEF (bundle at ${profileDir.absolutePath})")
-                    val cefApp: CefApp = builder.build()
+                    DesktopLog.log("Ensuring CEF is initialised")
+                    val cefApp: CefApp = runCatching { globalCefApp() }
+                        .getOrElse { t -> throw t }
 
                     val client: CefClient = cefApp.createClient()
                     DesktopLog.log("Creating Chromium browser")
@@ -86,6 +78,8 @@ fun LoginWebViewWindow(
                         while (!captured && System.currentTimeMillis() < deadline) {
                             runCatching {
                                 cookies = collectYoutubeCookies()
+                                val found = if (cookies.any { it.first == "SAPISID" }) "present" else "no"
+                                DesktopLog.log("JCEF cookie poll: ${cookies.size} cookies, SAPISID $found")
                                 if (cookies.any { it.first == "SAPISID" }) {
                                     captured = true
                                     val header = cookies.joinToString("; ") { "${it.first}=${it.second}" }
@@ -109,6 +103,27 @@ fun LoginWebViewWindow(
         )
     }
 }
+
+private val globalCefAppInstance by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+    val profileDir =
+        File(
+            (System.getenv("APPDATA")?.takeIf { it.isNotBlank() } ?: "."),
+            "MuSicX/cef-profile",
+        ).apply { mkdirs() }
+    val builder = CefAppBuilder()
+    builder.setInstallDir(File(profileDir, "jcef-bundle"))
+    builder.getCefSettings().windowless_rendering_enabled = false
+    builder.getCefSettings().cache_path = profileDir.absolutePath
+    builder.setAppHandler(object : MavenCefAppHandlerAdapter() {
+        override fun stateHasChanged(state: CefAppState) {
+            DesktopLog.log("CefApp state: $state")
+        }
+    })
+    DesktopLog.log("Initialising CEF (bundle at ${profileDir.absolutePath})")
+    builder.build()
+}
+
+private fun globalCefApp(): CefApp = globalCefAppInstance
 
 /**
  * Returns the embedded Chromium instance's youtube.com cookies (name/value
