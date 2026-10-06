@@ -882,7 +882,7 @@ private fun LibraryScreen(
                 }
             2 ->
                 if (!signedIn) {
-                    SignInHint()
+                    SignInHint(modifier = Modifier.weight(1f))
                 } else if (openPlaylistTitle != null) {
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -946,7 +946,7 @@ private fun LibraryScreen(
                 }
             3 ->
                 if (!signedIn) {
-                    SignInHint()
+                    SignInHint(modifier = Modifier.weight(1f))
                 } else if (likedLoading) {
                     Box(Modifier.weight(1f).fillMaxWidth()) {
                         CircularProgressIndicator(Modifier.align(Alignment.Center))
@@ -979,9 +979,9 @@ private fun LibraryScreen(
 }
 
 @Composable
-private fun SignInHint() {
+private fun SignInHint(modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier.weight(1f).fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

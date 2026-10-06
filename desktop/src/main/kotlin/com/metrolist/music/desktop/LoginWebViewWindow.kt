@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.awt.SwingPanel
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.awt.SwingPanel.Alignment
 import androidx.compose.ui.window.Window
 import javafx.embed.swing.JFXPanel
 import javax.swing.JPanel
@@ -62,7 +61,6 @@ fun LoginWebViewWindow(
                 panel
             },
             modifier = Modifier.fillMaxSize(),
-            alignment = Alignment.Center,
         )
     }
 }
