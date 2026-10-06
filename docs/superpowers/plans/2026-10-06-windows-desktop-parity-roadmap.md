@@ -43,6 +43,7 @@
 - [x] **Slice A: Real YTM home browse** (PR #53 item 18) — real `FEmusic_home` browse + carousel shelf parsing, search-seeded fallback kept. Landed in `9804215`.
 - [ ] **Slice B: Synced library/playlists** — pull user playlists/library from YTM account once logged in; merge with local `DesktopLibraryStore` favorites/history.
 - [x] **Slice C: Account shell / login on desktop** — paste-cookie sign-in shell persisting session.json; enables account-backed browse. Landed in `f7c39716c` (PR #53 item 19).
+- [x] **Slice C2: Embedded WebView login** — JavaFX WebView sign-in window capturing the session cookie automatically (Android parity), paste/system-browser kept as fallback. Landed in `0170e4613` (PR #53 item 20).
 - [ ] **Slice D: Coral theme polish pass** — align desktop palette/typography/shapes with Android Material 3 coral theme.
 - [ ] **Slice E: Spotify on desktop** — port the Spotify integration to desktop after YTM parity is done.
 - [ ] **Slice F: MSI packaging** — switch CI to also produce `.msi` when ready for release.
