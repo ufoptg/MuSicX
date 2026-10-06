@@ -1,0 +1,194 @@
+
+===== MuSicX desktop session 2026-10-07T01:42:01.588154400 =====
+01:42:01.588  prewarm: initialising LibVLC…
+01:42:01.604  VLC init: resourcesDir=C:\Users\sammy\AppData\Local\MuSicX\app\resources vlcDir=C:\Users\sammy\AppData\Local\MuSicX\app\resources\vlc libvlcExists=true pluginsExists=true
+01:42:08.910  playHit: resolving yAuTUWITF9I (I'm Alive)
+01:42:10.597  playHit: resolved in 1687 ms
+01:42:10.602  play() itag=251 mime=audio/webm boundedRange=false rangeChunks=false host=rr3---sn-fpqxc5oq-2xg6.googlevideo.com
+01:42:10.889  VLC init: discovery OK, creating factory
+01:42:11.041  prewarm: ready in 9485 ms
+01:42:11.056  direct stream: opening url with options=[:no-video, :network-caching=2000, :http-reconnect]
+01:42:11.164  direct stream: state=OPENING @ 0ms
+01:42:11.269  direct stream: state=PLAYING @ 100ms
+01:42:11.269  direct stream PLAYING after 667 ms
+01:42:22.808  LoginWebViewWindow composing
+01:42:22.814  Initialising CEF (bundle at C:\Users\sammy\AppData\Roaming\MuSicX\cef-profile)
+01:42:28.974  Creating Chromium browser
+01:42:29.003  CefApp state: NEW
+01:42:29.003  CefApp state: INITIALIZING
+01:42:29.003  CefApp state: INITIALIZED
+01:43:48.547  LoginWebViewWindow composing
+01:43:48.548  LoginWebViewWindow factory failed :: IllegalStateException: Must be called before CefApp is initialized
+java.lang.IllegalStateException: Must be called before CefApp is initialized
+	at org.cef.CefApp.addAppHandler(CefApp.java:195)
+	at me.friwi.jcefmaven.CefAppBuilder.setAppHandler(CefAppBuilder.java:149)
+	at com.metrolist.music.desktop.LoginWebViewWindowKt.LoginWebViewWindow$lambda$0$0$0(LoginWebViewWindow.kt:57)
+	at androidx.compose.ui.viewinterop.TypedInteropViewHolder.<init>(InteropView.skiko.kt:56)
+	at androidx.compose.ui.viewinterop.SwingInteropViewHolder.<init>(SwingInteropViewHolder.desktop.kt:46)
+	at androidx.compose.ui.awt.SwingPanel_desktopKt.SwingPanel-euL9pac(SwingPanel.desktop.kt:96)
+	at androidx.compose.ui.awt.SwingPanel_desktopKt.SwingPanel(SwingPanel.desktop.kt:140)
+	at com.metrolist.music.desktop.LoginWebViewWindowKt.LoginWebViewWindow$lambda$0(LoginWebViewWindow.kt:44)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:131)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:52)
+	at androidx.compose.ui.awt.ComposeWindow.setContent$lambda$0(ComposeWindow.desktop.kt:184)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:122)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:52)
+	at androidx.compose.ui.awt.WindowContentLayout_desktopKt.WindowContentLayout(WindowContentLayout.desktop.kt:103)
+	at androidx.compose.ui.awt.ComposeWindowPanel.setContent$lambda$0$0(ComposeWindowPanel.desktop.kt:152)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:122)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:52)
+	at androidx.compose.runtime.CompositionLocalKt.CompositionLocalProvider(CompositionLocal.kt:428)
+	at androidx.compose.ui.awt.ComposeWindowPanel.setContent$lambda$0(ComposeWindowPanel.desktop.kt:149)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:122)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:52)
+	at androidx.compose.ui.scene.ComposeSceneMediator.setContent$lambda$0$0$0$0$0(ComposeSceneMediator.desktop.kt:674)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:122)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:52)
+	at androidx.compose.ui.layout.OverlayLayout_skikoKt.OverlayLayout(OverlayLayout.skiko.kt:76)
+	at androidx.compose.ui.viewinterop.InteropContainer_skikoKt.TrackInteropPlacementContainer(InteropContainer.skiko.kt:142)
+	at androidx.compose.ui.viewinterop.SwingInteropContainer.invoke$lambda$0(SwingInteropContainer.desktop.kt:281)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:122)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:52)
+	at androidx.compose.runtime.CompositionLocalKt.CompositionLocalProvider(CompositionLocal.kt:428)
+	at androidx.compose.ui.viewinterop.SwingInteropContainer.invoke(SwingInteropContainer.desktop.kt:278)
+	at androidx.compose.ui.scene.ComposeSceneMediator.setContent$lambda$0$0$0$0(ComposeSceneMediator.desktop.kt:673)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:122)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:52)
+	at androidx.compose.runtime.CompositionLocalKt.CompositionLocalProvider(CompositionLocal.kt:428)
+	at androidx.compose.ui.ProvideSystemTheme_desktopKt.ProvideSystemTheme(ProvideSystemTheme.desktop.kt:73)
+	at androidx.compose.ui.scene.ComposeSceneMediator.setContent$lambda$0$0$0(ComposeSceneMediator.desktop.kt:672)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:122)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:52)
+	at androidx.compose.runtime.CompositionLocalKt.CompositionLocalProvider(CompositionLocal.kt:408)
+	at androidx.compose.ui.platform.CompositionLocals_skikoKt.ProvidePlatformCompositionLocals(CompositionLocals.skiko.kt:92)
+	at androidx.compose.ui.scene.BaseComposeScene$setContent$1$2.invoke(BaseComposeScene.skiko.kt:143)
+	at androidx.compose.ui.scene.BaseComposeScene$setContent$1$2.invoke(BaseComposeScene.skiko.kt:142)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:122)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:52)
+	at androidx.compose.runtime.CompositionLocalKt.CompositionLocalProvider(CompositionLocal.kt:408)
+	at androidx.compose.ui.platform.CompositionLocalsKt.ProvideCommonCompositionLocals(CompositionLocals.kt:255)
+	at androidx.compose.ui.platform.Wrapper_skikoKt.setContent$lambda$0$0(Wrapper.skiko.kt:40)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:122)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:52)
+	at androidx.compose.runtime.CompositionLocalKt.CompositionLocalProvider(CompositionLocal.kt:408)
+	at androidx.compose.runtime.CompositionLocalKt.CompositionLocalProvider(CompositionLocal.kt:448)
+	at androidx.compose.ui.platform.Wrapper_skikoKt.provide(Wrapper.skiko.kt:53)
+	at androidx.compose.ui.platform.Wrapper_skikoKt.setContent$lambda$0(Wrapper.skiko.kt:39)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:122)
+	at androidx.compose.runtime.internal.ComposableLambdaImpl.invoke(ComposableLambda.kt:52)
+	at androidx.compose.runtime.internal.Expect_jvmKt.invokeComposable(Expect.jvmAndAndroid.kt:26)
+	at androidx.compose.runtime.GapComposer.doCompose-aFTiNEg(GapComposer.kt:2643)
+	at androidx.compose.runtime.GapComposer.composeContent--ZbOJvo$runtime(GapComposer.kt:2545)
+	at androidx.compose.runtime.CompositionImpl.composeContent(Composition.kt:905)
+	at androidx.compose.runtime.Recomposer.composeInitial$runtime(Recomposer.kt:1178)
+	at androidx.compose.runtime.CompositionImpl.composeInitial(Composition.kt:735)
+	at androidx.compose.runtime.CompositionImpl.setContent(Composition.kt:702)
+	at androidx.compose.ui.platform.Wrapper_skikoKt.setContent(Wrapper.skiko.kt:38)
+	at androidx.compose.ui.scene.CanvasLayersComposeSceneImpl.createComposition(CanvasLayersComposeScene.skiko.kt:240)
+	at androidx.compose.ui.scene.BaseComposeScene.setContent(BaseComposeScene.skiko.kt:140)
+	at androidx.compose.ui.scene.ComposeScene.setContent$default(ComposeScene.skiko.kt:182)
+	at androidx.compose.ui.scene.ComposeSceneMediator.setContent$lambda$0(ComposeSceneMediator.desktop.kt:671)
+	at androidx.compose.ui.scene.ComposeSceneMediator.onComponentAttached(ComposeSceneMediator.desktop.kt:633)
+	at androidx.compose.ui.scene.ComposeContainer.addNotify(ComposeContainer.desktop.kt:375)
+	at androidx.compose.ui.awt.ComposeWindowPanel.addNotify(ComposeWindowPanel.desktop.kt:129)
+	at java.desktop/java.awt.Container.addNotify(Unknown Source)
+	at java.desktop/javax.swing.JComponent.addNotify(Unknown Source)
+	at java.desktop/java.awt.Container.addNotify(Unknown Source)
+	at java.desktop/javax.swing.JComponent.addNotify(Unknown Source)
+	at java.desktop/java.awt.Container.addNotify(Unknown Source)
+	at java.desktop/javax.swing.JComponent.addNotify(Unknown Source)
+	at java.desktop/javax.swing.JRootPane.addNotify(Unknown Source)
+	at java.desktop/java.awt.Container.addNotify(Unknown Source)
+	at java.desktop/java.awt.Window.addNotify(Unknown Source)
+	at java.desktop/java.awt.Frame.addNotify(Unknown Source)
+	at java.desktop/java.awt.Window.pack(Unknown Source)
+	at androidx.compose.ui.util.Windows_desktopKt.setSizeImpl-6HolHcs(Windows.desktop.kt:115)
+	at androidx.compose.ui.util.Windows_desktopKt.setSizeSafely-hQcJfNw(Windows.desktop.kt:54)
+	at androidx.compose.ui.awt.SwingWindow_desktopKt.SwingWindow$lambda$25$0(SwingWindow.desktop.kt:309)
+	at androidx.compose.ui.awt.SwingWindow_desktopKt.SwingWindow$lambda$7$0(SwingWindow.desktop.kt:134)
+	at androidx.compose.ui.awt.AwtWindow_desktopKt.AwtWindow$lambda$3$0(AwtWindow.desktop.kt:79)
+	at androidx.compose.ui.util.UpdateEffect_desktopKt.UpdateEffect$lambda$3$0$performUpdate$1(UpdateEffect.desktop.kt:59)
+	at androidx.compose.runtime.snapshots.SnapshotStateObserver.observeReads(SnapshotStateObserver.kt:730)
+	at androidx.compose.ui.util.UpdateEffect_desktopKt.UpdateEffect$lambda$3$0$performUpdate(UpdateEffect.desktop.kt:55)
+	at androidx.compose.ui.util.UpdateEffect_desktopKt.UpdateEffect$lambda$3$0(UpdateEffect.desktop.kt:64)
+	at androidx.compose.runtime.DisposableEffectImpl.onRemembered(Effects.kt:231)
+	at androidx.compose.runtime.internal.RememberEventDispatcher.dispatchRememberList(RememberEventDispatcher.kt:268)
+	at androidx.compose.runtime.internal.RememberEventDispatcher.dispatchRememberObservers(RememberEventDispatcher.kt:240)
+	at androidx.compose.runtime.CompositionImpl.applyChangesInLocked(Composition.kt:1229)
+	at androidx.compose.runtime.CompositionImpl.applyChanges(Composition.kt:1256)
+	at androidx.compose.runtime.Recomposer$runRecomposeAndApplyChanges$2.invokeSuspend$lambda$2(Recomposer.kt:733)
+	at androidx.compose.runtime.BroadcastFrameClock$FrameAwaiter.resume(BroadcastFrameClock.kt:56)
+	at androidx.compose.runtime.BroadcastFrameClock.sendFrame$lambda$0(BroadcastFrameClock.kt:71)
+	at androidx.compose.runtime.internal.AwaiterQueue.flushAndDispatchAwaiters(AwaiterQueue.kt:89)
+	at androidx.compose.runtime.BroadcastFrameClock.sendFrame(BroadcastFrameClock.kt:71)
+	at androidx.compose.ui.platform.FrameRecomposer.performFrame(FrameRecomposer.skiko.kt:150)
+	at androidx.compose.ui.scene.SingleComposeSceneRenderingScope.render(SingleComposeSceneRenderingScope.kt:75)
+	at androidx.compose.ui.scene.ComposeSceneMediator.onRender$lambda$0$0(ComposeSceneMediator.desktop.kt:733)
+	at androidx.compose.ui.viewinterop.SwingInteropContainer.postponingExecutingScheduledUpdates(SwingInteropContainer.desktop.kt:297)
+	at androidx.compose.ui.scene.ComposeSceneMediator.onRender(ComposeSceneMediator.desktop.kt:730)
+	at org.jetbrains.skiko.SkiaLayer.update$skiko(SkiaLayer.awt.kt:629)
+	at org.jetbrains.skiko.redrawer.AWTRedrawer.update(AWTRedrawer.kt:54)
+	at org.jetbrains.skiko.redrawer.Redrawer.update$default(Redrawer.kt:15)
+	at org.jetbrains.skiko.redrawer.Direct3DRedrawer$frameDispatcher$1.invokeSuspend(Direct3DRedrawer.kt:49)
+	at org.jetbrains.skiko.redrawer.Direct3DRedrawer$frameDispatcher$1.invoke(Direct3DRedrawer.kt)
+	at org.jetbrains.skiko.redrawer.Direct3DRedrawer$frameDispatcher$1.invoke(Direct3DRedrawer.kt)
+	at org.jetbrains.skiko.FrameDispatcher$job$1.invokeSuspend(FrameDispatcher.kt:33)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at java.desktop/java.awt.event.InvocationEvent.dispatch(Unknown Source)
+	at java.desktop/java.awt.EventQueue.dispatchEventImpl(Unknown Source)
+	at java.desktop/java.awt.EventQueue$4.run(Unknown Source)
+	at java.desktop/java.awt.EventQueue$4.run(Unknown Source)
+	at java.base/java.security.AccessController.doPrivileged(Unknown Source)
+	at java.base/java.security.ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege(Unknown Source)
+	at java.desktop/java.awt.EventQueue.dispatchEvent(Unknown Source)
+	at java.desktop/java.awt.EventDispatchThread.pumpOneEventForFilters(Unknown Source)
+	at java.desktop/java.awt.EventDispatchThread.pumpEventsForFilter(Unknown Source)
+	at java.desktop/java.awt.EventDispatchThread.pumpEventsForHierarchy(Unknown Source)
+	at java.desktop/java.awt.EventDispatchThread.pumpEvents(Unknown Source)
+	at java.desktop/java.awt.EventDispatchThread.pumpEvents(Unknown Source)
+	at java.desktop/java.awt.EventDispatchThread.run(Unknown Source)
+
+01:43:57.045  JCEF sign-in detected (SAPISID present)
+
+===== MuSicX desktop session 2026-10-07T01:45:41.080441600 =====
+01:45:41.079  prewarm: initialising LibVLC…
+01:45:41.090  VLC init: resourcesDir=C:\Users\sammy\AppData\Local\MuSicX\app\resources vlcDir=C:\Users\sammy\AppData\Local\MuSicX\app\resources\vlc libvlcExists=true pluginsExists=true
+01:45:41.310  VLC init: discovery OK, creating factory
+01:45:41.479  prewarm: ready in 410 ms
+01:48:19.993  playHit: resolving ghPrFyNtj1c (Always Been Here for You (feat. Emmy Mack))
+01:48:20.379  playHit: resolved in 386 ms
+01:48:20.380  play() itag=251 mime=audio/webm boundedRange=false rangeChunks=false host=rr2---sn-fpqxc5oq-2xgz.googlevideo.com
+01:48:20.389  direct stream: opening url with options=[:no-video, :network-caching=2000, :http-reconnect]
+01:48:20.493  direct stream: state=OPENING @ 0ms
+01:48:21.102  direct stream: state=PLAYING @ 600ms
+01:48:21.102  direct stream PLAYING after 721 ms
+01:50:09.000  playHit: resolving Fuy7fhH79IQ (Smoke and Drive)
+01:50:09.277  playHit: resolved in 276 ms
+01:50:09.277  play() itag=251 mime=audio/webm boundedRange=false rangeChunks=false host=rr2---sn-fpqxc5oq-2xg6.googlevideo.com
+01:50:09.287  direct stream: opening url with options=[:no-video, :network-caching=2000, :http-reconnect]
+01:50:09.390  direct stream: state=OPENING @ 0ms
+01:50:10.095  direct stream: state=PLAYING @ 700ms
+01:50:10.095  direct stream PLAYING after 817 ms
+01:50:12.395  playHit: resolving ghPrFyNtj1c (Always Been Here for You (feat. Emmy Mack))
+01:50:12.655  playHit: resolved in 259 ms
+01:50:12.655  play() itag=251 mime=audio/webm boundedRange=false rangeChunks=false host=rr2---sn-fpqxc5oq-2xgz.googlevideo.com
+01:50:12.665  direct stream: opening url with options=[:no-video, :network-caching=2000, :http-reconnect]
+01:50:12.768  direct stream: state=OPENING @ 0ms
+01:50:12.868  direct stream: state=PLAYING @ 100ms
+01:50:12.869  direct stream PLAYING after 213 ms
+01:50:15.251  playHit: resolving ghPrFyNtj1c (Always Been Here for You (feat. Emmy Mack))
+01:50:15.492  playHit: resolved in 240 ms
+01:50:15.493  play() itag=251 mime=audio/webm boundedRange=false rangeChunks=false host=rr2---sn-fpqxc5oq-2xgz.googlevideo.com
+01:50:15.500  direct stream: opening url with options=[:no-video, :network-caching=2000, :http-reconnect]
+01:50:15.602  direct stream: state=OPENING @ 0ms
+01:50:15.704  direct stream: state=PLAYING @ 100ms
+01:50:15.704  direct stream PLAYING after 211 ms
+01:50:18.679  playHit: resolving ghPrFyNtj1c (Always Been Here for You (feat. Emmy Mack))
+01:50:18.930  playHit: resolved in 251 ms
+01:50:18.931  play() itag=251 mime=audio/webm boundedRange=false rangeChunks=false host=rr2---sn-fpqxc5oq-2xgz.googlevideo.com
+01:50:18.966  direct stream: opening url with options=[:no-video, :network-caching=2000, :http-reconnect]
+01:50:19.068  direct stream: state=OPENING @ 0ms
+01:50:19.170  direct stream: state=PLAYING @ 100ms
+01:50:19.170  direct stream PLAYING after 239 ms
+01:50:22.697  CefApp state: SHUTTING_DOWN
