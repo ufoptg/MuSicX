@@ -51,10 +51,9 @@ dependencies {
     implementation("org.openjfx:javafx-web:$javafxVersion:win")
     implementation("org.openjfx:javafx-swing:$javafxVersion:win")
 
-    // Reads the Chrome/Edge temp profile cookie DB for the browser-based login flow.
-    implementation("org.xerial:sqlite-jdbc:3.46.1.3")
-    implementation("net.java.dev.jna:jna:5.14.0")
-    implementation("net.java.dev.jna:jna-platform:5.14.0")
+    // Embedded Chromium browser for in-app sign-in (JCEF).
+    implementation("me.friwi:jcefmaven:152.0.6")
+    implementation("me.friwi:jcef-natives-windows-amd64:152.0.6")
 }
 
 compose.desktop {
