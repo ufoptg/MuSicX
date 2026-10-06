@@ -6,27 +6,36 @@
 
 package com.metrolist.music.desktop
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.contentOrNull
 import java.io.File
-import java.nio.file.Files
-import java.sql.DriverManager
-import java.util.Base64
-import javax.crypto.Cipher
-import javax.crypto.spec.GCMParameterSpec
-import javax.crypto.spec.SecretKeySpec
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import java.net.ServerSocket
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.net.http.WebSocket
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
+import java.util.concurrent.TimeUnit
 
 /**
- * Launches a dedicated Chrome/Edge profile so the user can sign in normally,
- * then reads the youtube.com cookies from that profile's cookie store.
+ * Launches a dedicated Chrome/Edge profile at the Google sign-in page and reads
+ * the YouTube cookies directly from the browser over the DevTools protocol.
  *
- * Windows-only because cookie values are DPAPI-decrypted. On other platforms the
- * paste-cookie flow remains the way to sign in; the code path returns a clear
- * error explaining that.
+ * Rationale: Google shares cookies across Google/YouTube when the user signs in.
+ * The browser exposes them through the DevTools protocol while it's alive, so we
+ * don't need decrypted-cookie-store parsing. As soon as we see a SAPISID cookie,
+ * we close the launched browser and return the cookie header.
+ *
+ * Requires Chrome or Edge installed. Sign-in inside the launched browser is the
+ * usual flow (you'll sign in with your Google account, land on YouTube, and the
+ * app picks it up from there).
  */
 object BrowserCookieImporter {
     const val SIGN_IN_URL =
@@ -61,9 +70,9 @@ object BrowserCookieImporter {
     }
 
     /**
-     * Opens the temp-profile browser at the Google sign-in page, then waits until
-     * that browser window closes and returns the youtube.com cookie header.
-     * Throws with a user-readable message on failure.
+     * Opens the temp-profile browser at the Google sign-in page and returns the
+     * youtube.com cookie header as soon as SAPISID is visible there. The browser
+     * is terminated afterwards. Throws with a user-readable message on failure.
      */
     suspend fun import(): String =
         withContext(Dispatchers.IO) {
@@ -71,148 +80,143 @@ object BrowserCookieImporter {
                 browserExe()
                     ?: error("Chrome or Edge not found. Sign in via the system browser and paste the cookie below.")
             val profile = profileDir()
-            DesktopLog.log("BrowserCookieImporter: launching ${exe.name} with temp profile ${profile.absolutePath}")
+            val port = ServerSocket(0).use { it.localPort }
+            DesktopLog.log("BrowserCookieImporter: launching ${exe.name} with temp profile ${profile.absolutePath} (CDP port $port)")
             val process =
                 ProcessBuilder(
                     exe.absolutePath,
                     "--user-data-dir=${profile.absolutePath}",
                     "--no-first-run",
                     "--no-default-browser-check",
+                    "--remote-debugging-port=$port",
                     SIGN_IN_URL,
                 ).start()
-            process.waitFor()
-            DesktopLog.log("BrowserCookieImporter: browser process exited, reading cookie store")
-            extractCookies(profile)
+            try {
+                val cookies =
+                    runCatching { pollUntilSapisid(port, process) }
+                        .getOrElse { error(it.message ?: it::class.simpleName ?: "Unknown error") }
+                DesktopLog.log("BrowserCookieImporter: SAPISID found, terminating helper browser")
+                runCatching { process.destroy() }
+                runCatching { process.waitFor(10, TimeUnit.SECONDS) }
+                cookies
+            } catch (t: Throwable) {
+                runCatching { process.destroy() }
+                throw t
+            }
         }
 
-    private fun extractCookies(profile: File): String {
-        val db =
-            sequenceOf(
-                File(profile, "Default\\Network\\Cookies"),
-                File(profile, "Default\\Cookies"),
-            ).firstOrNull { it.isFile }
-                ?: error("No browser cookie store found. Sign in to YouTube Music in the browser window, then close it, and try again.")
-
-        val tmp = Files.createTempDirectory("musicx-cookies").toFile()
-        fun copy(src: File, name: String) {
-            val dest = File(tmp, name)
-            if (src.isFile) Files.copy(src.toPath(), dest.toPath())
-        }
-        copy(db, "Cookies")
-        copy(File(db.parentFile, "Cookies-wal"), "Cookies-wal")
-        copy(File(db.parentFile, "Cookies-shm"), "Cookies-shm")
-
-        val aesKey =
-            deriveAesKey(File(profile, "Local State"))
-                ?: error("Could not read the browser encryption key from ${profile.absolutePath}")
-
-        val cookies = LinkedHashMap<String, String>()
-        DriverManager.getConnection("jdbc:sqlite:${File(tmp, "Cookies").absolutePath}").use { conn ->
-            conn
-                .prepareStatement(
-                    "SELECT name, value, encrypted_value, host_key FROM cookies WHERE host_key LIKE '%youtube.com'",
-                ).use { stmt ->
-                    stmt.executeQuery().use { rs ->
-                        while (rs.next()) {
-                            val name = rs.getString("name") ?: continue
-                            val value = rs.getString("value").orEmpty()
-                            val encrypted = rs.getBytes("encrypted_value")
-                            val decrypted =
-                                when {
-                                    value.isNotEmpty() -> value
-                                    encrypted != null && encrypted.isNotEmpty() ->
-                                        runCatching { decryptCookie(encrypted, aesKey) }
-                                            .getOrElse {
-                                                DesktopLog.log("Could not decrypt cookie '$name'", it)
-                                                ""
-                                            }
-                                    else -> ""
-                                }
-                            if (decrypted.isNotEmpty()) {
-                                cookies[name] = decrypted
-                            }
-                        }
-                    }
-                }
-        }
-
-        if ("SAPISID" !in cookies) {
-            error("No YouTube sign-in cookies found in the browser profile. Make sure you completed sign-in (and landed on music.youtube.com) before closing the browser.")
-        }
-        return cookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
-    }
-
-    /** Reads the Local State file and runs its DPAPI-encrypted AES key through dpapiUnprotect. */
-    private fun deriveAesKey(localState: File): ByteArray? {
-        if (!localState.isFile) {
-            DesktopLog.log("Local State not found at ${localState.absolutePath}")
-            return null
-        }
-        return try {
-            val json = Json.parseToJsonElement(localState.readText()).jsonObject
-            val encKeyB64 =
-                json["os_crypt"]
-                    ?.jsonObject
-                    ?.get("encrypted_key")
-                    ?.jsonPrimitive
-                    ?.contentOrNull
-                    ?: error("os_crypt.encrypted_key not present in ${localState.absolutePath}")
-            val raw = Base64.getDecoder().decode(encKeyB64)
-            // raw starts with the 5 bytes "DPAPI", rest is the DPAPI blob.
-            val blob = raw.copyOfRange(5, raw.size)
-            dpapiUnprotect(blob)
-        } catch (t: Throwable) {
-            DesktopLog.log("Failed to derive browser AES key", t)
-            throw IllegalStateException(
-                "Could not read the browser encryption key from ${localState.parentFile?.absolutePath}",
-                t,
-            )
+    /**
+     * Polls CDP for youtube.com cookies; returns as soon as SAPISID shows up.
+     * `null` whenever the browser process ends first.
+     */
+    private suspend fun pollUntilSapisid(port: Int, process: Process): String {
+        val deadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(15)
+        var attempt = 0
+        while (true) {
+            if (!process.isAlive) {
+                DesktopLog.log("BrowserCookieImporter: helper browser exited before SAPISID was seen")
+                error("The browser was closed before a YouTube sign-in cookie was detected. Sign in (so you land on music.youtube.com), wait, then close the window.")
+            }
+            val list = httpJson("http://127.0.0.1:$port/json/list")
+            if (list != null && list.startsWith('[')) {
+                runCatching {
+                    val hit = cookiesFromWsTargets(list)
+                    if (hit != null) return hit
+                }.onFailure { DesktopLog.log("BrowserCookieImporter: ws probe failed: ${it.message}") }
+            }
+            if (System.nanoTime() > deadline) {
+                error("Timed out waiting for YouTube sign-in cookies. Please try again.")
+            }
+            attempt++
+            delay(1000)
         }
     }
 
-    private fun dpapiUnprotect(blob: ByteArray): ByteArray =
+    private fun cookiesFromWsTargets(listJson: String): String? {
+        val elements = Json.parseToJsonElement(listJson).jsonArray
+        for (element in elements) {
+            val obj = element.jsonObject
+            val type = obj["type"]?.jsonPrimitive?.contentOrNull
+            val url = obj["url"]?.jsonPrimitive?.contentOrNull
+            val wsUrl = obj["webSocketDebuggerUrl"]?.jsonPrimitive?.contentOrNull
+            if (type == "page" && wsUrl != null && (url == null || url.contains("youtube.com") || url.contains("google.com"))) {
+                val cookies = wsGetAllCookies(wsUrl)
+                if (cookies != null && cookies.any { it.first == "SAPISID" })
+                    return cookies.joinToString("; ") { "${it.first}=${it.second}" }
+            }
+        }
+        return null
+    }
+
+    private fun wsGetAllCookies(wsUrl: String): List<Pair<String, String>>? {
+        val client = HttpClient.newHttpClient()
+        val listener = Listener()
+        val ws =
+            client.newWebSocketBuilder().buildAsync(URI.create(wsUrl), listener).get(10, TimeUnit.SECONDS)
         try {
-            // Prefer direct Win32 CryptUnprotectData via JNA; no external process needed.
-            com.sun.jna.platform.win32.Crypt32Util.cryptUnprotectData(blob)
-        } catch (t: Throwable) {
-            DesktopLog.log("JNA DPAPI unprotect unavailable, falling back to PowerShell", t)
-            dpapiUnprotectViaPowerShell(blob)
+            ws.sendText("{\"id\":1,\"method\":\"Network.getAllCookies\"}", true).get(10, TimeUnit.SECONDS)
+            val raw = listener.take(10, TimeUnit.SECONDS) ?: return null
+            val message = Json.parseToJsonElement(raw).jsonObject
+            val cookies =
+                message["result"]?.jsonObject?.get("cookies")?.jsonArray ?: return null
+            val list = mutableListOf<Pair<String, String>>()
+            for (cookie in cookies) {
+                val obj = cookie.jsonObject
+                val name = obj["name"]?.jsonPrimitive?.contentOrNull ?: continue
+                val value = obj["value"]?.jsonPrimitive?.contentOrNull ?: continue
+                val domain = obj["domain"]?.jsonPrimitive?.contentOrNull ?: continue
+                if (domain == "youtube.com" || domain.endsWith(".youtube.com")) {
+                    list += name to value
+                }
+            }
+            return list.takeIf { it.isNotEmpty() }
+        } finally {
+            runCatching { ws.abort() }
+            client.close()
         }
-
-    private fun dpapiUnprotectViaPowerShell(blob: ByteArray): ByteArray {
-        val b64 = Base64.getEncoder().encodeToString(blob)
-        val command =
-            listOf(
-                "powershell.exe",
-                "-NoProfile",
-                "-NonInteractive",
-                "-Command",
-                "[Convert]::ToBase64String(" +
-                    "[System.Security.Cryptography.ProtectedData]::Unprotect(" +
-                    "[Convert]::FromBase64String('$b64'), \$null, " +
-                    "[System.Security.Cryptography.DataProtectionScope]::CurrentUser))",
-            )
-        val process = ProcessBuilder(command).redirectErrorStream(true).start()
-        val output = process.inputStream.bufferedReader().readText().trim()
-        val exitCode = process.waitFor()
-        if (exitCode != 0 || output.isEmpty()) {
-            error("DPAPI unprotect failed (exit $exitCode): ${output.take(500)}")
-        }
-        return Base64.getDecoder().decode(output)
     }
 
-    /** Decrypts a Chrome v10 AES-GCM cookie value with the given key bytes. */
-    private fun decryptCookie(encrypted: ByteArray, key: ByteArray): String {
-        val prefix = String(encrypted, 0, 3, Charsets.US_ASCII)
-        require(prefix == "v10") { "Unsupported cookie format '$prefix'" }
-        val nonce = encrypted.copyOfRange(3, 15)
-        val ciphertext = encrypted.copyOfRange(15, encrypted.size)
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(
-            Cipher.DECRYPT_MODE,
-            SecretKeySpec(key, "AES"),
-            GCMParameterSpec(128, nonce),
-        )
-        return String(cipher.doFinal(ciphertext), Charsets.UTF_8)
+    private fun httpJson(url: String): String? =
+        runCatching {
+            val client = HttpClient.newHttpClient()
+            try {
+                val response =
+                    client
+                        .send(
+                            HttpRequest
+                                .newBuilder(URI.create(url))
+                                .GET()
+                                .build(),
+                            HttpResponse.BodyHandlers.ofString(),
+                        )
+                if (response.statusCode() in 200..299) response.body() else null
+            } finally {
+                client.close()
+            }
+        }.getOrNull()
+
+    /** Compacts ws responses to the single response message we care about. */
+    private class Listener : WebSocket.Listener {
+        private val buffer = StringBuilder()
+        private var result: CompletableFuture<String> = CompletableFuture()
+
+        override fun onText(webSocket: WebSocket, data: CharSequence, last: Boolean): java.util.concurrent.CompletionStage<*> {
+            buffer.append(data)
+            if (last) {
+                result.complete(buffer.toString())
+            }
+            return CompletableFuture.completedFuture(null)
+        }
+
+        override fun onError(webSocket: WebSocket, error: Throwable) {
+            result.completeExceptionally(error)
+        }
+
+        fun take(timeout: Long, unit: TimeUnit): String? =
+            try {
+                result.get(timeout, unit)
+            } catch (_: Exception) {
+                null
+            }
     }
 }
