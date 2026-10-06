@@ -91,12 +91,14 @@ class DesktopInnerTube : AutoCloseable {
     }
 
     /**
-     * Builds a lightweight Home feed as a set of titled shelves. YTM's real home browse isn't
-     * wired into the desktop InnerTubeX wrapper yet, so each shelf is seeded from a category
-     * search (fetched in parallel). Spotify-style shell mapping (see PR #53), not Android parity.
+     * Home feed as titled shelves. Prefers the real YTM home browse; falls back to
+     * category-search-seeded shelves when the browse fails or yields nothing playable
+     * (offline, blocked, unexpected layout).
      */
-    suspend fun homeFeed(): List<HomeRow> =
-        coroutineScope {
+    suspend fun homeFeed(): List<HomeRow> {
+        val real = runCatching { homeRows() }.getOrDefault(emptyList())
+        if (real.isNotEmpty()) return real
+        return coroutineScope {
             HOME_CATEGORIES
                 .map { (title, query) ->
                     async(Dispatchers.IO) {
@@ -109,6 +111,45 @@ class DesktopInnerTube : AutoCloseable {
                 }.awaitAll()
                 .filter { it.items.isNotEmpty() }
         }
+    }
+
+    /** Real YTM home browse: one row per carousel shelf, items capped at 12. */
+    private suspend fun homeRows(): List<HomeRow> {
+        val raw =
+            innerTube
+                .browse(client = WEB_REMIX, browseId = "FEmusic_home", setLogin = false)
+                .body<JsonObject>()
+        val rows = mutableListOf<HomeRow>()
+        fun walkShelves(el: JsonElement) {
+            when (el) {
+                is JsonObject -> {
+                    el["musicCarouselShelfRenderer"]?.jsonObject?.let { shelf ->
+                        val title =
+                            shelf["header"]
+                                ?.jsonObject
+                                ?.get("musicCarouselShelfBasicHeaderRenderer")
+                                ?.jsonObject
+                                ?.get("title")
+                                ?.jsonObject
+                                ?.get("runs")
+                                ?.jsonArray
+                                ?.joinToString("") { run ->
+                                    (run as? JsonObject)?.get("text")?.jsonPrimitive?.contentOrNull.orEmpty()
+                                }?.trim()
+                        val items = extractHits(shelf).take(12)
+                        if (!title.isNullOrEmpty() && items.isNotEmpty()) {
+                            rows += HomeRow(title, items)
+                        }
+                    }
+                    el.values.forEach(::walkShelves)
+                }
+                is JsonArray -> el.forEach(::walkShelves)
+                else -> Unit
+            }
+        }
+        walkShelves(raw)
+        return rows
+    }
 
     suspend fun resolveAudioStream(videoId: String): ExtractedStream {
         // VLC plays WebM/Opus and AAC; disable SABR/HLS and prefer non-bounded progressive URLs.
@@ -188,6 +229,11 @@ class DesktopInnerTube : AutoCloseable {
                                 hits.putIfAbsent(hit.videoId, hit)
                             }
                         }
+                        el["musicTwoRowItemRenderer"]?.jsonObject?.let { renderer ->
+                            parseTwoRowRenderer(renderer)?.let { hit ->
+                                hits.putIfAbsent(hit.videoId, hit)
+                            }
+                        }
                         el.values.forEach(::walk)
                     }
                     is JsonArray -> el.forEach(::walk)
@@ -236,6 +282,58 @@ class DesktopInnerTube : AutoCloseable {
                     ?.jsonPrimitive
                     ?.contentOrNull
 
+            return SearchHit(videoId = videoId, title = title, subtitle = subtitle, thumbnailUrl = thumbnailUrl)
+        }
+
+        private fun parseTwoRowRenderer(renderer: JsonObject): SearchHit? {
+            val navigation = renderer["navigationEndpoint"]?.jsonObject
+            val videoId =
+                navigation?.get("watchEndpoint")?.jsonObject?.get("videoId")?.jsonPrimitive?.contentOrNull
+                    ?: navigation?.get("watchPlaylistEndpoint")?.jsonObject?.get("videoId")?.jsonPrimitive?.contentOrNull
+                    ?: findVideoId(renderer)
+                    ?: return null
+            val title =
+                renderer["title"]?.jsonObject?.get("runs")?.jsonArray
+                    ?.joinToString("") { run ->
+                        (run as? JsonObject)?.get("text")?.jsonPrimitive?.contentOrNull.orEmpty()
+                    }?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+                    ?: return null
+            val subtitle =
+                renderer["subtitle"]?.jsonObject?.get("runs")?.jsonArray
+                    ?.joinToString(" ") { run ->
+                        (run as? JsonObject)?.get("text")?.jsonPrimitive?.contentOrNull.orEmpty()
+                    }?.replace("  ", " ")?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+            val thumbnailUrl =
+                runCatching {
+                    renderer["thumbnailRenderer"]
+                        ?.jsonObject
+                        ?.get("musicThumbnailRenderer")
+                        ?.jsonObject
+                        ?.get("thumbnail")
+                        ?.jsonObject
+                        ?.get("thumbnails")
+                        ?.jsonArray
+                        ?.lastOrNull()
+                        ?.jsonObject
+                        ?.get("url")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                }.getOrNull()
+                    ?: renderer["thumbnail"]
+                        ?.jsonObject
+                        ?.get("musicThumbnailRenderer")
+                        ?.jsonObject
+                        ?.get("thumbnail")
+                        ?.jsonObject
+                        ?.get("thumbnails")
+                        ?.jsonArray
+                        ?.lastOrNull()
+                        ?.jsonObject
+                        ?.get("url")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
             return SearchHit(videoId = videoId, title = title, subtitle = subtitle, thumbnailUrl = thumbnailUrl)
         }
 
