@@ -28,26 +28,26 @@
 **Files:**
 - Modify: `desktop/build.gradle.kts`
 
-- [ ] Step 1: Add `implementation("org.openjfx:javafx-base:21.0.5")`, `javafx-graphics`, `javafx-web`, `javafx-swing` (same version, classifier blank; use `org.openjfx` artifacts with the default platform jar). Keep versions consistent with JDK 21 toolchain.
-- [ ] Step 2: Push; CI build verifies resolution.
+- [x] Step 1: Add `implementation("org.openjfx:javafx-base:21.0.5")`, `javafx-graphics`, `javafx-web`, `javafx-swing` (same version, classifier blank; use `org.openjfx` artifacts with the default platform jar). Keep versions consistent with JDK 21 toolchain.
+- [x] Step 2: Push; CI build verifies resolution.
 
 ### Task 2: Embedded login window
 
 **Files:**
 - Create: `desktop/src/main/kotlin/com/metrolist/music/desktop/LoginWebViewWindow.kt`
 
-- [ ] Step 1: Composable `LoginWebViewWindow(onSignedIn: (String) -> Unit, onClose: () -> Unit)` — a Compose `Window` whose content is `SwingPanel(factory = { panel -> ... })`.
-- [ ] Step 2: In the factory: `JFXPanel()` to start the JFX toolkit (`Platform.setImplicitExit(false)`), then `javafx.application.Platform.runLater { val webView = WebView(); ... }`. Create `WebEngine`, load `https://music.youtube.com`, attach a load-state listener; on `SUCCEEDED`, `executeScript("document.cookie") as? String`; when it contains `SAPISID=` and location host ends with `youtube.com`, invoke `onSignedIn(cookie)` once and close the window.
-- [ ] Step 3: Handle script errors / null cookie silently (just retry on next load).
+- [x] Step 1: Composable `LoginWebViewWindow(onSignedIn: (String) -> Unit, onClose: () -> Unit)` — a Compose `Window` whose content is `SwingPanel(factory = { panel -> ... })`.
+- [x] Step 2: In the factory: `JFXPanel()` to start the JFX toolkit (`Platform.setImplicitExit(false)`), then `javafx.application.Platform.runLater { val webView = WebView(); ... }`. Create `WebEngine`, load `https://music.youtube.com`, attach a load-state listener; on `SUCCEEDED`, `executeScript("document.cookie") as? String`; when it contains `SAPISID=` and location host ends with `youtube.com`, invoke `onSignedIn(cookie)` once and close the window.
+- [x] Step 3: Handle script errors / null cookie silently (just retry on next load).
 
 ### Task 3: Wire into LoginScreen
 
 **Files:**
 - Modify: `desktop/src/main/kotlin/com/metrolist/music/desktop/Main.kt`
 
-- [ ] Step 1: Add `var showLoginWindow by remember { mutableStateOf(false) }` in the Account branch state (or in MuSicXApp).
-- [ ] Step 2: In `LoginScreen`, primary button "Sign in (embedded browser)" sets `showLoginWindow = true`; when true, render `LoginWebViewWindow(onSignedIn = { cookie -> same handler as paste path }, onClose = { showLoginWindow = false })`.
-- [ ] Step 3: Keep "Open in system browser" + paste field as fallback controls under a divider.
+- [x] Step 1: Add `var showLoginWindow by remember { mutableStateOf(false) }` in the Account branch state (or in MuSicXApp).
+- [x] Step 2: In `LoginScreen`, primary button "Sign in (embedded browser)" sets `showLoginWindow = true`; when true, render `LoginWebViewWindow(onSignedIn = { cookie -> same handler as paste path }, onClose = { showLoginWindow = false })`.
+- [x] Step 3: Keep "Open in system browser" + paste field as fallback controls under a divider.
 
 ### Task 4: Docs + CI
 
