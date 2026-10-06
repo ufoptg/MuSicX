@@ -11,13 +11,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.awt.SwingPanel
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.Window
-import javafx.embed.swing.JFXPanel
+import me.friwi.jcefmaven.CefAppBuilder
+import me.friwi.jcefmaven.MavenCefAppHandlerAdapter
+import org.cef.CefApp
+import org.cef.CefApp.CefAppState
+import org.cef.CefClient
+import org.cef.browser.CefBrowser
+import org.cef.callback.CefCookieVisitor
+import org.cef.misc.BoolRef
+import org.cef.network.CefCookieManager
 import javax.swing.JPanel
+import java.awt.BorderLayout
+import java.io.File
 
 /**
- * In-app sign-in window backed by an embedded JavaFX WebView. Loads YouTube Music,
- * watches each successful page load for a readable `SAPISID` cookie (the same one the
- * YTM web client uses for SAPISIDHASH), and hands it to [onSignedIn] exactly once.
+ * In-app sign-in window backed by an embedded Chromium instance via JCEF. Loads
+ * YouTube Music's Google sign-in page, then waits for the user to land on
+ * youtube.com (successful login / return flow) before pulling the auth
+ * cookies from the embedded browser's own cookie store and handing them to the
+ * existing session store. No external browser windows, no DPAPI parsing.
  */
 @Composable
 fun LoginWebViewWindow(
@@ -32,61 +44,62 @@ fun LoginWebViewWindow(
         SwingPanel(
             factory = {
                 try {
-                    val panel = JPanel()
-                    panel.layout = java.awt.BorderLayout()
-                    DesktopLog.log("Creating JFXPanel")
-                    // JFXPanel construction starts the JavaFX toolkit.
-                    val jfxPanel = JFXPanel()
-                    panel.add(jfxPanel, java.awt.BorderLayout.CENTER)
-                    DesktopLog.log("JFXPanel created")
-                    javafx.application.Platform.setImplicitExit(false)
-                    javafx.application.Platform.runLater {
-                        DesktopLog.log("JavaFX Platform running, creating WebView")
-                        runCatching {
-                            val webView = javafx.scene.web.WebView()
-                            val engine = webView.engine
-                            jfxPanel.scene =
-                                javafx.scene.Scene(webView, 900.0, 700.0)
-                            var captured = false
-                            engine.loadWorker.stateProperty().addListener { _, _, state ->
-                                DesktopLog.log("WebView load state=$state location=${engine.location}")
-                                if (state == javafx.concurrent.Worker.State.FAILED) {
-                                    engine.loadWorker.exceptionProperty().value?.let {
-                                        DesktopLog.log("WebView load FAILED", it)
-                                    }
-                                    engine.loadWorker.messageProperty().value?.let {
-                                        DesktopLog.log("WebView load message: $it")
-                                    }
-                                }
-                                if (state == javafx.concurrent.Worker.State.SUCCEEDED && !captured) {
-                                    runCatching {
-                                        val cookies = engine.executeScript("document.cookie") as? String
-                                        val location = engine.location ?: ""
-                                        if (!cookies.isNullOrBlank() &&
-                                            "SAPISID=" in cookies &&
-                                            location.substringAfter("://").substringBefore('/').endsWith("youtube.com")
-                                        ) {
-                                            captured = true
-                                            javax.swing.SwingUtilities.invokeLater { onSignedIn(cookies) }
-                                        }
-                                    }
-                                }
-                            }
-                            // Start at Google's YouTube sign-in so the user lands directly
-                            // on the login form, then lands on YTM after auth.
-                            // JavaFX WebKit's default UA is rejected by Google sign-in with
-                            // "browser or app may not be secure" — send a Chrome UA.
-                            engine.userAgent =
-                                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-                                "AppleWebKit/537.36 (KHTML, like Gecko) " +
-                                "Chrome/126.0.0.0 Safari/537.36"
-                            engine.load(
-                                "https://accounts.google.com/ServiceLogin?service=youtube&continue=https://music.youtube.com/",
-                            )
-                            DesktopLog.log("WebView engine.load issued (Google sign-in)")
-                        }.onFailure { DesktopLog.log("WebView setup failed", it) }
+                    val profileDir =
+                        File(
+                            (System.getenv("APPDATA")?.takeIf { it.isNotBlank() } ?: "."),
+                            "MuSicX/cef-profile",
+                        ).apply { mkdirs() }
+
+                    val builder = CefAppBuilder()
+                    builder.setInstallDir(File(profileDir, "jcef-bundle"))
+                    builder.getCefSettings().windowless_rendering_enabled = false
+                    builder.getCefSettings().cache_path = profileDir.absolutePath
+                    builder.setAppHandler(object : MavenCefAppHandlerAdapter() {
+                        override fun stateHasChanged(state: CefAppState) {
+                            DesktopLog.log("CefApp state: $state")
+                        }
+                    })
+                    DesktopLog.log("Initialising CEF (bundle at ${profileDir.absolutePath})")
+                    val cefApp: CefApp = builder.build()
+
+                    val client: CefClient = cefApp.createClient()
+                    DesktopLog.log("Creating Chromium browser")
+                    val browser =
+                        client.createBrowser(
+                            "https://accounts.google.com/ServiceLogin?service=youtube&continue=https://music.youtube.com/",
+                            false,
+                            false,
+                        )
+                    val cefPanel = JPanel().apply {
+                        layout = BorderLayout()
+                        add(browser.UIComponent, BorderLayout.CENTER)
                     }
-                    panel
+
+                    // Poll the cookie store in the embedded browser for the Google
+                    // auth cookies (SAPISID etc.) while the user signs in. The
+                    // instance only has a window of a few seconds after the user
+                    // lands on YouTube, which is enough for the cookies to appear.
+                    var captured = false
+                    val processor = Thread {
+                        val deadline = System.currentTimeMillis() + 10 * 60 * 1000
+                        var cookies = emptyList<Pair<String, String>>()
+                        while (!captured && System.currentTimeMillis() < deadline) {
+                            runCatching {
+                                cookies = collectYoutubeCookies()
+                                if (cookies.any { it.first == "SAPISID" }) {
+                                    captured = true
+                                    val header = cookies.joinToString("; ") { "${it.first}=${it.second}" }
+                                    DesktopLog.log("JCEF sign-in detected (SAPISID present)")
+                                    javax.swing.SwingUtilities.invokeLater { onSignedIn(header) }
+                                }
+                            }.onFailure { DesktopLog.log("JCEF cookie poll failed", it) }
+                            if (!captured) Thread.sleep(2000)
+                        }
+                    }
+                    processor.isDaemon = true
+                    processor.start()
+
+                    cefPanel
                 } catch (t: Throwable) {
                     DesktopLog.log("LoginWebViewWindow factory failed", t)
                     JPanel()
@@ -95,4 +108,26 @@ fun LoginWebViewWindow(
             modifier = Modifier.fillMaxSize(),
         )
     }
+}
+
+/**
+ * Returns the embedded Chromium instance's youtube.com cookies (name/value
+ * pairs). Only populated for hosts under *.youtube.com. Requires the cookie
+ * manager containing cookies for the given URL.
+ */
+private fun collectYoutubeCookies(): List<Pair<String, String>> {
+    val manager: CefCookieManager? =
+        runCatching { CefCookieManager.getGlobalManager() }.getOrNull() ?: return emptyList()
+    val found = mutableListOf<Pair<String, String>>()
+    val visitor =
+        object : CefCookieVisitor {
+            override fun visit(cookie: org.cef.network.CefCookie, count: Int, total: Int, delete: BoolRef): Boolean {
+                if (cookie.domain == "youtube.com" || cookie.domain.endsWith(".youtube.com")) {
+                    found += cookie.name to cookie.value
+                }
+                return true
+            }
+        }
+    runCatching { manager.visitAllCookies(visitor) }
+    return found
 }
