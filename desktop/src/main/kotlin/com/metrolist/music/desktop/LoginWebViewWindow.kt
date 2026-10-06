@@ -72,8 +72,18 @@ fun LoginWebViewWindow(
                                     }
                                 }
                             }
-                            engine.load("https://music.youtube.com")
-                            DesktopLog.log("WebView engine.load issued")
+                            // Start at Google's YouTube sign-in so the user lands directly
+                            // on the login form, then lands on YTM after auth.
+                            // JavaFX WebKit's default UA is rejected by Google sign-in with
+                            // "browser or app may not be secure" — send a Chrome UA.
+                            engine.userAgent =
+                                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                                "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                                "Chrome/126.0.0.0 Safari/537.36"
+                            engine.load(
+                                "https://accounts.google.com/ServiceLogin?service=youtube&continue=https://music.youtube.com/",
+                            )
+                            DesktopLog.log("WebView engine.load issued (Google sign-in)")
                         }.onFailure { DesktopLog.log("WebView setup failed", it) }
                     }
                     panel
