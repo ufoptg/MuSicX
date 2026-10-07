@@ -36,6 +36,19 @@
 23. **Embedded Chromium JCEF login** (`cead83c59`, native-version pin `0015f2191`, Windows API fix `d657503c0`, global CefApp init `2c1d68a82`, final nullable fix by human `c6a36fed6`) — primary desktop login: embedded Chromium window pointed at Google sign-in URL, 2s cookie poll via `CefCookieManager`, hand off `SAPISID` header to the existing session store. Stray committed `musicx-desktop.log` removed.
 24. Queue panel now has a Close button (`ed0cac3bc`).
 25. **Settings parity** (`52963cc34`, `5bf42b217`) — Settings destination with section list mirroring Android; all Android settings sections present on desktop, disabled where n/a.
+26. **Coral Material 3 theme** (`f7c21ae3b`) — desktop palette with dark/pure-black prefs (Slice D).
+27. **Full Android parity plan (Tasks 1–11)** on `feat/windows-desktop`:
+    - Drop Android Auto settings (`60dcc5fae`)
+    - DesktopPrefsStore schema + wired settings rows (`8ffcf8e45`, `a54211895`)
+    - Offline downloads + storage management (`667692885`)
+    - Home sections parity with Android (`a42af7516`)
+    - Album/Artist/Playlist/Podcast detail screens (`07508e6a5`)
+    - History screen, Stats, richer Search (`7ae3c35e4`)
+    - Sleep timer + VLC-backed player settings (`094886101`, fix `93c962c54`)
+    - Synced lyrics panel (`6de1636f7` / `6ee5817f2`)
+    - SponsorBlock skipping + VLC equalizer (`8684225da`)
+    - Spotify login + integration state / home gating (`55c5fbde1`; race/cookie fixes `3d7affc29`, `72bee9258`) — **shelves still deferred**
+    - Remaining settings honesty pass (`21db73267`)
 
 ## Global Constraints
 
@@ -53,8 +66,9 @@
 - [-] **Slice C2: Embedded WebView login** (deferred/failed) — JavaFX WebView compiled and rendered but Google blocks it from completing sign-in (`youtube.com/oops`), so it can never authenticate. Artefacts in `a65f55c6d`; theembedded option was removed in `531b2b9ca`'s rewrite.
 - [-] **Slice C3: Browser CDP auto-import login** (not used now) — launched a temp-profile Chrome/Edge window, polled CDP `Network.getAllCookies` for `SAPISID`. Implemented in `531b2b9ca`; proved fragile because the temp-profile spawn exited before detection and DPAPI/cookie-store parsing was unreliable.
 - [x] **Slice C4: Embedded Chromium JCEF login** — primary desktop login: Account → "Sign in (embedded browser)" opens an embedded Chromium window (`me.friwi:jcefmaven:152.0.6` + XP native bundle) straight at Google sign-in. Every 2s a cookie poll confirms `SAPISID` via `CefCookieManager`, then the cookie header is given to `DesktopSessionStore` + `client.setSessionCookie`. The window polls reliably (2026-10-07 log shows `JCEF cookies poll ... SAPISID present`). Landed in `cead83c59`, native-version pin in `0015f2191`, Windows API fix in `d657503c0`, global CefApp init in `2c1d68a82`, manual nullable-call fix by the human in `c6a36fed6`.
-- [ ] **Slice D: Coral theme polish pass** — align desktop palette/typography/shapes with Android Material 3 coral theme.
-- [ ] **Slice E: Spotify on desktop** — port the Spotify integration to desktop after YTM parity is done.
+- [x] **Slice D: Coral theme polish pass** — desktop Material 3 coral theme with dark/pure-black prefs. Landed in `f7c21ae3b`.
+- [-] **Slice E: Spotify on desktop** — **login + prefs/home gating landed** (`55c5fbde1`, fixes `3d7affc29`/`72bee9258`): JCEF `sp_dc` login, Connected/Disconnected, `enableSpotify`/`useSpotifyHome`/`spotifyHomeOnly` hide YTM home when set. **Spotify home shelves / browse still deferred.**
+- [x] **Full Android feature parity (non-Spotify shelves)** — downloads, home sections, detail screens, history/stats/search, sleep timer, lyrics, SponsorBlock/EQ, settings honesty (Tasks 1–11 through `21db73267`). See landed item 27.
 - [ ] **Slice F: MSI packaging** — switch CI to also produce `.msi` when ready for release.
 
 ## Review Focus
