@@ -87,7 +87,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -118,6 +118,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import com.materialkolor.PaletteStyle
+import com.materialkolor.dynamiccolor.ColorSpec
+import com.materialkolor.rememberDynamicColorScheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlin.random.Random
@@ -130,18 +133,29 @@ import java.util.LinkedHashMap
 
 private val MuSicXRed = Color(0xFFED5564)
 
-private val MuSicXColors =
-    darkColorScheme(
-        primary = MuSicXRed,
-        onPrimary = Color.White,
-        background = Color(0xFF0E0E10),
-        onBackground = Color(0xFFF2F2F5),
-        surface = Color(0xFF161619),
-        onSurface = Color(0xFFF2F2F5),
-        surfaceVariant = Color(0xFF26262B),
-        onSurfaceVariant = Color(0xFFB6B6C0),
-        error = Color(0xFFFF6B6B),
-    )
+@Composable
+private fun MuSicXTheme(
+    darkTheme: Boolean,
+    pureBlack: Boolean,
+    content: @Composable () -> Unit,
+) {
+    val baseColorScheme =
+        rememberDynamicColorScheme(
+            seedColor = MuSicXRed,
+            isDark = darkTheme,
+            specVersion = ColorSpec.SpecVersion.SPEC_2025,
+            style = PaletteStyle.TonalSpot,
+        )
+    val colorScheme =
+        remember(baseColorScheme, pureBlack, darkTheme) {
+            if (darkTheme && pureBlack) {
+                baseColorScheme.copy(surface = Color.Black, background = Color.Black)
+            } else {
+                baseColorScheme
+            }
+        }
+    MaterialTheme(colorScheme = colorScheme, content = content)
+}
 
 /**
  * Top-level navigation destinations, mirroring the Android app's bottom-navigation sections.
@@ -185,15 +199,23 @@ fun main() = application {
         }
     }
 
+    var prefs by remember { mutableStateOf(DesktopPrefsStore.load()) }
     Window(
         onCloseRequest = ::exitApplication,
         title = "MuSicX",
         icon = painterResource("ic_launcher.png"),
         state = rememberWindowState(width = 1100.dp, height = 760.dp),
     ) {
-        MaterialTheme(colorScheme = MuSicXColors) {
+        val systemDark = isSystemInDarkTheme()
+        val darkTheme =
+            when (prefs.darkMode.uppercase()) {
+                "ON" -> true
+                "OFF" -> false
+                else -> systemDark
+            }
+        MuSicXTheme(darkTheme = darkTheme, pureBlack = prefs.pureBlack) {
             Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                MuSicXApp(client, player)
+                MuSicXApp(client, player, prefs) { prefs = it }
             }
         }
     }
@@ -203,6 +225,8 @@ fun main() = application {
 private fun MuSicXApp(
     client: DesktopInnerTube,
     player: DesktopAudioPlayer,
+    prefs: DesktopPrefs,
+    onPrefsChange: (DesktopPrefs) -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
@@ -470,7 +494,11 @@ private fun MuSicXApp(
                                     settingsSubScreen == "eq_wizard" ->
                                         SettingsEqWizardScreen(onBack = { settingsSubScreen = null })
                                     settingsSection == SettingsSection.Appearance ->
-                                        SettingsAppearanceScreen(onBack = { settingsSection = null })
+                                        SettingsAppearanceScreen(
+                                            onBack = { settingsSection = null },
+                                            prefs = prefs,
+                                            onPrefsChange = onPrefsChange,
+                                        )
                                     settingsSection == SettingsSection.Content ->
                                         SettingsContentScreen(onBack = { settingsSection = null })
                                     settingsSection == SettingsSection.AI ->
@@ -1253,6 +1281,7 @@ private fun SettingsToggleItem(
     subtitle: String? = null,
     checked: Boolean = false,
     enabled: Boolean = false,
+    onCheckedChange: (Boolean) -> Unit = {},
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -1278,7 +1307,7 @@ private fun SettingsToggleItem(
                     )
                 }
             }
-            Switch(checked = checked, onCheckedChange = {}, enabled = enabled)
+            Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
         }
     }
 }
@@ -1318,11 +1347,42 @@ private fun SettingsSliderItem(
 }
 
 @Composable
-private fun SettingsAppearanceScreen(onBack: () -> Unit) {
+private fun SettingsAppearanceScreen(
+    onBack: () -> Unit,
+    prefs: DesktopPrefs,
+    onPrefsChange: (DesktopPrefs) -> Unit,
+) {
+    val update: (DesktopPrefs) -> Unit = { updated ->
+        DesktopPrefsStore.save(updated)
+        onPrefsChange(updated)
+    }
+    val darkChecked = prefs.darkMode.uppercase() != "OFF"
     SettingsScaffold(title = "Appearance", subtitle = "Theme and visual options", onBack = onBack) {
-        SettingsRowItem("Theme", "Not available on desktop")
-        SettingsToggleItem("Dynamic colors")
-        SettingsToggleItem("Pure black theme")
+        SettingsToggleItem(
+            "Dark mode",
+            subtitle = "Current: ${prefs.darkMode.uppercase()}",
+            checked = darkChecked,
+            enabled = true,
+            onCheckedChange = { enabled -> update(prefs.copy(darkMode = if (enabled) "ON" else "OFF")) },
+        )
+        SettingsRowItem(
+            "Follow system theme",
+            if (prefs.darkMode.uppercase() == "AUTO") "On" else "Off",
+            onClick = {
+                update(
+                    prefs.copy(
+                        darkMode = if (prefs.darkMode.uppercase() == "AUTO") "ON" else "AUTO",
+                    ),
+                )
+            },
+        )
+        SettingsToggleItem("Dynamic colors", subtitle = "Coral seed color", checked = true, enabled = false)
+        SettingsToggleItem(
+            "Pure black theme",
+            checked = prefs.pureBlack,
+            enabled = true,
+            onCheckedChange = { enabled -> update(prefs.copy(pureBlack = enabled)) },
+        )
         SettingsRowItem("Lyrics text position", "Not available on desktop")
         SettingsRowItem("Lyrics animation style", "Not available on desktop")
     }
