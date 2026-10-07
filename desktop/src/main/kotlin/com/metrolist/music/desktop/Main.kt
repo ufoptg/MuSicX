@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LibraryMusic
@@ -83,6 +84,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
@@ -264,6 +266,8 @@ private fun MuSicXApp(
     var openPlaylistTitle by remember { mutableStateOf<String?>(null) }
     var openPlaylistTracks by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
     var openPlaylistLoading by remember { mutableStateOf(false) }
+    var settingsSection by remember { mutableStateOf<SettingsSection?>(null) }
+    var settingsSubScreen by remember { mutableStateOf<String?>(null) }
 
     val nowPlaying = queue.getOrNull(currentIndex)
 
@@ -450,15 +454,61 @@ private fun MuSicXApp(
                                     },
                                 )
                             Destination.Settings ->
-                                SettingsScreen(
-                                    sections = SettingsSection.entries.toList(),
-                                    onSelectSection = { sectionDestination ->
-                                        // For now, navigating to Settings destination itself
-                                        // This will be updated in Task 2 to handle specific sections
-                                        destination = Destination.Settings
-                                    },
-                                )
-
+                                when {
+                                    settingsSubScreen == "sponsorblock" ->
+                                        SettingsSponsorBlockScreen(onBack = { settingsSubScreen = null })
+                                    settingsSubScreen == "discord" ->
+                                        SettingsDiscordScreen(onBack = { settingsSubScreen = null })
+                                    settingsSubScreen == "lastfm" ->
+                                        SettingsLastFmScreen(onBack = { settingsSubScreen = null })
+                                    settingsSubScreen == "listen_together" ->
+                                        SettingsListenTogetherScreen(onBack = { settingsSubScreen = null })
+                                    settingsSubScreen == "spotify" ->
+                                        SettingsSpotifyScreen(onBack = { settingsSubScreen = null })
+                                    settingsSubScreen == "android_auto" ->
+                                        SettingsAndroidAutoScreen(onBack = { settingsSubScreen = null })
+                                    settingsSubScreen == "eq_wizard" ->
+                                        SettingsEqWizardScreen(onBack = { settingsSubScreen = null })
+                                    settingsSection == SettingsSection.Appearance ->
+                                        SettingsAppearanceScreen(onBack = { settingsSection = null })
+                                    settingsSection == SettingsSection.Content ->
+                                        SettingsContentScreen(onBack = { settingsSection = null })
+                                    settingsSection == SettingsSection.AI ->
+                                        SettingsAiScreen(onBack = { settingsSection = null })
+                                    settingsSection == SettingsSection.Player ->
+                                        SettingsPlayerScreen(
+                                            onBack = { settingsSection = null },
+                                            onOpenSub = { settingsSubScreen = it },
+                                        )
+                                    settingsSection == SettingsSection.Storage ->
+                                        SettingsStorageScreen(onBack = { settingsSection = null })
+                                    settingsSection == SettingsSection.Privacy ->
+                                        SettingsPrivacyScreen(onBack = { settingsSection = null })
+                                    settingsSection == SettingsSection.BackupAndRestore ->
+                                        SettingsBackupScreen(onBack = { settingsSection = null })
+                                    settingsSection == SettingsSection.Integrations ->
+                                        SettingsIntegrationsScreen(
+                                            onBack = { settingsSection = null },
+                                            onOpenSub = { settingsSubScreen = it },
+                                        )
+                                    settingsSection == SettingsSection.Updater ->
+                                        SettingsUpdaterScreen(onBack = { settingsSection = null })
+                                    settingsSection == SettingsSection.About ->
+                                        SettingsAboutScreen(onBack = { settingsSection = null })
+                                    settingsSection == SettingsSection.Equalizer ->
+                                        SettingsEqualizerScreen(
+                                            onBack = { settingsSection = null },
+                                            onOpenSub = { settingsSubScreen = it },
+                                        )
+                                    else ->
+                                        SettingsScreen(
+                                            sections = SettingsSection.entries.toList(),
+                                            onSelectSection = { section ->
+                                                settingsSection = section
+                                                settingsSubScreen = null
+                                            },
+                                        )
+                                }
 
                             Destination.Library ->
                                 LibraryScreen(
@@ -1076,7 +1126,7 @@ private fun PlaylistRow(
 @Composable
 private fun SettingsScreen(
     sections: List<SettingsSection>,
-    onSelectSection: (Destination) -> Unit,
+    onSelectSection: (SettingsSection) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -1092,7 +1142,7 @@ private fun SettingsScreen(
             items(sections, key = { it.label }) { section ->
                 SettingsSectionTile(
                     section = section,
-                    onClick = { onSelectSection(Destination.Settings) }
+                    onClick = { onSelectSection(section) }
                 )
             }
         }
@@ -1134,12 +1184,320 @@ private fun SettingsSectionTile(
             Spacer(modifier = Modifier.weight(1f))
             
             Icon(
-                imageVector = Icons.Default.KeyboardArrowUp,
+                imageVector = Icons.Default.KeyboardArrowRight,
                 contentDescription = "Navigate",
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+@Composable
+private fun SettingsScaffold(
+    title: String,
+    subtitle: String,
+    onBack: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+            }
+        }
+        ScreenTitle(title = title, subtitle = subtitle)
+        LazyColumn(modifier = Modifier.weight(1f).padding(top = 8.dp)) {
+            item { content() }
+        }
+    }
+}
+
+@Composable
+private fun SettingsRowItem(
+    title: String,
+    subtitle: String? = null,
+    onClick: (() -> Unit)? = null,
+) {
+    val enabled = onClick != null
+    Surface(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .then(if (enabled) Modifier.clickable { onClick?.invoke() } else Modifier)
+                .padding(horizontal = 4.dp, vertical = 6.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsToggleItem(
+    title: String,
+    subtitle: String? = null,
+    checked: Boolean = false,
+    enabled: Boolean = false,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).padding(vertical = 6.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                val note = subtitle ?: if (enabled) null else "Not available on desktop"
+                if (note != null) {
+                    Text(
+                        text = note,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+            }
+            Switch(checked = checked, onCheckedChange = {}, enabled = enabled)
+        }
+    }
+}
+
+@Composable
+private fun SettingsSliderItem(
+    title: String,
+    value: Float = 0f,
+    enabled: Boolean = false,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).padding(vertical = 6.dp),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color =
+                    if (enabled) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = "Not available on desktop",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            Slider(
+                value = value,
+                onValueChange = {},
+                enabled = enabled,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsAppearanceScreen(onBack: () -> Unit) {
+    SettingsScaffold(title = "Appearance", subtitle = "Theme and visual options", onBack = onBack) {
+        SettingsRowItem("Theme", "Not available on desktop")
+        SettingsToggleItem("Dynamic colors")
+        SettingsToggleItem("Pure black theme")
+        SettingsRowItem("Lyrics text position", "Not available on desktop")
+        SettingsRowItem("Lyrics animation style", "Not available on desktop")
+    }
+}
+
+@Composable
+private fun SettingsContentScreen(onBack: () -> Unit) {
+    SettingsScaffold(title = "Content", subtitle = "Language, country and lyrics", onBack = onBack) {
+        SettingsRowItem("Content language", "Not available on desktop")
+        SettingsRowItem("Content country", "Not available on desktop")
+        SettingsRowItem("App language", "Not available on desktop")
+        SettingsRowItem("Lyrics provider selection", "Not available on desktop")
+        SettingsRowItem("Romanization", "Not available on desktop")
+    }
+}
+
+@Composable
+private fun SettingsAiScreen(onBack: () -> Unit) {
+    SettingsScaffold(title = "AI", subtitle = "AI translation and providers", onBack = onBack) {
+        SettingsRowItem("AI provider", "Not available on desktop")
+        SettingsRowItem("Translation mode", "Not available on desktop")
+        SettingsRowItem("Target language", "Not available on desktop")
+        SettingsRowItem("API key", "Not available on desktop")
+        SettingsRowItem("Base URL", "Not available on desktop")
+        SettingsRowItem("Model", "Not available on desktop")
+        SettingsRowItem("System prompt", "Not available on desktop")
+    }
+}
+
+@Composable
+private fun SettingsPlayerScreen(onBack: () -> Unit, onOpenSub: (String) -> Unit) {
+    SettingsScaffold(title = "Player", subtitle = "Playback and audio", onBack = onBack) {
+        SettingsRowItem("Audio quality", "Not available on desktop")
+        SettingsRowItem("Loudness level", "Not available on desktop")
+        SettingsToggleItem("Crossfade")
+        SettingsSliderItem("Crossfade duration")
+        SettingsToggleItem("Gapless playback")
+        SettingsRowItem("SponsorBlock", "Skip segments", onClick = { onOpenSub("sponsorblock") })
+    }
+}
+
+@Composable
+private fun SettingsStorageScreen(onBack: () -> Unit) {
+    SettingsScaffold(title = "Storage", subtitle = "Downloads and cache", onBack = onBack) {
+        SettingsRowItem("Downloaded songs", "Not available on desktop")
+        SettingsRowItem("Clear all downloads", "Not available on desktop")
+        SettingsToggleItem("Enable song cache")
+        SettingsSliderItem("Max song cache size")
+        SettingsRowItem("Clear song cache", "Not available on desktop")
+        SettingsRowItem("Clear image cache", "Not available on desktop")
+    }
+}
+
+@Composable
+private fun SettingsPrivacyScreen(onBack: () -> Unit) {
+    SettingsScaffold(title = "Privacy", subtitle = "History and data", onBack = onBack) {
+        SettingsToggleItem("Pause listen history")
+        SettingsRowItem("Clear listen history", "Not available on desktop")
+        SettingsToggleItem("Pause search history")
+        SettingsRowItem("Clear search history", "Not available on desktop")
+        SettingsToggleItem("Disable screenshot")
+    }
+}
+
+@Composable
+private fun SettingsBackupScreen(onBack: () -> Unit) {
+    SettingsScaffold(title = "Backup & restore", subtitle = "Export and import data", onBack = onBack) {
+        SettingsRowItem("Backup", "Not available on desktop")
+        SettingsRowItem("Restore", "Not available on desktop")
+        SettingsRowItem("Import online", "Not available on desktop")
+        SettingsRowItem("Import CSV", "Not available on desktop")
+    }
+}
+
+@Composable
+private fun SettingsIntegrationsScreen(onBack: () -> Unit, onOpenSub: (String) -> Unit) {
+    SettingsScaffold(title = "Integrations", subtitle = "Connected services", onBack = onBack) {
+        SettingsRowItem("Discord", "Rich presence", onClick = { onOpenSub("discord") })
+        SettingsRowItem("Last.fm", "Scrobbling", onClick = { onOpenSub("lastfm") })
+        SettingsRowItem("Listen Together", "Shared sessions", onClick = { onOpenSub("listen_together") })
+        SettingsRowItem("Spotify", "Spotify features", onClick = { onOpenSub("spotify") })
+        SettingsRowItem("Android Auto", "Car integration", onClick = { onOpenSub("android_auto") })
+    }
+}
+
+@Composable
+private fun SettingsUpdaterScreen(onBack: () -> Unit) {
+    SettingsScaffold(title = "Updater", subtitle = "App updates", onBack = onBack) {
+        SettingsRowItem("Current version", "Not available on desktop")
+        SettingsToggleItem("Check for updates")
+        SettingsToggleItem("Update notifications")
+    }
+}
+
+@Composable
+private fun SettingsAboutScreen(onBack: () -> Unit) {
+    SettingsScaffold(title = "About", subtitle = "MuSicX", onBack = onBack) {
+        SettingsRowItem("MuSicX", "Desktop build")
+        SettingsRowItem("Version", "Not available on desktop")
+        SettingsRowItem("YouTube Music", "Not available on desktop")
+        SettingsRowItem("Community", "Not available on desktop")
+    }
+}
+
+@Composable
+private fun SettingsEqualizerScreen(onBack: () -> Unit, onOpenSub: (String) -> Unit) {
+    SettingsScaffold(title = "Equalizer", subtitle = "Audio tuning", onBack = onBack) {
+        SettingsRowItem("Preset", "Not available on desktop")
+        SettingsSliderItem("Bass boost")
+        SettingsSliderItem("Virtualizer")
+        SettingsRowItem("Eq wizard", "Guided calibration", onClick = { onOpenSub("eq_wizard") })
+    }
+}
+
+@Composable
+private fun SettingsSponsorBlockScreen(onBack: () -> Unit) {
+    SettingsScaffold(title = "SponsorBlock", subtitle = "Skip segments", onBack = onBack) {
+        SettingsToggleItem("Skip sponsored segments")
+        SettingsToggleItem("Skip self-promotion")
+        SettingsToggleItem("Skip interaction reminders")
+        SettingsToggleItem("Skip intros")
+        SettingsToggleItem("Skip outros")
+    }
+}
+
+@Composable
+private fun SettingsDiscordScreen(onBack: () -> Unit) {
+    SettingsScaffold(title = "Discord", subtitle = "Rich presence", onBack = onBack) {
+        SettingsToggleItem("Enable rich presence")
+        SettingsRowItem("Status", "Not available on desktop")
+        SettingsToggleItem("Show activity name")
+    }
+}
+
+@Composable
+private fun SettingsLastFmScreen(onBack: () -> Unit) {
+    SettingsScaffold(title = "Last.fm", subtitle = "Scrobbling", onBack = onBack) {
+        SettingsToggleItem("Scrobble tracks")
+        SettingsRowItem("Username", "Not available on desktop")
+        SettingsRowItem("API key", "Not available on desktop")
+    }
+}
+
+@Composable
+private fun SettingsListenTogetherScreen(onBack: () -> Unit) {
+    SettingsScaffold(title = "Listen Together", subtitle = "Shared sessions", onBack = onBack) {
+        SettingsToggleItem("Enable Listen Together")
+        SettingsRowItem("Host session", "Not available on desktop")
+        SettingsRowItem("Room code", "Not available on desktop")
+    }
+}
+
+@Composable
+private fun SettingsSpotifyScreen(onBack: () -> Unit) {
+    SettingsScaffold(title = "Spotify", subtitle = "Spotify features", onBack = onBack) {
+        SettingsToggleItem("Enable Spotify integration")
+        SettingsToggleItem("Preload tracks")
+        SettingsRowItem("Spotify login", "Not available on desktop")
+    }
+}
+
+@Composable
+private fun SettingsAndroidAutoScreen(onBack: () -> Unit) {
+    SettingsScaffold(title = "Android Auto", subtitle = "Car integration", onBack = onBack) {
+        SettingsToggleItem("Enable Android Auto")
+        SettingsRowItem("Car screen", "Not available on desktop")
+    }
+}
+
+@Composable
+private fun SettingsEqWizardScreen(onBack: () -> Unit) {
+    SettingsScaffold(title = "Equalizer wizard", subtitle = "Guided calibration", onBack = onBack) {
+        SettingsRowItem("Start wizard", "Not available on desktop")
+        SettingsRowItem("Grant microphone access", "Not available on desktop")
+        SettingsRowItem("Save profile", "Not available on desktop")
     }
 }
 
