@@ -97,6 +97,68 @@ class DesktopInnerTube : AutoCloseable {
 
         return extractHits(raw)
     }
+    suspend fun searchAlbums(query: String): List<SearchHit> {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return emptyList()
+
+        val raw =
+            innerTube
+                .search(
+                    client = WEB_REMIX,
+                    query = trimmed,
+                    params = FILTER_ALBUM,
+                    setLogin = false,
+                ).body<JsonObject>()
+
+        return extractHits(raw)
+    }
+
+    suspend fun searchArtists(query: String): List<SearchHit> {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return emptyList()
+
+        val raw =
+            innerTube
+                .search(
+                    client = WEB_REMIX,
+                    query = trimmed,
+                    params = FILTER_ARTIST,
+                    setLogin = false,
+                ).body<JsonObject>()
+
+        return extractHits(raw)
+    }
+
+    suspend fun searchPlaylists(query: String): List<PlaylistHit> {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return emptyList()
+
+        val raw =
+            innerTube
+                .search(
+                    client = WEB_REMIX,
+                    query = trimmed,
+                    params = FILTER_PLAYLIST,
+                    setLogin = false,
+                ).body<JsonObject>()
+
+        val hits = LinkedHashMap<String, PlaylistHit>()
+        fun walk(el: JsonElement) {
+            when (el) {
+                is JsonObject -> {
+                    el["musicTwoRowItemRenderer"]?.jsonObject?.let { renderer ->
+                        parsePlaylistHit(renderer)?.let { hit -> hits.putIfAbsent(hit.id, hit) }
+                    }
+                    el.values.forEach(::walk)
+                }
+                is JsonArray -> el.forEach(::walk)
+                else -> Unit
+            }
+        }
+        walk(raw)
+        return hits.values.toList()
+    }
+
 
     /**
      * Home feed as titled shelves. Prefers the real YTM home browse; falls back to
@@ -248,6 +310,9 @@ class DesktopInnerTube : AutoCloseable {
 
     companion object {
         private const val FILTER_SONG = "EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D"
+        private const val FILTER_ALBUM = "EgWKAQIYAWoKEAkQBRAKEAMQBA%3D%3D"
+        private const val FILTER_ARTIST = "EgWKAQIYAWoKEAkQBRAKEAMQBA%3D%3D"
+        private const val FILTER_PLAYLIST = "EgWKAQIAWoKEAkQBRAKEAMQBA%3D%3D"
 
         private val HOME_CATEGORIES =
             listOf(

@@ -73,6 +73,7 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -170,6 +171,8 @@ private enum class Destination(
     Home("Home", Icons.Default.Home),
     Search("Search", Icons.Default.Search),
     Library("Library", Icons.Default.LibraryMusic),
+    History("History", Icons.Default.History),
+    Stats("Stats", Icons.Default.Insights),
     Account("Account", Icons.Default.AccountCircle),
     Settings("Settings", Icons.Default.Settings),
 }
@@ -249,7 +252,10 @@ private fun MuSicXApp(
     onPrefsChange: (DesktopPrefs) -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
-    var results by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
+    var songResults by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
+    var albumResults by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
+    var artistResults by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
+    var playlistResults by remember { mutableStateOf<List<PlaylistHit>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -424,10 +430,18 @@ private fun MuSicXApp(
             loading = true
             error = null
             try {
-                results = client.searchSongs(q)
-                if (results.isEmpty()) error = "No songs found"
+                songResults = client.searchSongs(q)
+                albumResults = client.searchAlbums(q)
+                artistResults = client.searchArtists(q)
+                playlistResults = client.searchPlaylists(q)
+                if (songResults.isEmpty() && albumResults.isEmpty() && artistResults.isEmpty() && playlistResults.isEmpty()) {
+                    error = "No results found"
+                }
             } catch (t: Throwable) {
-                results = emptyList()
+                songResults = emptyList()
+                albumResults = emptyList()
+                artistResults = emptyList()
+                playlistResults = emptyList()
                 error = t.message ?: t::class.simpleName ?: "Search failed"
             } finally {
                 loading = false
@@ -506,13 +520,35 @@ private fun MuSicXApp(
                                     onQueryChange = { query = it },
                                     loading = loading,
                                     error = error,
-                                    results = results,
+                                    songResults = songResults,
+                                    albumResults = albumResults,
+                                    artistResults = artistResults,
+                                    playlistResults = playlistResults,
                                     nowPlayingId = nowPlaying?.videoId,
                                     busyId = busyId,
                                     onSearch = ::runSearch,
-                                    onPlayIndex = { index -> playFrom(results, index) },
+                                    onPlayIndex = { index -> playFrom(songResults, index) },
                                     isFavorite = ::isFavorite,
                                     onToggleFavorite = ::toggleFavorite,
+                                    onOpenPlaylist = { hit -> openDetail = DetailState(DetailType.Playlist, hit.id, hit.title, hit.subtitle, hit.thumbnailUrl, emptyList(), true); scope.launch(Dispatchers.IO) { val tracks = runCatching { client.playlistTracks(hit.id) }.getOrDefault(emptyList()); openDetail = openDetail?.copy(tracks = tracks, loading = false) } },
+                                )
+                            Destination.History ->
+                                HistoryScreen(
+                                    history = history,
+                                    nowPlayingId = nowPlaying?.videoId,
+                                    busyId = busyId,
+                                    onPlay = { index -> playFrom(history, index) },
+                                    onClearAll = {
+                                        history = emptyList()
+                                        persistLibrary()
+                                    },
+                                    isFavorite = ::isFavorite,
+                                    onToggleFavorite = ::toggleFavorite,
+                                )
+                            Destination.Stats ->
+                                StatsScreen(
+                                    history = history,
+                                    favorites = favorites,
                                 )
                             Destination.Account ->
                                 LoginScreen(
@@ -928,21 +964,83 @@ private fun SongCard(
 }
 
 @Composable
+private fun HistoryScreen(
+    history: List<SearchHit>,
+    nowPlayingId: String?,
+    busyId: String?,
+    onPlay: (Int) -> Unit,
+    onClearAll: () -> Unit,
+    isFavorite: (SearchHit) -> Boolean,
+    onToggleFavorite: (SearchHit) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
+        ScreenTitle(title = "History", subtitle = "Recently played")
+        if (history.isEmpty()) {
+            Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                Text("No history yet", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else {
+            Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                Row(modifier = Modifier.padding(vertical = 8.dp)) {
+                    TextButton(onClick = onClearAll) { Text("Clear all") }
+                }
+                LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    items(history, key = { it.videoId }) { hit ->
+                        val index = history.indexOf(hit)
+                        ResultRow(
+                            hit = hit,
+                            isActive = hit.videoId == nowPlayingId,
+                            isBusy = busyId == hit.videoId,
+                            onClick = { onPlay(index) },
+                            isFavorite = isFavorite(hit),
+                            onToggleFavorite = { onToggleFavorite(hit) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatsScreen(
+    history: List<SearchHit>,
+    favorites: List<SearchHit>,
+) {
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
+        ScreenTitle(title = "Stats", subtitle = "Your listening summary")
+        Column(modifier = Modifier.fillMaxWidth().padding(top = 24.dp)) {
+            Text("Total plays: ${history.size}", style = MaterialTheme.typography.titleMedium)
+            Text("Favorites: ${favorites.size}", style = MaterialTheme.typography.titleMedium)
+            val topArtists = history.groupBy { it.subtitle ?: "Unknown" }.mapValues { it.value.size }.toList().sortedByDescending { it.second }.take(5)
+            Text("Top artists:", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 16.dp))
+            topArtists.forEach { (artist, count) ->
+                Text("  $artist: $count plays", style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
+}
+
+@Composable
 private fun SearchScreen(
     query: String,
     onQueryChange: (String) -> Unit,
     loading: Boolean,
     error: String?,
-    results: List<SearchHit>,
+    songResults: List<SearchHit>,
+    albumResults: List<SearchHit>,
+    artistResults: List<SearchHit>,
+    playlistResults: List<PlaylistHit>,
     nowPlayingId: String?,
     busyId: String?,
     onSearch: () -> Unit,
     onPlayIndex: (Int) -> Unit,
     isFavorite: (SearchHit) -> Boolean,
     onToggleFavorite: (SearchHit) -> Unit,
+    onOpenPlaylist: (PlaylistHit) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
-        ScreenTitle(title = "Search", subtitle = "Search YouTube Music — tap a song to play")
+        ScreenTitle(title = "Search", subtitle = "Songs, albums, artists, playlists")
         SearchBar(query = query, onQueryChange = onQueryChange, enabled = !loading, onSearch = onSearch)
 
         error?.let {
@@ -960,16 +1058,56 @@ private fun SearchScreen(
             }
         } else {
             LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
-                items(results, key = { it.videoId }) { hit ->
-                    val index = results.indexOf(hit)
-                    ResultRow(
-                        hit = hit,
-                        isActive = hit.videoId == nowPlayingId,
-                        isBusy = busyId == hit.videoId,
-                        onClick = { onPlayIndex(index) },
-                        isFavorite = isFavorite(hit),
-                        onToggleFavorite = { onToggleFavorite(hit) },
-                    )
+                if (songResults.isNotEmpty()) {
+                    item { Text("Songs", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)) }
+                    items(songResults, key = { it.videoId }) { hit ->
+                        val index = songResults.indexOf(hit)
+                        ResultRow(
+                            hit = hit,
+                            isActive = hit.videoId == nowPlayingId,
+                            isBusy = busyId == hit.videoId,
+                            onClick = { onPlayIndex(index) },
+                            isFavorite = isFavorite(hit),
+                            onToggleFavorite = { onToggleFavorite(hit) },
+                        )
+                    }
+                }
+
+                if (albumResults.isNotEmpty()) {
+                    item { Text("Albums", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)) }
+                    items(albumResults, key = { it.videoId }) { hit ->
+                        val index = albumResults.indexOf(hit)
+                        ResultRow(
+                            hit = hit,
+                            isActive = hit.videoId == nowPlayingId,
+                            isBusy = busyId == hit.videoId,
+                            onClick = { onPlayIndex(index) },
+                            isFavorite = isFavorite(hit),
+                            onToggleFavorite = { onToggleFavorite(hit) },
+                        )
+                    }
+                }
+
+                if (artistResults.isNotEmpty()) {
+                    item { Text("Artists", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)) }
+                    items(artistResults, key = { it.videoId }) { hit ->
+                        val index = artistResults.indexOf(hit)
+                        ResultRow(
+                            hit = hit,
+                            isActive = hit.videoId == nowPlayingId,
+                            isBusy = busyId == hit.videoId,
+                            onClick = { onPlayIndex(index) },
+                            isFavorite = isFavorite(hit),
+                            onToggleFavorite = { onToggleFavorite(hit) },
+                        )
+                    }
+                }
+
+                if (playlistResults.isNotEmpty()) {
+                    item { Text("Playlists", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)) }
+                    items(playlistResults, key = { it.id }) { hit ->
+                        PlaylistRow(item = hit, onClick = { onOpenPlaylist(hit) })
+                    }
                 }
             }
         }
