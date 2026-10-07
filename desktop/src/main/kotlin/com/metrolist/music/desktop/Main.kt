@@ -556,7 +556,10 @@ private fun MuSicXApp(
                                             },
                                         )
                                     settingsSection == SettingsSection.Privacy ->
-                                        SettingsPrivacyScreen(onBack = { settingsSection = null })
+                                        SettingsPrivacyScreen(
+                                            onBack = { settingsSection = null },
+                                            prefs = prefs,
+                                        )
                                     settingsSection == SettingsSection.BackupAndRestore ->
                                         SettingsBackupScreen(onBack = { settingsSection = null })
                                     settingsSection == SettingsSection.Integrations ->
@@ -1557,12 +1560,15 @@ private fun SettingsStorageScreen(
 }
 
 @Composable
-private fun SettingsPrivacyScreen(onBack: () -> Unit) {
+private fun SettingsPrivacyScreen(onBack: () -> Unit, prefs: DesktopPrefs) {
+    val update: (DesktopPrefs) -> Unit = { updated ->
+        DesktopPrefsStore.save(updated)
+    }
     SettingsScaffold(title = "Privacy", subtitle = "History and data", onBack = onBack) {
-        SettingsToggleItem("Pause listen history")
-        SettingsRowItem("Clear listen history", "Not available on desktop")
-        SettingsToggleItem("Pause search history")
-        SettingsRowItem("Clear search history", "Not available on desktop")
+        SettingsToggleItem("Pause listen history", checked = prefs.pauseHistory, onCheckedChange = { enabled -> update(prefs.copy(pauseHistory = enabled)) })
+        SettingsRowItem("Clear listen history", if (prefs.pauseHistory) "History stored in memory" else "Not available on desktop")
+        SettingsToggleItem("Pause search history", checked = prefs.clearCacheOnExit, onCheckedChange = { enabled -> update(prefs.copy(clearCacheOnExit = enabled)) })
+        SettingsRowItem("Clear search history", if (prefs.clearCacheOnExit) "Cache cleared on exit" else "Not available on desktop")
         SettingsToggleItem("Disable screenshot")
     }
 }
