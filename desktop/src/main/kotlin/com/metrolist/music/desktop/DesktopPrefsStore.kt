@@ -31,6 +31,8 @@ data class DesktopPrefs(
     val playerLoudness: Boolean = false,
     val playerCrossfade: Boolean = false,
     val playerGapless: Boolean = false,
+    /** Sleep timer setting: 0 = off, 1 = 15min, 2 = 30min, 3 = 45min, 4 = 60min, 5 = end of track */
+    val sleepTimerMinutes: Int = 0,
     /** Storage settings */
     val downloadDir: String = "%APPDATA%/MuSicX/Downloads",
     val cacheSizeCap: Int = 1024,  // in MB

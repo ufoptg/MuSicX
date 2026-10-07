@@ -596,6 +596,8 @@ private fun MuSicXApp(
                                         SettingsPlayerScreen(
                                             onBack = { settingsSection = null },
                                             onOpenSub = { settingsSubScreen = it },
+                                            prefs = prefs,
+                                            onPrefsChange = onPrefsChange,
                                         )
                                     settingsSection == SettingsSection.Storage ->
                                         SettingsStorageScreen(
@@ -1656,13 +1658,21 @@ private fun SettingsAiScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun SettingsPlayerScreen(onBack: () -> Unit, onOpenSub: (String) -> Unit) {
+private fun SettingsPlayerScreen(onBack: () -> Unit, onOpenSub: (String) -> Unit, prefs: DesktopPrefs, onPrefsChange: (DesktopPrefs) -> Unit) {
+    val update: (DesktopPrefs) -> Unit = { updated ->
+        DesktopPrefsStore.save(updated)
+        onPrefsChange(updated)
+    }
     SettingsScaffold(title = "Player", subtitle = "Playback and audio", onBack = onBack) {
         SettingsRowItem("Audio quality", "Not available on desktop")
         SettingsRowItem("Loudness level", "Not available on desktop")
-        SettingsToggleItem("Crossfade")
+        SettingsToggleItem("Crossfade", checked = prefs.playerCrossfade, onCheckedChange = { enabled -> update(prefs.copy(playerCrossfade = enabled)) })
         SettingsSliderItem("Crossfade duration")
-        SettingsToggleItem("Gapless playback")
+        SettingsToggleItem("Gapless playback", checked = prefs.playerGapless, onCheckedChange = { enabled -> update(prefs.copy(playerGapless = enabled)) })
+        SettingsRowItem("Sleep timer", when (prefs.sleepTimerMinutes) { 0 -> "Off"; 1 -> "15 min"; 2 -> "30 min"; 3 -> "45 min"; 4 -> "60 min"; 5 -> "End of track"; else -> "Off" }, onClick = {
+            // Simple cycle for now; a real UI would use a dialog
+            update(prefs.copy(sleepTimerMinutes = (prefs.sleepTimerMinutes + 1) % 6))
+        })
         SettingsRowItem("SponsorBlock", "Skip segments", onClick = { onOpenSub("sponsorblock") })
     }
 }

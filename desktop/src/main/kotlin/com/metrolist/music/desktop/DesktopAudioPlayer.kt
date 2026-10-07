@@ -62,6 +62,10 @@ class DesktopAudioPlayer : AutoCloseable {
 
                     override fun finished(mediaPlayer: MediaPlayer) {
                         isPlaying = false
+                        if (sleepTimerEndOfTrack) {
+                            stopInternal()
+                            sleepTimerEndOfTrack = false
+                        }
                         onEnded?.invoke()
                     }
                 },
@@ -79,6 +83,39 @@ class DesktopAudioPlayer : AutoCloseable {
     @Volatile
     var isPlaying: Boolean = false
         private set
+
+    // Sleep timer
+    var sleepTimerRemainingMs: Long = 0L
+        private set
+    private var sleepTimerJob: kotlinx.coroutines.Job? = null
+    var sleepTimerEndOfTrack: Boolean = false
+        private set
+
+    fun setSleepTimer(minutes: Int) {
+        sleepTimerJob?.cancel()
+        sleepTimerRemainingMs = 0L
+        sleepTimerEndOfTrack = false
+        when (minutes) {
+            0 -> return
+            5 -> { // end of track
+                sleepTimerEndOfTrack = true
+                return
+            }
+        }
+        val ms = minutes * 60_000L
+        sleepTimerRemainingMs = ms
+        val executor = java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
+        executor.schedule({
+            kotlinx.coroutines.runBlocking { stopInternal() }
+            sleepTimerRemainingMs = 0L
+        }, ms, java.util.concurrent.TimeUnit.MILLISECONDS)
+    }
+
+    fun clearSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerRemainingMs = 0L
+        sleepTimerEndOfTrack = false
+    }
 
     @Volatile
     var ready: Boolean = false
