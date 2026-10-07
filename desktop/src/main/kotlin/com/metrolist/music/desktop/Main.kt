@@ -324,6 +324,7 @@ private fun MuSicXApp(
     var openPlaylistLoading by remember { mutableStateOf(false) }
     var settingsSection by remember { mutableStateOf<SettingsSection?>(null) }
     var settingsSubScreen by remember { mutableStateOf<String?>(null) }
+    var spotifyHome by remember { mutableStateOf(false) }
 
     val nowPlaying = queue.getOrNull(currentIndex)
 
@@ -419,7 +420,7 @@ private fun MuSicXApp(
     }
 
     fun loadHome() {
-        if (homeLoading || homeRows.isNotEmpty()) return
+        if (homeLoading || homeRows.isNotEmpty() || spotifyHome) return
         scope.launch {
             homeLoading = true
             homeError = null

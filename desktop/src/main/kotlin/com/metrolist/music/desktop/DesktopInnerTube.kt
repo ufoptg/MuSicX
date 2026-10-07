@@ -239,6 +239,16 @@ class DesktopInnerTube : AutoCloseable {
                 "Focus" to "focus instrumental",
                 "Throwbacks" to "throwback hits",
                 "Workout" to "workout music",
+            "Daily discover" to "daily mix",
+            "Keep listening" to "your playlist",
+            "Speed dial" to "hot hits",
+            "New releases" to "new music",
+            "Recently played" to "recently played",
+            "Account playlists" to "liked playlists",
+            "From the community" to "community picks",
+            "Similar recommendation" to "related",
+            "Home page" to "home feed",
+            "Mood and genres" to "mood magic"
             )
 
         @OptIn(ExperimentalSerializationApi::class)
