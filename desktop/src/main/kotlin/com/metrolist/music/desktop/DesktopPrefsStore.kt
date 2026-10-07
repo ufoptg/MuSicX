@@ -15,7 +15,47 @@ import java.io.File
 data class DesktopPrefs(
     /** "AUTO" (follow system), "ON" (dark), or "OFF" (light). */
     val darkMode: String = "AUTO",
+    /** Pure black dark mode: replaces surface/background with black */
     val pureBlack: Boolean = false,
+    /** Dynamic theme: follows system theme if "AUTO", otherwise "ON"/"OFF" */
+    val dynamicTheme: String = "AUTO",
+    /** Selected theme color ARGB value (for coral/seed color) */
+    val selectedThemeColor: Long = 0xFFED5564L,
+    /** Content language/country code */
+    val contentLanguage: String = "en",
+    /** AI provider/key settings */
+    val aiProvider: String = "",
+    val aiKey: String = "",
+    /** Player quality/loudness/crossfade/gapless settings */
+    val playerQuality: Int = 1,
+    val playerLoudness: Boolean = false,
+    val playerCrossfade: Boolean = false,
+    val playerGapless: Boolean = false,
+    /** Storage settings */
+    val downloadDir: String = "%APPDATA%/MuSicX/Downloads",
+    val cacheSizeCap: Int = 1024,  // in MB
+    /** Privacy settings */
+    val pauseHistory: Boolean = false,
+    val clearCacheOnExit: Boolean = false,
+    /** Spotify settings */
+    /** Spotify integration enabled */
+    val enableSpotify: Boolean = false,
+    /** Spotify sp_dc cookie value (persisted after embedded-browser login) */
+    val spDc: String = "",
+    /** Use Spotify as home source */
+    val useSpotifyHome: Boolean = false,
+    /** Show only Spotify home, hide YouTube home */
+    val spotifyHomeOnly: Boolean = false,
+    /** Discord rich presence token */
+    val discordToken: String = "",
+    /** Last.fm scrobbling token */
+    val lastFmToken: String = "",
+    /** SponsorBlock enabled */
+    val sponsorblockEnabled: Boolean = false,
+    /** Equalizer enabled */
+    val equalizerEnabled: Boolean = false,
+    /** Equalizer active profile name */
+    val equalizerProfile: String = "",
 )
 
 /**
