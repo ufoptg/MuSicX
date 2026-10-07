@@ -104,7 +104,7 @@ fun LoginWebViewWindow(
     }
 }
 
-private val globalCefAppInstance by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+internal val globalCefAppInstance by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
     val profileDir =
         File(
             (System.getenv("APPDATA")?.takeIf { it.isNotBlank() } ?: "."),
@@ -123,7 +123,7 @@ private val globalCefAppInstance by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
     builder.build()
 }
 
-private fun globalCefApp(): CefApp = globalCefAppInstance
+internal fun globalCefApp(): CefApp = globalCefAppInstance
 
 /**
  * Returns the embedded Chromium instance's youtube.com cookies (name/value

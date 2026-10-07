@@ -48,6 +48,8 @@ dependencies {
     // Embedded Chromium browser for in-app sign-in (JCEF).
     implementation("me.friwi:jcefmaven:152.0.6")
     implementation("me.friwi:jcef-natives-windows-amd64:jcef-17e805a+cef-152.0.6+g708dc14+chromium-152.0.7977.83")
+
+    implementation(project(":spotify"))
 }
 
 compose.desktop {

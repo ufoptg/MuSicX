@@ -126,6 +126,7 @@ import androidx.compose.ui.window.rememberWindowState
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.rememberDynamicColorScheme
+import com.metrolist.spotify.Spotify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlin.random.Random
@@ -371,7 +372,8 @@ private fun MuSicXApp(
     var openDetail by remember { mutableStateOf<DetailState?>(null) }
     var settingsSection by remember { mutableStateOf<SettingsSection?>(null) }
     var settingsSubScreen by remember { mutableStateOf<String?>(null) }
-    var spotifyHome by remember { mutableStateOf(false) }
+
+    val hideYoutubeHome = DesktopSpotify.hideYoutubeHome(prefs)
 
     val nowPlaying = queue.getOrNull(currentIndex)
 
@@ -564,7 +566,13 @@ private fun MuSicXApp(
     }
 
     fun loadHome() {
-        if (homeLoading || homeRows.isNotEmpty() || spotifyHome) return
+        if (DesktopSpotify.hideYoutubeHome(prefs)) {
+            homeRows = emptyList()
+            homeError = null
+            homeLoading = false
+            return
+        }
+        if (homeLoading || homeRows.isNotEmpty()) return
         scope.launch {
             homeLoading = true
             homeError = null
@@ -585,7 +593,20 @@ private fun MuSicXApp(
             client.setSessionCookie(stored.cookie)
             signedIn = true
         }
+        if (DesktopSpotify.isLoggedIn(prefs)) {
+            Spotify.accessToken = prefs.spotifyAccessToken
+        }
         loadHome()
+    }
+
+    LaunchedEffect(prefs.enableSpotify, prefs.useSpotifyHome, prefs.spotifyHomeOnly, prefs.spDc) {
+        if (DesktopSpotify.hideYoutubeHome(prefs)) {
+            homeRows = emptyList()
+            homeError = null
+            homeLoading = false
+        } else if (homeRows.isEmpty() && !homeLoading) {
+            loadHome()
+        }
     }
 
     LaunchedEffect(signedIn, destination) {
@@ -623,6 +644,8 @@ private fun MuSicXApp(
                                     rows = homeRows,
                                     loading = homeLoading,
                                     error = homeError,
+                                    hideYoutubeHome = hideYoutubeHome,
+                                    spotifyHomeActive = DesktopSpotify.spotifyHomeActive(prefs),
                                     nowPlayingId = nowPlaying?.videoId,
                                     busyId = busyId,
                                     onPlay = { list, index -> playFrom(list, index) },
@@ -695,7 +718,11 @@ private fun MuSicXApp(
                                     settingsSubScreen == "listen_together" ->
                                         SettingsListenTogetherScreen(onBack = { settingsSubScreen = null })
                                     settingsSubScreen == "spotify" ->
-                                        SettingsSpotifyScreen(onBack = { settingsSubScreen = null })
+                                        SettingsSpotifyScreen(
+                                            onBack = { settingsSubScreen = null },
+                                            prefs = prefs,
+                                            onPrefsChange = onPrefsChange,
+                                        )
                                     settingsSection == SettingsSection.Appearance ->
                                         SettingsAppearanceScreen(
                                             onBack = { settingsSection = null },
@@ -974,14 +1001,32 @@ private fun HomeScreen(
     rows: List<HomeRow>,
     loading: Boolean,
     error: String?,
+    hideYoutubeHome: Boolean = false,
+    spotifyHomeActive: Boolean = false,
     nowPlayingId: String?,
     busyId: String?,
     onPlay: (List<SearchHit>, Int) -> Unit,
     onRetry: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
-        ScreenTitle(title = "Home", subtitle = "Made for you")
+        ScreenTitle(
+            title = "Home",
+            subtitle =
+                when {
+                    hideYoutubeHome -> "Spotify home only"
+                    spotifyHomeActive -> "YouTube Music + Spotify"
+                    else -> "Made for you"
+                },
+        )
         when {
+            hideYoutubeHome ->
+                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                    Text(
+                        "YouTube home is hidden while Spotify home only is enabled.\nSpotify shelves land in a later desktop slice.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             loading ->
                 Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -2042,11 +2087,100 @@ private fun SettingsListenTogetherScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun SettingsSpotifyScreen(onBack: () -> Unit) {
+private fun SettingsSpotifyScreen(
+    onBack: () -> Unit,
+    prefs: DesktopPrefs,
+    onPrefsChange: (DesktopPrefs) -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    var showLogin by remember { mutableStateOf(false) }
+    var loginBusy by remember { mutableStateOf(false) }
+    var loginError by remember { mutableStateOf<String?>(null) }
+    val loggedIn = DesktopSpotify.isLoggedIn(prefs)
+
+    fun update(updated: DesktopPrefs) {
+        DesktopPrefsStore.save(updated)
+        onPrefsChange(updated)
+    }
+
+    if (showLogin) {
+        SpotifyLoginWindow(
+            onSignedIn = { spDc, spKey ->
+                showLogin = false
+                loginBusy = true
+                loginError = null
+                scope.launch {
+                    DesktopSpotify.completeLogin(spDc, spKey, prefs).fold(
+                        onSuccess = { updated ->
+                            update(updated)
+                            loginBusy = false
+                        },
+                        onFailure = { e ->
+                            loginError = e.message ?: "Spotify login failed"
+                            loginBusy = false
+                            DesktopLog.log("Spotify login token fetch failed", e)
+                        },
+                    )
+                }
+            },
+            onClose = { showLogin = false },
+        )
+    }
+
     SettingsScaffold(title = "Spotify", subtitle = "Spotify features", onBack = onBack) {
-        SettingsToggleItem("Enable Spotify integration")
-        SettingsToggleItem("Preload tracks")
-        SettingsRowItem("Spotify login", "Not available on desktop")
+        SettingsRowItem(
+            "Status",
+            when {
+                loginBusy -> "Connecting…"
+                loginError != null -> loginError
+                loggedIn -> "Connected"
+                else -> "Disconnected"
+            },
+        )
+        SettingsRowItem(
+            if (loggedIn) "Sign out" else "Sign in",
+            if (loggedIn) "Clear Spotify session" else "Open embedded browser",
+            onClick =
+                when {
+                    loginBusy -> null
+                    loggedIn -> {
+                        { update(DesktopSpotify.signOut(prefs)) }
+                    }
+                    else -> {
+                        { showLogin = true }
+                    }
+                },
+        )
+        SettingsToggleItem(
+            "Enable Spotify integration",
+            checked = prefs.enableSpotify,
+            enabled = loggedIn,
+            onCheckedChange = { enabled -> update(prefs.copy(enableSpotify = enabled)) },
+        )
+        if (loggedIn && prefs.enableSpotify) {
+            SettingsToggleItem(
+                "Use Spotify for home",
+                checked = prefs.useSpotifyHome,
+                enabled = true,
+                onCheckedChange = { enabled ->
+                    update(
+                        prefs.copy(
+                            useSpotifyHome = enabled,
+                            spotifyHomeOnly = if (enabled) prefs.spotifyHomeOnly else false,
+                        ),
+                    )
+                },
+            )
+            if (prefs.useSpotifyHome) {
+                SettingsToggleItem(
+                    "Spotify home only",
+                    subtitle = "Hide YouTube Music home shelves",
+                    checked = prefs.spotifyHomeOnly,
+                    enabled = true,
+                    onCheckedChange = { enabled -> update(prefs.copy(spotifyHomeOnly = enabled)) },
+                )
+            }
+        }
     }
 }
 

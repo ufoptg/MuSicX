@@ -48,7 +48,11 @@ data class SearchHit(
     val thumbnailUrl: String? = null,
 )
 
-/** A titled row of songs for the Home feed (Spotify-style shelves seeded from YTM search). */
+/**
+ * A titled row of songs for the YouTube Music Home feed.
+ * Skipped entirely when [DesktopSpotify.hideYoutubeHome] is true
+ * (enableSpotify && useSpotifyHome && spDc != "" && spotifyHomeOnly).
+ */
 data class HomeRow(
     val title: String,
     val items: List<SearchHit>,

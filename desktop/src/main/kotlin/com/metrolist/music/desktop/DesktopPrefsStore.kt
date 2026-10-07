@@ -44,6 +44,12 @@ data class DesktopPrefs(
     val enableSpotify: Boolean = false,
     /** Spotify sp_dc cookie value (persisted after embedded-browser login) */
     val spDc: String = "",
+    /** Spotify sp_key cookie (optional companion to sp_dc) */
+    val spKey: String = "",
+    /** Cached Spotify access token */
+    val spotifyAccessToken: String = "",
+    /** Access token expiry epoch millis */
+    val spotifyTokenExpiry: Long = 0L,
     /** Use Spotify as home source */
     val useSpotifyHome: Boolean = false,
     /** Show only Spotify home, hide YouTube home */
