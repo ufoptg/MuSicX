@@ -197,6 +197,24 @@ class DesktopInnerTube : AutoCloseable {
         return extractHits(raw)
     }
 
+    /** Album tracks via album page browse. Politely avoids SABR/HLS. */
+    suspend fun albumTracks(albumId: String): List<SearchHit> {
+        val raw =
+            innerTube
+                .browse(client = WEB_REMIX, browseId = "MPREb$albumId", setLogin = true)
+                .body<JsonObject>()
+        return extractHits(raw)
+    }
+
+    /** Artist songs via artist page browse. Politely avoids SABR/HLS. */
+    suspend fun artistTracks(artistId: String): List<SearchHit> {
+        val raw =
+            innerTube
+                .browse(client = WEB_REMIX, browseId = "UC$artistId", setLogin = true)
+                .body<JsonObject>()
+        return extractHits(raw)
+    }
+
     suspend fun resolveAudioStream(videoId: String): ExtractedStream {
         // VLC plays WebM/Opus and AAC; disable SABR/HLS and prefer non-bounded progressive URLs.
         val hints =

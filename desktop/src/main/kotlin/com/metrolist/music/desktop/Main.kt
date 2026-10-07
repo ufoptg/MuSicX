@@ -190,6 +190,24 @@ private enum class SettingsSection(val label: String, val icon: androidx.compose
     Equalizer("Equalizer", Icons.Default.QueueMusic),
 }
 
+/**
+ * Detail screen type for the current route.
+ */
+enum class DetailType { Album, Artist, Playlist, Podcast }
+
+/**
+ * Holds the current detail screen state.
+ */
+data class DetailState(
+    val type: DetailType,
+    val id: String,
+    val title: String,
+    val subtitle: String?,
+    val thumbnailUrl: String?,
+    val tracks: List<SearchHit>,
+    val loading: Boolean,
+)
+
 fun main() = application {
     val client = remember { DesktopInnerTube() }
     val player = remember { DesktopAudioPlayer() }
@@ -319,9 +337,7 @@ private fun MuSicXApp(
     var likedLoading by remember { mutableStateOf(false) }
     var libraryPlaylists by remember { mutableStateOf<List<PlaylistHit>>(emptyList()) }
     var playlistsLoading by remember { mutableStateOf(false) }
-    var openPlaylistTitle by remember { mutableStateOf<String?>(null) }
-    var openPlaylistTracks by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
-    var openPlaylistLoading by remember { mutableStateOf(false) }
+    var openDetail by remember { mutableStateOf<DetailState?>(null) }
     var settingsSection by remember { mutableStateOf<SettingsSection?>(null) }
     var settingsSubScreen by remember { mutableStateOf<String?>(null) }
     var spotifyHome by remember { mutableStateOf(false) }
@@ -610,30 +626,32 @@ private fun MuSicXApp(
                                     likedLoading = likedLoading,
                                     libraryPlaylists = libraryPlaylists,
                                     playlistsLoading = playlistsLoading,
-                                    openPlaylistTitle = openPlaylistTitle,
-                                    openPlaylistTracks = openPlaylistTracks,
-                                    openPlaylistLoading = openPlaylistLoading,
+                                    openDetail = openDetail,
                                     downloads = downloads,
                                     onPlayDownloads = { index -> playFrom(downloads.map { it.toHit() }, index) },
                                     onRemoveDownload = { info -> toggleDownload(info.toHit()) },
                                     onOpenPlaylist = { item ->
-                                        openPlaylistTitle = item.title
-                                        openPlaylistLoading = true
-                                        openPlaylistTracks = emptyList()
+                                        openDetail = DetailState(
+                                            type = DetailType.Playlist,
+                                            id = item.id,
+                                            title = item.title,
+                                            subtitle = item.subtitle,
+                                            thumbnailUrl = item.thumbnailUrl,
+                                            tracks = emptyList(),
+                                            loading = true,
+                                        )
                                         scope.launch(Dispatchers.IO) {
                                             val tracks =
                                                 runCatching { client.playlistTracks(item.id) }
                                                     .getOrDefault(emptyList())
-                                            openPlaylistTracks = tracks
-                                            openPlaylistLoading = false
+                                            openDetail = openDetail?.copy(tracks = tracks, loading = false)
                                         }
                                     },
                                     onClosePlaylist = {
-                                        openPlaylistTitle = null
-                                        openPlaylistTracks = emptyList()
+                                        openDetail = null
                                     },
                                     onPlayLiked = { index -> playFrom(likedSongs, index) },
-                                    onPlayPlaylistTracks = { index -> playFrom(openPlaylistTracks, index) },
+                                    onPlayPlaylistTracks = { index -> playFrom(openDetail?.tracks ?: emptyList(), index) },
                                 )
                         }
                     }
@@ -975,9 +993,7 @@ private fun LibraryScreen(
     likedLoading: Boolean,
     libraryPlaylists: List<PlaylistHit>,
     playlistsLoading: Boolean,
-    openPlaylistTitle: String?,
-    openPlaylistTracks: List<SearchHit>,
-    openPlaylistLoading: Boolean,
+    openDetail: DetailState?,
     onOpenPlaylist: (PlaylistHit) -> Unit,
     onClosePlaylist: () -> Unit,
     onPlayLiked: (Int) -> Unit,
@@ -1064,23 +1080,23 @@ private fun LibraryScreen(
             2 ->
                 if (!signedIn) {
                     SignInHint(modifier = Modifier.weight(1f))
-                } else if (openPlaylistTitle != null) {
+                } else if (openDetail != null) {
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             TextButton(onClick = onClosePlaylist) { Text("← Back") }
                             Text(
-                                openPlaylistTitle,
+                                openDetail.title,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                             )
                         }
                         when {
-                            openPlaylistLoading -> {
+                            openDetail.loading -> {
                                 Box(Modifier.weight(1f).fillMaxWidth()) {
                                     CircularProgressIndicator(Modifier.align(Alignment.Center))
                                 }
                             }
-                            openPlaylistTracks.isEmpty() -> {
+                            openDetail.tracks.isEmpty() -> {
                                 Box(Modifier.weight(1f).fillMaxWidth()) {
                                     Text(
                                         "No tracks found",
@@ -1091,8 +1107,8 @@ private fun LibraryScreen(
                             }
                             else -> {
                                 LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
-                                    items(openPlaylistTracks, key = { it.videoId }) { hit ->
-                                        val index = openPlaylistTracks.indexOf(hit)
+                                    items(openDetail.tracks, key = { it.videoId }) { hit ->
+                                        val index = openDetail.tracks.indexOf(hit)
                                         ResultRow(
                                             hit = hit,
                                             isActive = hit.videoId == nowPlayingId,
