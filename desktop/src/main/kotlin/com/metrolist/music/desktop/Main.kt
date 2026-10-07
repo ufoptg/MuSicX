@@ -492,6 +492,51 @@ private fun MuSicXApp(
         }
     }
 
+    // SponsorBlock: fetch skip segments and seek past them while this track plays.
+    LaunchedEffect(nowPlaying?.videoId, prefs.sponsorblockEnabled, prefs.sponsorblockCategories) {
+        val videoId = nowPlaying?.videoId ?: return@LaunchedEffect
+        if (!prefs.sponsorblockEnabled) return@LaunchedEffect
+        val categories =
+            prefs.sponsorblockCategories
+                .split(',')
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .toSet()
+        if (categories.isEmpty()) return@LaunchedEffect
+
+        val segments =
+            withContext(Dispatchers.IO) {
+                runCatching { SponsorBlockManager.fetchSegments(videoId, categories) }
+                    .getOrDefault(emptyList())
+            }
+        if (segments.isEmpty()) return@LaunchedEffect
+
+        while (isActive) {
+            val pos = player.positionMs()
+            for (segment in segments) {
+                if (pos in segment.startMs..(segment.endMs - 200)) {
+                    DesktopLog.log(
+                        "SponsorBlock: skipping ${segment.category} ${segment.startMs}..${segment.endMs}ms",
+                    )
+                    player.seekToMs(segment.endMs)
+                    break
+                }
+            }
+            kotlinx.coroutines.delay(250)
+        }
+    }
+
+    // Apply VLC equalizer whenever prefs change (waits briefly for LibVLC prewarm).
+    LaunchedEffect(prefs.equalizerEnabled, prefs.equalizerProfile) {
+        repeat(50) {
+            if (player.ready) {
+                player.applyEqualizer(prefs.equalizerEnabled, prefs.equalizerProfile)
+                return@LaunchedEffect
+            }
+            kotlinx.coroutines.delay(200)
+        }
+    }
+
     fun runSearch() {
         val q = query.trim()
         if (q.isEmpty() || loading) return
@@ -640,7 +685,9 @@ private fun MuSicXApp(
                             Destination.Settings ->
                                 when {
                                     settingsSubScreen == "sponsorblock" ->
-                                        SettingsSponsorBlockScreen(onBack = { settingsSubScreen = null })
+                                        SettingsSponsorBlockScreen(onBack = { settingsSubScreen = null },
+                                            prefs = prefs,
+                                            onPrefsChange = onPrefsChange)
                                     settingsSubScreen == "discord" ->
                                         SettingsDiscordScreen(onBack = { settingsSubScreen = null })
                                     settingsSubScreen == "lastfm" ->
@@ -649,8 +696,6 @@ private fun MuSicXApp(
                                         SettingsListenTogetherScreen(onBack = { settingsSubScreen = null })
                                     settingsSubScreen == "spotify" ->
                                         SettingsSpotifyScreen(onBack = { settingsSubScreen = null })
-                                    settingsSubScreen == "eq_wizard" ->
-                                        SettingsEqWizardScreen(onBack = { settingsSubScreen = null })
                                     settingsSection == SettingsSection.Appearance ->
                                         SettingsAppearanceScreen(
                                             onBack = { settingsSection = null },
@@ -698,7 +743,9 @@ private fun MuSicXApp(
                                     settingsSection == SettingsSection.Equalizer ->
                                         SettingsEqualizerScreen(
                                             onBack = { settingsSection = null },
-                                            onOpenSub = { settingsSubScreen = it },
+                                            player = player,
+                                            prefs = prefs,
+                                            onPrefsChange = onPrefsChange,
                                         )
                                     else ->
                                         SettingsScreen(
@@ -1871,25 +1918,101 @@ private fun SettingsAboutScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun SettingsEqualizerScreen(onBack: () -> Unit, onOpenSub: (String) -> Unit) {
+private fun SettingsEqualizerScreen(
+    onBack: () -> Unit,
+    player: DesktopAudioPlayer,
+    prefs: DesktopPrefs,
+    onPrefsChange: (DesktopPrefs) -> Unit,
+) {
+    val update: (DesktopPrefs) -> Unit = { updated ->
+        DesktopPrefsStore.save(updated)
+        onPrefsChange(updated)
+    }
+    val presets = player.equalizerPresets()
+    val presetLabel =
+        when {
+            !prefs.equalizerEnabled -> "Off"
+            prefs.equalizerProfile.isNotBlank() -> prefs.equalizerProfile
+            else -> "Flat"
+        }
     SettingsScaffold(title = "Equalizer", subtitle = "Audio tuning", onBack = onBack) {
-        SettingsRowItem("Preset", "Not available on desktop")
+        SettingsToggleItem(
+            "Enable equalizer",
+            checked = prefs.equalizerEnabled,
+            enabled = true,
+            onCheckedChange = { enabled -> update(prefs.copy(equalizerEnabled = enabled)) },
+        )
+        SettingsRowItem(
+            "Preset",
+            if (presets.isEmpty()) "$presetLabel (VLC not ready)" else presetLabel,
+            onClick =
+                if (prefs.equalizerEnabled && presets.isNotEmpty()) {
+                    {
+                        val idx = presets.indexOf(prefs.equalizerProfile).let { if (it < 0) 0 else (it + 1) % presets.size }
+                        update(prefs.copy(equalizerProfile = presets[idx]))
+                    }
+                } else {
+                    null
+                },
+        )
         SettingsSliderItem("Bass boost")
         SettingsSliderItem("Virtualizer")
-        SettingsRowItem("Eq wizard", "Guided calibration", onClick = { onOpenSub("eq_wizard") })
+        SettingsRowItem("Eq wizard", "Not available on desktop")
     }
 }
 
 @Composable
-private fun SettingsSponsorBlockScreen(onBack: () -> Unit) {
+private fun SettingsSponsorBlockScreen(
+    onBack: () -> Unit,
+    prefs: DesktopPrefs,
+    onPrefsChange: (DesktopPrefs) -> Unit,
+) {
+    val update: (DesktopPrefs) -> Unit = { updated ->
+        DesktopPrefsStore.save(updated)
+        onPrefsChange(updated)
+    }
+    val selected =
+        remember(prefs.sponsorblockCategories) {
+            prefs.sponsorblockCategories
+                .split(',')
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .toSet()
+        }
+
+    fun toggleCategory(category: String) {
+        val next = if (category in selected) selected - category else selected + category
+        update(prefs.copy(sponsorblockCategories = next.joinToString(",")))
+    }
+
     SettingsScaffold(title = "SponsorBlock", subtitle = "Skip segments", onBack = onBack) {
-        SettingsToggleItem("Skip sponsored segments")
-        SettingsToggleItem("Skip self-promotion")
-        SettingsToggleItem("Skip interaction reminders")
-        SettingsToggleItem("Skip intros")
-        SettingsToggleItem("Skip outros")
+        SettingsToggleItem(
+            "Enable SponsorBlock",
+            checked = prefs.sponsorblockEnabled,
+            enabled = true,
+            onCheckedChange = { enabled -> update(prefs.copy(sponsorblockEnabled = enabled)) },
+        )
+        for ((category, label) in sponsorBlockCategoryRows) {
+            SettingsToggleItem(
+                label,
+                subtitle = if (prefs.sponsorblockEnabled) null else "Enable SponsorBlock above",
+                checked = category in selected,
+                enabled = prefs.sponsorblockEnabled,
+                onCheckedChange = { if (prefs.sponsorblockEnabled) toggleCategory(category) },
+            )
+        }
     }
 }
+
+private val sponsorBlockCategoryRows =
+    listOf(
+        "sponsor" to "Skip sponsored segments",
+        "selfpromo" to "Skip self-promotion",
+        "interaction" to "Skip interaction reminders",
+        "intro" to "Skip intros",
+        "outro" to "Skip outros",
+        "music_offtopic" to "Skip non-music sections",
+    )
 
 @Composable
 private fun SettingsDiscordScreen(onBack: () -> Unit) {
@@ -1924,15 +2047,6 @@ private fun SettingsSpotifyScreen(onBack: () -> Unit) {
         SettingsToggleItem("Enable Spotify integration")
         SettingsToggleItem("Preload tracks")
         SettingsRowItem("Spotify login", "Not available on desktop")
-    }
-}
-
-@Composable
-private fun SettingsEqWizardScreen(onBack: () -> Unit) {
-    SettingsScaffold(title = "Equalizer wizard", subtitle = "Guided calibration", onBack = onBack) {
-        SettingsRowItem("Start wizard", "Not available on desktop")
-        SettingsRowItem("Grant microphone access", "Not available on desktop")
-        SettingsRowItem("Save profile", "Not available on desktop")
     }
 }
 

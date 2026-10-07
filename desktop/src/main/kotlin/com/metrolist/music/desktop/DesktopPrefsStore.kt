@@ -52,11 +52,13 @@ data class DesktopPrefs(
     val discordToken: String = "",
     /** Last.fm scrobbling token */
     val lastFmToken: String = "",
-    /** SponsorBlock enabled */
+    /** SponsorBlock master switch */
     val sponsorblockEnabled: Boolean = false,
+    /** Comma-separated SponsorBlock categories (e.g. sponsor,selfpromo,music_offtopic) */
+    val sponsorblockCategories: String = "music_offtopic",
     /** Equalizer enabled */
     val equalizerEnabled: Boolean = false,
-    /** Equalizer active profile name */
+    /** VLC equalizer preset name (empty = flat / off when disabled) */
     val equalizerProfile: String = "",
 )
 

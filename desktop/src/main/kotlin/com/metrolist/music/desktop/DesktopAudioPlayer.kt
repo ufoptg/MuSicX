@@ -311,6 +311,36 @@ class DesktopAudioPlayer(private val normalizeAudio: Boolean = false) : AutoClos
         runCatching { mediaPlayer.controls().setPosition(fraction.coerceIn(0f, 1f)) }
     }
 
+    /** Seek to an absolute position in milliseconds. */
+    fun seekToMs(ms: Long) {
+        if (!ready) return
+        runCatching { mediaPlayer.controls().setTime(ms.coerceAtLeast(0L)) }
+    }
+
+    /** Built-in VLC equalizer preset names (empty until LibVLC is ready). */
+    fun equalizerPresets(): List<String> =
+        if (ready) {
+            runCatching { factory.equalizer().presets().toList() }.getOrDefault(emptyList())
+        } else {
+            emptyList()
+        }
+
+    /** Apply or clear the VLC equalizer. [profile] must be a name from [equalizerPresets]. */
+    fun applyEqualizer(
+        enabled: Boolean,
+        profile: String,
+    ) {
+        if (!ready) return
+        runCatching {
+            if (!enabled || profile.isBlank()) {
+                mediaPlayer.audio().setEqualizer(null)
+            } else {
+                val eq = factory.equalizer().newEqualizer(profile)
+                if (eq != null) mediaPlayer.audio().setEqualizer(eq)
+            }
+        }.onFailure { DesktopLog.log("applyEqualizer failed", it) }
+    }
+
     fun stop() {
         stopInternal()
     }
