@@ -767,6 +767,7 @@ private fun MuSicXApp(
                 isDownloaded = isDownloaded(nowPlaying),
                 isDownloading = nowPlaying?.videoId in downloadingIds,
                 onToggleDownload = { nowPlaying?.let(::toggleDownload) },
+                lyrics = null,
             )
         }
 
@@ -2319,6 +2320,7 @@ private fun FullPlayer(
     isDownloaded: Boolean,
     isDownloading: Boolean,
     onToggleDownload: () -> Unit,
+    lyrics: String?,
 ) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
