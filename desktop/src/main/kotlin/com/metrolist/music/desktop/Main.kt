@@ -37,6 +37,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -44,15 +47,25 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
@@ -140,9 +153,24 @@ private enum class Destination(
     Search("Search", Icons.Default.Search),
     Library("Library", Icons.Default.LibraryMusic),
     Account("Account", Icons.Default.AccountCircle),
+    Settings("Settings", Icons.Default.Settings),
 }
 
 private enum class RepeatMode { Off, All, One }
+
+private enum class SettingsSection(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Appearance("Appearance", Icons.Default.Palette),
+    Content("Content", Icons.Default.Language),
+    AI("AI", Icons.Default.Translate),
+    Player("Player", Icons.Default.PlayArrow),
+    Storage("Storage", Icons.Default.Storage),
+    Privacy("Privacy", Icons.Default.Security),
+    BackupAndRestore("Backup & restore", Icons.Default.Restore),
+    Integrations("Integrations", Icons.Default.Link),
+    Updater("Updater", Icons.Default.Update),
+    About("About", Icons.Default.Info),
+    Equalizer("Equalizer", Icons.Default.QueueMusic),
+}
 
 fun main() = application {
     val client = remember { DesktopInnerTube() }
@@ -421,6 +449,17 @@ private fun MuSicXApp(
                                         loadHome()
                                     },
                                 )
+                            Destination.Settings ->
+                                SettingsScreen(
+                                    sections = SettingsSection.entries.toList(),
+                                    onSelectSection = { sectionDestination ->
+                                        // For now, navigating to Settings destination itself
+                                        // This will be updated in Task 2 to handle specific sections
+                                        destination = Destination.Settings
+                                    },
+                                )
+
+
                             Destination.Library ->
                                 LibraryScreen(
                                     favorites = favorites,
@@ -1030,6 +1069,76 @@ private fun PlaylistRow(
         }
         IconButton(onClick = onClick) {
             Text("›", style = MaterialTheme.typography.titleLarge)
+        }
+    }
+}
+
+@Composable
+private fun SettingsScreen(
+    sections: List<SettingsSection>,
+    onSelectSection: (Destination) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 28.dp)
+    ) {
+        ScreenTitle(
+            title = "Settings",
+            subtitle = "Manage app preferences and settings"
+        )
+        
+        LazyColumn(modifier = Modifier.weight(1f).padding(top = 8.dp)) {
+            items(sections, key = { it.label }) { section ->
+                SettingsSectionTile(
+                    section = section,
+                    onClick = { onSelectSection(Destination.Settings) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsSectionTile(
+    section: SettingsSection,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                imageVector = section.icon,
+                contentDescription = section.label,
+                modifier = Modifier.size(32.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            
+            Text(
+                text = section.label,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            
+            Spacer(modifier = Modifier.weight(1f))
+            
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowUp,
+                contentDescription = "Navigate",
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
