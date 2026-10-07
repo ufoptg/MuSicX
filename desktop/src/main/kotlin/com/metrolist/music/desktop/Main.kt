@@ -354,6 +354,7 @@ private fun MuSicXApp(
     DisposableEffect(sleepTimer) { onDispose { sleepTimer.cancel() } }
     var positionMs by remember { mutableStateOf(0L) }
     var durationMs by remember { mutableStateOf(0L) }
+    var currentLyrics by remember { mutableStateOf<String?>(null) }
     var seekPreview by remember { mutableStateOf<Float?>(null) }
     var volume by remember { mutableStateOf(100) }
 
@@ -408,6 +409,15 @@ private fun MuSicXApp(
                     return@launch
                 }
                 playing = true
+                try {
+                    currentLyrics = if (local != null) null else {
+                        withContext(Dispatchers.IO) {
+                            DesktopLyrics.fetchLyrics(hit.title, hit.subtitle ?: "", 0, null)
+                        }
+                    }
+                } catch (_: Exception) {
+                    currentLyrics = null
+                }
                 // Push to the front of the session history (most-recent-first, deduped).
                 history = (listOf(hit) + history.filterNot { it.videoId == hit.videoId }).take(50)
                 persistLibrary()
@@ -839,7 +849,7 @@ private fun MuSicXApp(
                     sleepMode = option
                     sleepStopped = false
                 },
-                lyrics = null,
+                lyrics = currentLyrics,
             )
         }
 
@@ -2488,6 +2498,13 @@ private fun FullPlayer(
                 onSeekChange = onSeekChange,
                 onSeekCommit = onSeekCommit,
             )
+                lyrics?.let { text ->
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp),
