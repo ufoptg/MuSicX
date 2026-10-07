@@ -489,8 +489,6 @@ private fun MuSicXApp(
                                         SettingsListenTogetherScreen(onBack = { settingsSubScreen = null })
                                     settingsSubScreen == "spotify" ->
                                         SettingsSpotifyScreen(onBack = { settingsSubScreen = null })
-                                    settingsSubScreen == "android_auto" ->
-                                        SettingsAndroidAutoScreen(onBack = { settingsSubScreen = null })
                                     settingsSubScreen == "eq_wizard" ->
                                         SettingsEqWizardScreen(onBack = { settingsSubScreen = null })
                                     settingsSection == SettingsSection.Appearance ->
@@ -1464,7 +1462,6 @@ private fun SettingsIntegrationsScreen(onBack: () -> Unit, onOpenSub: (String) -
         SettingsRowItem("Last.fm", "Scrobbling", onClick = { onOpenSub("lastfm") })
         SettingsRowItem("Listen Together", "Shared sessions", onClick = { onOpenSub("listen_together") })
         SettingsRowItem("Spotify", "Spotify features", onClick = { onOpenSub("spotify") })
-        SettingsRowItem("Android Auto", "Car integration", onClick = { onOpenSub("android_auto") })
     }
 }
 
@@ -1541,14 +1538,6 @@ private fun SettingsSpotifyScreen(onBack: () -> Unit) {
         SettingsToggleItem("Enable Spotify integration")
         SettingsToggleItem("Preload tracks")
         SettingsRowItem("Spotify login", "Not available on desktop")
-    }
-}
-
-@Composable
-private fun SettingsAndroidAutoScreen(onBack: () -> Unit) {
-    SettingsScaffold(title = "Android Auto", subtitle = "Car integration", onBack = onBack) {
-        SettingsToggleItem("Enable Android Auto")
-        SettingsRowItem("Car screen", "Not available on desktop")
     }
 }
 
