@@ -35,6 +35,7 @@
 22. Browser CDP auto-import login (`531b2b9ca`) — superseded by #23 after the temp-profile spawn + DPAPI parsing proved unreliable.
 23. **Embedded Chromium JCEF login** (`cead83c59`, native-version pin `0015f2191`, Windows API fix `d657503c0`, global CefApp init `2c1d68a82`, final nullable fix by human `c6a36fed6`) — primary desktop login: embedded Chromium window pointed at Google sign-in URL, 2s cookie poll via `CefCookieManager`, hand off `SAPISID` header to the existing session store. Stray committed `musicx-desktop.log` removed.
 24. Queue panel now has a Close button (`ed0cac3bc`).
+25. **Settings parity** (`52963cc34`, `5bf42b217`) — Settings destination with section list mirroring Android; all Android settings sections present on desktop, disabled where n/a.
 
 ## Global Constraints
 
