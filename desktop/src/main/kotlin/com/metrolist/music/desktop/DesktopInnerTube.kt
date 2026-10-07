@@ -16,6 +16,7 @@ import com.metrolist.innertubex.extraction.ExtractedStream
 import com.metrolist.innertubex.extraction.InnerTubeExtractor
 import com.metrolist.innertubex.extraction.YtConfigParserImpl
 import com.metrolist.innertubex.models.YouTubeClient.Companion.WEB_REMIX
+import com.metrolist.innertubex.models.YouTubeLocale
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
@@ -299,6 +300,16 @@ class DesktopInnerTube : AutoCloseable {
     fun setSessionCookie(cookie: String?) {
         innerTube.cookie = cookie
         innerTube.useLoginForBrowse = !cookie.isNullOrBlank()
+    }
+
+    /** Apply InnerTube hl/gl used for browse/search (YouTubeLocale gl, hl). */
+    fun setLocale(
+        language: String,
+        country: String,
+    ) {
+        val hl = language.ifBlank { "en" }
+        val gl = country.ifBlank { "US" }
+        innerTube.locale = YouTubeLocale(gl, hl)
     }
 
     val signedIn: Boolean

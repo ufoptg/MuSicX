@@ -184,6 +184,10 @@ private enum class RepeatMode { Off, All, One }
 
 private val sleepOptions = listOf("Off", "15 min", "30 min", "45 min", "60 min", "End of track")
 private val qualityOptions = listOf("Auto", "High", "Low")
+private val aiProviders =
+    listOf("OpenRouter", "OpenAI", "Perplexity", "Claude", "Gemini", "XAi", "Mistral", "Inception", "DeepL")
+private val contentLanguages = listOf("en", "es", "fr", "de", "ja", "ko", "zh-CN", "pt", "ru", "hi")
+private val contentCountries = listOf("US", "GB", "CA", "AU", "DE", "FR", "JP", "KR", "BR", "IN")
 
 private enum class SettingsSection(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Appearance("Appearance", Icons.Default.Palette),
@@ -221,16 +225,30 @@ fun main() = application {
     var prefs by remember { mutableStateOf(DesktopPrefsStore.load()) }
     val client = remember { DesktopInnerTube() }
     val player = remember { DesktopAudioPlayer(normalizeAudio = prefs.playerLoudness) }
+    fun exitCleaningCache() {
+        if (DesktopPrefsStore.load().clearCacheOnExit) {
+            DesktopDownloads.clearSongCache()
+        }
+        exitApplication()
+    }
+
+    LaunchedEffect(prefs.contentLanguage, prefs.contentCountry) {
+        client.setLocale(prefs.contentLanguage, prefs.contentCountry)
+    }
+
     DisposableEffect(Unit) {
         player.prewarm()
         onDispose {
+            if (DesktopPrefsStore.load().clearCacheOnExit) {
+                DesktopDownloads.clearSongCache()
+            }
             player.close()
             client.close()
         }
     }
 
     Window(
-        onCloseRequest = ::exitApplication,
+        onCloseRequest = ::exitCleaningCache,
         title = "MuSicX",
         icon = painterResource("ic_launcher.png"),
         state = rememberWindowState(width = 1100.dp, height = 760.dp),
@@ -421,8 +439,10 @@ private fun MuSicXApp(
                     currentLyrics = null
                 }
                 // Push to the front of the session history (most-recent-first, deduped).
-                history = (listOf(hit) + history.filterNot { it.videoId == hit.videoId }).take(50)
-                persistLibrary()
+                if (!prefs.pauseHistory) {
+                    history = (listOf(hit) + history.filterNot { it.videoId == hit.videoId }).take(50)
+                    persistLibrary()
+                }
             } catch (t: Throwable) {
                 DesktopLog.log("playHit failed", t)
                 error = t.message ?: t::class.simpleName ?: "Playback failed"
@@ -740,9 +760,17 @@ private fun MuSicXApp(
                                             onPrefsChange = onPrefsChange,
                                         )
                                     settingsSection == SettingsSection.Content ->
-                                        SettingsContentScreen(onBack = { settingsSection = null })
+                                        SettingsContentScreen(
+                                            onBack = { settingsSection = null },
+                                            prefs = prefs,
+                                            onPrefsChange = onPrefsChange,
+                                        )
                                     settingsSection == SettingsSection.AI ->
-                                        SettingsAiScreen(onBack = { settingsSection = null })
+                                        SettingsAiScreen(
+                                            onBack = { settingsSection = null },
+                                            prefs = prefs,
+                                            onPrefsChange = onPrefsChange,
+                                        )
                                     settingsSection == SettingsSection.Player ->
                                         SettingsPlayerScreen(
                                             onBack = { settingsSection = null },
@@ -765,9 +793,22 @@ private fun MuSicXApp(
                                         SettingsPrivacyScreen(
                                             onBack = { settingsSection = null },
                                             prefs = prefs,
+                                            onPrefsChange = onPrefsChange,
+                                            onClearListenHistory = {
+                                                history = emptyList()
+                                                persistLibrary()
+                                            },
                                         )
                                     settingsSection == SettingsSection.BackupAndRestore ->
-                                        SettingsBackupScreen(onBack = { settingsSection = null })
+                                        SettingsBackupScreen(
+                                            onBack = { settingsSection = null },
+                                            onPrefsChange = onPrefsChange,
+                                            onLibraryRestored = { data ->
+                                                favorites = data.favorites
+                                                history = data.history
+                                                downloads = data.downloads
+                                            },
+                                        )
                                     settingsSection == SettingsSection.Integrations ->
                                         SettingsIntegrationsScreen(
                                             onBack = { settingsSection = null },
@@ -1819,10 +1860,38 @@ private fun SettingsAppearanceScreen(
 }
 
 @Composable
-private fun SettingsContentScreen(onBack: () -> Unit) {
+private fun SettingsContentScreen(
+    onBack: () -> Unit,
+    prefs: DesktopPrefs,
+    onPrefsChange: (DesktopPrefs) -> Unit,
+) {
+    val update: (DesktopPrefs) -> Unit = { updated ->
+        DesktopPrefsStore.save(updated)
+        onPrefsChange(updated)
+    }
     SettingsScaffold(title = "Content", subtitle = "Language, country and lyrics", onBack = onBack) {
-        SettingsRowItem("Content language", "Not available on desktop")
-        SettingsRowItem("Content country", "Not available on desktop")
+        SettingsRowItem(
+            "Content language",
+            prefs.contentLanguage,
+            onClick = {
+                val idx =
+                    contentLanguages.indexOf(prefs.contentLanguage).let {
+                        if (it < 0) 0 else (it + 1) % contentLanguages.size
+                    }
+                update(prefs.copy(contentLanguage = contentLanguages[idx]))
+            },
+        )
+        SettingsRowItem(
+            "Content country",
+            prefs.contentCountry,
+            onClick = {
+                val idx =
+                    contentCountries.indexOf(prefs.contentCountry).let {
+                        if (it < 0) 0 else (it + 1) % contentCountries.size
+                    }
+                update(prefs.copy(contentCountry = contentCountries[idx]))
+            },
+        )
         SettingsRowItem("App language", "Not available on desktop")
         SettingsRowItem("Lyrics provider selection", "Not available on desktop")
         SettingsRowItem("Romanization", "Not available on desktop")
@@ -1830,14 +1899,53 @@ private fun SettingsContentScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun SettingsAiScreen(onBack: () -> Unit) {
+private fun SettingsAiScreen(
+    onBack: () -> Unit,
+    prefs: DesktopPrefs,
+    onPrefsChange: (DesktopPrefs) -> Unit,
+) {
+    fun update(transform: (DesktopPrefs) -> DesktopPrefs) {
+        val updated = transform(DesktopPrefsStore.load())
+        DesktopPrefsStore.save(updated)
+        onPrefsChange(updated)
+    }
+    var apiKey by remember(prefs.aiKey) { mutableStateOf(prefs.aiKey) }
+    var model by remember(prefs.aiModel) { mutableStateOf(prefs.aiModel) }
     SettingsScaffold(title = "AI", subtitle = "AI translation and providers", onBack = onBack) {
-        SettingsRowItem("AI provider", "Not available on desktop")
+        SettingsRowItem(
+            "AI provider",
+            prefs.aiProvider.ifBlank { "OpenRouter" },
+            onClick = {
+                update { p ->
+                    val current = p.aiProvider.ifBlank { "OpenRouter" }
+                    val idx = aiProviders.indexOf(current).let { if (it < 0) 0 else (it + 1) % aiProviders.size }
+                    p.copy(aiProvider = aiProviders[idx])
+                }
+            },
+        )
         SettingsRowItem("Translation mode", "Not available on desktop")
         SettingsRowItem("Target language", "Not available on desktop")
-        SettingsRowItem("API key", "Not available on desktop")
+        OutlinedTextField(
+            value = apiKey,
+            onValueChange = {
+                apiKey = it
+                update { p -> p.copy(aiKey = it) }
+            },
+            label = { Text("API key") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        )
         SettingsRowItem("Base URL", "Not available on desktop")
-        SettingsRowItem("Model", "Not available on desktop")
+        OutlinedTextField(
+            value = model,
+            onValueChange = {
+                model = it
+                update { p -> p.copy(aiModel = it) }
+            },
+            label = { Text("Model") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        )
         SettingsRowItem("System prompt", "Not available on desktop")
     }
 }
@@ -1920,24 +2028,80 @@ private fun SettingsStorageScreen(
 }
 
 @Composable
-private fun SettingsPrivacyScreen(onBack: () -> Unit, prefs: DesktopPrefs) {
+private fun SettingsPrivacyScreen(
+    onBack: () -> Unit,
+    prefs: DesktopPrefs,
+    onPrefsChange: (DesktopPrefs) -> Unit,
+    onClearListenHistory: () -> Unit,
+) {
     val update: (DesktopPrefs) -> Unit = { updated ->
         DesktopPrefsStore.save(updated)
+        onPrefsChange(updated)
     }
     SettingsScaffold(title = "Privacy", subtitle = "History and data", onBack = onBack) {
-        SettingsToggleItem("Pause listen history", checked = prefs.pauseHistory, onCheckedChange = { enabled -> update(prefs.copy(pauseHistory = enabled)) })
-        SettingsRowItem("Clear listen history", if (prefs.pauseHistory) "History stored in memory" else "Not available on desktop")
-        SettingsToggleItem("Pause search history", checked = prefs.clearCacheOnExit, onCheckedChange = { enabled -> update(prefs.copy(clearCacheOnExit = enabled)) })
-        SettingsRowItem("Clear search history", if (prefs.clearCacheOnExit) "Cache cleared on exit" else "Not available on desktop")
+        SettingsToggleItem(
+            "Pause listen history",
+            subtitle = "Stop recording recently played",
+            checked = prefs.pauseHistory,
+            enabled = true,
+            onCheckedChange = { enabled -> update(prefs.copy(pauseHistory = enabled)) },
+        )
+        SettingsRowItem(
+            "Clear listen history",
+            "Remove local recently played",
+            onClick = onClearListenHistory,
+        )
+        SettingsToggleItem(
+            "Clear cache on exit",
+            subtitle = "Delete streaming temp files when closing",
+            checked = prefs.clearCacheOnExit,
+            enabled = true,
+            onCheckedChange = { enabled -> update(prefs.copy(clearCacheOnExit = enabled)) },
+        )
+        SettingsToggleItem("Pause search history")
+        SettingsRowItem("Clear search history", "Not available on desktop")
         SettingsToggleItem("Disable screenshot")
+        SettingsToggleItem("Picture-in-picture")
     }
 }
 
 @Composable
-private fun SettingsBackupScreen(onBack: () -> Unit) {
+private fun SettingsBackupScreen(
+    onBack: () -> Unit,
+    onPrefsChange: (DesktopPrefs) -> Unit,
+    onLibraryRestored: (DesktopLibraryData) -> Unit,
+) {
+    var status by remember { mutableStateOf("Export / import library and prefs as JSON") }
     SettingsScaffold(title = "Backup & restore", subtitle = "Export and import data", onBack = onBack) {
-        SettingsRowItem("Backup", "Not available on desktop")
-        SettingsRowItem("Restore", "Not available on desktop")
+        SettingsRowItem(
+            "Backup",
+            status,
+            onClick = {
+                DesktopBackup.export()
+                    .onSuccess { file -> status = "Exported to ${file.name}" }
+                    .onFailure { error ->
+                        if (error.message != "cancelled") {
+                            status = "Export failed: ${error.message ?: error::class.simpleName}"
+                        }
+                    }
+            },
+        )
+        SettingsRowItem(
+            "Restore",
+            "Replace local library and prefs from a backup file",
+            onClick = {
+                DesktopBackup.import()
+                    .onSuccess { payload ->
+                        onPrefsChange(payload.prefs)
+                        onLibraryRestored(payload.library)
+                        status = "Imported backup"
+                    }.onFailure { error ->
+                        if (error.message != "cancelled") {
+                            status = "Restore failed: ${error.message ?: error::class.simpleName}"
+                        }
+                    }
+            },
+        )
         SettingsRowItem("Import online", "Not available on desktop")
         SettingsRowItem("Import CSV", "Not available on desktop")
     }
@@ -1955,10 +2119,33 @@ private fun SettingsIntegrationsScreen(onBack: () -> Unit, onOpenSub: (String) -
 
 @Composable
 private fun SettingsUpdaterScreen(onBack: () -> Unit) {
+    var checking by remember { mutableStateOf(false) }
+    var result by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
     SettingsScaffold(title = "Updater", subtitle = "App updates", onBack = onBack) {
-        SettingsRowItem("Current version", "Not available on desktop")
-        SettingsToggleItem("Check for updates")
+        SettingsRowItem("Current version", DesktopUpdater.PACKAGE_VERSION)
+        SettingsRowItem(
+            "Check for updates",
+            when {
+                checking -> "Checking…"
+                result != null -> result
+                else -> "Compare with GitHub latest release"
+            },
+            onClick =
+                if (checking) {
+                    null
+                } else {
+                    {
+                        checking = true
+                        scope.launch {
+                            result = DesktopUpdater.checkLatest().message
+                            checking = false
+                        }
+                    }
+                },
+        )
         SettingsToggleItem("Update notifications")
+        SettingsRowItem("Install update", "Not available on desktop — download from GitHub releases")
     }
 }
 
@@ -1966,7 +2153,7 @@ private fun SettingsUpdaterScreen(onBack: () -> Unit) {
 private fun SettingsAboutScreen(onBack: () -> Unit) {
     SettingsScaffold(title = "About", subtitle = "MuSicX", onBack = onBack) {
         SettingsRowItem("MuSicX", "Desktop build")
-        SettingsRowItem("Version", "Not available on desktop")
+        SettingsRowItem("Version", DesktopUpdater.PACKAGE_VERSION)
         SettingsRowItem("YouTube Music", "Not available on desktop")
         SettingsRowItem("Community", "Not available on desktop")
     }

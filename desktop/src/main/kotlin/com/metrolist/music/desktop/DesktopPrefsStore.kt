@@ -21,11 +21,13 @@ data class DesktopPrefs(
     val dynamicTheme: String = "AUTO",
     /** Selected theme color ARGB value (for coral/seed color) */
     val selectedThemeColor: Long = 0xFFED5564L,
-    /** Content language/country code */
+    /** Content language (hl) / country (gl) for InnerTube locale */
     val contentLanguage: String = "en",
-    /** AI provider/key settings */
-    val aiProvider: String = "",
+    val contentCountry: String = "US",
+    /** AI provider/key/model (persisted; translation not wired on desktop) */
+    val aiProvider: String = "OpenRouter",
     val aiKey: String = "",
+    val aiModel: String = "",
     /** Player quality/loudness/crossfade/gapless settings */
     val playerQuality: Int = 1,
     val playerLoudness: Boolean = false,
