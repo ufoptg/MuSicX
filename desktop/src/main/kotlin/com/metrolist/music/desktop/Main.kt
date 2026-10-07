@@ -559,9 +559,34 @@ private fun MuSicXApp(
         }
     }
 
+    fun openDetailEntity(
+        type: DetailType,
+        id: String,
+        title: String,
+        subtitle: String?,
+        thumbnailUrl: String?,
+        loader: suspend (String) -> List<SearchHit>,
+    ) {
+        openDetail =
+            DetailState(
+                type = type,
+                id = id,
+                title = title,
+                subtitle = subtitle,
+                thumbnailUrl = thumbnailUrl,
+                tracks = emptyList(),
+                loading = true,
+            )
+        scope.launch(Dispatchers.IO) {
+            val tracks = runCatching { loader(id) }.getOrDefault(emptyList())
+            openDetail = openDetail?.copy(tracks = tracks, loading = false)
+        }
+    }
+
     fun runSearch() {
         val q = query.trim()
         if (q.isEmpty() || loading) return
+        openDetail = null
         scope.launch {
             loading = true
             error = null
@@ -664,7 +689,10 @@ private fun MuSicXApp(
             Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 AppNavigationRail(
                     selected = destination,
-                    onSelect = { destination = it },
+                    onSelect = {
+                        destination = it
+                        openDetail = null
+                    },
                 )
                 Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
                     Crossfade(targetState = destination) { dest ->
@@ -697,7 +725,39 @@ private fun MuSicXApp(
                                     onPlayIndex = { index -> playFrom(songResults, index) },
                                     isFavorite = ::isFavorite,
                                     onToggleFavorite = ::toggleFavorite,
-                                    onOpenPlaylist = { hit -> openDetail = DetailState(DetailType.Playlist, hit.id, hit.title, hit.subtitle, hit.thumbnailUrl, emptyList(), true); scope.launch(Dispatchers.IO) { val tracks = runCatching { client.playlistTracks(hit.id) }.getOrDefault(emptyList()); openDetail = openDetail?.copy(tracks = tracks, loading = false) } },
+                                    openDetail = openDetail,
+                                    onCloseDetail = { openDetail = null },
+                                    onPlayDetailTracks = { index -> playFrom(openDetail?.tracks ?: emptyList(), index) },
+                                    onOpenAlbum = { hit ->
+                                        openDetailEntity(
+                                            DetailType.Album,
+                                            hit.videoId,
+                                            hit.title,
+                                            hit.subtitle,
+                                            hit.thumbnailUrl,
+                                            client::albumTracks,
+                                        )
+                                    },
+                                    onOpenArtist = { hit ->
+                                        openDetailEntity(
+                                            DetailType.Artist,
+                                            hit.videoId,
+                                            hit.title,
+                                            hit.subtitle,
+                                            hit.thumbnailUrl,
+                                            client::artistTracks,
+                                        )
+                                    },
+                                    onOpenPlaylist = { hit ->
+                                        openDetailEntity(
+                                            DetailType.Playlist,
+                                            hit.id,
+                                            hit.title,
+                                            hit.subtitle,
+                                            hit.thumbnailUrl,
+                                            client::playlistTracks,
+                                        )
+                                    },
                                 )
                             Destination.History ->
                                 HistoryScreen(
@@ -863,21 +923,14 @@ private fun MuSicXApp(
                                     onPlayDownloads = { index -> playFrom(downloads.map { it.toHit() }, index) },
                                     onRemoveDownload = { info -> toggleDownload(info.toHit()) },
                                     onOpenPlaylist = { item ->
-                                        openDetail = DetailState(
-                                            type = DetailType.Playlist,
-                                            id = item.id,
-                                            title = item.title,
-                                            subtitle = item.subtitle,
-                                            thumbnailUrl = item.thumbnailUrl,
-                                            tracks = emptyList(),
-                                            loading = true,
+                                        openDetailEntity(
+                                            DetailType.Playlist,
+                                            item.id,
+                                            item.title,
+                                            item.subtitle,
+                                            item.thumbnailUrl,
+                                            client::playlistTracks,
                                         )
-                                        scope.launch(Dispatchers.IO) {
-                                            val tracks =
-                                                runCatching { client.playlistTracks(item.id) }
-                                                    .getOrDefault(emptyList())
-                                            openDetail = openDetail?.copy(tracks = tracks, loading = false)
-                                        }
                                     },
                                     onClosePlaylist = {
                                         openDetail = null
@@ -1265,9 +1318,28 @@ private fun SearchScreen(
     onPlayIndex: (Int) -> Unit,
     isFavorite: (SearchHit) -> Boolean,
     onToggleFavorite: (SearchHit) -> Unit,
+    openDetail: DetailState?,
+    onCloseDetail: () -> Unit,
+    onPlayDetailTracks: (Int) -> Unit,
+    onOpenAlbum: (SearchHit) -> Unit,
+    onOpenArtist: (SearchHit) -> Unit,
     onOpenPlaylist: (PlaylistHit) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
+        if (openDetail != null) {
+            DetailPane(
+                detail = openDetail,
+                nowPlayingId = nowPlayingId,
+                busyId = busyId,
+                isFavorite = isFavorite,
+                onToggleFavorite = onToggleFavorite,
+                onClose = onCloseDetail,
+                onPlayIndex = onPlayDetailTracks,
+                modifier = Modifier.weight(1f),
+            )
+            return@Column
+        }
+
         ScreenTitle(title = "Search", subtitle = "Songs, albums, artists, playlists")
         SearchBar(query = query, onQueryChange = onQueryChange, enabled = !loading, onSearch = onSearch)
 
@@ -1304,14 +1376,13 @@ private fun SearchScreen(
                 if (albumResults.isNotEmpty()) {
                     item { Text("Albums", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)) }
                     items(albumResults, key = { it.videoId }) { hit ->
-                        val index = albumResults.indexOf(hit)
                         ResultRow(
                             hit = hit,
-                            isActive = hit.videoId == nowPlayingId,
-                            isBusy = busyId == hit.videoId,
-                            onClick = { onPlayIndex(index) },
-                            isFavorite = isFavorite(hit),
-                            onToggleFavorite = { onToggleFavorite(hit) },
+                            isActive = false,
+                            isBusy = false,
+                            onClick = { onOpenAlbum(hit) },
+                            isFavorite = false,
+                            onToggleFavorite = {},
                         )
                     }
                 }
@@ -1319,14 +1390,13 @@ private fun SearchScreen(
                 if (artistResults.isNotEmpty()) {
                     item { Text("Artists", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)) }
                     items(artistResults, key = { it.videoId }) { hit ->
-                        val index = artistResults.indexOf(hit)
                         ResultRow(
                             hit = hit,
-                            isActive = hit.videoId == nowPlayingId,
-                            isBusy = busyId == hit.videoId,
-                            onClick = { onPlayIndex(index) },
-                            isFavorite = isFavorite(hit),
-                            onToggleFavorite = { onToggleFavorite(hit) },
+                            isActive = false,
+                            isBusy = false,
+                            onClick = { onOpenArtist(hit) },
+                            isFavorite = false,
+                            onToggleFavorite = {},
                         )
                     }
                 }
@@ -1335,6 +1405,60 @@ private fun SearchScreen(
                     item { Text("Playlists", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)) }
                     items(playlistResults, key = { it.id }) { hit ->
                         PlaylistRow(item = hit, onClick = { onOpenPlaylist(hit) })
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailPane(
+    detail: DetailState,
+    nowPlayingId: String?,
+    busyId: String?,
+    isFavorite: (SearchHit) -> Boolean,
+    onToggleFavorite: (SearchHit) -> Unit,
+    onClose: () -> Unit,
+    onPlayIndex: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onClose) { Text("← Back") }
+            Text(
+                detail.title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        when {
+            detail.loading -> {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                }
+            }
+            detail.tracks.isEmpty() -> {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    Text(
+                        "No tracks found",
+                        modifier = Modifier.align(Alignment.Center),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            else -> {
+                LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    items(detail.tracks, key = { it.videoId }) { hit ->
+                        val index = detail.tracks.indexOf(hit)
+                        ResultRow(
+                            hit = hit,
+                            isActive = hit.videoId == nowPlayingId,
+                            isBusy = busyId == hit.videoId,
+                            onClick = { onPlayIndex(index) },
+                            isFavorite = isFavorite(hit),
+                            onToggleFavorite = { onToggleFavorite(hit) },
+                        )
                     }
                 }
             }
@@ -1447,47 +1571,16 @@ private fun LibraryScreen(
                 if (!signedIn) {
                     SignInHint(modifier = Modifier.weight(1f))
                 } else if (openDetail != null) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            TextButton(onClick = onClosePlaylist) { Text("← Back") }
-                            Text(
-                                openDetail.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                        when {
-                            openDetail.loading -> {
-                                Box(Modifier.weight(1f).fillMaxWidth()) {
-                                    CircularProgressIndicator(Modifier.align(Alignment.Center))
-                                }
-                            }
-                            openDetail.tracks.isEmpty() -> {
-                                Box(Modifier.weight(1f).fillMaxWidth()) {
-                                    Text(
-                                        "No tracks found",
-                                        modifier = Modifier.align(Alignment.Center),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                            else -> {
-                                LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
-                                    items(openDetail.tracks, key = { it.videoId }) { hit ->
-                                        val index = openDetail.tracks.indexOf(hit)
-                                        ResultRow(
-                                            hit = hit,
-                                            isActive = hit.videoId == nowPlayingId,
-                                            isBusy = busyId == hit.videoId,
-                                            onClick = { onPlayPlaylistTracks(index) },
-                                            isFavorite = isFavorite(hit),
-                                            onToggleFavorite = { onToggleFavorite(hit) },
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    DetailPane(
+                        detail = openDetail,
+                        nowPlayingId = nowPlayingId,
+                        busyId = busyId,
+                        isFavorite = isFavorite,
+                        onToggleFavorite = onToggleFavorite,
+                        onClose = onClosePlaylist,
+                        onPlayIndex = onPlayPlaylistTracks,
+                        modifier = Modifier.weight(1f),
+                    )
                 } else if (playlistsLoading) {
                     Box(Modifier.weight(1f).fillMaxWidth()) {
                         CircularProgressIndicator(Modifier.align(Alignment.Center))

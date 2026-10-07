@@ -115,7 +115,7 @@ class DesktopInnerTube : AutoCloseable {
                     setLogin = false,
                 ).body<JsonObject>()
 
-        return extractHits(raw)
+        return extractBrowseHits(raw) { id -> id.startsWith("MPRE") }
     }
 
     suspend fun searchArtists(query: String): List<SearchHit> {
@@ -131,7 +131,7 @@ class DesktopInnerTube : AutoCloseable {
                     setLogin = false,
                 ).body<JsonObject>()
 
-        return extractHits(raw)
+        return extractBrowseHits(raw) { id -> id.startsWith("UC") }
     }
 
     suspend fun searchPlaylists(query: String): List<PlaylistHit> {
@@ -266,18 +266,24 @@ class DesktopInnerTube : AutoCloseable {
 
     /** Album tracks via album page browse. Politely avoids SABR/HLS. */
     suspend fun albumTracks(albumId: String): List<SearchHit> {
+        val browseId =
+            when {
+                albumId.startsWith("MPRE") || albumId.startsWith("FE") -> albumId
+                else -> "MPREb$albumId"
+            }
         val raw =
             innerTube
-                .browse(client = WEB_REMIX, browseId = "MPREb$albumId", setLogin = true)
+                .browse(client = WEB_REMIX, browseId = browseId, setLogin = true)
                 .body<JsonObject>()
         return extractHits(raw)
     }
 
     /** Artist songs via artist page browse. Politely avoids SABR/HLS. */
     suspend fun artistTracks(artistId: String): List<SearchHit> {
+        val browseId = if (artistId.startsWith("UC")) artistId else "UC$artistId"
         val raw =
             innerTube
-                .browse(client = WEB_REMIX, browseId = "UC$artistId", setLogin = true)
+                .browse(client = WEB_REMIX, browseId = browseId, setLogin = true)
                 .body<JsonObject>()
         return extractHits(raw)
     }
@@ -333,7 +339,9 @@ class DesktopInnerTube : AutoCloseable {
 
         private const val FILTER_SONG = "EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D"
         private const val FILTER_ALBUM = "EgWKAQIYAWoKEAkQBRAKEAMQBA%3D%3D"
-        private const val FILTER_ARTIST = "EgWKAQIYAWoKEAkQBRAKEAMQBA%3D%3D"
+        // Artist marker `g` (not album `Y`); BRAKE suffix matches desktop song/album filters.
+        // Android/YTM ChAFE form: EgWKAQIgAWoKEAkQChAFEAMQBA%3D%3D
+        private const val FILTER_ARTIST = "EgWKAQIgAWoKEAkQBRAKEAMQBA%3D%3D"
         private const val FILTER_PLAYLIST = "EgWKAQIAWoKEAkQBRAKEAMQBA%3D%3D"
 
         private val HOME_CATEGORIES =
@@ -411,6 +419,101 @@ class DesktopInnerTube : AutoCloseable {
             }
             walk(root)
             return hits.values.toList()
+        }
+
+        /** Album/artist search rows use browseEndpoint ids, not videoIds. */
+        internal fun extractBrowseHits(
+            root: JsonElement,
+            accept: (browseId: String) -> Boolean,
+        ): List<SearchHit> {
+            val hits = LinkedHashMap<String, SearchHit>()
+            fun walk(el: JsonElement) {
+                when (el) {
+                    is JsonObject -> {
+                        el["musicResponsiveListItemRenderer"]?.jsonObject?.let { renderer ->
+                            parseBrowseHit(renderer)?.takeIf { accept(it.videoId) }?.let { hit ->
+                                hits.putIfAbsent(hit.videoId, hit)
+                            }
+                        }
+                        el["musicTwoRowItemRenderer"]?.jsonObject?.let { renderer ->
+                            parseBrowseHit(renderer)?.takeIf { accept(it.videoId) }?.let { hit ->
+                                hits.putIfAbsent(hit.videoId, hit)
+                            }
+                        }
+                        el.values.forEach(::walk)
+                    }
+                    is JsonArray -> el.forEach(::walk)
+                    else -> Unit
+                }
+            }
+            walk(root)
+            return hits.values.toList()
+        }
+
+        private fun parseBrowseHit(renderer: JsonObject): SearchHit? {
+            val browseId =
+                renderer["navigationEndpoint"]
+                    ?.jsonObject
+                    ?.get("browseEndpoint")
+                    ?.jsonObject
+                    ?.get("browseId")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    ?: return null
+            val flexColumns = renderer["flexColumns"]?.jsonArray.orEmpty()
+            val title =
+                flexColumns
+                    .getOrNull(0)
+                    ?.jsonObject
+                    ?.get("musicResponsiveListItemFlexColumnRenderer")
+                    ?.jsonObject
+                    ?.let { firstText(it) }
+                    ?: renderer["title"]?.jsonObject?.get("runs")?.jsonArray
+                        ?.joinToString("") { run ->
+                            (run as? JsonObject)?.get("text")?.jsonPrimitive?.contentOrNull.orEmpty()
+                        }?.trim()
+                        ?.takeIf { it.isNotEmpty() }
+                    ?: return null
+            val subtitle =
+                flexColumns
+                    .getOrNull(1)
+                    ?.jsonObject
+                    ?.get("musicResponsiveListItemFlexColumnRenderer")
+                    ?.jsonObject
+                    ?.let { firstText(it) }
+                    ?: renderer["subtitle"]?.jsonObject?.get("runs")?.jsonArray
+                        ?.joinToString(" ") { run ->
+                            (run as? JsonObject)?.get("text")?.jsonPrimitive?.contentOrNull.orEmpty()
+                        }?.replace("  ", " ")?.trim()
+                        ?.takeIf { it.isNotEmpty() }
+            val thumbnailUrl =
+                renderer["thumbnail"]
+                    ?.jsonObject
+                    ?.get("musicThumbnailRenderer")
+                    ?.jsonObject
+                    ?.get("thumbnail")
+                    ?.jsonObject
+                    ?.get("thumbnails")
+                    ?.jsonArray
+                    ?.lastOrNull()
+                    ?.jsonObject
+                    ?.get("url")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    ?: renderer["thumbnailRenderer"]
+                        ?.jsonObject
+                        ?.get("musicThumbnailRenderer")
+                        ?.jsonObject
+                        ?.get("thumbnail")
+                        ?.jsonObject
+                        ?.get("thumbnails")
+                        ?.jsonArray
+                        ?.lastOrNull()
+                        ?.jsonObject
+                        ?.get("url")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+            return SearchHit(videoId = browseId, title = title, subtitle = subtitle, thumbnailUrl = thumbnailUrl)
         }
 
         private fun parseRenderer(renderer: JsonObject): SearchHit? {
