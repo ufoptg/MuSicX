@@ -204,13 +204,22 @@ class DesktopAudioPlayer : AutoCloseable {
                 }
             }
 
+        playFile(file, isTemp = true)
+    }
+
+    /** Plays a local audio file. Temp files are deleted when playback stops; downloads are kept. */
+    suspend fun playFile(
+        file: File,
+        isTemp: Boolean = false,
+    ) {
+        lastError.set(null)
         withContext(Dispatchers.IO) {
             stopInternal()
-            tempFile = file
+            if (isTemp) tempFile = file
             val mrl = file.toURI().toASCIIString()
             val started = mediaPlayer.media().play(mrl, ":no-video")
             if (!started) {
-                error("VLC could not open ${file.name} (itag ${stream.itag}, ${stream.mimeType})")
+                error("VLC could not open ${file.name}")
             }
             mediaPlayer.audio().setVolume(volume)
             mediaPlayer.audio().setMute(false)
@@ -230,7 +239,7 @@ class DesktopAudioPlayer : AutoCloseable {
             if (!mediaPlayer.status().isPlaying) {
                 val state = mediaPlayer.status().state()
                 error(
-                    "No audio after start (state=$state, itag=${stream.itag}, mime=${stream.mimeType}). " +
+                    "No audio after start (state=$state, file=${file.name}). " +
                         "Bundled codecs may be incomplete — try another track.",
                 )
             }
@@ -278,7 +287,7 @@ class DesktopAudioPlayer : AutoCloseable {
         downloadClient.close()
     }
 
-    private suspend fun downloadToFile(
+    internal suspend fun downloadToFile(
         stream: ExtractedStream,
         out: File,
     ) {

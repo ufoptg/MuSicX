@@ -11,15 +11,43 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 
+/** A song saved for offline playback. */
+@Serializable
+data class DownloadInfo(
+    val videoId: String,
+    val title: String,
+    val artist: String? = null,
+    val thumbnailUrl: String? = null,
+    val durationSec: Long = 0,
+    val filePath: String,
+    val sizeBytes: Long = 0,
+) {
+    fun toHit(): SearchHit = SearchHit(videoId = videoId, title = title, subtitle = artist, thumbnailUrl = thumbnailUrl)
+}
+
 @Serializable
 data class DesktopLibraryData(
     val favorites: List<SearchHit> = emptyList(),
     val history: List<SearchHit> = emptyList(),
+    val downloads: List<DownloadInfo> = emptyList(),
 )
 
+/** %APPDATA%/MuSicX on Windows, ~/.config/MuSicX elsewhere. */
+internal fun musicxDataDir(): File {
+    val appData = System.getenv("APPDATA")
+    val dir =
+        if (!appData.isNullOrBlank()) {
+            File(appData, "MuSicX")
+        } else {
+            File(System.getProperty("user.home") ?: ".", ".config/MuSicX")
+        }
+    dir.mkdirs()
+    return dir
+}
+
 /**
- * Persists favorites and playback history across desktop app sessions.
- * Writes to %APPDATA%/MuSicX/library.json on Windows, or ~/.config/MuSicX/library.json elsewhere.
+ * Persists favorites, playback history and the downloads index across desktop app sessions.
+ * Writes to <musicxDataDir>/library.json.
  */
 object DesktopLibraryStore {
     private val json =
@@ -29,17 +57,7 @@ object DesktopLibraryStore {
             encodeDefaults = true
         }
 
-    private val storeFile: File by lazy {
-        val appData = System.getenv("APPDATA")
-        val baseDir =
-            if (!appData.isNullOrBlank()) {
-                File(appData, "MuSicX")
-            } else {
-                File(System.getProperty("user.home") ?: ".", ".config/MuSicX")
-            }
-        baseDir.mkdirs()
-        File(baseDir, "library.json")
-    }
+    private val storeFile: File by lazy { File(musicxDataDir(), "library.json") }
 
     fun load(): DesktopLibraryData =
         runCatching {

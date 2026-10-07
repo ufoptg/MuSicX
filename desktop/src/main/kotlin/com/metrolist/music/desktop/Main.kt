@@ -41,6 +41,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.History
@@ -244,6 +246,9 @@ private fun MuSicXApp(
     var currentIndex by remember { mutableStateOf(-1) }
     var history by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
     var favorites by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
+    var downloads by remember { mutableStateOf<List<DownloadInfo>>(emptyList()) }
+    var downloadingIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val downloader = remember { DesktopDownloads(client, player) }
     val scope = rememberCoroutineScope()
 
     // Restore persisted favorites/history, then keep them on disk.
@@ -251,10 +256,11 @@ private fun MuSicXApp(
         val data = withContext(Dispatchers.IO) { DesktopLibraryStore.load() }
         favorites = data.favorites
         history = data.history
+        downloads = data.downloads
     }
 
     fun persistLibrary() {
-        val snapshot = DesktopLibraryData(favorites = favorites, history = history)
+        val snapshot = DesktopLibraryData(favorites = favorites, history = history, downloads = downloads)
         scope.launch(Dispatchers.IO) { DesktopLibraryStore.save(snapshot) }
     }
 
@@ -269,6 +275,32 @@ private fun MuSicXApp(
     }
 
     fun isFavorite(hit: SearchHit?): Boolean = hit != null && favorites.any { it.videoId == hit.videoId }
+
+    fun isDownloaded(hit: SearchHit?): Boolean = hit != null && downloads.any { it.videoId == hit.videoId }
+
+    fun toggleDownload(hit: SearchHit) {
+        if (hit.videoId in downloadingIds) return
+        val existing = downloads.firstOrNull { it.videoId == hit.videoId }
+        if (existing != null) {
+            downloads = downloads.filterNot { it.videoId == hit.videoId }
+            persistLibrary()
+            scope.launch(Dispatchers.IO) { downloader.delete(existing) }
+            return
+        }
+        scope.launch {
+            downloadingIds = downloadingIds + hit.videoId
+            try {
+                val info = downloader.download(hit)
+                downloads = listOf(info) + downloads.filterNot { it.videoId == hit.videoId }
+                persistLibrary()
+            } catch (t: Throwable) {
+                DesktopLog.log("download failed for ${hit.videoId}", t)
+                error = "Download failed: ${t.message ?: t::class.simpleName}"
+            } finally {
+                downloadingIds = downloadingIds - hit.videoId
+            }
+        }
+    }
 
     var busyId by remember { mutableStateOf<String?>(null) }
     var playing by remember { mutableStateOf(false) }
@@ -306,11 +338,17 @@ private fun MuSicXApp(
             positionMs = 0L
             durationMs = 0L
             try {
-                DesktopLog.log("playHit: resolving ${hit.videoId} (${hit.title})")
-                val resolveStart = System.currentTimeMillis()
-                val stream = withContext(Dispatchers.IO) { client.resolveAudioStream(hit.videoId) }
-                DesktopLog.log("playHit: resolved in ${System.currentTimeMillis() - resolveStart} ms")
-                player.play(stream)
+                val local = downloader.localFile(hit.videoId, downloads)
+                if (local != null) {
+                    DesktopLog.log("playHit: playing downloaded file ${local.name}")
+                    player.playFile(local)
+                } else {
+                    DesktopLog.log("playHit: resolving ${hit.videoId} (${hit.title})")
+                    val resolveStart = System.currentTimeMillis()
+                    val stream = withContext(Dispatchers.IO) { client.resolveAudioStream(hit.videoId) }
+                    DesktopLog.log("playHit: resolved in ${System.currentTimeMillis() - resolveStart} ms")
+                    player.play(stream)
+                }
                 playing = true
                 // Push to the front of the session history (most-recent-first, deduped).
                 history = (listOf(hit) + history.filterNot { it.videoId == hit.videoId }).take(50)
@@ -507,7 +545,16 @@ private fun MuSicXApp(
                                             onOpenSub = { settingsSubScreen = it },
                                         )
                                     settingsSection == SettingsSection.Storage ->
-                                        SettingsStorageScreen(onBack = { settingsSection = null })
+                                        SettingsStorageScreen(
+                                            onBack = { settingsSection = null },
+                                            downloads = downloads,
+                                            downloadsDir = downloader.dir,
+                                            onClearDownloads = {
+                                                downloads = emptyList()
+                                                persistLibrary()
+                                                scope.launch(Dispatchers.IO) { downloader.clearAll() }
+                                            },
+                                        )
                                     settingsSection == SettingsSection.Privacy ->
                                         SettingsPrivacyScreen(onBack = { settingsSection = null })
                                     settingsSection == SettingsSection.BackupAndRestore ->
@@ -562,6 +609,9 @@ private fun MuSicXApp(
                                     openPlaylistTitle = openPlaylistTitle,
                                     openPlaylistTracks = openPlaylistTracks,
                                     openPlaylistLoading = openPlaylistLoading,
+                                    downloads = downloads,
+                                    onPlayDownloads = { index -> playFrom(downloads.map { it.toHit() }, index) },
+                                    onRemoveDownload = { info -> toggleDownload(info.toHit()) },
                                     onOpenPlaylist = { item ->
                                         openPlaylistTitle = item.title
                                         openPlaylistLoading = true
@@ -654,6 +704,9 @@ private fun MuSicXApp(
                     seekPreview = null
                 },
                 onCollapse = { playerExpanded = false },
+                isDownloaded = isDownloaded(nowPlaying),
+                isDownloading = nowPlaying?.videoId in downloadingIds,
+                onToggleDownload = { nowPlaying?.let(::toggleDownload) },
             )
         }
 
@@ -683,6 +736,9 @@ private fun MuSicXApp(
                 onPlayIndex = { index -> playFrom(queue, index) },
                 isFavorite = ::isFavorite,
                 onToggleFavorite = ::toggleFavorite,
+                isDownloaded = ::isDownloaded,
+                isDownloading = { it.videoId in downloadingIds },
+                onToggleDownload = ::toggleDownload,
             )
         }
     }
@@ -922,8 +978,11 @@ private fun LibraryScreen(
     onClosePlaylist: () -> Unit,
     onPlayLiked: (Int) -> Unit,
     onPlayPlaylistTracks: (Int) -> Unit,
+    downloads: List<DownloadInfo>,
+    onPlayDownloads: (Int) -> Unit,
+    onRemoveDownload: (DownloadInfo) -> Unit,
 ) {
-    var tab by remember { mutableStateOf(0) } // 0 Favorites, 1 History, 2 Playlists, 3 Liked
+    var tab by remember { mutableStateOf(0) } // 0 Favorites, 1 History, 2 Playlists, 3 Liked, 4 Downloads
     val list = if (tab == 0) favorites else history
     val onPlayIndex = if (tab == 0) onPlayFavorites else onPlayHistory
     val onClear = if (tab == 0) onClearFavorites else onClearHistory
@@ -944,6 +1003,8 @@ private fun LibraryScreen(
                 leadingIcon = { Icon(Icons.Default.LibraryMusic, null, Modifier.size(FilterChipDefaults.IconSize)) })
             FilterChip(selected = tab == 3, onClick = { tab = 3 }, label = { Text("Liked") },
                 leadingIcon = { Icon(Icons.Default.MusicNote, null, Modifier.size(FilterChipDefaults.IconSize)) })
+            FilterChip(selected = tab == 4, onClick = { tab = 4 }, label = { Text("Downloads") },
+                leadingIcon = { Icon(Icons.Default.Download, null, Modifier.size(FilterChipDefaults.IconSize)) })
             Spacer(modifier = Modifier.weight(1f))
             if (showClear) {
                 TextButton(onClick = onClear) {
@@ -1086,6 +1147,32 @@ private fun LibraryScreen(
                                 onClick = { onPlayLiked(index) },
                                 isFavorite = isFavorite(hit),
                                 onToggleFavorite = { onToggleFavorite(hit) },
+                            )
+                        }
+                    }
+                }
+            4 ->
+                if (downloads.isEmpty()) {
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        Text(
+                            "No downloads yet. Tap the download icon on a song in the queue or player.",
+                            modifier = Modifier.align(Alignment.Center),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
+                        items(downloads, key = { it.videoId }) { info ->
+                            val hit = info.toHit()
+                            ResultRow(
+                                hit = hit,
+                                isActive = hit.videoId == nowPlayingId,
+                                isBusy = busyId == hit.videoId,
+                                onClick = { onPlayDownloads(downloads.indexOf(info)) },
+                                isFavorite = isFavorite(hit),
+                                onToggleFavorite = { onToggleFavorite(hit) },
+                                isDownloaded = true,
+                                onToggleDownload = { onRemoveDownload(info) },
                             )
                         }
                     }
@@ -1423,14 +1510,49 @@ private fun SettingsPlayerScreen(onBack: () -> Unit, onOpenSub: (String) -> Unit
 }
 
 @Composable
-private fun SettingsStorageScreen(onBack: () -> Unit) {
+private fun SettingsStorageScreen(
+    onBack: () -> Unit,
+    downloads: List<DownloadInfo>,
+    downloadsDir: java.io.File,
+    onClearDownloads: () -> Unit,
+) {
+    var refresh by remember { mutableStateOf(0) }
+    var downloadBytes by remember { mutableStateOf(0L) }
+    var songCacheBytes by remember { mutableStateOf(0L) }
+    LaunchedEffect(downloads, refresh) {
+        withContext(Dispatchers.IO) {
+            downloadBytes = DesktopDownloads.dirSize(downloadsDir)
+            songCacheBytes = DesktopDownloads.songCacheBytes()
+        }
+    }
     SettingsScaffold(title = "Storage", subtitle = "Downloads and cache", onBack = onBack) {
-        SettingsRowItem("Downloaded songs", "Not available on desktop")
-        SettingsRowItem("Clear all downloads", "Not available on desktop")
-        SettingsToggleItem("Enable song cache")
+        SettingsRowItem(
+            "Downloaded songs",
+            "${downloads.size} songs · ${DesktopDownloads.formatBytes(downloadBytes)}",
+        )
+        SettingsRowItem(
+            "Clear all downloads",
+            "Delete every downloaded song",
+            onClick = if (downloads.isEmpty()) null else onClearDownloads,
+        )
+        SettingsToggleItem("Enable song cache", subtitle = "Not available on desktop")
         SettingsSliderItem("Max song cache size")
-        SettingsRowItem("Clear song cache", "Not available on desktop")
-        SettingsRowItem("Clear image cache", "Not available on desktop")
+        SettingsRowItem(
+            "Clear song cache",
+            DesktopDownloads.formatBytes(songCacheBytes),
+            onClick = {
+                DesktopDownloads.clearSongCache()
+                refresh++
+            },
+        )
+        SettingsRowItem(
+            "Clear image cache",
+            "${imageCache.size} images in memory",
+            onClick = {
+                imageCache.clear()
+                refresh++
+            },
+        )
     }
 }
 
@@ -1693,6 +1815,9 @@ private fun ResultRow(
     onClick: () -> Unit,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
+    isDownloaded: Boolean = false,
+    isDownloading: Boolean = false,
+    onToggleDownload: (() -> Unit)? = null,
 ) {
     Row(
         modifier =
@@ -1754,6 +1879,28 @@ private fun ResultRow(
                 )
             }
         }
+        if (onToggleDownload != null) {
+            DownloadButton(isDownloaded, isDownloading, onToggleDownload)
+        }
+    }
+}
+
+@Composable
+private fun DownloadButton(
+    isDownloaded: Boolean,
+    isDownloading: Boolean,
+    onToggle: () -> Unit,
+) {
+    IconButton(onClick = onToggle, enabled = !isDownloading) {
+        if (isDownloading) {
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+        } else {
+            Icon(
+                if (isDownloaded) Icons.Default.DownloadDone else Icons.Default.Download,
+                contentDescription = if (isDownloaded) "Remove download" else "Download",
+                tint = if (isDownloaded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -1771,6 +1918,9 @@ private fun QueuePanel(
     onPlayIndex: (Int) -> Unit,
     isFavorite: (SearchHit) -> Boolean,
     onToggleFavorite: (SearchHit) -> Unit,
+    isDownloaded: (SearchHit) -> Boolean,
+    isDownloading: (SearchHit) -> Boolean,
+    onToggleDownload: (SearchHit) -> Unit,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -1828,6 +1978,9 @@ private fun QueuePanel(
                             onClick = { onPlayIndex(index) },
                             isFavorite = isFavorite(hit),
                             onToggleFavorite = { onToggleFavorite(hit) },
+                            isDownloaded = isDownloaded(hit),
+                            isDownloading = isDownloading(hit),
+                            onToggleDownload = { onToggleDownload(hit) },
                         )
                     }
                 }
@@ -1992,6 +2145,9 @@ private fun FullPlayer(
     onSeekChange: (Float) -> Unit,
     onSeekCommit: (Float) -> Unit,
     onCollapse: () -> Unit,
+    isDownloaded: Boolean,
+    isDownloading: Boolean,
+    onToggleDownload: () -> Unit,
 ) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
@@ -2005,8 +2161,9 @@ private fun FullPlayer(
                     text = "Now playing",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp),
+                    modifier = Modifier.padding(start = 4.dp).weight(1f),
                 )
+                DownloadButton(isDownloaded, isDownloading, onToggleDownload)
             }
 
             Column(
