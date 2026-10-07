@@ -112,3 +112,28 @@ private fun collectSpotifyCookies(): List<Pair<String, String>> {
     runCatching { manager.visitAllCookies(visitor) }
     return found
 }
+
+/** Deletes CEF cookies for spotify.com domains (prefs clear alone leaves the browser signed in). */
+internal fun clearSpotifyCefCookies() {
+    val manager =
+        runCatching { CefCookieManager.getGlobalManager() }.getOrNull() ?: return
+    val visitor =
+        object : CefCookieVisitor {
+            override fun visit(
+                cookie: org.cef.network.CefCookie?,
+                count: Int,
+                total: Int,
+                delete: org.cef.misc.BoolRef?,
+            ): Boolean {
+                if (cookie != null) {
+                    val domain = cookie.domain ?: ""
+                    if (domain == "spotify.com" || domain.endsWith(".spotify.com")) {
+                        delete?.set(true)
+                    }
+                }
+                return true
+            }
+        }
+    runCatching { manager.visitAllCookies(visitor) }
+        .onFailure { DesktopLog.log("clearSpotifyCefCookies failed", it) }
+}

@@ -47,6 +47,7 @@ object DesktopSpotify {
 
     fun signOut(prefs: DesktopPrefs): DesktopPrefs {
         Spotify.accessToken = null
+        clearSpotifyCefCookies()
         return prefs.copy(
             spDc = "",
             spKey = "",

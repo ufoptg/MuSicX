@@ -577,10 +577,19 @@ private fun MuSicXApp(
             homeLoading = true
             homeError = null
             try {
-                homeRows = client.homeFeed()
+                val rows = client.homeFeed()
+                // Re-check after await — user may have toggled Spotify home-only mid-fetch.
+                if (DesktopSpotify.hideYoutubeHome(prefs)) {
+                    homeRows = emptyList()
+                    homeError = null
+                    return@launch
+                }
+                homeRows = rows
                 if (homeRows.isEmpty()) homeError = "Couldn't load recommendations"
             } catch (t: Throwable) {
-                homeError = t.message ?: t::class.simpleName ?: "Failed to load home"
+                if (!DesktopSpotify.hideYoutubeHome(prefs)) {
+                    homeError = t.message ?: t::class.simpleName ?: "Failed to load home"
+                }
             } finally {
                 homeLoading = false
             }
