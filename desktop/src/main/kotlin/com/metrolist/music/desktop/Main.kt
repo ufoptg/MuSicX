@@ -75,6 +75,8 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -179,6 +181,9 @@ private enum class Destination(
 
 private enum class RepeatMode { Off, All, One }
 
+private val sleepOptions = listOf("Off", "15 min", "30 min", "45 min", "60 min", "End of track")
+private val qualityOptions = listOf("Auto", "High", "Low")
+
 private enum class SettingsSection(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Appearance("Appearance", Icons.Default.Palette),
     Content("Content", Icons.Default.Language),
@@ -212,8 +217,9 @@ data class DetailState(
 )
 
 fun main() = application {
+    var prefs by remember { mutableStateOf(DesktopPrefsStore.load()) }
     val client = remember { DesktopInnerTube() }
-    val player = remember { DesktopAudioPlayer() }
+    val player = remember { DesktopAudioPlayer(normalizeAudio = prefs.playerLoudness) }
     DisposableEffect(Unit) {
         player.prewarm()
         onDispose {
@@ -222,7 +228,6 @@ fun main() = application {
         }
     }
 
-    var prefs by remember { mutableStateOf(DesktopPrefsStore.load()) }
     Window(
         onCloseRequest = ::exitApplication,
         title = "MuSicX",
@@ -314,7 +319,7 @@ private fun MuSicXApp(
         scope.launch {
             downloadingIds = downloadingIds + hit.videoId
             try {
-                val info = downloader.download(hit)
+                val info = downloader.download(hit, prefs.playerQuality)
                 downloads = listOf(info) + downloads.filterNot { it.videoId == hit.videoId }
                 persistLibrary()
             } catch (t: Throwable) {
@@ -328,6 +333,25 @@ private fun MuSicXApp(
 
     var busyId by remember { mutableStateOf<String?>(null) }
     var playing by remember { mutableStateOf(false) }
+    var sleepMode by remember { mutableStateOf(0) }
+    var sleepStopping by remember { mutableStateOf(false) }
+    var sleepStopped by remember { mutableStateOf(false) }
+    val sleepTimer = remember(scope) {
+        SleepTimer(scope) {
+            sleepStopping = true
+            sleepStopped = true
+            try {
+                player.fadeOutAndStop()
+                playing = false
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                sleepStopped = false
+                throw cancelled
+            } finally {
+                sleepStopping = false
+            }
+        }
+    }
+    DisposableEffect(sleepTimer) { onDispose { sleepTimer.cancel() } }
     var positionMs by remember { mutableStateOf(0L) }
     var durationMs by remember { mutableStateOf(0L) }
     var seekPreview by remember { mutableStateOf<Float?>(null) }
@@ -353,8 +377,13 @@ private fun MuSicXApp(
     fun playFrom(list: List<SearchHit>, index: Int) {
         val hit = list.getOrNull(index) ?: return
         if (busyId != null) return
+        if (sleepStopping) {
+            sleepTimer.cancel()
+            sleepMode = 0
+        }
         scope.launch {
             busyId = hit.videoId
+            sleepStopped = false
             queue = list
             currentIndex = index
             error = null
@@ -364,13 +393,19 @@ private fun MuSicXApp(
                 val local = downloader.localFile(hit.videoId, downloads)
                 if (local != null) {
                     DesktopLog.log("playHit: playing downloaded file ${local.name}")
+                    if (sleepStopped) return@launch
                     player.playFile(local)
                 } else {
                     DesktopLog.log("playHit: resolving ${hit.videoId} (${hit.title})")
                     val resolveStart = System.currentTimeMillis()
-                    val stream = withContext(Dispatchers.IO) { client.resolveAudioStream(hit.videoId) }
+                    val stream = withContext(Dispatchers.IO) { client.resolveAudioStream(hit.videoId, prefs.playerQuality) }
                     DesktopLog.log("playHit: resolved in ${System.currentTimeMillis() - resolveStart} ms")
+                    if (sleepStopped) return@launch
                     player.play(stream)
+                }
+                if (sleepStopped) {
+                    player.stop()
+                    return@launch
                 }
                 playing = true
                 // Push to the front of the session history (most-recent-first, deduped).
@@ -408,17 +443,41 @@ private fun MuSicXApp(
         if (currentIndex - 1 >= 0) playFrom(queue, currentIndex - 1)
     }
 
-    // Auto-advance to the next queued track when one finishes.
+    // VLC invokes onEnded on its own thread; handle timer and queue state on Compose's scope.
     DisposableEffect(player) {
-        player.onEnded = { scope.launch { playNext(fromEnded = true) } }
+        player.onEnded = {
+            scope.launch {
+                if (sleepStopping || sleepStopped) return@launch
+                if (sleepTimer.consumeEndOfTrack()) {
+                    sleepMode = 0
+                    sleepStopped = true
+                    playing = false
+                } else {
+                    playNext(fromEnded = true)
+                }
+            }
+        }
         onDispose { player.onEnded = null }
     }
 
-    // Poll VLC for playback position while a track is active.
+    // Fade end-of-track mode just before the track ends if VLC reports its duration.
     LaunchedEffect(nowPlaying?.videoId) {
         while (isActive && nowPlaying != null) {
             positionMs = player.positionMs()
             durationMs = player.durationMs()
+            sleepMode = sleepTimer.mode
+            if (sleepTimer.mode == 5 && durationMs > 0 && durationMs - positionMs in 1..2_000) {
+                sleepTimer.consumeEndOfTrack()
+                sleepMode = 0
+                sleepStopped = true
+                sleepStopping = true
+                try {
+                    player.fadeOutAndStop()
+                    playing = false
+                } finally {
+                    sleepStopping = false
+                }
+            }
             kotlinx.coroutines.delay(500)
         }
     }
@@ -712,8 +771,11 @@ private fun MuSicXApp(
                 },
                 onTogglePlay = {
                     if (nowPlaying != null) {
-                        player.togglePause()
-                        playing = player.isPlaying
+                        if (sleepStopped) playFrom(queue, currentIndex)
+                        else {
+                            player.togglePause()
+                            playing = player.isPlaying
+                        }
                     }
                 },
                 onNext = ::playNext,
@@ -752,8 +814,11 @@ private fun MuSicXApp(
                 },
                 onTogglePlay = {
                     if (nowPlaying != null) {
-                        player.togglePause()
-                        playing = player.isPlaying
+                        if (sleepStopped) playFrom(queue, currentIndex)
+                        else {
+                            player.togglePause()
+                            playing = player.isPlaying
+                        }
                     }
                 },
                 onNext = ::playNext,
@@ -767,6 +832,13 @@ private fun MuSicXApp(
                 isDownloaded = isDownloaded(nowPlaying),
                 isDownloading = nowPlaying?.videoId in downloadingIds,
                 onToggleDownload = { nowPlaying?.let(::toggleDownload) },
+                sleepMode = sleepMode,
+                defaultSleepMode = prefs.sleepTimerMinutes,
+                onSetSleepTimer = { option ->
+                    sleepTimer.start(option)
+                    sleepMode = option
+                    sleepStopped = false
+                },
                 lyrics = null,
             )
         }
@@ -1665,15 +1737,25 @@ private fun SettingsPlayerScreen(onBack: () -> Unit, onOpenSub: (String) -> Unit
         onPrefsChange(updated)
     }
     SettingsScaffold(title = "Player", subtitle = "Playback and audio", onBack = onBack) {
-        SettingsRowItem("Audio quality", "Not available on desktop")
-        SettingsRowItem("Loudness level", "Not available on desktop")
-        SettingsToggleItem("Crossfade", checked = prefs.playerCrossfade, onCheckedChange = { enabled -> update(prefs.copy(playerCrossfade = enabled)) })
+        SettingsRowItem(
+            "Audio quality",
+            qualityOptions.getOrElse(prefs.playerQuality) { "High" },
+            onClick = { update(prefs.copy(playerQuality = (prefs.playerQuality + 1) % qualityOptions.size)) },
+        )
+        SettingsToggleItem(
+            "Normalize volume (restart required)",
+            checked = prefs.playerLoudness,
+            enabled = true,
+            onCheckedChange = { update(prefs.copy(playerLoudness = it)) },
+        )
+        SettingsToggleItem("Crossfade", subtitle = "Not available on desktop")
         SettingsSliderItem("Crossfade duration")
-        SettingsToggleItem("Gapless playback", checked = prefs.playerGapless, onCheckedChange = { enabled -> update(prefs.copy(playerGapless = enabled)) })
-        SettingsRowItem("Sleep timer", when (prefs.sleepTimerMinutes) { 0 -> "Off"; 1 -> "15 min"; 2 -> "30 min"; 3 -> "45 min"; 4 -> "60 min"; 5 -> "End of track"; else -> "Off" }, onClick = {
-            // Simple cycle for now; a real UI would use a dialog
-            update(prefs.copy(sleepTimerMinutes = (prefs.sleepTimerMinutes + 1) % 6))
-        })
+        SettingsToggleItem("Gapless playback", subtitle = "Not available on desktop")
+        SettingsRowItem(
+            "Default sleep timer",
+            sleepOptions.getOrElse(prefs.sleepTimerMinutes) { "Off" },
+            onClick = { update(prefs.copy(sleepTimerMinutes = (prefs.sleepTimerMinutes + 1) % sleepOptions.size)) },
+        )
         SettingsRowItem("SponsorBlock", "Skip segments", onClick = { onOpenSub("sponsorblock") })
     }
 }
@@ -2320,8 +2402,12 @@ private fun FullPlayer(
     isDownloaded: Boolean,
     isDownloading: Boolean,
     onToggleDownload: () -> Unit,
+    sleepMode: Int,
+    defaultSleepMode: Int,
+    onSetSleepTimer: (Int) -> Unit,
     lyrics: String?,
 ) {
+    var sleepMenuOpen by remember { mutableStateOf(false) }
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
             modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 20.dp),
@@ -2336,6 +2422,32 @@ private fun FullPlayer(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp).weight(1f),
                 )
+                TextButton(onClick = { sleepMenuOpen = true }) {
+                    Text(if (sleepMode == 0) "Sleep timer" else "Sleep: ${sleepOptions[sleepMode]}")
+                }
+                DropdownMenu(expanded = sleepMenuOpen, onDismissRequest = { sleepMenuOpen = false }) {
+                    if (defaultSleepMode in 1..5) {
+                        DropdownMenuItem(text = { Text("Start default: ${sleepOptions[defaultSleepMode]}") }, onClick = {
+                            sleepMenuOpen = false
+                            onSetSleepTimer(defaultSleepMode)
+                        })
+                    }
+                    if (sleepMode != 0) {
+                        DropdownMenuItem(text = { Text("Cancel timer") }, onClick = {
+                            sleepMenuOpen = false
+                            onSetSleepTimer(0)
+                        })
+                    }
+                    (1..5).forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(sleepOptions[option] + if (option == defaultSleepMode) " (default)" else "") },
+                            onClick = {
+                                sleepMenuOpen = false
+                                onSetSleepTimer(option)
+                            },
+                        )
+                    }
+                }
                 DownloadButton(isDownloaded, isDownloading, onToggleDownload)
             }
 

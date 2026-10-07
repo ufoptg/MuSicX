@@ -277,7 +277,7 @@ class DesktopInnerTube : AutoCloseable {
         return extractHits(raw)
     }
 
-    suspend fun resolveAudioStream(videoId: String): ExtractedStream {
+    suspend fun resolveAudioStream(videoId: String, quality: Int = 1): ExtractedStream {
         // VLC plays WebM/Opus and AAC; disable SABR/HLS and prefer non-bounded progressive URLs.
         val hints =
             ContentHints(wantVideo = false).withStreamCapabilities(
@@ -288,7 +288,7 @@ class DesktopInnerTube : AutoCloseable {
         return extractor.extract(
             videoId = videoId,
             hints = hints,
-            audioQuality = AudioQuality.HIGH,
+            audioQuality = audioQualityForSetting(quality),
         ) ?: error("No playable stream for $videoId")
     }
 
@@ -309,6 +309,13 @@ class DesktopInnerTube : AutoCloseable {
     }
 
     companion object {
+        internal fun audioQualityForSetting(setting: Int): AudioQuality =
+            when (setting) {
+                0 -> AudioQuality.AUTO
+                2 -> AudioQuality.LOW
+                else -> AudioQuality.HIGH
+            }
+
         private const val FILTER_SONG = "EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D"
         private const val FILTER_ALBUM = "EgWKAQIYAWoKEAkQBRAKEAMQBA%3D%3D"
         private const val FILTER_ARTIST = "EgWKAQIYAWoKEAkQBRAKEAMQBA%3D%3D"

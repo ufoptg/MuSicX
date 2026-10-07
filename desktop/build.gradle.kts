@@ -43,6 +43,7 @@ dependencies {
 
     implementation(libs.vlcj)
     implementation(libs.vlcj.natives)
+    testImplementation(libs.junit)
 
     // Embedded Chromium browser for in-app sign-in (JCEF).
     implementation("me.friwi:jcefmaven:152.0.6")

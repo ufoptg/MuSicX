@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicReference
  * the whole file up front used to blow past the request timeout; progressive playback
  * only needs real-time throughput. A local-file download stays as a resilient fallback.
  */
-class DesktopAudioPlayer : AutoCloseable {
+class DesktopAudioPlayer(private val normalizeAudio: Boolean = false) : AutoCloseable {
     private val downloadClient =
         HttpClient(OkHttp) {
             expectSuccess = false
@@ -62,10 +62,6 @@ class DesktopAudioPlayer : AutoCloseable {
 
                     override fun finished(mediaPlayer: MediaPlayer) {
                         isPlaying = false
-                        if (sleepTimerEndOfTrack) {
-                            stopInternal()
-                            sleepTimerEndOfTrack = false
-                        }
                         onEnded?.invoke()
                     }
                 },
@@ -78,43 +74,45 @@ class DesktopAudioPlayer : AutoCloseable {
     var onEnded: (() -> Unit)? = null
 
     private val lastError = AtomicReference<String?>(null)
+    private val playbackLock = Any()
+    private var playbackGeneration = 0L
     private var tempFile: File? = null
 
     @Volatile
     var isPlaying: Boolean = false
         private set
 
-    // Sleep timer
-    var sleepTimerRemainingMs: Long = 0L
-        private set
-    private var sleepTimerJob: kotlinx.coroutines.Job? = null
-    var sleepTimerEndOfTrack: Boolean = false
-        private set
-
-    fun setSleepTimer(minutes: Int) {
-        sleepTimerJob?.cancel()
-        sleepTimerRemainingMs = 0L
-        sleepTimerEndOfTrack = false
-        when (minutes) {
-            0 -> return
-            5 -> { // end of track
-                sleepTimerEndOfTrack = true
-                return
+    /** Fade only the output volume; retain the listener's chosen volume for the next track. */
+    suspend fun fadeOutAndStop() = withContext(Dispatchers.IO) {
+        val generation = synchronized(playbackLock) { playbackGeneration }
+        var stopped = false
+        try {
+            if (isPlaying) {
+                repeat(10) { step ->
+                    val current = synchronized(playbackLock) {
+                        if (playbackGeneration != generation) false
+                        else {
+                            mediaPlayer.audio().setVolume(volume * (9 - step) / 10)
+                            true
+                        }
+                    }
+                    if (!current) return@withContext
+                    delay(200)
+                }
+            }
+            synchronized(playbackLock) {
+                if (playbackGeneration == generation) {
+                    stopped = true
+                    stopInternal()
+                }
+            }
+        } finally {
+            synchronized(playbackLock) {
+                if (!stopped && playbackGeneration == generation) {
+                    mediaPlayer.audio().setVolume(volume)
+                }
             }
         }
-        val ms = minutes * 60_000L
-        sleepTimerRemainingMs = ms
-        val executor = java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
-        executor.schedule({
-            kotlinx.coroutines.runBlocking { stopInternal() }
-            sleepTimerRemainingMs = 0L
-        }, ms, java.util.concurrent.TimeUnit.MILLISECONDS)
-    }
-
-    fun clearSleepTimer() {
-        sleepTimerJob?.cancel()
-        sleepTimerRemainingMs = 0L
-        sleepTimerEndOfTrack = false
     }
 
     @Volatile
@@ -179,7 +177,7 @@ class DesktopAudioPlayer : AutoCloseable {
         }
         DesktopLog.log("direct stream: opening url with options=$options")
 
-        val started = mediaPlayer.media().play(stream.audioUrl, *options.toTypedArray())
+        val started = synchronized(playbackLock) { mediaPlayer.media().play(stream.audioUrl, *options.toTypedArray()) }
         if (!started) {
             DesktopLog.log("direct stream: media().play returned false")
             return false
@@ -254,7 +252,7 @@ class DesktopAudioPlayer : AutoCloseable {
             stopInternal()
             if (isTemp) tempFile = file
             val mrl = file.toURI().toASCIIString()
-            val started = mediaPlayer.media().play(mrl, ":no-video")
+            val started = synchronized(playbackLock) { mediaPlayer.media().play(mrl, ":no-video") }
             if (!started) {
                 error("VLC could not open ${file.name}")
             }
@@ -366,7 +364,8 @@ class DesktopAudioPlayer : AutoCloseable {
         }
     }
 
-    private fun stopInternal() {
+    private fun stopInternal() = synchronized(playbackLock) {
+        playbackGeneration++
         runCatching { mediaPlayer.controls().stop() }
         isPlaying = false
         tempFile?.delete()
@@ -394,6 +393,7 @@ class DesktopAudioPlayer : AutoCloseable {
 
         val args =
             buildList {
+                addAll(audioFactoryOptions(normalizeAudio))
                 add("--plugin-path=${pluginsDir.absolutePath}")
                 add("--aout=directsound")
                 add("--no-video")
@@ -438,6 +438,10 @@ class DesktopAudioPlayer : AutoCloseable {
     }
 
     companion object {
+        // VLC 3's volume normalizer module is named "volnorm" (modules/audio_filter/normvol.c).
+        internal fun audioFactoryOptions(normalize: Boolean): List<String> =
+            if (normalize) listOf("--audio-filter=volnorm") else emptyList()
+
         private fun resolveBundledVlcDir(): File {
             val resourcesDir = System.getProperty("compose.application.resources.dir")
             if (!resourcesDir.isNullOrBlank()) {

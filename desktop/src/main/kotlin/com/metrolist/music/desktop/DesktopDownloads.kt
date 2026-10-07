@@ -19,9 +19,9 @@ class DesktopDownloads(
     private val player: DesktopAudioPlayer,
     val dir: File = File(musicxDataDir(), "downloads"),
 ) {
-    suspend fun download(hit: SearchHit): DownloadInfo =
+    suspend fun download(hit: SearchHit, quality: Int = 1): DownloadInfo =
         withContext(Dispatchers.IO) {
-            val stream = client.resolveAudioStream(hit.videoId)
+            val stream = client.resolveAudioStream(hit.videoId, quality)
             val ext = if (stream.mimeType.orEmpty().contains("webm", ignoreCase = true)) "webm" else "m4a"
             dir.mkdirs()
             val out = File(dir, "${hit.videoId}.$ext")
