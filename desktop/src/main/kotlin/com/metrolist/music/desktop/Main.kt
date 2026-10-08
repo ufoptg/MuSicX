@@ -137,6 +137,20 @@ import java.net.URL
 import java.util.Collections
 import java.util.LinkedHashMap
 
+// Player components
+import com.metrolist.music.ui.player.MiniPlayer
+import com.metrolist.music.ui.player.Player
+import com.metrolist.music.ui.player.Queue
+import com.metrolist.music.ui.screens.HomeScreen
+import com.metrolist.music.ui.screens.LibraryScreen
+import com.metrolist.music.ui.screens.SearchScreen
+import com.metrolist.music.ui.screens.AccountScreen
+import com.metrolist.music.ui.screens.StatsScreen
+import com.metrolist.music.ui.screens.HistoryScreen
+import com.metrolist.music.ui.screens.settings.SettingsScreen
+import com.metrolist.music.ui.component.Material3SettingsGroup
+import com.metrolist.music.ui.component.Material3SettingsItem
+
 private val MuSicXRed = Color(0xFFED5564)
 
 @Composable
