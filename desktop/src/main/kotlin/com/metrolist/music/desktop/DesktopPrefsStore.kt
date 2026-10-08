@@ -56,6 +56,8 @@ data class DesktopPrefs(
     val useSpotifyHome: Boolean = false,
     /** Show only Spotify home, hide YouTube home */
     val spotifyHomeOnly: Boolean = false,
+    /** Sync Spotify likes to the library */
+    val syncSpotifyLikes: Boolean = false,
     /** Discord rich presence token */
     val discordToken: String = "",
     /** Last.fm scrobbling token */
