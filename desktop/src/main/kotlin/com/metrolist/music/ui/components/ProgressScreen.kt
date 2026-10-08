@@ -5,7 +5,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.unit.*
 import com.metrolist.music.ui.theme.*
-import com.metrolist.music.ui.theme.ColorTokens
+import com.metrolist.music.ui.theme.Colors
 
 @Composable
 fun ProgressScreen(
@@ -19,9 +19,9 @@ fun ProgressScreen(
             .background(
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        Color(ColorTokens.BACKGROUND),
-                        Color(ColorTokens.SURFACE),
-                        Color(ColorTokens.BACKGROUND)
+                        Color(Colors.BACKGROUND),
+                        Color(Colors.SURFACE),
+                        Color(Colors.BACKGROUND)
                     ),
                     startY = 0f,
                     endY = 1f
@@ -37,10 +37,10 @@ fun ProgressScreen(
                 .fillMaxWidth()
                 .padding(Spacing.XXL),
             colors = CardColors(
-                containerColor = Color(ColorTokens.SURFACE),
-                contentColor = Color(ColorTokens.TEXT_PRIMARY),
-                disabledContainerColor = Color(ColorTokens.SURFACE_DISABLED),
-                disabledContentColor = Color(ColorTokens.TEXT_DISABLED)
+                containerColor = Color(Colors.SURFACE),
+                contentColor = Color(Colors.TEXT_PRIMARY),
+                disabledContainerColor = Color(Colors.SURFACE_DISABLED),
+                disabledContentColor = Color(Colors.TEXT_DISABLED)
             ),
             elevation = Elevation.LG,
             shape = RoundedCornerShape(16.dp)
@@ -62,14 +62,14 @@ fun ProgressScreen(
                     Text(
                         text = "Installing MuSicX",
                         style = Typography.Title.LARGE,
-                        color = Color(ColorTokens.TEXT_PRIMARY)
+                        color = Color(Colors.TEXT_PRIMARY)
                     )
                     
                     TextButton(
                         onClick = onCancel,
                         colors = ButtonColors(
                             containerColor = Color.Transparent,
-                            contentColor = Color(ColorTokens.ERROR)
+                            contentColor = Color(Colors.ERROR)
                         )
                     ) {
                         Text("Cancel")
@@ -86,8 +86,8 @@ fun ProgressScreen(
                             .fillMaxWidth()
                             .height(8.dp)
                             .padding(horizontal = Spacing.XXXS),
-                        color = Color(ColorTokens.ACCENT),
-                        trackColor = Color(ColorTokens.SURFACE_DISABLED)
+                        color = Color(Colors.ACCENT),
+                        trackColor = Color(Colors.SURFACE_DISABLED)
                     )
                     
                     Spacer(modifier = Modifier.height(Spacing.XXS))
@@ -102,13 +102,13 @@ fun ProgressScreen(
                         Text(
                             text = "${(progress * 100).toInt()}%",
                             style = Typography.Label.MEDIUM,
-                            color = Color(ColorTokens.TEXT_PRIMARY)
+                            color = Color(Colors.TEXT_PRIMARY)
                         )
                         
                         Text(
                             text = statusMessage,
                             style = Typography.Label.SMALL,
-                            color = Color(ColorTokens.TEXT_SECONDARY)
+                            color = Color(Colors.TEXT_SECONDARY)
                         )
                     }
                 }
@@ -120,13 +120,13 @@ fun ProgressScreen(
                     Text(
                         text = "Installation Details",
                         style = Typography.Title.MEDIUM,
-                        color = Color(ColorTokens.TEXT_PRIMARY)
+                        color = Color(Colors.TEXT_PRIMARY)
                     )
                     
                     Spacer(modifier = Modifier.height(Spacing.SM))
                     
                     Divider(
-                        color = Color(ColorTokens.BORDER_PRIMARY),
+                        color = Color(Colors.BORDER_PRIMARY),
                         thickness = 1.dp
                     )
                     
@@ -163,10 +163,10 @@ fun ProgressScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardColors(
-                containerColor = Color(ColorTokens.SURFACE),
-                contentColor = Color(ColorTokens.TEXT_PRIMARY),
-                disabledContainerColor = Color(ColorTokens.SURFACE_DISABLED),
-                disabledContentColor = Color(ColorTokens.TEXT_DISABLED)
+                containerColor = Color(Colors.SURFACE),
+                contentColor = Color(Colors.TEXT_PRIMARY),
+                disabledContainerColor = Color(Colors.SURFACE_DISABLED),
+                disabledContentColor = Color(Colors.TEXT_DISABLED)
             ),
             elevation = Elevation.XS,
             shape = RoundedCornerShape(12.dp)
@@ -186,7 +186,7 @@ fun ProgressScreen(
                         painter = painterResource(R.drawable.ic_light_bulb),
                         contentDescription = "Tip",
                         modifier = Modifier.size(IconSize.SM),
-                        tint = Color(ColorTokens.WARNING)
+                        tint = Color(Colors.WARNING)
                     )
                     
                     Spacer(modifier = Modifier.width(Spacing.SM))
@@ -194,7 +194,7 @@ fun ProgressScreen(
                     Text(
                         text = "Tip: You can choose custom installation location during setup.",
                         style = Typography.Label.MEDIUM,
-                        color = Color(ColorTokens.TEXT_PRIMARY)
+                        color = Color(Colors.TEXT_PRIMARY)
                     )
                 }
             }
@@ -218,7 +218,7 @@ private fun FeatureItem(
             painter = painterResource(icon),
             contentDescription = text,
             modifier = Modifier.size(IconSize.XXS),
-            tint = Color(ColorTokens.SUCCESS)
+            tint = Color(Colors.SUCCESS)
         )
         
         Spacer(modifier = Modifier.width(Spacing.SM))
@@ -226,7 +226,7 @@ private fun FeatureItem(
         Text(
             text = text,
             style = Typography.Label.MEDIUM,
-            color = Color(ColorTokens.TEXT_PRIMARY)
+            color = Color(Colors.TEXT_PRIMARY)
         )
     }
 }

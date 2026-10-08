@@ -5,7 +5,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.unit.*
 import com.metrolist.music.ui.theme.*
-import com.metrolist.music.ui.theme.ColorTokens
+import com.metrolist.music.ui.theme.Colors
+import com.metrolist.music.ui.theme.Spacing
+import com.metrolist.music.ui.theme.Typography
+import com.metrolist.music.ui.theme.BorderRadius
+import com.metrolist.music.ui.theme.Elevation
+import com.metrolist.music.ui.theme.IconSize
 
 @Composable
 fun CompletionScreen(
@@ -15,17 +20,8 @@ fun CompletionScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color(ColorTokens.SUCCESS),
-                        Color(ColorTokens.SUCCESS).copy(alpha = 0.8f)
-                    ),
-                    startY = 0f,
-                    endY = 1f
-                )
-            )
-            .padding(horizontal = Spacing.LG, vertical = Spacing.XXXL),
+            .background(Color(Colors.BACKGROUND))
+            .padding(horizontal = Spacing.MD, vertical = Spacing.XXXL),
         horizontalAlignment = Alignment.Center,
         verticalArrangement = Arrangement.Center
     ) {
@@ -33,18 +29,15 @@ fun CompletionScreen(
         Card(
             modifier = Modifier
                 .size(200.dp)
-                .padding(Spacing.LG),
-            colors = CardColors(
-                containerColor = Color(ColorTokens.SURFACE),
-                contentColor = Color(ColorTokens.TEXT_PRIMARY),
-                disabledContainerColor = Color(ColorTokens.SURFACE_DISABLED),
-                disabledContentColor = Color(ColorTokens.TEXT_DISABLED)
-            ),
-            elevation = Elevation.XXL,
-            shape = RoundedCornerShape(20.dp)
+                .padding(Spacing.LG)
+                .background(Color(Colors.SURFACE))
+                .elevation(Elevation.XXL),
+            shape = BorderRadius.XXL
         ) {
             Column(
-                modifier = Modifier.padding(Spacing.LG),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(Spacing.LG),
                 horizontalAlignment = Alignment.Center,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -53,7 +46,7 @@ fun CompletionScreen(
                     painter = painterResource(R.drawable.ic_check_circle),
                     contentDescription = "Success",
                     modifier = Modifier.size(IconSize.XXL),
-                    tint = Color(ColorTokens.SUCCESS)
+                    tint = Color(Colors.SUCCESS)
                 )
                 
                 Spacer(modifier = Modifier.height(Spacing.MD))
@@ -62,7 +55,7 @@ fun CompletionScreen(
                 Text(
                     text = "Installation Complete!",
                     style = Typography.Title.LARGE,
-                    color = Color(ColorTokens.TEXT_PRIMARY)
+                    color = Color(Colors.TEXT_PRIMARY)
                 )
                 
                 Spacer(modifier = Modifier.height(Spacing.SM))
@@ -70,7 +63,7 @@ fun CompletionScreen(
                 Text(
                     text = "MuSicX has been successfully installed on your system.",
                     style = Typography.Body.MEDIUM,
-                    color = Color(ColorTokens.TEXT_SECONDARY),
+                    color = Color(Colors.TEXT_SECONDARY),
                     textAlign = TextAlign.Center
                 )
             }
@@ -87,10 +80,10 @@ fun CompletionScreen(
             Button(
                 onClick = onOpenApp,
                 colors = ButtonColors(
-                    containerColor = Color(ColorTokens.ACCENT),
-                    contentColor = Color(ColorTokens.BACKGROUND),
-                    disabledContainerColor = Color(ColorTokens.ACCENT_HOVER),
-                    disabledContentColor = Color(ColorTokens.TEXT_DISABLED)
+                    containerColor = Color(Colors.ACCENT),
+                    contentColor = Color(Colors.BACKGROUND),
+                    disabledContainerColor = Color(Colors.ACCENT_HOVER),
+                    disabledContentColor = Color(Colors.TEXT_DISABLED)
                 )
             ) {
                 Row(
@@ -101,7 +94,7 @@ fun CompletionScreen(
                         painter = painterResource(R.drawable.ic_play),
                         contentDescription = "Open App",
                         modifier = Modifier.size(IconSize.SM),
-                        tint = Color(ColorTokens.BACKGROUND)
+                        tint = Color(Colors.BACKGROUND)
                     )
                     
                     Spacer(modifier = Modifier.width(Spacing.SM))
@@ -109,7 +102,7 @@ fun CompletionScreen(
                     Text(
                         text = "Start MuSicX",
                         style = Typography.Label.LARGE,
-                        color = Color(ColorTokens.BACKGROUND)
+                        color = Color(Colors.BACKGROUND)
                     )
                 }
             }
@@ -121,12 +114,12 @@ fun CompletionScreen(
                 onClick = onShowDetails,
                 colors = ButtonColors(
                     containerColor = Color.Transparent,
-                    contentColor = Color(ColorTokens.TEXT_PRIMARY),
-                    disabledContainerColor = Color(ColorTokens.SURFACE_DISABLED),
-                    disabledContentColor = Color(ColorTokens.TEXT_DISABLED)
+                    contentColor = Color(Colors.TEXT_PRIMARY),
+                    disabledContainerColor = Color(Colors.SURFACE_DISABLED),
+                    disabledContentColor = Color(Colors.TEXT_DISABLED)
                 ),
                 borderWidth = 1.dp,
-                borderColor = Color(ColorTokens.BORDER_PRIMARY)
+                borderColor = Color(Colors.BORDER_PRIMARY)
             ) {
                 Row(
                     horizontalArrangement = Arrangement.Start,
@@ -136,7 +129,7 @@ fun CompletionScreen(
                         painter = painterResource(R.drawable.ic_info),
                         contentDescription = "Details",
                         modifier = Modifier.size(IconSize.SM),
-                        tint = Color(ColorTokens.TEXT_PRIMARY)
+                        tint = Color(Colors.TEXT_PRIMARY)
                     )
                     
                     Spacer(modifier = Modifier.width(Spacing.SM))
@@ -144,7 +137,7 @@ fun CompletionScreen(
                     Text(
                         text = "View Details",
                         style = Typography.Label.LARGE,
-                        color = Color(ColorTokens.TEXT_PRIMARY)
+                        color = Color(Colors.TEXT_PRIMARY)
                     )
                 }
             }
@@ -160,7 +153,7 @@ fun CompletionScreen(
             Text(
                 text = "What would you like to do next?",
                 style = Typography.Label.MEDIUM,
-                color = Color(ColorTokens.TEXT_SECONDARY)
+                color = Color(Colors.TEXT_SECONDARY)
             )
             
             Spacer(modifier = Modifier.height(Spacing.SM))
@@ -179,7 +172,7 @@ fun CompletionScreen(
                         painter = painterResource(R.drawable.ic_tutorial),
                         contentDescription = "Tutorial",
                         modifier = Modifier.size(IconSize.XXS),
-                        tint = Color(ColorTokens.TEXT_SECONDARY)
+                        tint = Color(Colors.TEXT_SECONDARY)
                     )
                     
                     Spacer(modifier = Modifier.width(Spacing.SM))
@@ -187,7 +180,7 @@ fun CompletionScreen(
                     Text(
                         text = "Start Tutorial",
                         style = Typography.Label.SMALL,
-                        color = Color(ColorTokens.TEXT_SECONDARY)
+                        color = Color(Colors.TEXT_SECONDARY)
                     )
                 }
                 
@@ -203,7 +196,7 @@ fun CompletionScreen(
                         painter = painterResource(R.drawable.ic_help),
                         contentDescription = "Help",
                         modifier = Modifier.size(IconSize.XXS),
-                        tint = Color(ColorTokens.TEXT_SECONDARY)
+                        tint = Color(Colors.TEXT_SECONDARY)
                     )
                     
                     Spacer(modifier = Modifier.width(Spacing.SM))
@@ -211,7 +204,7 @@ fun CompletionScreen(
                     Text(
                         text = "Get Help",
                         style = Typography.Label.SMALL,
-                        color = Color(ColorTokens.TEXT_SECONDARY)
+                        color = Color(Colors.TEXT_SECONDARY)
                     )
                 }
             }

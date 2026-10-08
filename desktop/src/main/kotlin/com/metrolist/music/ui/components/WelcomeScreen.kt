@@ -5,7 +5,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.unit.*
 import com.metrolist.music.ui.theme.*
-import com.metrolist.music.ui.theme.ColorTokens
+import com.metrolist.music.ui.theme.Colors
 
 @Composable
 fun WelcomeScreen(
@@ -15,7 +15,7 @@ fun WelcomeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(ColorTokens.BACKGROUND))
+            .background(Color(Colors.BACKGROUND))
             .padding(horizontal = Spacing.MD, vertical = Spacing.XXXL),
         horizontalAlignment = Alignment.Center,
         verticalArrangement = Arrangement.Center
@@ -29,7 +29,7 @@ fun WelcomeScreen(
                 painter = painterResource(R.drawable.musix_logo),
                 contentDescription = "MuSicX Logo",
                 modifier = Modifier.size(IconSize.XL),
-                tint = Color(ColorTokens.TEXT_PRIMARY)
+                tint = Color(Colors.TEXT_PRIMARY)
             )
             
             Spacer(modifier = Modifier.height(Spacing.LG))
@@ -37,7 +37,7 @@ fun WelcomeScreen(
             Text(
                 text = "MuSicX",
                 style = Typography.Title.LARGE,
-                color = Color(ColorTokens.TEXT_PRIMARY)
+                color = Color(Colors.TEXT_PRIMARY)
             )
             
             Spacer(modifier = Modifier.height(Spacing.SM))
@@ -45,7 +45,7 @@ fun WelcomeScreen(
             Text(
                 text = "Your music, perfectly organized",
                 style = Typography.Body.MEDIUM,
-                color = Color(ColorTokens.TEXT_SECONDARY)
+                color = Color(Colors.TEXT_SECONDARY)
             )
         }
         
@@ -59,7 +59,7 @@ fun WelcomeScreen(
             Text(
                 text = "Choose Installation Type",
                 style = Typography.Title.MEDIUM,
-                color = Color(ColorTokens.TEXT_PRIMARY)
+                color = Color(Colors.TEXT_PRIMARY)
             )
             
             Spacer(modifier = Modifier.height(Spacing.MD))
@@ -94,7 +94,7 @@ fun WelcomeScreen(
                 onClick = onSkip,
                 colors = ButtonColors(
                     containerColor = Color.Transparent,
-                    contentColor = Color(ColorTokens.TEXT_SECONDARY)
+                    contentColor = Color(Colors.TEXT_SECONDARY)
                 )
             ) {
                 Text("Skip installation")
@@ -110,7 +110,7 @@ fun WelcomeScreen(
             Text(
                 text = "By installing, you agree to our Terms of Service and Privacy Policy",
                 style = Typography.Label.SMALL,
-                color = Color(ColorTokens.TEXT_TERTIARY)
+                color = Color(Colors.TEXT_TERTIARY)
             )
         }
     }
@@ -129,10 +129,10 @@ private fun InstallationOption(
             .height(120.dp)
             .clickable { onClick() },
         colors = CardColors(
-            containerColor = Color(ColorTokens.SURFACE),
-            contentColor = Color(ColorTokens.TEXT_PRIMARY),
-            disabledContainerColor = Color(ColorTokens.SURFACE_DISABLED),
-            disabledContentColor = Color(ColorTokens.TEXT_DISABLED)
+            containerColor = Color(Colors.SURFACE),
+            contentColor = Color(Colors.TEXT_PRIMARY),
+            disabledContainerColor = Color(Colors.SURFACE_DISABLED),
+            disabledContentColor = Color(Colors.TEXT_DISABLED)
         ),
         elevation = Elevation.XS,
         shape = RoundedCornerShape(12.dp)
@@ -148,7 +148,7 @@ private fun InstallationOption(
                 painter = painterResource(icon),
                 contentDescription = title,
                 modifier = Modifier.size(IconSize.LG),
-                tint = Color(ColorTokens.ACCENT)
+                tint = Color(Colors.ACCENT)
             )
             
             Spacer(modifier = Modifier.width(Spacing.MD))
@@ -157,7 +157,7 @@ private fun InstallationOption(
                 Text(
                     text = title,
                     style = Typography.Title.MEDIUM,
-                    color = Color(ColorTokens.TEXT_PRIMARY)
+                    color = Color(Colors.TEXT_PRIMARY)
                 )
                 
                 Spacer(modifier = Modifier.height(Spacing.XXS))
@@ -165,7 +165,7 @@ private fun InstallationOption(
                 Text(
                     text = description,
                     style = Typography.Label.MEDIUM,
-                    color = Color(ColorTokens.TEXT_SECONDARY)
+                    color = Color(Colors.TEXT_SECONDARY)
                 )
             }
             
@@ -173,7 +173,7 @@ private fun InstallationOption(
                 painter = painterResource(R.drawable.ic_chevron_right),
                 contentDescription = "Continue",
                 modifier = Modifier.size(IconSize.SM),
-                tint = Color(ColorTokens.TEXT_SECONDARY)
+                tint = Color(Colors.TEXT_SECONDARY)
             )
         }
     }
