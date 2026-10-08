@@ -46,63 +46,63 @@ object Colors {
 /** Shadow levels (following Material Design 3 elevation) */
 object Elevation {
     // No shadow (surface at ground level)
-    const val NONE: Dp = 0.dp
+    val NONE: Dp = 0.dp
     
     // Extra small shadow
-    const val XS: Dp = 1.dp
+    val XS: Dp = 1.dp
     
     // Small shadow
-    const val SM: Dp = 3.dp
+    val SM: Dp = 3.dp
     
     // Medium shadow
-    const val MD: Dp = 6.dp
+    val MD: Dp = 6.dp
     
     // Large shadow
-    const val LG: Dp = 8.dp
+    val LG: Dp = 8.dp
     
     // Extra large shadow
-    const val XL: Dp = 12.dp
+    val XL: Dp = 12.dp
     
     // XX large shadow
-    const val XXL: Dp = 16.dp
+    val XXL: Dp = 16.dp
 }
 
 /** Border radius tokens following Material Design 3 */
 object BorderRadius {
     // Border radius values
-    const val NONE: Dp = 0.dp
-    const val XXXS: Dp = 2.dp
-    const val XXS: Dp = 4.dp
-    const val XS: Dp = 8.dp
-    const val SM: Dp = 12.dp
-    const val MD: Dp = 16.dp
-    const val LG: Dp = 28.dp
-    const val XL: Dp = 40.dp
-    const val XXL: Dp = 56.dp
+    val NONE: Dp = 0.dp
+    val XXXS: Dp = 2.dp
+    val XXS: Dp = 4.dp
+    val XS: Dp = 8.dp
+    val SM: Dp = 12.dp
+    val MD: Dp = 16.dp
+    val LG: Dp = 28.dp
+    val XL: Dp = 40.dp
+    val XXL: Dp = 56.dp
     
     // Component-specific radii
-    const val COMPONENT_SMALL: Dp = 4.dp
-    const val COMPONENT_MEDIUM: Dp = 8.dp
-    const val COMPONENT_LARGE: Dp = 12.dp
+    val COMPONENT_SMALL: Dp = 4.dp
+    val COMPONENT_MEDIUM: Dp = 8.dp
+    val COMPONENT_LARGE: Dp = 12.dp
     
     // Icon button radius
-    const val ICON_BUTTON: Dp = 20.dp
+    val ICON_BUTTON: Dp = 20.dp
     
     // Card/image radius
-    const val CARD: Dp = 12.dp
-    const val DIALOG: Dp = 28.dp
+    val CARD: Dp = 12.dp
+    val DIALOG: Dp = 28.dp
 }
 
 
 
 /** Icon size tokens */
 object IconSize {
-    const val XXXS: Dp = 12.dp
-    const val XXS: Dp = 16.dp
-    const val XS: Dp = 20.dp
-    const val SM: Dp = 24.dp
-    const val MD: Dp = 32.dp
-    const val LG: Dp = 36.dp
-    const val XL: Dp = 48.dp
-    const val XXL: Dp = 64.dp
+    val XXXS: Dp = 12.dp
+    val XXS: Dp = 16.dp
+    val XS: Dp = 20.dp
+    val SM: Dp = 24.dp
+    val MD: Dp = 32.dp
+    val LG: Dp = 36.dp
+    val XL: Dp = 48.dp
+    val XXL: Dp = 64.dp
 }
