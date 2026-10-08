@@ -2,6 +2,7 @@ package com.metrolist.music.ui.components
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
@@ -22,7 +23,7 @@ fun CompletionScreen(
             .fillMaxSize()
             .background(Color(Colors.BACKGROUND))
             .padding(horizontal = Spacing.MD, vertical = Spacing.XXXL),
-        horizontalAlignment = Alignment.Horizontal.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         // Success Icon Container
@@ -37,7 +38,7 @@ fun CompletionScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(Spacing.LG),
-                horizontalAlignment = Alignment.Horizontal.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
                 // Success Icon
