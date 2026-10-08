@@ -12,7 +12,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.metrolist.music.ui.theme.*
 import com.metrolist.music.ui.theme.Colors
-import com.metrolist.music.ui.theme.Typography
 import androidx.compose.material3.CardDefaults
 
 @Composable
@@ -69,7 +68,7 @@ fun ProgressScreen(
                 ) {
                     Text(
                         text = "Installing MuSicX",
-                        style = Typography.Title.LARGE,
+                        style = MaterialTheme.typography.titleLarge,
                         color = Color(Colors.TEXT_PRIMARY)
                     )
                     
@@ -109,13 +108,13 @@ fun ProgressScreen(
                     ) {
                         Text(
                             text = "${(progress * 100).toInt()}%",
-                            style = Typography.Label.MEDIUM,
+                            style = MaterialTheme.typography.labelMedium,
                             color = Color(Colors.TEXT_PRIMARY)
                         )
                         
                         Text(
                             text = statusMessage,
-                            style = Typography.Label.SMALL,
+                            style = MaterialTheme.typography.labelSmall,
                             color = Color(Colors.TEXT_SECONDARY)
                         )
                     }
@@ -127,7 +126,7 @@ fun ProgressScreen(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = "Installation Details",
-                        style = Typography.Title.MEDIUM,
+                        style = MaterialTheme.typography.titleMedium,
                         color = Color(Colors.TEXT_PRIMARY)
                     )
                     
@@ -201,7 +200,7 @@ fun ProgressScreen(
                     
                     Text(
                         text = "Tip: You can choose custom installation location during setup.",
-                        style = Typography.Label.MEDIUM,
+                        style = MaterialTheme.typography.labelMedium,
                         color = Color(Colors.TEXT_PRIMARY)
                     )
                 }
@@ -233,7 +232,7 @@ private fun FeatureItem(
         
         Text(
             text = text,
-            style = Typography.Label.MEDIUM,
+            style = MaterialTheme.typography.labelMedium,
             color = Color(Colors.TEXT_PRIMARY)
         )
     }

@@ -55,7 +55,7 @@ fun CompletionScreen(
                 // Success Message
                 Text(
                     text = "Installation Complete!",
-                    style = Typography.Title.LARGE,
+                    style = MaterialTheme.typography.titleLarge,
                     color = Color(Colors.TEXT_PRIMARY)
                 )
                 
@@ -63,7 +63,7 @@ fun CompletionScreen(
                 
                 Text(
                     text = "MuSicX has been successfully installed on your system.",
-                    style = Typography.Body.MEDIUM,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = Color(Colors.TEXT_SECONDARY),
                     textAlign = TextAlign.Center
                 )
@@ -102,7 +102,7 @@ fun CompletionScreen(
                     
                     Text(
                         text = "Start MuSicX",
-                        style = Typography.Label.LARGE,
+                        style = MaterialTheme.typography.labelLarge,
                         color = Color(Colors.BACKGROUND)
                     )
                 }
@@ -136,7 +136,7 @@ fun CompletionScreen(
                     
                     Text(
                         text = "View Details",
-                        style = Typography.Label.LARGE,
+                        style = MaterialTheme.typography.labelLarge,
                         color = Color(Colors.TEXT_PRIMARY)
                     )
                 }
@@ -152,7 +152,7 @@ fun CompletionScreen(
         ) {
             Text(
                 text = "What would you like to do next?",
-                style = Typography.Label.MEDIUM,
+                style = MaterialTheme.typography.labelMedium,
                 color = Color(Colors.TEXT_SECONDARY)
             )
             
@@ -179,7 +179,7 @@ fun CompletionScreen(
                     
                     Text(
                         text = "Start Tutorial",
-                        style = Typography.Label.SMALL,
+                        style = MaterialTheme.typography.labelSmall,
                         color = Color(Colors.TEXT_SECONDARY)
                     )
                 }
@@ -203,7 +203,7 @@ fun CompletionScreen(
                     
                     Text(
                         text = "Get Help",
-                        style = Typography.Label.SMALL,
+                        style = MaterialTheme.typography.labelSmall,
                         color = Color(Colors.TEXT_SECONDARY)
                     )
                 }

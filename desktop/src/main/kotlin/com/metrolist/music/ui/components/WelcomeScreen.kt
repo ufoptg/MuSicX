@@ -13,7 +13,6 @@ import androidx.compose.ui.unit.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.metrolist.music.ui.theme.*
 import com.metrolist.music.ui.theme.Colors
-import com.metrolist.music.ui.theme.Typography
 import androidx.compose.material3.CardDefaults
 
 @Composable
@@ -45,7 +44,7 @@ fun WelcomeScreen(
             
             Text(
                 text = "MuSicX",
-                style = Typography.Title.LARGE,
+                style = MaterialTheme.typography.titleLarge,
                 color = Color(Colors.TEXT_PRIMARY)
             )
             
@@ -53,7 +52,7 @@ fun WelcomeScreen(
             
             Text(
                 text = "Your music, perfectly organized",
-                style = Typography.Body.MEDIUM,
+                style = MaterialTheme.typography.bodyMedium,
                 color = Color(Colors.TEXT_SECONDARY)
             )
         }
@@ -67,7 +66,7 @@ fun WelcomeScreen(
         ) {
             Text(
                 text = "Choose Installation Type",
-                style = Typography.Title.MEDIUM,
+                style = MaterialTheme.typography.titleMedium,
                 color = Color(Colors.TEXT_PRIMARY)
             )
             
@@ -118,7 +117,7 @@ fun WelcomeScreen(
         ) {
             Text(
                 text = "By installing, you agree to our Terms of Service and Privacy Policy",
-                style = Typography.Label.SMALL,
+                style = MaterialTheme.typography.labelSmall,
                 color = Color(Colors.TEXT_TERTIARY)
             )
         }
@@ -165,7 +164,7 @@ private fun InstallationOption(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    style = Typography.Title.MEDIUM,
+                    style = MaterialTheme.typography.titleMedium,
                     color = Color(Colors.TEXT_PRIMARY)
                 )
                 
@@ -173,7 +172,7 @@ private fun InstallationOption(
                 
                 Text(
                     text = description,
-                    style = Typography.Label.MEDIUM,
+                    style = MaterialTheme.typography.labelMedium,
                     color = Color(Colors.TEXT_SECONDARY)
                 )
             }
