@@ -8,54 +8,54 @@ package com.metrolist.music.ui.theme
 /** Spacing tokens in density-independent pixels (dp) */
 object Spacing {
     // Base unit
-    const val UNIT: String = "4dp"  // 4dp is Material Design's baseline
+    const val UNIT: Dp = 4.dp  // 4dp is Material Design's baseline
     
     // Minimal spacing
-    const val NONE: String = "0dp"
-    const val XXXS: String = "2dp"
-    const val XXS: String = "4dp"
+    const val NONE: Dp = 0.dp
+    const val XXXS: Dp = 2.dp
+    const val XXS: Dp = 4.dp
     
     // Component spacing
-    const val XS: String = "8dp"
-    const val SM: String = "12dp"
-    const val MD: String = "16dp"
-    const val LG: String = "24dp"
-    const val XL: String = "32dp"
-    const val XXL: String = "48dp"
-    const val XXXL: String = "64dp"
+    const val XS: Dp = 8.dp
+    const val SM: Dp = 12.dp
+    const val MD: Dp = 16.dp
+    const val LG: Dp = 24.dp
+    const val XL: Dp = 32.dp
+    const val XXL: Dp = 48.dp
+    const val XXXL: Dp = 64.dp
     
     // Container padding
-    const val CONTAINER_PADDING_SCREEN: String = "16dp"
-    const val CONTAINER_PADDING_SURFACE: String = "24dp"
+    const val CONTAINER_PADDING_SCREEN: Dp = 16.dp
+    const val CONTAINER_PADDING_SURFACE: Dp = 24.dp
     
     // Section spacing
-    const val SECTION_GAP: String = "32dp"
-    const val SECTION_PADDING: String = "24dp"
+    const val SECTION_GAP: Dp = 32.dp
+    const val SECTION_PADDING: Dp = 24.dp
     
     // List spacing
-    const val LIST_ITEM_GAP: String = "8dp"
-    const val LIST_ITEM_PADDING: String = "16dp"
+    const val LIST_ITEM_GAP: Dp = 8.dp
+    const val LIST_ITEM_PADDING: Dp = 16.dp
     
     // Dialog/Modal spacing
-    const val DIALOG_PADDING: String = "24dp"
-    const val DIALOG_CONTENT_GAP: String = "16dp"
+    const val DIALOG_PADDING: Dp = 24.dp
+    const val DIALOG_CONTENT_GAP: Dp = 16.dp
     
     // Form spacing
-    const val FORM_FIELD_GAP: String = "16dp"
-    const val FORM_FIELD_PADDING: String = "12dp"
-    const val FORM_HELPER_GAP: String = "4dp"
+    const val FORM_FIELD_GAP: Dp = 16.dp
+    const val FORM_FIELD_PADDING: Dp = 12.dp
+    const val FORM_HELPER_GAP: Dp = 4.dp
     
     // Button spacing
-    const val BUTTON_GAP: String = "8dp"
-    const val BUTTON_ICON_GAP: String = "8dp"
+    const val BUTTON_GAP: Dp = 8.dp
+    const val BUTTON_ICON_GAP: Dp = 8.dp
     
     // Card spacing
-    const val CARD_GAP: String = "16dp"
-    const val CARD_PADDING: String = "20dp"
+    const val CARD_GAP: Dp = 16.dp
+    const val CARD_PADDING: Dp = 20.dp
     
     // Navigation spacing
-    const val NAVIGATION_GAP: String = "4dp"
-    const val NAVIGATION_PADDING: String = "8dp"
+    const val NAVIGATION_GAP: Dp = 4.dp
+    const val NAVIGATION_PADDING: Dp = 8.dp
 }
 
 /** Responsive spacing multipliers for different screen sizes */
