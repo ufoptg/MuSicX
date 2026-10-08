@@ -1,0 +1,616 @@
+Run ./gradlew --console=plain --no-configuration-cache :desktop:vlcSetup :desktop:packageReleaseExe --warning-mode summary
+Fetching distribution.
+Downloading https://services.gradle.org/distributions/gradle-9.7.1-bin.zip
+..............10%..............20%...............30%..............40%...............50%..............60%...............70%..............80%..............90%...............100%
+
+Welcome to Gradle 9.7.1!
+
+Here are the highlights of this release:
+ - Isolated Projects graduates to incubating
+ - Broader Configuration Cache compatibility
+ - Resilient Sync helps you fix broken builds
+ - More source locations in problem reports
+
+For more details see https://docs.gradle.org/9.7.1/release-notes.html
+
+Starting a Gradle Daemon (subsequent builds will be faster)
+
+> Configure project :desktop
+w: file:///D:/a/MuSicX/MuSicX/desktop/build.gradle.kts:32:28: 'val material3: String' is deprecated. Specify dependency directly.
+w: file:///D:/a/MuSicX/MuSicX/desktop/build.gradle.kts:33:28: 'val materialIconsExtended: String' is deprecated. This artifact is pinned to version 1.7.3 and will not receive updates. Either use this version explicitly or migrate to Material Symbols (vector resources). See https://kotlinlang.org/docs/multiplatform/whats-new-compose-180.html.
+
+> Task :spotify:checkKotlinGradlePluginConfigurationErrors SKIPPED
+
+> Task :desktop:upxDownload
+Download https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-win64.zip
+
+> Task :desktop:upxExtract
+
+> Task :downloadWix
+Download https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip
+
+> Task :desktop:vlcDownload
+Download https://get.videolan.org/vlc/3.0.21/win64/vlc-3.0.21-win64.zip
+
+> Task :unzipWix
+> Task :spotify:compileKotlin
+> Task :desktop:checkRuntime
+> Task :spotify:processResources NO-SOURCE
+> Task :desktop:vlcExtract
+> Task :desktop:vlcFilterPlugins
+> Task :desktop:vlcCompressPlugins
+> Task :desktop:vlcSetup
+> Task :desktop:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :desktop:convertXmlValueResourcesForMain NO-SOURCE
+> Task :desktop:copyNonXmlValueResourcesForMain NO-SOURCE
+> Task :desktop:prepareComposeResourcesTaskForMain NO-SOURCE
+> Task :desktop:generateResourceAccessorsForMain SKIPPED
+> Task :desktop:generateActualResourceCollectorsForMain SKIPPED
+> Task :desktop:generateComposeResClass SKIPPED
+> Task :desktop:assembleMainResources
+> Task :desktop:processResources
+> Task :desktop:createRuntimeImage
+> Task :desktop:prepareAppResources
+> Task :desktop:unpackDefaultComposeDesktopJvmApplicationResources
+
+> Task :spotify:compileKotlin
+w: file:///D:/a/MuSicX/MuSicX/spotify/src/main/kotlin/com/metrolist/spotify/SpotifyAuth.kt:187:26 'constructor(p0: String!): URL' is deprecated. Deprecated in Java.
+
+> Task :spotify:compileJava NO-SOURCE
+> Task :spotify:classes UP-TO-DATE
+> Task :spotify:jar
+
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:27:35 Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+> Task :desktop:compileKotlin
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:27:58 Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:28:31 Argument type mismatch: actual type is 'Alignment', but 'Alignment.Horizontal' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:35:18 None of the following candidates is applicable:
+
+fun Modifier.padding(start: Dp = ..., top: Dp = ..., end: Dp = ..., bottom: Dp = ...): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(horizontal: Dp = ..., vertical: Dp = ...): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(all: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(paddingValues: PaddingValues): Modifier:
+  Argument type mismatch: actual type is 'String', but 'PaddingValues' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:37:18 Unresolved reference 'elevation' on receiver of type 'Modifier'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:38:21 Argument type mismatch: actual type is 'String', but 'Shape' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:43:22 None of the following candidates is applicable:
+
+fun Modifier.padding(start: Dp = ..., top: Dp = ..., end: Dp = ..., bottom: Dp = ...): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(horizontal: Dp = ..., vertical: Dp = ...): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(all: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(paddingValues: PaddingValues): Modifier:
+  Argument type mismatch: actual type is 'String', but 'PaddingValues' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:44:39 Argument type mismatch: actual type is 'Alignment', but 'Alignment.Horizontal' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:49:31 Unresolved reference 'painterResource'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:49:47 Unresolved reference 'R'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:51:41 None of the following candidates is applicable:
+
+fun Modifier.size(size: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.size(size: DpSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'DpSize' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:55:44 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:60:40 Unresolved reference 'Title'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:64:44 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:68:40 Unresolved reference 'Body'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:70:33 Unresolved reference 'TextAlign'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:75:36 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:94:41 Argument type mismatch: actual type is 'Alignment', but 'Alignment.Vertical' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:97:35 Unresolved reference 'painterResource'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:97:51 Unresolved reference 'R'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:99:45 None of the following candidates is applicable:
+
+fun Modifier.size(size: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.size(size: DpSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'DpSize' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:103:48 None of the following candidates is applicable:
+
+fun Modifier.width(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.width(width: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:107:44 Unresolved reference 'Label'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:113:40 None of the following candidates is applicable:
+
+fun Modifier.width(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.width(width: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:124:17 No parameter with name 'borderWidth' found.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:125:17 No parameter with name 'borderColor' found.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:129:41 Argument type mismatch: actual type is 'Alignment', but 'Alignment.Vertical' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:132:35 Unresolved reference 'painterResource'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:132:51 Unresolved reference 'R'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:134:45 None of the following candidates is applicable:
+
+fun Modifier.size(size: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.size(size: DpSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'DpSize' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:138:48 None of the following candidates is applicable:
+
+fun Modifier.width(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.width(width: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:142:44 Unresolved reference 'Label'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:149:36 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:154:35 Argument type mismatch: actual type is 'Alignment', but 'Alignment.Horizontal' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:158:36 Unresolved reference 'Label'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:162:40 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:172:41 Argument type mismatch: actual type is 'Alignment', but 'Alignment.Vertical' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:175:35 Unresolved reference 'painterResource'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:175:51 Unresolved reference 'R'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:177:45 None of the following candidates is applicable:
+
+fun Modifier.size(size: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.size(size: DpSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'DpSize' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:181:48 None of the following candidates is applicable:
+
+fun Modifier.width(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.width(width: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:185:44 Unresolved reference 'Label'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:190:44 None of the following candidates is applicable:
+
+fun Modifier.width(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.width(width: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:196:41 Argument type mismatch: actual type is 'Alignment', but 'Alignment.Vertical' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:199:35 Unresolved reference 'painterResource'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:199:51 Unresolved reference 'R'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:201:45 None of the following candidates is applicable:
+
+fun Modifier.size(size: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.size(size: DpSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'DpSize' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:205:48 None of the following candidates is applicable:
+
+fun Modifier.width(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.width(width: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt:209:44 Unresolved reference 'Label'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:10:8 Unresolved reference 'android'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:24:25 Unresolved reference 'Brush'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:34:35 Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:34:58 Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:35:31 Argument type mismatch: actual type is 'Alignment', but 'Alignment.Horizontal' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:42:18 None of the following candidates is applicable:
+
+fun Modifier.padding(start: Dp = ..., top: Dp = ..., end: Dp = ..., bottom: Dp = ...): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(horizontal: Dp = ..., vertical: Dp = ...): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(all: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(paddingValues: PaddingValues): Modifier:
+  Argument type mismatch: actual type is 'String', but 'PaddingValues' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:49:25 Argument type mismatch: actual type is 'String', but 'CardElevation' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:50:21 Unresolved reference 'RoundedCornerShape'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:55:22 None of the following candidates is applicable:
+
+fun Modifier.padding(start: Dp = ..., top: Dp = ..., end: Dp = ..., bottom: Dp = ...): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(horizontal: Dp = ..., vertical: Dp = ...): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(all: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(paddingValues: PaddingValues): Modifier:
+  Argument type mismatch: actual type is 'String', but 'PaddingValues' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:62:43 Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:64:41 Argument type mismatch: actual type is 'Alignment', but 'Alignment.Vertical' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:68:44 Unresolved reference 'Title'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:74:34 No value passed for parameter 'disabledContainerColor'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:74:34 No value passed for parameter 'disabledContentColor'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:85:48 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:92:51 Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:97:48 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:102:51 Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:104:45 Argument type mismatch: actual type is 'Alignment', but 'Alignment.Vertical' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:108:48 Unresolved reference 'Label'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:114:48 Unresolved reference 'Label'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:120:44 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:126:44 Unresolved reference 'Title'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:130:48 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:137:48 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:142:36 Unresolved reference 'R'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:146:52 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:149:36 Unresolved reference 'R'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:153:52 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:156:36 Unresolved reference 'R'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:164:36 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:175:25 Argument type mismatch: actual type is 'String', but 'CardElevation' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:176:21 Unresolved reference 'RoundedCornerShape'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:181:22 None of the following candidates is applicable:
+
+fun Modifier.padding(start: Dp = ..., top: Dp = ..., end: Dp = ..., bottom: Dp = ...): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(horizontal: Dp = ..., vertical: Dp = ...): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(all: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(paddingValues: PaddingValues): Modifier:
+  Argument type mismatch: actual type is 'String', but 'PaddingValues' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:187:41 Argument type mismatch: actual type is 'Alignment', but 'Alignment.Vertical' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:190:35 Unresolved reference 'painterResource'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:190:51 Unresolved reference 'R'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:192:45 None of the following candidates is applicable:
+
+fun Modifier.size(size: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.size(size: DpSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'DpSize' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:196:48 None of the following candidates is applicable:
+
+fun Modifier.width(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.width(width: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:200:44 Unresolved reference 'Label'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:217:33 Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:219:29 Argument type mismatch: actual type is 'Alignment', but 'Alignment.Vertical' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:222:23 Unresolved reference 'painterResource'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:224:33 None of the following candidates is applicable:
+
+fun Modifier.size(size: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.size(size: DpSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'DpSize' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:228:36 None of the following candidates is applicable:
+
+fun Modifier.width(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.width(width: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/ProgressScreen.kt:232:32 Unresolved reference 'Label'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:22:35 Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:22:58 Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:23:31 Argument type mismatch: actual type is 'Alignment', but 'Alignment.Horizontal' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:29:35 Argument type mismatch: actual type is 'Alignment', but 'Alignment.Horizontal' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:32:27 Unresolved reference 'painterResource'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:32:43 Unresolved reference 'R'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:38:40 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:42:36 Unresolved reference 'Title'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:46:40 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:50:36 Unresolved reference 'Body'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:55:36 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:64:36 Unresolved reference 'Title'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:68:40 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:74:24 Unresolved reference 'R'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:78:40 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:84:24 Unresolved reference 'R'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:89:36 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:98:26 No value passed for parameter 'disabledContainerColor'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:98:26 No value passed for parameter 'disabledContentColor'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:108:36 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:115:36 Unresolved reference 'Label'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:140:21 Argument type mismatch: actual type is 'String', but 'CardElevation' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:141:17 Unresolved reference 'RoundedCornerShape'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:146:18 None of the following candidates is applicable:
+
+fun Modifier.padding(start: Dp = ..., top: Dp = ..., end: Dp = ..., bottom: Dp = ...): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(horizontal: Dp = ..., vertical: Dp = ...): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(all: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.padding(paddingValues: PaddingValues): Modifier:
+  Argument type mismatch: actual type is 'String', but 'PaddingValues' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:147:33 Argument type mismatch: actual type is 'Alignment', but 'Alignment.Vertical' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:151:27 Unresolved reference 'painterResource'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:153:37 None of the following candidates is applicable:
+
+fun Modifier.size(size: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.size(size: DpSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'DpSize' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:157:40 None of the following candidates is applicable:
+
+fun Modifier.width(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.width(width: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:162:40 Unresolved reference 'Title'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:166:44 None of the following candidates is applicable:
+
+fun Modifier.height(intrinsicSize: IntrinsicSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'IntrinsicSize' was expected.
+
+fun Modifier.height(height: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:170:40 Unresolved reference 'Label'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:176:27 Unresolved reference 'painterResource'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:176:43 Unresolved reference 'R'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/WelcomeScreen.kt:178:37 None of the following candidates is applicable:
+
+fun Modifier.size(size: Dp): Modifier:
+  Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+
+fun Modifier.size(size: DpSize): Modifier:
+  Argument type mismatch: actual type is 'String', but 'DpSize' was expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:11:31 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:12:28 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:13:37 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:14:37 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:17:33 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:18:35 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:19:34 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:20:34 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:23:27 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:24:33 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:25:35 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:28:26 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:29:28 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:30:28 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:31:25 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:38:35 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:39:34 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:40:36 Initializer type mismatch: expected 'Int', actual 'Long'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:44:8 Redeclaration:
+object Spacing : Any
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:64:8 Redeclaration:
+object Typography : Any
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:67:35 Const 'val' initializer must be a constant value.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:67:37 Unresolved reference 'Monaco' on receiver of type 'String'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:67:37 Literals must be surrounded by whitespace.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:67:43 Syntax error: Expecting an element.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:67:43 Syntax error: Property getter or setter expected.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/ColorTokens.kt:157:19 Unresolved reference 'string'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:9:8 Redeclaration:
+object Spacing : Any
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:11:21 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:11:28 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:14:21 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:14:28 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:15:21 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:15:28 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:16:20 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:16:27 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:19:19 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:19:26 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:20:19 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:20:27 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:21:19 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:21:27 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:22:19 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:22:27 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:23:19 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:23:27 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:24:20 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:24:28 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:25:21 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:25:29 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:28:41 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:28:49 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:29:42 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:29:50 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:32:28 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:32:36 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:33:32 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:33:40 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:36:30 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:36:37 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:37:34 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:37:42 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:40:31 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:40:39 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:41:35 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:41:43 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:44:31 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:44:39 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:45:35 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:45:43 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:46:32 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:46:39 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:49:27 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:49:34 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:50:32 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:50:39 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:53:25 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:53:33 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:54:29 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:54:37 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:57:31 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:57:38 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:58:35 Unresolved reference 'Dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/SpacingTokens.kt:58:42 Unresolved reference 'dp'.
+e: file:///D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/theme/TypographyTokens.kt:32:8 Redeclaration:
+object Typography : Any
+
+> Task :desktop:compileKotlin FAILED
+gradle/actions: Writing build results to D:\a\_temp\.gradle-actions\build-results\__run-1791450857580.json
+
+
+[Incubating] Problems report is available at: file:///D:/a/MuSicX/MuSicX/build/reports/problems/problems-report.html
+FAILURE: Build failed with an exception.
+
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+* What went wrong:
+
+Execution failed for task ':desktop:compileKotlin' (registered by plugin 'org.jetbrains.kotlin.jvm').
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork
+
+   > Kotlin compiler: ARGUMENT_TYPE_MISMATCH
+For more on this, please refer to https://docs.gradle.org/9.7.1/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+       Kotlin compiler error
+18 actionable tasks: 18 executed
+         Argument type mismatch: actual type is 'String', but 'Dp' was expected.
+         Location: D:/a/MuSicX/MuSicX/desktop/src/main/kotlin/com/metrolist/music/ui/components/CompletionScreen.kt line 27
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 2m 47s
