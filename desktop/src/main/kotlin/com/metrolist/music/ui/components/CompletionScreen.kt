@@ -7,6 +7,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.*
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.BorderStroke
 import com.metrolist.music.ui.theme.*
 import com.metrolist.music.ui.theme.Colors
 import com.metrolist.music.ui.theme.Spacing
@@ -14,6 +17,7 @@ import com.metrolist.music.ui.theme.Typography
 import com.metrolist.music.ui.theme.BorderRadius
 import com.metrolist.music.ui.theme.Elevation
 import com.metrolist.music.ui.theme.IconSize
+import com.metrolist.music.R
 
 @Composable
 fun CompletionScreen(
@@ -25,7 +29,7 @@ fun CompletionScreen(
             .fillMaxSize()
             .background(Color(Colors.BACKGROUND))
             .padding(horizontal = Spacing.MD, vertical = Spacing.XXXL),
-        horizontalAlignment = Alignment.Center,
+        horizontalAlignment = Alignment.Horizontal.Center,
         verticalArrangement = Arrangement.Center
     ) {
         // Success Icon Container
@@ -33,15 +37,14 @@ fun CompletionScreen(
             modifier = Modifier
                 .size(200.dp)
                 .padding(Spacing.LG)
-                .background(Color(Colors.SURFACE))
-                .elevation(Elevation.XXL),
+                .background(Color(Colors.SURFACE)),
             shape = BorderRadius.XXL
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(Spacing.LG),
-                horizontalAlignment = Alignment.Center,
+                horizontalAlignment = Alignment.Horizontal.Center,
                 verticalArrangement = Arrangement.Center
             ) {
                 // Success Icon
@@ -91,7 +94,7 @@ fun CompletionScreen(
             ) {
                 Row(
                     horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.Center
+                    verticalAlignment = Alignment.Vertical.Center
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_play),
@@ -121,12 +124,11 @@ fun CompletionScreen(
                     disabledContainerColor = Color(Colors.SURFACE_DISABLED),
                     disabledContentColor = Color(Colors.TEXT_DISABLED)
                 ),
-                borderWidth = 1.dp,
-                borderColor = Color(Colors.BORDER_PRIMARY)
+                border = BorderStroke(1.dp, Color(Colors.BORDER_PRIMARY))
             ) {
                 Row(
                     horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.Center
+                    verticalAlignment = Alignment.Vertical.Center
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_info),
@@ -169,7 +171,7 @@ fun CompletionScreen(
                 Row(
                     modifier = Modifier.clickable { /* TODO: Handle click */ },
                     horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.Center
+                    verticalAlignment = Alignment.Vertical.Center
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_tutorial),
@@ -193,7 +195,7 @@ fun CompletionScreen(
                 Row(
                     modifier = Modifier.clickable { /* TODO: Handle click */ },
                     horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.Center
+                    verticalAlignment = Alignment.Vertical.Center
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_help),

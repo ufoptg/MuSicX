@@ -1,5 +1,8 @@
 package com.metrolist.music.ui.theme
 
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
 /**
  * MuSicX Project Design System - Black & White Theme
  * Colors follow Material Design 3 with black & white focus
@@ -40,104 +43,67 @@ object Colors {
     const val BORDER_DISABLED: Int = 0xFFF5F5F5   // Disabled border
 }
 
-/** Spacing tokens following Material Design 3 (in dp) */
-object Spacing {
-    // Standard spacing scale
-    const val NONE: String = "0dp"
-    const val XXXS: String = "2dp"
-    const val XXS: String = "4dp"
-    const val XS: String = "8dp"
-    const val SM: String = "12dp"
-    const val MD: String = "16dp"
-    const val LG: String = "24dp"
-    const val XL: String = "32dp"
-    const val XXL: String = "48dp"
-    const val XXXL: String = "64dp"
+/** Shadow levels (following Material Design 3 elevation) */
+object Elevation {
+    // No shadow (surface at ground level)
+    const val NONE: Dp = 0.dp
     
-    // Special spacing values
-    const val HALF: String = "50%"
-    const val QUARTER: String = "25%"
-    const val THREE_QUARTERS: String = "75%"
-}
-
-/** Typography tokens following Material Design 3 */
-object Typography {
-    // Font families
-    const val PRIMARY: String = "Roboto, sans-serif"
-    const val MONOSPACE: String = ""Monaco, Menlo, Consolas, "Courier New", monospace"
+    // Extra small shadow
+    const val XS: Dp = 1.dp
     
-    // Font weights
-    const val LIGHT: String = "300"
-    const val NORMAL: String = "400"
-    const val MEDIUM: String = "500"
-    const val BOLD: String = "700"
+    // Small shadow
+    const val SM: Dp = 3.dp
     
-    // Font sizes (in sp)
-    const val DISPLAY_LARGE: String = "57sp"
-    const val DISPLAY_MEDIUM: String = "45sp"
-    const val DISPLAY_SMALL: String = "36sp"
-    const val HEADLINE_LARGE: String = "32sp"
-    const val HEADLINE_MEDIUM: String = "28sp"
-    const val HEADLINE_SMALL: String = "24sp"
-    const val TITLE_LARGE: String = "22sp"
-    const val TITLE_MEDIUM: String = "16sp"
-    const val TITLE_SMALL: String = "14sp"
-    const val BODY_LARGE: String = "16sp"
-    const val BODY_MEDIUM: String = "14sp"
-    const val BODY_SMALL: String = "12sp"
-    const val LABEL_LARGE: String = "14sp"
-    const val LABEL_MEDIUM: String = "12sp"
-    const val LABEL_SMALL: String = "11sp"
+    // Medium shadow
+    const val MD: Dp = 6.dp
     
-    // Line heights
-    const val LINE_HEIGHT_NONE: String = "100%"
-    const val LINE_HEIGHT_SHORT: String = "120%"
-    const val LINE_HEIGHT_DEFAULT: String = "140%"
-    const val LINE_HEIGHT_MIXED: String = "160%"
+    // Large shadow
+    const val LG: Dp = 8.dp
     
-    // Letter spacing
-    const val TRACKING_MIN: String = "-0.25px"
-    const val TRACKING_NORMAL: String = "0.5px"
-    const val TRACKING_MAX: String = "1.5px"
+    // Extra large shadow
+    const val XL: Dp = 12.dp
+    
+    // XX large shadow
+    const val XXL: Dp = 16.dp
 }
 
 /** Border radius tokens following Material Design 3 */
 object BorderRadius {
     // Border radius values
-    const val NONE: String = "0dp"
-    const val XXXS: String = "2dp"
-    const val XXS: String = "4dp"
-    const val XS: String = "8dp"
-    const val SM: String = "12dp"
-    const val MD: String = "16dp"
-    const val LG: String = "28dp"
-    const val XL: String = "40dp"
-    const val XXL: String = "56dp"
+    const val NONE: Dp = 0.dp
+    const val XXXS: Dp = 2.dp
+    const val XXS: Dp = 4.dp
+    const val XS: Dp = 8.dp
+    const val SM: Dp = 12.dp
+    const val MD: Dp = 16.dp
+    const val LG: Dp = 28.dp
+    const val XL: Dp = 40.dp
+    const val XXL: Dp = 56.dp
     
     // Component-specific radii
-    const val COMPONENT_SMALL: String = "4dp"
-    const val COMPONENT_MEDIUM: String = "8dp"
-    const val COMPONENT_LARGE: String = "12dp"
+    const val COMPONENT_SMALL: Dp = 4.dp
+    const val COMPONENT_MEDIUM: Dp = 8.dp
+    const val COMPONENT_LARGE: Dp = 12.dp
     
     // Icon button radius
-    const val ICON_BUTTON: String = "20dp"
+    const val ICON_BUTTON: Dp = 20.dp
     
     // Card/image radius
-    const val CARD: String = "12dp"
-    const val DIALOG: String = "28dp"
+    const val CARD: Dp = 12.dp
+    const val DIALOG: Dp = 28.dp
 }
 
 /** Elevation/shadow tokens */
 object Elevation {
     // Shadow levels (following Material Design 3 elevation)
-    const val NONE: String = "0dp"
-    const val XS: String = "1dp"
-    const val SM: String = "3dp"
-    const val MD: String = "6dp"
-    const val LG: String = "8dp"
-    const val XL: String = "12dp"
-    const val XXL: String = "16dp"
-    const val XXXL: String = "24dp"
+    const val NONE: Dp = 0.dp
+    const val XS: Dp = 1.dp
+    const val SM: Dp = 3.dp
+    const val MD: Dp = 6.dp
+    const val LG: Dp = 8.dp
+    const val XL: Dp = 12.dp
+    const val XXL: Dp = 16.dp
+    const val XXXL: Dp = 24.dp
     
     // Shadow colors
     const val SHADOW_LIGHT: String = "rgba(0, 0, 0, 0.06)"
@@ -148,12 +114,12 @@ object Elevation {
 
 /** Icon size tokens */
 object IconSize {
-    const val XXXS: String = "12dp"
-    const val XXS: String = "16dp"
-    const val XS: String = "20dp"
-    const val SM: String = "24dp"
-    const val MD: String = "32dp"
-    const val LG: String = "36dp"
-    const val XL: string = "48dp"
-    const val XXL: String = "64dp"
+    const val XXXS: Dp = 12.dp
+    const val XXS: Dp = 16.dp
+    const val XS: Dp = 20.dp
+    const val SM: Dp = 24.dp
+    const val MD: Dp = 32.dp
+    const val LG: Dp = 36.dp
+    const val XL: Dp = 48.dp
+    const val XXL: Dp = 64.dp
 }

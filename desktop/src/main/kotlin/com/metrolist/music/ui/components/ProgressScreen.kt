@@ -7,9 +7,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.*
-import android.graphics.Color as AndroidColor
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.metrolist.music.ui.theme.*
 import com.metrolist.music.ui.theme.Colors
+import com.metrolist.music.ui.theme.Typography
+import com.metrolist.music.R
+import androidx.compose.material3.CardDefaults
 
 @Composable
 fun ProgressScreen(
@@ -32,7 +37,7 @@ fun ProgressScreen(
                 )
             )
             .padding(horizontal = Spacing.LG, vertical = Spacing.XXXL),
-        horizontalAlignment = Alignment.Center,
+        horizontalAlignment = Alignment.Horizontal.Center,
         verticalArrangement = Arrangement.Center
     ) {
         // Progress Container
@@ -46,7 +51,7 @@ fun ProgressScreen(
                 disabledContainerColor = Color(Colors.SURFACE_DISABLED),
                 disabledContentColor = Color(Colors.TEXT_DISABLED)
             ),
-            elevation = Elevation.LG,
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
             shape = RoundedCornerShape(16.dp)
         ) {
             Column(
@@ -61,7 +66,7 @@ fun ProgressScreen(
                         .fillMaxWidth()
                         .padding(bottom = Spacing.MD),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Center
+                    verticalAlignment = Alignment.Vertical.Center
                 ) {
                     Text(
                         text = "Installing MuSicX",
@@ -101,7 +106,7 @@ fun ProgressScreen(
                             .fillMaxWidth()
                             .padding(horizontal = Spacing.XXXS),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Center
+                        verticalAlignment = Alignment.Vertical.Center
                     ) {
                         Text(
                             text = "${(progress * 100).toInt()}%",
@@ -172,7 +177,7 @@ fun ProgressScreen(
                 disabledContainerColor = Color(Colors.SURFACE_DISABLED),
                 disabledContentColor = Color(Colors.TEXT_DISABLED)
             ),
-            elevation = Elevation.XS,
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
             shape = RoundedCornerShape(12.dp)
         ) {
             Column(
@@ -184,7 +189,7 @@ fun ProgressScreen(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.Center
+                    verticalAlignment = Alignment.Vertical.Center
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_light_bulb),
@@ -216,7 +221,7 @@ private fun FeatureItem(
             .fillMaxWidth()
             .padding(vertical = Spacing.XXS),
         horizontalArrangement = Arrangement.Start,
-        verticalAlignment = Alignment.Center
+        verticalAlignment = Alignment.Vertical.Center
     ) {
         Icon(
             painter = painterResource(icon),

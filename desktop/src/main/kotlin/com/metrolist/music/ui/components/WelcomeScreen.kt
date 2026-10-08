@@ -7,8 +7,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.*
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.metrolist.music.ui.theme.*
 import com.metrolist.music.ui.theme.Colors
+import com.metrolist.music.ui.theme.Typography
+import com.metrolist.music.R
+import androidx.compose.material3.CardDefaults
+import com.metrolist.music.ui.theme.Typography
+import com.metrolist.music.R
 
 @Composable
 fun WelcomeScreen(
@@ -20,7 +29,7 @@ fun WelcomeScreen(
             .fillMaxSize()
             .background(Color(Colors.BACKGROUND))
             .padding(horizontal = Spacing.MD, vertical = Spacing.XXXL),
-        horizontalAlignment = Alignment.Center,
+        horizontalAlignment = Alignment.Horizontal.Center,
         verticalArrangement = Arrangement.Center
     ) {
         // Logo Section
@@ -137,14 +146,14 @@ private fun InstallationOption(
             disabledContainerColor = Color(Colors.SURFACE_DISABLED),
             disabledContentColor = Color(Colors.TEXT_DISABLED)
         ),
-        elevation = Elevation.XS,
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(Spacing.MD),
-            verticalAlignment = Alignment.Center,
+            verticalAlignment = Alignment.Vertical.Center,
             horizontalArrangement = Arrangement.Start
         ) {
             Icon(
