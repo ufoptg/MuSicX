@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.*
+import android.graphics.Color as AndroidColor
 import com.metrolist.music.ui.theme.*
 import com.metrolist.music.ui.theme.Colors
 import com.metrolist.music.ui.theme.Spacing
@@ -23,7 +24,7 @@ fun CompletionScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(Colors.BACKGROUND))
+            .background(Color(AndroidColor.parseColor(Colors.BACKGROUND)))
             .padding(horizontal = Spacing.MD, vertical = Spacing.XXXL),
         horizontalAlignment = Alignment.Center,
         verticalArrangement = Arrangement.Center
@@ -33,7 +34,7 @@ fun CompletionScreen(
             modifier = Modifier
                 .size(200.dp)
                 .padding(Spacing.LG)
-                .background(Color(Colors.SURFACE))
+                .background(Color(AndroidColor.parseColor(Colors.SURFACE)))
                 .elevation(Elevation.XXL),
             shape = BorderRadius.XXL
         ) {
@@ -49,7 +50,7 @@ fun CompletionScreen(
                     painter = painterResource(R.drawable.ic_check_circle),
                     contentDescription = "Success",
                     modifier = Modifier.size(IconSize.XXL),
-                    tint = Color(Colors.SUCCESS)
+                    tint = Color(AndroidColor.parseColor(Colors.SUCCESS))
                 )
                 
                 Spacer(modifier = Modifier.height(Spacing.MD))
@@ -58,7 +59,7 @@ fun CompletionScreen(
                 Text(
                     text = "Installation Complete!",
                     style = Typography.Title.LARGE,
-                    color = Color(Colors.TEXT_PRIMARY)
+                    color = Color(AndroidColor.parseColor(Colors.TEXT_PRIMARY))
                 )
                 
                 Spacer(modifier = Modifier.height(Spacing.SM))
@@ -66,7 +67,7 @@ fun CompletionScreen(
                 Text(
                     text = "MuSicX has been successfully installed on your system.",
                     style = Typography.Body.MEDIUM,
-                    color = Color(Colors.TEXT_SECONDARY),
+                    color = Color(AndroidColor.parseColor(Colors.TEXT_SECONDARY)),
                     textAlign = TextAlign.Center
                 )
             }
@@ -83,10 +84,10 @@ fun CompletionScreen(
             Button(
                 onClick = onOpenApp,
                 colors = ButtonColors(
-                    containerColor = Color(Colors.ACCENT),
-                    contentColor = Color(Colors.BACKGROUND),
-                    disabledContainerColor = Color(Colors.ACCENT_HOVER),
-                    disabledContentColor = Color(Colors.TEXT_DISABLED)
+                    containerColor = Color(AndroidColor.parseColor(Colors.ACCENT)),
+                    contentColor = Color(AndroidColor.parseColor(Colors.BACKGROUND)),
+                    disabledContainerColor = Color(AndroidColor.parseColor(Colors.ACCENT_HOVER)),
+                    disabledContentColor = Color(AndroidColor.parseColor(Colors.TEXT_DISABLED))
                 )
             ) {
                 Row(
@@ -117,12 +118,12 @@ fun CompletionScreen(
                 onClick = onShowDetails,
                 colors = ButtonColors(
                     containerColor = Color.Transparent,
-                    contentColor = Color(Colors.TEXT_PRIMARY),
-                    disabledContainerColor = Color(Colors.SURFACE_DISABLED),
-                    disabledContentColor = Color(Colors.TEXT_DISABLED)
+                    contentColor = Color(AndroidColor.parseColor(Colors.TEXT_PRIMARY)),
+                    disabledContainerColor = Color(AndroidColor.parseColor(Colors.SURFACE_DISABLED)),
+                    disabledContentColor = Color(AndroidColor.parseColor(Colors.TEXT_DISABLED))
                 ),
                 borderWidth = 1.dp,
-                borderColor = Color(Colors.BORDER_PRIMARY)
+                borderColor = Color(AndroidColor.parseColor(Colors.BORDER_PRIMARY))
             ) {
                 Row(
                     horizontalArrangement = Arrangement.Start,
@@ -132,7 +133,7 @@ fun CompletionScreen(
                         painter = painterResource(R.drawable.ic_info),
                         contentDescription = "Details",
                         modifier = Modifier.size(IconSize.SM),
-                        tint = Color(Colors.TEXT_PRIMARY)
+                        tint = Color(AndroidColor.parseColor(Colors.TEXT_PRIMARY))
                     )
                     
                     Spacer(modifier = Modifier.width(Spacing.SM))
@@ -140,7 +141,7 @@ fun CompletionScreen(
                     Text(
                         text = "View Details",
                         style = Typography.Label.LARGE,
-                        color = Color(Colors.TEXT_PRIMARY)
+                        color = Color(AndroidColor.parseColor(Colors.TEXT_PRIMARY))
                     )
                 }
             }
@@ -156,7 +157,7 @@ fun CompletionScreen(
             Text(
                 text = "What would you like to do next?",
                 style = Typography.Label.MEDIUM,
-                color = Color(Colors.TEXT_SECONDARY)
+                color = Color(AndroidColor.parseColor(Colors.TEXT_SECONDARY))
             )
             
             Spacer(modifier = Modifier.height(Spacing.SM))
@@ -175,7 +176,7 @@ fun CompletionScreen(
                         painter = painterResource(R.drawable.ic_tutorial),
                         contentDescription = "Tutorial",
                         modifier = Modifier.size(IconSize.XXS),
-                        tint = Color(Colors.TEXT_SECONDARY)
+                        tint = Color(AndroidColor.parseColor(Colors.TEXT_SECONDARY))
                     )
                     
                     Spacer(modifier = Modifier.width(Spacing.SM))
@@ -183,7 +184,7 @@ fun CompletionScreen(
                     Text(
                         text = "Start Tutorial",
                         style = Typography.Label.SMALL,
-                        color = Color(Colors.TEXT_SECONDARY)
+                        color = Color(AndroidColor.parseColor(Colors.TEXT_SECONDARY))
                     )
                 }
                 
@@ -199,7 +200,7 @@ fun CompletionScreen(
                         painter = painterResource(R.drawable.ic_help),
                         contentDescription = "Help",
                         modifier = Modifier.size(IconSize.XXS),
-                        tint = Color(Colors.TEXT_SECONDARY)
+                        tint = Color(AndroidColor.parseColor(Colors.TEXT_SECONDARY))
                     )
                     
                     Spacer(modifier = Modifier.width(Spacing.SM))
@@ -207,7 +208,7 @@ fun CompletionScreen(
                     Text(
                         text = "Get Help",
                         style = Typography.Label.SMALL,
-                        color = Color(Colors.TEXT_SECONDARY)
+                        color = Color(AndroidColor.parseColor(Colors.TEXT_SECONDARY))
                     )
                 }
             }
