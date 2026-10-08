@@ -40,7 +40,7 @@ object Typography {
     // Headline styles (page/section titles)
     object Headline {
         const val LARGE: String = "32sp/40sp ${FontWeights.BOLD} ${FontWeights.LIGHT}"
-        const val MEDIUM: String = "28sp/36sp ${FontWeights.BOLD} ${FontWeights.LIGHT}
+        const val MEDIUM: String = "28sp/36sp ${FontWeights.BOLD} ${FontWeights.LIGHT}"
         const val SMALL: String = "24sp/32sp ${FontWeights.BOLD} ${FontWeights.LIGHT}"
     }
     
