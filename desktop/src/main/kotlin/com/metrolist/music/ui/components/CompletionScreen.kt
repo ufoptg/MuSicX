@@ -12,9 +12,6 @@ import com.metrolist.music.ui.theme.BorderRadius
 import com.metrolist.music.ui.theme.Elevation
 import com.metrolist.music.ui.theme.IconSize
 
-// Import specific Column class
-import androidx.compose.foundation.Column
-
 @Composable
 fun CompletionScreen(
     onOpenApp: () -> Unit,

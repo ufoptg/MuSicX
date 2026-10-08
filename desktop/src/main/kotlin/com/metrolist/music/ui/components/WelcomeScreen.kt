@@ -7,9 +7,6 @@ import androidx.compose.ui.unit.*
 import com.metrolist.music.ui.theme.*
 import com.metrolist.music.ui.theme.Colors
 
-// Import specific Column class
-import androidx.compose.foundation.Column
-
 @Composable
 fun WelcomeScreen(
     onInstall: () -> Unit,
