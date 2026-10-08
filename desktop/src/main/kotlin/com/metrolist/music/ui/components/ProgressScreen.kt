@@ -65,7 +65,7 @@ fun ProgressScreen(
                         .fillMaxWidth()
                         .padding(bottom = Spacing.MD),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Vertical.Center
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "Installing MuSicX",
@@ -105,7 +105,7 @@ fun ProgressScreen(
                             .fillMaxWidth()
                             .padding(horizontal = Spacing.XXXS),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Vertical.Center
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = "${(progress * 100).toInt()}%",
@@ -188,7 +188,7 @@ fun ProgressScreen(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.Vertical.Center
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         painter = painterResource("ic_light_bulb.png"),
@@ -220,7 +220,7 @@ private fun FeatureItem(
             .fillMaxWidth()
             .padding(vertical = Spacing.XXS),
         horizontalArrangement = Arrangement.Start,
-        verticalAlignment = Alignment.Vertical.Center
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             painter = painterResource(icon),

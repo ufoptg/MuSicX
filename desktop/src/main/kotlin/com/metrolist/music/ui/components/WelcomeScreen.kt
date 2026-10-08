@@ -32,7 +32,7 @@ fun WelcomeScreen(
         // Logo Section
         Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.Center
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
                 painter = painterResource("musix_logo.png"),
@@ -150,7 +150,7 @@ private fun InstallationOption(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(Spacing.MD),
-            verticalAlignment = Alignment.Vertical.Center,
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start
         ) {
             Icon(

@@ -3,6 +3,7 @@ package com.metrolist.music.ui.components
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
@@ -32,7 +33,7 @@ fun CompletionScreen(
                 .size(200.dp)
                 .padding(Spacing.LG)
                 .background(Color(Colors.SURFACE)),
-            shape = BorderRadius.XXL
+            shape = RoundedCornerShape(BorderRadius.XXL)
         ) {
             Column(
                 modifier = Modifier
@@ -88,7 +89,7 @@ fun CompletionScreen(
             ) {
                 Row(
                     horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.Vertical.Center
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         painter = painterResource("ic_play.png"),
@@ -122,7 +123,7 @@ fun CompletionScreen(
             ) {
                 Row(
                     horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.Vertical.Center
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         painter = painterResource("ic_info.png"),
@@ -147,7 +148,7 @@ fun CompletionScreen(
         // Additional Options
         Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.Center
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = "What would you like to do next?",
@@ -165,7 +166,7 @@ fun CompletionScreen(
                 Row(
                     modifier = Modifier.clickable { /* TODO: Handle click */ },
                     horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.Vertical.Center
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         painter = painterResource("ic_tutorial.png"),
@@ -189,7 +190,7 @@ fun CompletionScreen(
                 Row(
                     modifier = Modifier.clickable { /* TODO: Handle click */ },
                     horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.Vertical.Center
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         painter = painterResource("ic_help.png"),
