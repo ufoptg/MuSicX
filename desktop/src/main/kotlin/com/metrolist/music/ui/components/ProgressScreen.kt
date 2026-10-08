@@ -24,14 +24,12 @@ fun ProgressScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                brush = Brush.linearGradient(
+                brush = Brush.verticalGradient(
                     colors = listOf(
                         Color(Colors.BACKGROUND),
                         Color(Colors.SURFACE),
                         Color(Colors.BACKGROUND)
-                    ),
-                    startY = 0f,
-                    endY = 1f
+                    )
                 )
             )
             .padding(horizontal = Spacing.LG, vertical = Spacing.XXXL),
