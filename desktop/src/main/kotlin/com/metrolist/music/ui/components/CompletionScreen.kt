@@ -49,7 +49,7 @@ fun CompletionScreen(
                     painter = painterResource(R.drawable.ic_check_circle),
                     contentDescription = "Success",
                     modifier = Modifier.size(IconSize.XXL),
-                    tint = Color(AndroidColor.parseColor(Colors.SUCCESS))
+                    tint = Color(Colors.SUCCESS)
                 )
                 
                 Spacer(modifier = Modifier.height(Spacing.MD))
@@ -58,7 +58,7 @@ fun CompletionScreen(
                 Text(
                     text = "Installation Complete!",
                     style = Typography.Title.LARGE,
-                    color = Color(AndroidColor.parseColor(Colors.TEXT_PRIMARY))
+                    color = Color(Colors.TEXT_PRIMARY)
                 )
                 
                 Spacer(modifier = Modifier.height(Spacing.SM))
@@ -66,7 +66,7 @@ fun CompletionScreen(
                 Text(
                     text = "MuSicX has been successfully installed on your system.",
                     style = Typography.Body.MEDIUM,
-                    color = Color(AndroidColor.parseColor(Colors.TEXT_SECONDARY)),
+                    color = Color(Colors.TEXT_SECONDARY),
                     textAlign = TextAlign.Center
                 )
             }
