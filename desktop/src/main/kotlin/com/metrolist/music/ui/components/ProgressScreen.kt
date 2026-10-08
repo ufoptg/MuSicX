@@ -23,9 +23,9 @@ fun ProgressScreen(
             .background(
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        Color(AndroidColor.parseColor(Colors.BACKGROUND)),
-                        Color(AndroidColor.parseColor(Colors.SURFACE)),
-                        Color(AndroidColor.parseColor(Colors.BACKGROUND))
+                        Color(Colors.BACKGROUND),
+                        Color(Colors.SURFACE),
+                        Color(Colors.BACKGROUND)
                     ),
                     startY = 0f,
                     endY = 1f
@@ -41,10 +41,10 @@ fun ProgressScreen(
                 .fillMaxWidth()
                 .padding(Spacing.XXL),
             colors = CardColors(
-                containerColor = Color(AndroidColor.parseColor(Colors.SURFACE)),
-                contentColor = Color(AndroidColor.parseColor(Colors.TEXT_PRIMARY)),
-                disabledContainerColor = Color(AndroidColor.parseColor(Colors.SURFACE_DISABLED)),
-                disabledContentColor = Color(AndroidColor.parseColor(Colors.TEXT_DISABLED))
+                containerColor = Color(Colors.SURFACE),
+                contentColor = Color(Colors.TEXT_PRIMARY),
+                disabledContainerColor = Color(Colors.SURFACE_DISABLED),
+                disabledContentColor = Color(Colors.TEXT_DISABLED)
             ),
             elevation = Elevation.LG,
             shape = RoundedCornerShape(16.dp)
@@ -66,14 +66,14 @@ fun ProgressScreen(
                     Text(
                         text = "Installing MuSicX",
                         style = Typography.Title.LARGE,
-                        color = Color(AndroidColor.parseColor(Colors.TEXT_PRIMARY))
+                        color = Color(Colors.TEXT_PRIMARY)
                     )
                     
                     TextButton(
                         onClick = onCancel,
                         colors = ButtonColors(
                             containerColor = Color.Transparent,
-                            contentColor = Color(AndroidColor.parseColor(Colors.ERROR))
+                            contentColor = Color(Colors.ERROR)
                         )
                     ) {
                         Text("Cancel")
@@ -90,8 +90,8 @@ fun ProgressScreen(
                             .fillMaxWidth()
                             .height(8.dp)
                             .padding(horizontal = Spacing.XXXS),
-                        color = Color(AndroidColor.parseColor(Colors.ACCENT)),
-                        trackColor = Color(AndroidColor.parseColor(Colors.SURFACE_DISABLED))
+                        color = Color(Colors.ACCENT),
+                        trackColor = Color(Colors.SURFACE_DISABLED)
                     )
                     
                     Spacer(modifier = Modifier.height(Spacing.XXS))
@@ -106,13 +106,13 @@ fun ProgressScreen(
                         Text(
                             text = "${(progress * 100).toInt()}%",
                             style = Typography.Label.MEDIUM,
-                            color = Color(AndroidColor.parseColor(Colors.TEXT_PRIMARY))
+                            color = Color(Colors.TEXT_PRIMARY)
                         )
                         
                         Text(
                             text = statusMessage,
                             style = Typography.Label.SMALL,
-                            color = Color(AndroidColor.parseColor(Colors.TEXT_SECONDARY))
+                            color = Color(Colors.TEXT_SECONDARY)
                         )
                     }
                 }
@@ -124,13 +124,13 @@ fun ProgressScreen(
                     Text(
                         text = "Installation Details",
                         style = Typography.Title.MEDIUM,
-                        color = Color(AndroidColor.parseColor(Colors.TEXT_PRIMARY))
+                        color = Color(Colors.TEXT_PRIMARY)
                     )
                     
                     Spacer(modifier = Modifier.height(Spacing.SM))
                     
                     Divider(
-                        color = Color(AndroidColor.parseColor(Colors.BORDER_PRIMARY)),
+                        color = Color(Colors.BORDER_PRIMARY),
                         thickness = 1.dp
                     )
                     
@@ -167,10 +167,10 @@ fun ProgressScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardColors(
-                containerColor = Color(AndroidColor.parseColor(Colors.SURFACE)),
-                contentColor = Color(AndroidColor.parseColor(Colors.TEXT_PRIMARY)),
-                disabledContainerColor = Color(AndroidColor.parseColor(Colors.SURFACE_DISABLED)),
-                disabledContentColor = Color(AndroidColor.parseColor(Colors.TEXT_DISABLED))
+                containerColor = Color(Colors.SURFACE),
+                contentColor = Color(Colors.TEXT_PRIMARY),
+                disabledContainerColor = Color(Colors.SURFACE_DISABLED),
+                disabledContentColor = Color(Colors.TEXT_DISABLED)
             ),
             elevation = Elevation.XS,
             shape = RoundedCornerShape(12.dp)
@@ -190,7 +190,7 @@ fun ProgressScreen(
                         painter = painterResource(R.drawable.ic_light_bulb),
                         contentDescription = "Tip",
                         modifier = Modifier.size(IconSize.SM),
-                        tint = Color(AndroidColor.parseColor(Colors.WARNING))
+                        tint = Color(Colors.WARNING)
                     )
                     
                     Spacer(modifier = Modifier.width(Spacing.SM))
@@ -198,7 +198,7 @@ fun ProgressScreen(
                     Text(
                         text = "Tip: You can choose custom installation location during setup.",
                         style = Typography.Label.MEDIUM,
-                        color = Color(AndroidColor.parseColor(Colors.TEXT_PRIMARY))
+                        color = Color(Colors.TEXT_PRIMARY)
                     )
                 }
             }
@@ -222,7 +222,7 @@ private fun FeatureItem(
             painter = painterResource(icon),
             contentDescription = text,
             modifier = Modifier.size(IconSize.XXS),
-            tint = Color(AndroidColor.parseColor(Colors.SUCCESS))
+            tint = Color(Colors.SUCCESS)
         )
         
         Spacer(modifier = Modifier.width(Spacing.SM))
@@ -230,7 +230,7 @@ private fun FeatureItem(
         Text(
             text = text,
             style = Typography.Label.MEDIUM,
-            color = Color(AndroidColor.parseColor(Colors.TEXT_PRIMARY))
+            color = Color(Colors.TEXT_PRIMARY)
         )
     }
 }

@@ -7,7 +7,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.*
-import android.graphics.Color as AndroidColor
 import com.metrolist.music.ui.theme.*
 import com.metrolist.music.ui.theme.Colors
 
@@ -19,7 +18,7 @@ fun WelcomeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(AndroidColor.parseColor(Colors.BACKGROUND)))
+            .background(Color(Colors.BACKGROUND))
             .padding(horizontal = Spacing.MD, vertical = Spacing.XXXL),
         horizontalAlignment = Alignment.Center,
         verticalArrangement = Arrangement.Center
@@ -33,7 +32,7 @@ fun WelcomeScreen(
                 painter = painterResource(R.drawable.musix_logo),
                 contentDescription = "MuSicX Logo",
                 modifier = Modifier.size(IconSize.XL),
-                tint = Color(AndroidColor.parseColor(Colors.TEXT_PRIMARY))
+                tint = Color(Colors.TEXT_PRIMARY)
             )
             
             Spacer(modifier = Modifier.height(Spacing.LG))
@@ -41,7 +40,7 @@ fun WelcomeScreen(
             Text(
                 text = "MuSicX",
                 style = Typography.Title.LARGE,
-                color = Color(AndroidColor.parseColor(Colors.TEXT_PRIMARY))
+                color = Color(Colors.TEXT_PRIMARY)
             )
             
             Spacer(modifier = Modifier.height(Spacing.SM))
@@ -49,7 +48,7 @@ fun WelcomeScreen(
             Text(
                 text = "Your music, perfectly organized",
                 style = Typography.Body.MEDIUM,
-                color = Color(AndroidColor.parseColor(Colors.TEXT_SECONDARY))
+                color = Color(Colors.TEXT_SECONDARY)
             )
         }
         
@@ -63,7 +62,7 @@ fun WelcomeScreen(
             Text(
                 text = "Choose Installation Type",
                 style = Typography.Title.MEDIUM,
-                color = Color(AndroidColor.parseColor(Colors.TEXT_PRIMARY))
+                color = Color(Colors.TEXT_PRIMARY)
             )
             
             Spacer(modifier = Modifier.height(Spacing.MD))
@@ -133,10 +132,10 @@ private fun InstallationOption(
             .height(120.dp)
             .clickable { onClick() },
         colors = CardColors(
-            containerColor = Color(AndroidColor.parseColor(Colors.SURFACE)),
-            contentColor = Color(AndroidColor.parseColor(Colors.TEXT_PRIMARY)),
-            disabledContainerColor = Color(AndroidColor.parseColor(Colors.SURFACE_DISABLED)),
-            disabledContentColor = Color(AndroidColor.parseColor(Colors.TEXT_DISABLED))
+            containerColor = Color(Colors.SURFACE),
+            contentColor = Color(Colors.TEXT_PRIMARY),
+            disabledContainerColor = Color(Colors.SURFACE_DISABLED),
+            disabledContentColor = Color(Colors.TEXT_DISABLED)
         ),
         elevation = Elevation.XS,
         shape = RoundedCornerShape(12.dp)
@@ -152,7 +151,7 @@ private fun InstallationOption(
                 painter = painterResource(icon),
                 contentDescription = title,
                 modifier = Modifier.size(IconSize.LG),
-                tint = Color(AndroidColor.parseColor(Colors.ACCENT))
+                tint = Color(Colors.ACCENT)
             )
             
             Spacer(modifier = Modifier.width(Spacing.MD))
@@ -161,7 +160,7 @@ private fun InstallationOption(
                 Text(
                     text = title,
                     style = Typography.Title.MEDIUM,
-                    color = Color(AndroidColor.parseColor(Colors.TEXT_PRIMARY))
+                    color = Color(Colors.TEXT_PRIMARY)
                 )
                 
                 Spacer(modifier = Modifier.height(Spacing.XXS))
@@ -169,7 +168,7 @@ private fun InstallationOption(
                 Text(
                     text = description,
                     style = Typography.Label.MEDIUM,
-                    color = Color(AndroidColor.parseColor(Colors.TEXT_SECONDARY))
+                    color = Color(Colors.TEXT_SECONDARY)
                 )
             }
             
@@ -177,7 +176,7 @@ private fun InstallationOption(
                 painter = painterResource(R.drawable.ic_chevron_right),
                 contentDescription = "Continue",
                 modifier = Modifier.size(IconSize.SM),
-                tint = Color(AndroidColor.parseColor(Colors.TEXT_SECONDARY))
+                tint = Color(Colors.TEXT_SECONDARY)
             )
         }
     }
