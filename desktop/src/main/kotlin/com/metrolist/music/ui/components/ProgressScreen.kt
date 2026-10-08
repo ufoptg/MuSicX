@@ -11,7 +11,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.metrolist.music.ui.theme.*
-import com.metrolist.music.ui.theme.Colors
 import androidx.compose.material3.CardDefaults
 
 @Composable

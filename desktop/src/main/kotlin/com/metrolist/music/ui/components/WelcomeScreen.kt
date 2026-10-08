@@ -8,11 +8,8 @@ import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.metrolist.music.ui.theme.*
-import com.metrolist.music.ui.theme.Colors
 import androidx.compose.material3.CardDefaults
 
 @Composable
