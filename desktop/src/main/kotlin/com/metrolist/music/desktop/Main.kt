@@ -150,6 +150,7 @@ import com.metrolist.music.ui.screens.HistoryScreen
 import com.metrolist.music.ui.screens.settings.SettingsScreen
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
+import com.metrolist.music.ui.component.NavigationTitle
 
 private val MuSicXRed = Color(0xFFED5564)
 
@@ -1187,12 +1188,8 @@ private fun HomeRowView(
     onPlay: (List<SearchHit>, Int) -> Unit,
 ) {
     Column(modifier = Modifier.padding(bottom = 20.dp)) {
-        Text(
-            text = row.title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(bottom = 12.dp),
+        NavigationTitle(
+            title = row.title,
         )
         LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             items(row.items, key = { it.videoId }) { hit ->
@@ -1388,7 +1385,7 @@ private fun SearchScreen(
                 }
 
                 if (albumResults.isNotEmpty()) {
-                    item { Text("Albums", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)) }
+                    item { NavigationTitle(title = "Albums") }
                     items(albumResults, key = { it.videoId }) { hit ->
                         ResultRow(
                             hit = hit,
@@ -1402,7 +1399,7 @@ private fun SearchScreen(
                 }
 
                 if (artistResults.isNotEmpty()) {
-                    item { Text("Artists", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)) }
+                    item { NavigationTitle(title = "Artists") }
                     items(artistResults, key = { it.videoId }) { hit ->
                         ResultRow(
                             hit = hit,
@@ -1416,7 +1413,7 @@ private fun SearchScreen(
                 }
 
                 if (playlistResults.isNotEmpty()) {
-                    item { Text("Playlists", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)) }
+                    item { NavigationTitle(title = "Playlists") }
                     items(playlistResults, key = { it.id }) { hit ->
                         PlaylistRow(item = hit, onClick = { onOpenPlaylist(hit) })
                     }
