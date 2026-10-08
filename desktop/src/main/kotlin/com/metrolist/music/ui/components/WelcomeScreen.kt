@@ -1,0 +1,180 @@
+package com.metrolist.music.ui.components
+
+import androidx.compose.foundation.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.unit.*
+import com.metrolist.music.ui.theme.*
+import com.metrolist.music.ui.theme.ColorTokens
+
+@Composable
+fun WelcomeScreen(
+    onInstall: () -> Unit,
+    onSkip: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(ColorTokens.BACKGROUND))
+            .padding(horizontal = Spacing.MD, vertical = Spacing.XXXL),
+        horizontalAlignment = Alignment.Center,
+        verticalArrangement = Arrangement.Center
+    ) {
+        // Logo Section
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.musix_logo),
+                contentDescription = "MuSicX Logo",
+                modifier = Modifier.size(IconSize.XL),
+                tint = Color(ColorTokens.TEXT_PRIMARY)
+            )
+            
+            Spacer(modifier = Modifier.height(Spacing.LG))
+            
+            Text(
+                text = "MuSicX",
+                style = Typography.Title.LARGE,
+                color = Color(ColorTokens.TEXT_PRIMARY)
+            )
+            
+            Spacer(modifier = Modifier.height(Spacing.SM))
+            
+            Text(
+                text = "Your music, perfectly organized",
+                style = Typography.Body.MEDIUM,
+                color = Color(ColorTokens.TEXT_SECONDARY)
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(Spacing.XXXL))
+        
+        // Installation Options
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Text(
+                text = "Choose Installation Type",
+                style = Typography.Title.MEDIUM,
+                color = Color(ColorTokens.TEXT_PRIMARY)
+            )
+            
+            Spacer(modifier = Modifier.height(Spacing.MD))
+            
+            // Basic Installation
+            InstallationOption(
+                title = "Basic Install",
+                description = "Standard installation with core features",
+                icon = R.drawable.ic_basic_install,
+                onClick = onInstall
+            )
+            
+            Spacer(modifier = Modifier.height(Spacing.SM))
+            
+            // Custom Installation
+            InstallationOption(
+                title = "Custom Install",
+                description = "Choose specific components and installation location",
+                icon = R.drawable.ic_custom_install,
+                onClick = onInstall
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(Spacing.XXXL))
+        
+        // Skip Option
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(
+                onClick = onSkip,
+                colors = ButtonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = Color(ColorTokens.TEXT_SECONDARY)
+                )
+            ) {
+                Text("Skip installation")
+            }
+        }
+        
+        // Footer
+        Spacer(modifier = Modifier.height(Spacing.XXL))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "By installing, you agree to our Terms of Service and Privacy Policy",
+                style = Typography.Label.SMALL,
+                color = Color(ColorTokens.TEXT_TERTIARY)
+            )
+        }
+    }
+}
+
+@Composable
+private fun InstallationOption(
+    title: String,
+    description: String,
+    icon: Int,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(120.dp)
+            .clickable { onClick() },
+        colors = CardColors(
+            containerColor = Color(ColorTokens.SURFACE),
+            contentColor = Color(ColorTokens.TEXT_PRIMARY),
+            disabledContainerColor = Color(ColorTokens.SURFACE_DISABLED),
+            disabledContentColor = Color(ColorTokens.TEXT_DISABLED)
+        ),
+        elevation = Elevation.XS,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Spacing.MD),
+            verticalAlignment = Alignment.Center,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = title,
+                modifier = Modifier.size(IconSize.LG),
+                tint = Color(ColorTokens.ACCENT)
+            )
+            
+            Spacer(modifier = Modifier.width(Spacing.MD))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = Typography.Title.MEDIUM,
+                    color = Color(ColorTokens.TEXT_PRIMARY)
+                )
+                
+                Spacer(modifier = Modifier.height(Spacing.XXS))
+                
+                Text(
+                    text = description,
+                    style = Typography.Label.MEDIUM,
+                    color = Color(ColorTokens.TEXT_SECONDARY)
+                )
+            }
+            
+            Icon(
+                painter = painterResource(R.drawable.ic_chevron_right),
+                contentDescription = "Continue",
+                modifier = Modifier.size(IconSize.SM),
+                tint = Color(ColorTokens.TEXT_SECONDARY)
+            )
+        }
+    }
+}

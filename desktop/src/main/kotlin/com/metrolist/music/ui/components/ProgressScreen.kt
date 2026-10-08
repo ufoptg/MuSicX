@@ -1,0 +1,232 @@
+package com.metrolist.music.ui.components
+
+import androidx.compose.foundation.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.unit.*
+import com.metrolist.music.ui.theme.*
+import com.metrolist.music.ui.theme.ColorTokens
+
+@Composable
+fun ProgressScreen(
+    progress: Float,
+    statusMessage: String,
+    onCancel: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color(ColorTokens.BACKGROUND),
+                        Color(ColorTokens.SURFACE),
+                        Color(ColorTokens.BACKGROUND)
+                    ),
+                    startY = 0f,
+                    endY = 1f
+                )
+            )
+            .padding(horizontal = Spacing.LG, vertical = Spacing.XXXL),
+        horizontalAlignment = Alignment.Center,
+        verticalArrangement = Arrangement.Center
+    ) {
+        // Progress Container
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Spacing.XXL),
+            colors = CardColors(
+                containerColor = Color(ColorTokens.SURFACE),
+                contentColor = Color(ColorTokens.TEXT_PRIMARY),
+                disabledContainerColor = Color(ColorTokens.SURFACE_DISABLED),
+                disabledContentColor = Color(ColorTokens.TEXT_DISABLED)
+            ),
+            elevation = Elevation.LG,
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(Spacing.XXL),
+                horizontalAlignment = Alignment.Start
+            ) {
+                // Progress Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = Spacing.MD),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Installing MuSicX",
+                        style = Typography.Title.LARGE,
+                        color = Color(ColorTokens.TEXT_PRIMARY)
+                    )
+                    
+                    TextButton(
+                        onClick = onCancel,
+                        colors = ButtonColors(
+                            containerColor = Color.Transparent,
+                            contentColor = Color(ColorTokens.ERROR)
+                        )
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+                
+                // Progress Bar
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Spacer(modifier = Modifier.height(Spacing.MD))
+                    
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .padding(horizontal = Spacing.XXXS),
+                        color = Color(ColorTokens.ACCENT),
+                        trackColor = Color(ColorTokens.SURFACE_DISABLED)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(Spacing.XXS))
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = Spacing.XXXS),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "${(progress * 100).toInt()}%",
+                            style = Typography.Label.MEDIUM,
+                            color = Color(ColorTokens.TEXT_PRIMARY)
+                        )
+                        
+                        Text(
+                            text = statusMessage,
+                            style = Typography.Label.SMALL,
+                            color = Color(ColorTokens.TEXT_SECONDARY)
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(Spacing.XL))
+                
+                // Installation Details
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Installation Details",
+                        style = Typography.Title.MEDIUM,
+                        color = Color(ColorTokens.TEXT_PRIMARY)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(Spacing.SM))
+                    
+                    Divider(
+                        color = Color(ColorTokens.BORDER_PRIMARY),
+                        thickness = 1.dp
+                    )
+                    
+                    Spacer(modifier = Modifier.height(Spacing.SM))
+                    
+                    // Feature list
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        FeatureItem(
+                            icon = R.drawable.ic_check_circle,
+                            text = "Downloading installer packages..."
+                        )
+                        
+                        Spacer(modifier = Modifier.height(Spacing.XXS))
+                        
+                        FeatureItem(
+                            icon = R.drawable.ic_check_circle,
+                            text = "Configuring application settings..."
+                        )
+                        
+                        Spacer(modifier = Modifier.height(Spacing.XXS))
+                        
+                        FeatureItem(
+                            icon = R.drawable.ic_check_circle,
+                            text = "Setting up shortcuts and integrations..."
+                        )
+                    }
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(Spacing.XL))
+        
+        // Tips Section
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardColors(
+                containerColor = Color(ColorTokens.SURFACE),
+                contentColor = Color(ColorTokens.TEXT_PRIMARY),
+                disabledContainerColor = Color(ColorTokens.SURFACE_DISABLED),
+                disabledContentColor = Color(ColorTokens.TEXT_DISABLED)
+            ),
+            elevation = Elevation.XS,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(Spacing.MD),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Start,
+                    verticalAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_light_bulb),
+                        contentDescription = "Tip",
+                        modifier = Modifier.size(IconSize.SM),
+                        tint = Color(ColorTokens.WARNING)
+                    )
+                    
+                    Spacer(modifier = Modifier.width(Spacing.SM))
+                    
+                    Text(
+                        text = "Tip: You can choose custom installation location during setup.",
+                        style = Typography.Label.MEDIUM,
+                        color = Color(ColorTokens.TEXT_PRIMARY)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeatureItem(
+    icon: Int,
+    text: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = Spacing.XXS),
+        horizontalArrangement = Arrangement.Start,
+        verticalAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = text,
+            modifier = Modifier.size(IconSize.XXS),
+            tint = Color(ColorTokens.SUCCESS)
+        )
+        
+        Spacer(modifier = Modifier.width(Spacing.SM))
+        
+        Text(
+            text = text,
+            style = Typography.Label.MEDIUM,
+            color = Color(ColorTokens.TEXT_PRIMARY)
+        )
+    }
+}
