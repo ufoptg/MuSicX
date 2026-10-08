@@ -130,7 +130,7 @@ fun WelcomeScreen(
 private fun InstallationOption(
     title: String,
     description: String,
-    icon: Int,
+    icon: String,
     onClick: () -> Unit
 ) {
     Card(

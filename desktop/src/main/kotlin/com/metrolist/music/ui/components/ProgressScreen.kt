@@ -211,7 +211,7 @@ fun ProgressScreen(
 
 @Composable
 private fun FeatureItem(
-    icon: Int,
+    icon: String,
     text: String
 ) {
     Row(
