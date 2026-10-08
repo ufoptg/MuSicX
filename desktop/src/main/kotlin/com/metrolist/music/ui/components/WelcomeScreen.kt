@@ -26,7 +26,7 @@ fun WelcomeScreen(
             .fillMaxSize()
             .background(Color(Colors.BACKGROUND))
             .padding(horizontal = Spacing.MD, vertical = Spacing.XXXL),
-        horizontalAlignment = Alignment.Horizontal.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         // Logo Section

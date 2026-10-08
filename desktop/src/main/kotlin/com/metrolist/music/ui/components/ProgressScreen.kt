@@ -36,7 +36,7 @@ fun ProgressScreen(
                 )
             )
             .padding(horizontal = Spacing.LG, vertical = Spacing.XXXL),
-        horizontalAlignment = Alignment.Horizontal.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         // Progress Container
