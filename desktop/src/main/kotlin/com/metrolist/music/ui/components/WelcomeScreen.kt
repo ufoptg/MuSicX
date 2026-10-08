@@ -102,7 +102,9 @@ fun WelcomeScreen(
                 onClick = onSkip,
                 colors = ButtonColors(
                     containerColor = Color.Transparent,
-                    contentColor = Color(Colors.TEXT_SECONDARY)
+                    contentColor = Color(Colors.TEXT_SECONDARY),
+                    disabledContainerColor = Color.Transparent,
+                    disabledContentColor = Color(Colors.TEXT_DISABLED)
                 )
             ) {
                 Text("Skip installation")

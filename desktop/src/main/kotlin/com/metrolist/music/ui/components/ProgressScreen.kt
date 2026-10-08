@@ -74,7 +74,9 @@ fun ProgressScreen(
                         onClick = onCancel,
                         colors = ButtonColors(
                             containerColor = Color.Transparent,
-                            contentColor = Color(Colors.ERROR)
+                            contentColor = Color(Colors.ERROR),
+                            disabledContainerColor = Color.Transparent,
+                            disabledContentColor = Color(Colors.TEXT_DISABLED)
                         )
                     ) {
                         Text("Cancel")
