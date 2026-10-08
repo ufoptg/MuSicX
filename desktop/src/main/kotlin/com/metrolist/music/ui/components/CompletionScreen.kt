@@ -11,13 +11,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.BorderStroke
 import com.metrolist.music.ui.theme.*
-import com.metrolist.music.ui.theme.Colors
-import com.metrolist.music.ui.theme.Spacing
-import com.metrolist.music.ui.theme.Typography
-import com.metrolist.music.ui.theme.BorderRadius
-import com.metrolist.music.ui.theme.Elevation
-import com.metrolist.music.ui.theme.IconSize
-import com.metrolist.music.R
 
 @Composable
 fun CompletionScreen(
@@ -49,7 +42,7 @@ fun CompletionScreen(
             ) {
                 // Success Icon
                 Icon(
-                    painter = painterResource(R.drawable.ic_check_circle),
+                    painter = painterResource("ic_check_circle.png"),
                     contentDescription = "Success",
                     modifier = Modifier.size(IconSize.XXL),
                     tint = Color(Colors.SUCCESS)
@@ -97,7 +90,7 @@ fun CompletionScreen(
                     verticalAlignment = Alignment.Vertical.Center
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_play),
+                        painter = painterResource("ic_play.png"),
                         contentDescription = "Open App",
                         modifier = Modifier.size(IconSize.SM),
                         tint = Color(Colors.BACKGROUND)
@@ -131,7 +124,7 @@ fun CompletionScreen(
                     verticalAlignment = Alignment.Vertical.Center
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_info),
+                        painter = painterResource("ic_info.png"),
                         contentDescription = "Details",
                         modifier = Modifier.size(IconSize.SM),
                         tint = Color(Colors.TEXT_PRIMARY)
@@ -174,7 +167,7 @@ fun CompletionScreen(
                     verticalAlignment = Alignment.Vertical.Center
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_tutorial),
+                        painter = painterResource("ic_tutorial.png"),
                         contentDescription = "Tutorial",
                         modifier = Modifier.size(IconSize.XXS),
                         tint = Color(Colors.TEXT_SECONDARY)
@@ -198,7 +191,7 @@ fun CompletionScreen(
                     verticalAlignment = Alignment.Vertical.Center
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_help),
+                        painter = painterResource("ic_help.png"),
                         contentDescription = "Help",
                         modifier = Modifier.size(IconSize.XXS),
                         tint = Color(Colors.TEXT_SECONDARY)

@@ -14,10 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import com.metrolist.music.ui.theme.*
 import com.metrolist.music.ui.theme.Colors
 import com.metrolist.music.ui.theme.Typography
-import com.metrolist.music.R
 import androidx.compose.material3.CardDefaults
-import com.metrolist.music.ui.theme.Typography
-import com.metrolist.music.R
 
 @Composable
 fun WelcomeScreen(
@@ -38,7 +35,7 @@ fun WelcomeScreen(
             horizontalAlignment = Alignment.Center
         ) {
             Icon(
-                painter = painterResource(R.drawable.musix_logo),
+                painter = painterResource("musix_logo.png"),
                 contentDescription = "MuSicX Logo",
                 modifier = Modifier.size(IconSize.XL),
                 tint = Color(Colors.TEXT_PRIMARY)
@@ -80,7 +77,7 @@ fun WelcomeScreen(
             InstallationOption(
                 title = "Basic Install",
                 description = "Standard installation with core features",
-                icon = R.drawable.ic_basic_install,
+                icon = "ic_basic_install.png",
                 onClick = onInstall
             )
             
@@ -90,7 +87,7 @@ fun WelcomeScreen(
             InstallationOption(
                 title = "Custom Install",
                 description = "Choose specific components and installation location",
-                icon = R.drawable.ic_custom_install,
+                icon = "ic_custom_install.png",
                 onClick = onInstall
             )
         }
@@ -182,7 +179,7 @@ private fun InstallationOption(
             }
             
             Icon(
-                painter = painterResource(R.drawable.ic_chevron_right),
+                painter = painterResource("ic_chevron_right.png"),
                 contentDescription = "Continue",
                 modifier = Modifier.size(IconSize.SM),
                 tint = Color(Colors.TEXT_SECONDARY)

@@ -13,7 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import com.metrolist.music.ui.theme.*
 import com.metrolist.music.ui.theme.Colors
 import com.metrolist.music.ui.theme.Typography
-import com.metrolist.music.R
 import androidx.compose.material3.CardDefaults
 
 @Composable
@@ -144,21 +143,21 @@ fun ProgressScreen(
                     // Feature list
                     Column(modifier = Modifier.fillMaxWidth()) {
                         FeatureItem(
-                            icon = R.drawable.ic_check_circle,
+                            icon = "ic_check_circle.png",
                             text = "Downloading installer packages..."
                         )
                         
                         Spacer(modifier = Modifier.height(Spacing.XXS))
                         
                         FeatureItem(
-                            icon = R.drawable.ic_check_circle,
+                            icon = "ic_check_circle.png",
                             text = "Configuring application settings..."
                         )
                         
                         Spacer(modifier = Modifier.height(Spacing.XXS))
                         
                         FeatureItem(
-                            icon = R.drawable.ic_check_circle,
+                            icon = "ic_check_circle.png",
                             text = "Setting up shortcuts and integrations..."
                         )
                     }
@@ -192,7 +191,7 @@ fun ProgressScreen(
                     verticalAlignment = Alignment.Vertical.Center
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_light_bulb),
+                        painter = painterResource("ic_light_bulb.png"),
                         contentDescription = "Tip",
                         modifier = Modifier.size(IconSize.SM),
                         tint = Color(Colors.WARNING)
