@@ -667,6 +667,19 @@ private fun MuSicXApp(
         }
     }
 
+    fun playAllDetail() {
+        val t = openDetail?.tracks ?: emptyList()
+        if (t.isNotEmpty()) playFrom(t, 0)
+    }
+
+    fun shuffleDetail() {
+        val t = openDetail?.tracks ?: emptyList()
+        if (t.isNotEmpty()) {
+            shuffleOn = true
+            playFrom(t, Random.nextInt(t.size))
+        }
+    }
+
     fun runSearch() {
         val q = query.trim()
         if (q.isEmpty() || loading) return
@@ -825,17 +838,8 @@ private fun MuSicXApp(
                                     openDetail = openDetail,
                                     onCloseDetail = { openDetail = null },
                                     onPlayDetailHit = ::playDetailHit,
-                                    onDetailPlayAll = {
-                                        val t = detailTracks()
-                                        if (t.isNotEmpty()) playFrom(t, 0)
-                                    },
-                                    onDetailShuffle = {
-                                        val t = detailTracks()
-                                        if (t.isNotEmpty()) {
-                                            shuffleOn = true
-                                            playFrom(t, Random.nextInt(t.size))
-                                        }
-                                    },
+                                    onDetailPlayAll = ::playAllDetail,
+                                    onDetailShuffle = ::shuffleDetail,
                                     onDetailMove = ::reorderDetailTracks,
                                     onDetailToggleEnhance = ::toggleDetailEnhance,
                                     onOpenAlbum = { hit ->
@@ -1053,17 +1057,8 @@ private fun MuSicXApp(
                                     },
                                     onPlayLiked = { index -> playFrom(likedSongs, index) },
                                     onPlayPlaylistTracks = ::playDetailHit,
-                                    onDetailPlayAll = {
-                                        val t = detailTracks()
-                                        if (t.isNotEmpty()) playFrom(t, 0)
-                                    },
-                                    onDetailShuffle = {
-                                        val t = detailTracks()
-                                        if (t.isNotEmpty()) {
-                                            shuffleOn = true
-                                            playFrom(t, Random.nextInt(t.size))
-                                        }
-                                    },
+                                    onDetailPlayAll = ::playAllDetail,
+                                    onDetailShuffle = ::shuffleDetail,
                                     onDetailMove = ::reorderDetailTracks,
                                     onDetailToggleEnhance = ::toggleDetailEnhance,
                                 )
@@ -1579,8 +1574,10 @@ private fun DetailPane(
                 val lazyListState = rememberLazyListState()
                 val reorderableState =
                     rememberReorderableLazyListState(lazyListState) { from, to ->
-                        if (!sortByTitle && from.index < tracks.size && to.index < tracks.size) {
-                            onMoveTrack(from.index, to.index)
+                        if (!sortByTitle) {
+                            detailReorderIndices(from.index, to.index, tracks.size, leadingItems = 2)?.let { (f, t) ->
+                                onMoveTrack(f, t)
+                            }
                         }
                     }
                 val uniqueIds = remember(tracks) { tracks.map { it.videoId }.toSet().size == tracks.size }
@@ -1605,13 +1602,7 @@ private fun DetailPane(
                         )
                     }
                     item(key = "sort") {
-                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "${tracks.size} songs",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.weight(1f),
-                            )
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                             TextButton(onClick = { sortByTitle = !sortByTitle }) {
                                 Text(if (sortByTitle) "A–Z" else "Default")
                             }

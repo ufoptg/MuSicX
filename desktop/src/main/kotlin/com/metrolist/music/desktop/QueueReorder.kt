@@ -23,3 +23,18 @@ internal fun reorderQueue(
         }
     return list to newIndex
 }
+
+/**
+ * Maps absolute lazy-list indices (which include [leadingItems] non-track rows such as a header
+ * and a sort row) to track indices, or null when either index is not on a track.
+ */
+internal fun detailReorderIndices(
+    fromIndex: Int,
+    toIndex: Int,
+    trackCount: Int,
+    leadingItems: Int,
+): Pair<Int, Int>? {
+    val from = fromIndex - leadingItems
+    val to = toIndex - leadingItems
+    return if (from in 0 until trackCount && to in 0 until trackCount) from to to else null
+}

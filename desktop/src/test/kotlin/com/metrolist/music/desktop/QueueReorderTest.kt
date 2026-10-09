@@ -49,4 +49,18 @@ class QueueReorderTest {
         assertEquals(input to 1, reorderQueue(input, currentIndex = 1, from = 1, to = 1))
         assertEquals(input to 1, reorderQueue(input, currentIndex = 1, from = 0, to = 9))
     }
+
+    @Test
+    fun detailReorderIndicesSubtractLeadingItems() {
+        // lazy-list indices 0=header, 1=sort, 2..4=tracks
+        assertEquals(0 to 2, detailReorderIndices(fromIndex = 2, toIndex = 4, trackCount = 3, leadingItems = 2))
+        assertEquals(2 to 0, detailReorderIndices(fromIndex = 4, toIndex = 2, trackCount = 3, leadingItems = 2))
+    }
+
+    @Test
+    fun detailReorderIndicesRejectOutOfRange() {
+        // last track is lazy index 4; index 5 is the "Suggested" header, not a track
+        assertEquals(null, detailReorderIndices(fromIndex = 5, toIndex = 2, trackCount = 3, leadingItems = 2))
+        assertEquals(null, detailReorderIndices(fromIndex = 2, toIndex = 0, trackCount = 3, leadingItems = 2))
+    }
 }
