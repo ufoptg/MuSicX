@@ -35,6 +35,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -143,6 +144,8 @@ import java.net.URI
 import java.net.URL
 import java.util.Collections
 import java.util.LinkedHashMap
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 // Player components
 import com.metrolist.music.ui.player.MiniPlayer
@@ -1115,6 +1118,11 @@ private fun MuSicXApp(
                 },
                 onClose = { queueExpanded = false },
                 onPlayIndex = { index -> playFrom(queue, index) },
+                onMove = { from, to ->
+                    val (newQueue, newIndex) = reorderQueue(queue, currentIndex, from, to)
+                    queue = newQueue
+                    currentIndex = newIndex
+                },
                 isFavorite = ::isFavorite,
                 onToggleFavorite = ::toggleFavorite,
                 isDownloaded = ::isDownloaded,
@@ -2592,12 +2600,20 @@ private fun QueuePanel(
     onCycleRepeat: () -> Unit,
     onClose: () -> Unit,
     onPlayIndex: (Int) -> Unit,
+    onMove: (Int, Int) -> Unit,
     isFavorite: (SearchHit) -> Boolean,
     onToggleFavorite: (SearchHit) -> Unit,
     isDownloaded: (SearchHit) -> Boolean,
     isDownloading: (SearchHit) -> Boolean,
     onToggleDownload: (SearchHit) -> Unit,
 ) {
+    val lazyListState = rememberLazyListState()
+    val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
+        onMove(from.index, to.index)
+    }
+    val uniqueIds = remember(queue) { queue.map { it.videoId }.toSet().size == queue.size }
+    val keyFor: (Int, SearchHit) -> String = { index, hit -> if (uniqueIds) hit.videoId else "idx-$index-${hit.videoId}" }
+
     Surface(
         color = MaterialTheme.colorScheme.surface,
         shadowElevation = 12.dp,
@@ -2613,13 +2629,55 @@ private fun QueuePanel(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = "${queue.size} songs",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 8.dp).weight(1f),
                 )
                 TextButton(onClick = onClose) { Text("Close") }
             }
+            if (queue.isEmpty()) {
+                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "Queue is empty",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                LazyColumn(state = lazyListState, modifier = Modifier.weight(1f).padding(top = 8.dp)) {
+                    itemsIndexed(queue, key = { index, hit -> keyFor(index, hit) }) { index, hit ->
+                        ReorderableItem(reorderableState, key = keyFor(index, hit)) {
+                            val handle = Modifier.draggableHandle()
+                            MediaRow(
+                                title = hit.title,
+                                subtitle = hit.subtitle,
+                                thumbnailUrl = hit.thumbnailUrl,
+                                isActive = hit.videoId == nowPlayingId,
+                                isBusy = busyId == hit.videoId,
+                                onClick = { onPlayIndex(index) },
+                                image = { url, cd, m -> RemoteImage(url, cd, m) },
+                                trailing = {
+                                    IconButton(onClick = { onToggleFavorite(hit) }) {
+                                        Icon(
+                                            if (isFavorite(hit)) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                            contentDescription = "Favorite",
+                                        )
+                                    }
+                                    DownloadButton(isDownloaded(hit), isDownloading(hit), { onToggleDownload(hit) })
+                                },
+                                dragHandle = handle,
+                            )
+                        }
+                    }
+                }
+            }
             Row(
-                modifier = Modifier.padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onToggleShuffle) {
                     Icon(
@@ -2634,38 +2692,6 @@ private fun QueuePanel(
                         contentDescription = "Repeat: $repeatMode",
                         tint = if (repeatMode != RepeatMode.Off) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                }
-            }
-            if (queue.isEmpty()) {
-                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "Queue is empty",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                LazyColumn(modifier = Modifier.weight(1f).padding(top = 8.dp)) {
-                    itemsIndexed(queue, key = { index, hit -> "$index-${hit.videoId}" }) { index, hit ->
-                        MediaRow(
-                            title = hit.title,
-                            subtitle = hit.subtitle,
-                            thumbnailUrl = hit.thumbnailUrl,
-                            isActive = hit.videoId == nowPlayingId,
-                            isBusy = busyId == hit.videoId,
-                            onClick = { onPlayIndex(index) },
-                            image = { url, cd, m -> RemoteImage(url, cd, m) },
-                            trailing = {
-                                IconButton(onClick = { onToggleFavorite(hit) }) {
-                                    Icon(
-                                        if (isFavorite(hit)) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                        contentDescription = "Favorite",
-                                    )
-                                }
-                                DownloadButton(isDownloaded(hit), isDownloading(hit), { onToggleDownload(hit) })
-                            },
-                        )
-                    }
                 }
             }
         }

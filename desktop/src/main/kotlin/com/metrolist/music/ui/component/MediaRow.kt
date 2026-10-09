@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +33,7 @@ fun MediaRow(
     image: ImageLoader,
     modifier: Modifier = Modifier,
     trailing: (@Composable () -> Unit)? = null,
+    dragHandle: Modifier? = null,
 ) {
     Row(
         modifier = modifier.fillMaxWidth().height(Dimensions.ListItemHeight).clickable(onClick = onClick).padding(horizontal = 12.dp),
@@ -71,5 +75,13 @@ fun MediaRow(
             }
         }
         trailing?.invoke()
+        if (dragHandle != null) {
+            Icon(
+                imageVector = Icons.Default.DragHandle,
+                contentDescription = "Reorder",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = dragHandle.padding(start = 4.dp),
+            )
+        }
     }
 }
