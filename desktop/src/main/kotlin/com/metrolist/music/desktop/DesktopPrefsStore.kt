@@ -70,6 +70,8 @@ data class DesktopPrefs(
     val equalizerEnabled: Boolean = false,
     /** VLC equalizer preset name (empty = flat / off when disabled) */
     val equalizerProfile: String = "",
+    /** Player artwork backdrop: "default", "gradient", "blur", or "pure_black". */
+    val playerBackground: String = "gradient",
 )
 
 /**

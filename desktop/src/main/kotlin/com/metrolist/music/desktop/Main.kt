@@ -219,6 +219,12 @@ private val aiProviders =
     listOf("OpenRouter", "OpenAI", "Perplexity", "Claude", "Gemini", "XAi", "Mistral", "Inception", "DeepL")
 private val contentLanguages = listOf("en", "es", "fr", "de", "ja", "ko", "zh-CN", "pt", "ru", "hi")
 private val contentCountries = listOf("US", "GB", "CA", "AU", "DE", "FR", "JP", "KR", "BR", "IN")
+private val playerBackgroundOptions = listOf("default", "gradient", "blur", "pure_black")
+
+private fun nextPlayerBackground(current: String): String {
+    val index = playerBackgroundOptions.indexOf(current).coerceAtLeast(0)
+    return playerBackgroundOptions[(index + 1) % playerBackgroundOptions.size]
+}
 
 private enum class SettingsSection(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Appearance("Appearance", Icons.Default.Palette),
@@ -1933,6 +1939,11 @@ private fun SettingsAppearanceScreen(
             checked = prefs.pureBlack,
             enabled = true,
             onCheckedChange = { enabled -> update(prefs.copy(pureBlack = enabled)) },
+        )
+        SettingsRowItem(
+            "Player background",
+            prefs.playerBackground.replaceFirstChar { it.uppercase() },
+            onClick = { update(prefs.copy(playerBackground = nextPlayerBackground(prefs.playerBackground))) },
         )
         SettingsRowItem("Lyrics text position", "Not available on desktop")
         SettingsRowItem("Lyrics animation style", "Not available on desktop")

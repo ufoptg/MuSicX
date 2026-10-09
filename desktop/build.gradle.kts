@@ -40,6 +40,7 @@ dependencies {
     implementation(libs.ktor.client.encoding)
 
     implementation(libs.materialKolor)
+    implementation(libs.compose.reorderable)
 
     implementation(libs.vlcj)
     implementation(libs.vlcj.natives)
