@@ -351,6 +351,7 @@ private fun MuSicXApp(
     var matchingSpotifyId by remember { mutableStateOf<String?>(null) }
     var spotifyLiked by remember { mutableStateOf<List<SpotifySavedTrack>>(emptyList()) }
     var spotifyLikedLoading by remember { mutableStateOf(false) }
+    var spotifyLikedTotal by remember { mutableStateOf(0) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -842,6 +843,27 @@ private fun MuSicXApp(
         }
     }
 
+    LaunchedEffect(prefs.spDc) {
+        spotifyLiked = emptyList()
+        spotifyLikedTotal = 0
+    }
+
+    fun loadMoreSpotifyLiked() {
+        if (spotifyLikedLoading || spotifyLiked.size >= spotifyLikedTotal) return
+        spotifyLikedLoading = true
+        scope.launch(Dispatchers.IO) {
+            try {
+                val page = DesktopSpotify.likedSongs(prefs, onUpdated = { onPrefsChange(it) }, offset = spotifyLiked.size)
+                page.getOrNull()?.let { paging ->
+                    spotifyLiked = spotifyLiked + paging.items
+                    spotifyLikedTotal = paging.total
+                }
+            } finally {
+                spotifyLikedLoading = false
+            }
+        }
+    }
+
     LaunchedEffect(destination, prefs.enableSpotify, prefs.spDc) {
         if (destination == Destination.Library &&
             prefs.enableSpotify &&
@@ -851,9 +873,14 @@ private fun MuSicXApp(
         ) {
             spotifyLikedLoading = true
             scope.launch(Dispatchers.IO) {
-                spotifyLiked =
-                    DesktopSpotify.likedSongs(prefs, onUpdated = { onPrefsChange(it) }).getOrNull()?.items.orEmpty()
-                spotifyLikedLoading = false
+                try {
+                    DesktopSpotify.likedSongs(prefs, onUpdated = { onPrefsChange(it) }).getOrNull()?.let { paging ->
+                        spotifyLiked = paging.items
+                        spotifyLikedTotal = paging.total
+                    }
+                } finally {
+                    spotifyLikedLoading = false
+                }
             }
         }
     }
@@ -1137,6 +1164,7 @@ private fun MuSicXApp(
                                     spotifyAvailable = prefs.enableSpotify && DesktopSpotify.isLoggedIn(prefs),
                                     spotifyLiked = spotifyLiked,
                                     spotifyLikedLoading = spotifyLikedLoading,
+                                    spotifyLikedTotal = spotifyLikedTotal,
                                     matchingSpotifyId = matchingSpotifyId,
                                     onPlaySpotifyLiked = { saved ->
                                         matchingSpotifyId = spotifyIdentity(saved.track)
@@ -1146,6 +1174,7 @@ private fun MuSicXApp(
                                             if (hit != null) playFrom(listOf(hit), 0) else error = "Could not match track on YouTube"
                                         }
                                     },
+                                    onLoadMoreSpotifyLiked = ::loadMoreSpotifyLiked,
                                     onOpenPlaylist = { item ->
                                         openDetailEntity(
                                             DetailType.Playlist,
@@ -1831,10 +1860,13 @@ private fun LibraryScreen(
     spotifyAvailable: Boolean,
     spotifyLiked: List<SpotifySavedTrack>,
     spotifyLikedLoading: Boolean,
+    spotifyLikedTotal: Int,
     matchingSpotifyId: String?,
     onPlaySpotifyLiked: (SpotifySavedTrack) -> Unit,
+    onLoadMoreSpotifyLiked: () -> Unit,
 ) {
     var tab by remember { mutableStateOf(0) } // 0 Favorites, 1 History, 2 Playlists, 3 Liked, 4 Downloads, 5 Spotify
+    LaunchedEffect(spotifyAvailable) { if (!spotifyAvailable && tab == 5) tab = 0 }
     val list = if (tab == 0) favorites else history
     val onPlayIndex = if (tab == 0) onPlayFavorites else onPlayHistory
     val onClear = if (tab == 0) onClearFavorites else onClearHistory
@@ -2030,6 +2062,11 @@ private fun LibraryScreen(
                                     onClick = { onPlaySpotifyLiked(saved) },
                                     image = { url, cd, m -> RemoteImage(url, cd, m) },
                                 )
+                            }
+                            if (spotifyLiked.size < spotifyLikedTotal) {
+                                item(key = "spotify_load_more") {
+                                    TextButton(onClick = onLoadMoreSpotifyLiked) { Text("Load more") }
+                                }
                             }
                         }
                 }
