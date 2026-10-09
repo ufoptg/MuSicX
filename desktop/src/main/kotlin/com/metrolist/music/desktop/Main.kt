@@ -456,6 +456,23 @@ private fun MuSicXApp(
 
     val nowPlaying = queue.getOrNull(currentIndex)
 
+    val discordAppId = prefs.discordToken.ifBlank { "1447278780795064401" }
+    val discord =
+        remember(discordAppId, prefs.discordShowActivityName) {
+            DesktopDiscord(discordAppId, prefs.discordShowActivityName)
+        }
+    DisposableEffect(discord) { onDispose { discord.stop() } }
+    LaunchedEffect(prefs.discordRichPresence) {
+        if (prefs.discordRichPresence) discord.start() else discord.stop()
+    }
+    LaunchedEffect(nowPlaying?.videoId, playing, prefs.discordRichPresence) {
+        if (prefs.discordRichPresence && nowPlaying != null) {
+            discord.update(nowPlaying.title, nowPlaying.subtitle)
+        } else {
+            discord.clear()
+        }
+    }
+
     fun playFrom(list: List<SearchHit>, index: Int) {
         val hit = list.getOrNull(index) ?: return
         if (busyId != null) return
@@ -932,7 +949,12 @@ private fun MuSicXApp(
                                             prefs = prefs,
                                             onPrefsChange = onPrefsChange)
                                     settingsSubScreen == "discord" ->
-                                        SettingsDiscordScreen(onBack = { settingsSubScreen = null })
+                                        SettingsDiscordScreen(
+                                            onBack = { settingsSubScreen = null },
+                                            prefs = prefs,
+                                            onPrefsChange = onPrefsChange,
+                                            connected = discord.connected,
+                                        )
                                     settingsSubScreen == "lastfm" ->
                                         SettingsLastFmScreen(onBack = { settingsSubScreen = null })
                                     settingsSubScreen == "listen_together" ->
@@ -2478,11 +2500,37 @@ private val sponsorBlockCategoryRows =
     )
 
 @Composable
-private fun SettingsDiscordScreen(onBack: () -> Unit) {
+private fun SettingsDiscordScreen(
+    onBack: () -> Unit,
+    prefs: DesktopPrefs,
+    onPrefsChange: (DesktopPrefs) -> Unit,
+    connected: Boolean,
+) {
+    val update: (DesktopPrefs) -> Unit = { updated ->
+        DesktopPrefsStore.save(updated)
+        onPrefsChange(updated)
+    }
     SettingsScaffold(title = "Discord", subtitle = "Rich presence", onBack = onBack) {
-        SettingsToggleItem("Enable rich presence")
-        SettingsRowItem("Status", "Not available on desktop")
-        SettingsToggleItem("Show activity name")
+        SettingsToggleItem(
+            "Enable rich presence",
+            checked = prefs.discordRichPresence,
+            enabled = true,
+            onCheckedChange = { update(prefs.copy(discordRichPresence = it)) },
+        )
+        SettingsRowItem(
+            "Status",
+            when {
+                !prefs.discordRichPresence -> "Not running"
+                connected -> "Connected"
+                else -> "Connecting… (is Discord running?)"
+            },
+        )
+        SettingsToggleItem(
+            "Show activity name",
+            checked = prefs.discordShowActivityName,
+            enabled = prefs.discordRichPresence,
+            onCheckedChange = { update(prefs.copy(discordShowActivityName = it)) },
+        )
     }
 }
 
