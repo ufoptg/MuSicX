@@ -1465,15 +1465,23 @@ private fun DetailPane(
             }
             else -> {
                 LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    items(detail.tracks, key = { it.videoId }) { hit ->
-                        val index = detail.tracks.indexOf(hit)
-                        ResultRow(
-                            hit = hit,
+                    itemsIndexed(detail.tracks, key = { _, hit -> hit.videoId }) { index, hit ->
+                        MediaRow(
+                            title = hit.title,
+                            subtitle = hit.subtitle,
+                            thumbnailUrl = hit.thumbnailUrl,
                             isActive = hit.videoId == nowPlayingId,
                             isBusy = busyId == hit.videoId,
                             onClick = { onPlayIndex(index) },
-                            isFavorite = isFavorite(hit),
-                            onToggleFavorite = { onToggleFavorite(hit) },
+                            image = { url, cd, m -> RemoteImage(url, cd, m) },
+                            trailing = {
+                                IconButton(onClick = { onToggleFavorite(hit) }) {
+                                    Icon(
+                                        if (isFavorite(hit)) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                        contentDescription = "Favorite",
+                                    )
+                                }
+                            },
                         )
                     }
                 }
@@ -1694,40 +1702,6 @@ private fun SignInHint(modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),
         )
-    }
-}
-
-@Composable
-private fun PlaylistRow(
-    item: PlaylistHit,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RemoteImage(
-            url = item.thumbnailUrl,
-            contentDescription = item.title,
-            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
-        )
-        Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
-            Text(item.title, maxLines = 1, style = MaterialTheme.typography.titleMedium)
-            if (!item.subtitle.isNullOrBlank()) {
-                Text(
-                    item.subtitle,
-                    maxLines = 1,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        IconButton(onClick = onClick) {
-            Text("›", style = MaterialTheme.typography.titleLarge)
-        }
     }
 }
 
@@ -2576,134 +2550,6 @@ private fun ScreenTitle(
 }
 
 @Composable
-private fun SearchBar(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    enabled: Boolean,
-    onSearch: () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .onKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyUp &&
-                            (event.key == Key.Enter || event.key == Key.NumPadEnter)
-                        ) {
-                            if (enabled && query.isNotBlank()) onSearch()
-                            true
-                        } else {
-                            false
-                        }
-                    },
-            singleLine = true,
-            shape = RoundedCornerShape(28.dp),
-            enabled = enabled,
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            placeholder = { Text("Song or artist") },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { if (enabled && query.isNotBlank()) onSearch() }),
-        )
-        IconButton(
-            onClick = onSearch,
-            enabled = enabled && query.isNotBlank(),
-            modifier =
-                Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary),
-        ) {
-            Icon(Icons.Default.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.onPrimary)
-        }
-    }
-}
-
-@Composable
-private fun ResultRow(
-    hit: SearchHit,
-    isActive: Boolean,
-    isBusy: Boolean,
-    onClick: () -> Unit,
-    isFavorite: Boolean = false,
-    onToggleFavorite: (() -> Unit)? = null,
-    isDownloaded: Boolean = false,
-    isDownloading: Boolean = false,
-    onToggleDownload: (() -> Unit)? = null,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(if (isActive) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
-                .clickable(onClick = onClick)
-                .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            RemoteImage(
-                url = hit.thumbnailUrl,
-                contentDescription = hit.title,
-                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)),
-            )
-            if (isBusy) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = hit.title,
-                style = MaterialTheme.typography.titleSmall,
-                color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (!hit.subtitle.isNullOrBlank()) {
-                Text(
-                    text = hit.subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        if (isActive && !isBusy) {
-            Icon(
-                Icons.Default.MusicNote,
-                contentDescription = "Now playing",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-        if (onToggleFavorite != null) {
-            IconButton(onClick = onToggleFavorite) {
-                Icon(
-                    if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
-                    tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        if (onToggleDownload != null) {
-            DownloadButton(isDownloaded, isDownloading, onToggleDownload)
-        }
-    }
-}
-
-@Composable
 private fun DownloadButton(
     isDownloaded: Boolean,
     isDownloading: Boolean,
@@ -2789,16 +2635,23 @@ private fun QueuePanel(
             } else {
                 LazyColumn(modifier = Modifier.weight(1f).padding(top = 8.dp)) {
                     itemsIndexed(queue, key = { index, hit -> "$index-${hit.videoId}" }) { index, hit ->
-                        ResultRow(
-                            hit = hit,
+                        MediaRow(
+                            title = hit.title,
+                            subtitle = hit.subtitle,
+                            thumbnailUrl = hit.thumbnailUrl,
                             isActive = hit.videoId == nowPlayingId,
                             isBusy = busyId == hit.videoId,
                             onClick = { onPlayIndex(index) },
-                            isFavorite = isFavorite(hit),
-                            onToggleFavorite = { onToggleFavorite(hit) },
-                            isDownloaded = isDownloaded(hit),
-                            isDownloading = isDownloading(hit),
-                            onToggleDownload = { onToggleDownload(hit) },
+                            image = { url, cd, m -> RemoteImage(url, cd, m) },
+                            trailing = {
+                                IconButton(onClick = { onToggleFavorite(hit) }) {
+                                    Icon(
+                                        if (isFavorite(hit)) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                        contentDescription = "Favorite",
+                                    )
+                                }
+                                DownloadButton(isDownloaded(hit), isDownloading(hit), { onToggleDownload(hit) })
+                            },
                         )
                     }
                 }
