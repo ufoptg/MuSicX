@@ -74,6 +74,10 @@ import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.LibraryMusic
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -151,6 +155,8 @@ import com.metrolist.music.ui.screens.settings.SettingsScreen
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.NavigationTitle
+import com.metrolist.music.ui.component.AppNavigationRail
+import com.metrolist.music.ui.component.DesktopNavItem
 
 private val MuSicXRed = Color(0xFFED5564)
 
@@ -183,17 +189,21 @@ private fun MuSicXTheme(
  * On desktop these are shown in a left-hand [NavigationRail].
  */
 private enum class Destination(
+    val route: String,
     val label: String,
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val selectedIcon: androidx.compose.ui.graphics.vector.ImageVector,
 ) {
-    Home("Home", Icons.Default.Home),
-    Search("Search", Icons.Default.Search),
-    Library("Library", Icons.Default.LibraryMusic),
-    History("History", Icons.Default.History),
-    Stats("Stats", Icons.Default.Insights),
-    Account("Account", Icons.Default.AccountCircle),
-    Settings("Settings", Icons.Default.Settings),
+    Home("home", "Home", Icons.Outlined.Home, Icons.Default.Home),
+    Search("search", "Search", Icons.Default.Search, Icons.Default.Search),
+    Library("library", "Library", Icons.Outlined.LibraryMusic, Icons.Default.LibraryMusic),
+    History("history", "History", Icons.Default.History, Icons.Default.History),
+    Stats("stats", "Stats", Icons.Default.Insights, Icons.Default.Insights),
+    Account("account", "Account", Icons.Outlined.AccountCircle, Icons.Default.AccountCircle),
+    Settings("settings", "Settings", Icons.Outlined.Settings, Icons.Default.Settings),
 }
+
+private fun Destination.toNavItem() = DesktopNavItem(route, label, icon, selectedIcon)
 
 private enum class RepeatMode { Off, All, One }
 
@@ -703,11 +713,14 @@ private fun MuSicXApp(
         Column(modifier = Modifier.fillMaxSize()) {
             Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 AppNavigationRail(
-                    selected = destination,
-                    onSelect = {
-                        destination = it
+                    items = listOf(Destination.Home, Destination.Search, Destination.Library).map { it.toNavItem() },
+                    bottomItems = listOf(Destination.Settings, Destination.Account).map { it.toNavItem() },
+                    selectedRoute = destination.route,
+                    onSelect = { route ->
+                        destination = Destination.entries.first { it.route == route }
                         openDetail = null
                     },
+                    pureBlack = prefs.pureBlack,
                 )
                 Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
                     Crossfade(targetState = destination) { dest ->
@@ -715,6 +728,7 @@ private fun MuSicXApp(
                             Destination.Home ->
                                 HomeScreen(
                                     rows = homeRows,
+                                    recentlyPlayed = history,
                                     loading = homeLoading,
                                     error = homeError,
                                     hideYoutubeHome = hideYoutubeHome,
@@ -722,7 +736,17 @@ private fun MuSicXApp(
                                     nowPlayingId = nowPlaying?.videoId,
                                     busyId = busyId,
                                     onPlay = { list, index -> playFrom(list, index) },
+                                    onShuffle = {
+                                        val all = homeRows.flatMap { it.items }
+                                        if (all.isNotEmpty()) {
+                                            shuffleOn = true
+                                            playFrom(all, Random.nextInt(all.size))
+                                        }
+                                    },
+                                    onOpenHistory = { destination = Destination.History; openDetail = null },
+                                    onOpenStats = { destination = Destination.Stats; openDetail = null },
                                     onRetry = { homeRows = emptyList(); loadHome() },
+                                    image = { url, cd, m -> RemoteImage(url, cd, m) },
                                 )
                             Destination.Search ->
                                 SearchScreen(
@@ -1080,180 +1104,6 @@ private fun MuSicXApp(
     }
 }
 
-@Composable
-private fun AppNavigationRail(
-    selected: Destination,
-    onSelect: (Destination) -> Unit,
-) {
-    NavigationRail(
-        containerColor = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxHeight(),
-    ) {
-        Spacer(modifier = Modifier.height(16.dp))
-        Image(
-            painter = painterResource("ic_launcher.png"),
-            contentDescription = "MuSicX",
-            modifier = Modifier.size(36.dp).clip(RoundedCornerShape(9.dp)),
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        Destination.entries.forEach { item ->
-            NavigationRailItem(
-                selected = selected == item,
-                onClick = { onSelect(item) },
-                icon = { Icon(item.icon, contentDescription = item.label) },
-                label = { Text(item.label) },
-                colors =
-                    NavigationRailItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        indicatorColor = MaterialTheme.colorScheme.primary,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-            )
-        }
-    }
-}
-
-@Composable
-private fun HomeScreen(
-    rows: List<HomeRow>,
-    loading: Boolean,
-    error: String?,
-    hideYoutubeHome: Boolean = false,
-    spotifyHomeActive: Boolean = false,
-    nowPlayingId: String?,
-    busyId: String?,
-    onPlay: (List<SearchHit>, Int) -> Unit,
-    onRetry: () -> Unit,
-) {
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
-        ScreenTitle(
-            title = "Home",
-            subtitle =
-                when {
-                    hideYoutubeHome -> "Spotify home only"
-                    spotifyHomeActive -> "YouTube Music + Spotify"
-                    else -> "Made for you"
-                },
-        )
-        when {
-            hideYoutubeHome ->
-                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    Text(
-                        "YouTube home is hidden while Spotify home only is enabled.\nSpotify shelves land in a later desktop slice.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            loading ->
-                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
-            error != null ->
-                Column(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Retry",
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.clickable(onClick = onRetry).padding(8.dp),
-                    )
-                }
-            else ->
-                LazyColumn(modifier = Modifier.weight(1f).padding(top = 8.dp)) {
-                    items(rows, key = { it.title }) { row ->
-                        HomeRowView(
-                            row = row,
-                            nowPlayingId = nowPlayingId,
-                            busyId = busyId,
-                            onPlay = onPlay,
-                        )
-                    }
-                }
-        }
-    }
-}
-
-@Composable
-private fun HomeRowView(
-    row: HomeRow,
-    nowPlayingId: String?,
-    busyId: String?,
-    onPlay: (List<SearchHit>, Int) -> Unit,
-) {
-    Column(modifier = Modifier.padding(bottom = 20.dp)) {
-        NavigationTitle(
-            title = row.title,
-        )
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            items(row.items, key = { it.videoId }) { hit ->
-                val index = row.items.indexOf(hit)
-                SongCard(
-                    hit = hit,
-                    isActive = hit.videoId == nowPlayingId,
-                    isBusy = busyId == hit.videoId,
-                    onClick = { onPlay(row.items, index) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SongCard(
-    hit: SearchHit,
-    isActive: Boolean,
-    isBusy: Boolean,
-    onClick: () -> Unit,
-) {
-    Column(
-        modifier =
-            Modifier
-                .width(150.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .clickable(onClick = onClick)
-                .padding(8.dp),
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            RemoteImage(
-                url = hit.thumbnailUrl,
-                contentDescription = hit.title,
-                modifier = Modifier.size(134.dp).clip(RoundedCornerShape(10.dp)),
-            )
-            if (isBusy) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(28.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-        }
-        Text(
-            text = hit.title,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-        if (!hit.subtitle.isNullOrBlank()) {
-            Text(
-                text = hit.subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
 
 @Composable
 private fun HistoryScreen(
