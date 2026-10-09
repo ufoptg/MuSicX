@@ -238,6 +238,14 @@ private fun nextPlayerBackground(current: String): String {
     return playerBackgroundOptions[(index + 1) % playerBackgroundOptions.size]
 }
 
+private fun openInBrowser(url: String) {
+    runCatching {
+        if (java.awt.Desktop.isDesktopSupported()) {
+            java.awt.Desktop.getDesktop().browse(java.net.URI(url))
+        }
+    }.onFailure { DesktopLog.log("openInBrowser failed for $url", it) }
+}
+
 private enum class SettingsSection(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Appearance("Appearance", Icons.Default.Palette),
     Content("Content", Icons.Default.Language),
@@ -2360,7 +2368,7 @@ private fun SettingsUpdaterScreen(onBack: () -> Unit) {
                 },
         )
         SettingsToggleItem("Update notifications")
-        SettingsRowItem("Install update", "Not available on desktop — download from GitHub releases")
+        SettingsRowItem("Open releases page", "Download from GitHub", onClick = { openInBrowser("https://github.com/ufoptg/MuSicX/releases/latest") })
     }
 }
 
@@ -2369,8 +2377,8 @@ private fun SettingsAboutScreen(onBack: () -> Unit) {
     SettingsScaffold(title = "About", subtitle = "MuSicX", onBack = onBack) {
         SettingsRowItem("MuSicX", "Desktop build")
         SettingsRowItem("Version", DesktopUpdater.PACKAGE_VERSION)
-        SettingsRowItem("YouTube Music", "Not available on desktop")
-        SettingsRowItem("Community", "Not available on desktop")
+        SettingsRowItem("YouTube Music", "music.youtube.com", onClick = { openInBrowser("https://music.youtube.com") })
+        SettingsRowItem("Community", "github.com/ufoptg/MuSicX", onClick = { openInBrowser("https://github.com/ufoptg/MuSicX") })
     }
 }
 
