@@ -12,4 +12,5 @@ object Dimensions {
     val ThumbnailCornerRadius = 3.dp
     val NavigationRailWidth = 80.dp
     val PlayerHorizontalPadding = 32.dp
+    val AlbumHeroSize = 240.dp
 }
