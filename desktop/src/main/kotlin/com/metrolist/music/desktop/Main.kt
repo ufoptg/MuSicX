@@ -77,6 +77,7 @@ import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LibraryMusic
@@ -425,6 +426,7 @@ private fun MuSicXApp(
     var signedIn by remember { mutableStateOf(false) }
     var playerExpanded by remember { mutableStateOf(false) }
     var queueExpanded by remember { mutableStateOf(false) }
+    var lyricsVisible by remember { mutableStateOf(false) }
     var shuffleOn by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(RepeatMode.Off) }
     var likedSongs by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
@@ -1092,6 +1094,22 @@ private fun MuSicXApp(
                     sleepStopped = false
                 },
                 lyrics = currentLyrics,
+                backgroundStyle = prefs.playerBackground,
+                shuffleOn = shuffleOn,
+                onToggleShuffle = { shuffleOn = !shuffleOn },
+                repeatMode = repeatMode,
+                onCycleRepeat = {
+                    repeatMode =
+                        when (repeatMode) {
+                            RepeatMode.Off -> RepeatMode.All
+                            RepeatMode.All -> RepeatMode.One
+                            RepeatMode.One -> RepeatMode.Off
+                        }
+                },
+                queueExpanded = queueExpanded,
+                onToggleQueue = { queueExpanded = !queueExpanded },
+                lyricsVisible = lyricsVisible,
+                onToggleLyrics = { lyricsVisible = !lyricsVisible },
             )
         }
 
@@ -2880,9 +2898,22 @@ private fun FullPlayer(
     defaultSleepMode: Int,
     onSetSleepTimer: (Int) -> Unit,
     lyrics: String?,
+    backgroundStyle: String = "default",
+    shuffleOn: Boolean = false,
+    onToggleShuffle: () -> Unit = {},
+    repeatMode: RepeatMode = RepeatMode.Off,
+    onCycleRepeat: () -> Unit = {},
+    queueExpanded: Boolean = false,
+    onToggleQueue: () -> Unit = {},
+    lyricsVisible: Boolean = false,
+    onToggleLyrics: () -> Unit = {},
 ) {
     var sleepMenuOpen by remember { mutableStateOf(false) }
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    PlayerBackdrop(
+        style = backgroundStyle,
+        thumbnailUrl = nowPlaying?.thumbnailUrl,
+        image = { url, cd, m -> RemoteImage(url, cd, m) },
+    ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 20.dp),
         ) {
@@ -2962,11 +2993,12 @@ private fun FullPlayer(
                 onSeekChange = onSeekChange,
                 onSeekCommit = onSeekCommit,
             )
-                lyrics?.let { text ->
+                if (lyricsVisible && !lyrics.isNullOrBlank()) {
                     Text(
-                        text = text,
+                        text = lyrics,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     )
                 }
 
@@ -2994,6 +3026,41 @@ private fun FullPlayer(
                 Spacer(modifier = Modifier.width(24.dp))
                 IconButton(onClick = onNext, enabled = hasNext && !busy) {
                     Icon(Icons.Default.SkipNext, contentDescription = "Next", modifier = Modifier.size(40.dp))
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onToggleShuffle) {
+                    Icon(
+                        Icons.Default.Shuffle,
+                        contentDescription = "Shuffle",
+                        tint = if (shuffleOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                IconButton(onClick = onCycleRepeat) {
+                    Icon(
+                        if (repeatMode == RepeatMode.One) Icons.Default.RepeatOne else Icons.Default.Repeat,
+                        contentDescription = "Repeat: $repeatMode",
+                        tint = if (repeatMode != RepeatMode.Off) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                IconButton(onClick = onToggleQueue) {
+                    Icon(
+                        Icons.Default.QueueMusic,
+                        contentDescription = "Queue",
+                        tint = if (queueExpanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                IconButton(onClick = onToggleLyrics) {
+                    Icon(
+                        Icons.Default.Lyrics,
+                        contentDescription = "Lyrics",
+                        tint = if (lyricsVisible) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
 
