@@ -457,20 +457,27 @@ private fun MuSicXApp(
     val nowPlaying = queue.getOrNull(currentIndex)
 
     val discordAppId = prefs.discordToken.ifBlank { "1447278780795064401" }
+    var discordConnected by remember { mutableStateOf(false) }
     val discord =
         remember(discordAppId, prefs.discordShowActivityName) {
             DesktopDiscord(discordAppId, prefs.discordShowActivityName)
         }
     DisposableEffect(discord) { onDispose { discord.stop() } }
-    LaunchedEffect(prefs.discordRichPresence) {
-        if (prefs.discordRichPresence) discord.start() else discord.stop()
-    }
-    LaunchedEffect(nowPlaying?.videoId, playing, prefs.discordRichPresence) {
-        if (prefs.discordRichPresence && nowPlaying != null) {
-            discord.update(nowPlaying.title, nowPlaying.subtitle)
-        } else {
-            discord.clear()
+    LaunchedEffect(prefs.discordRichPresence, discord) {
+        withContext(Dispatchers.IO) {
+            if (prefs.discordRichPresence) discord.start() else discord.stop()
         }
+        discordConnected = discord.connected
+    }
+    LaunchedEffect(nowPlaying?.videoId, prefs.discordRichPresence, discord) {
+        withContext(Dispatchers.IO) {
+            if (prefs.discordRichPresence && nowPlaying != null) {
+                discord.update(nowPlaying.title, nowPlaying.subtitle)
+            } else {
+                discord.clear()
+            }
+        }
+        discordConnected = discord.connected
     }
 
     fun playFrom(list: List<SearchHit>, index: Int) {
@@ -953,7 +960,7 @@ private fun MuSicXApp(
                                             onBack = { settingsSubScreen = null },
                                             prefs = prefs,
                                             onPrefsChange = onPrefsChange,
-                                            connected = discord.connected,
+                                            connected = discordConnected,
                                         )
                                     settingsSubScreen == "lastfm" ->
                                         SettingsLastFmScreen(onBack = { settingsSubScreen = null })
