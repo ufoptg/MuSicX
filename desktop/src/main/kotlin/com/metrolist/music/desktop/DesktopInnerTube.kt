@@ -303,6 +303,9 @@ class DesktopInnerTube : AutoCloseable {
         ) ?: error("No playable stream for $videoId")
     }
 
+    suspend fun enhanceSuggestions(title: String, artist: String?): List<SearchHit> =
+        searchSongs(listOfNotNull(artist?.takeIf { it.isNotBlank() }, title).joinToString(" ") + " mix").take(10)
+
     fun setSessionCookie(cookie: String?) {
         innerTube.cookie = cookie
         innerTube.useLoginForBrowse = !cookie.isNullOrBlank()

@@ -264,6 +264,9 @@ data class DetailState(
     val thumbnailUrl: String?,
     val tracks: List<SearchHit>,
     val loading: Boolean,
+    val enhanceEnabled: Boolean = false,
+    val enhancing: Boolean = false,
+    val suggestions: List<SearchHit> = emptyList(),
 )
 
 fun main() = application {
