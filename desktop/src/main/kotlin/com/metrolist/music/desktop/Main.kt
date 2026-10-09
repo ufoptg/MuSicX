@@ -140,6 +140,9 @@ import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.rememberDynamicColorScheme
 import com.metrolist.spotify.Spotify
+import com.metrolist.spotify.SpotifyMapper
+import com.metrolist.spotify.models.SpotifySearchResult
+import com.metrolist.spotify.models.SpotifyTrack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlin.random.Random
@@ -340,6 +343,9 @@ private fun MuSicXApp(
     var albumResults by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
     var artistResults by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
     var playlistResults by remember { mutableStateOf<List<PlaylistHit>>(emptyList()) }
+    var spotifyResults by remember { mutableStateOf<List<SpotifyTrack>>(emptyList()) }
+    var spotifyLoading by remember { mutableStateOf(false) }
+    var matchingSpotifyId by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -721,12 +727,14 @@ private fun MuSicXApp(
         scope.launch {
             loading = true
             error = null
+            spotifyResults = emptyList()
+            spotifyLoading = prefs.enableSpotify && prefs.useSpotifySearch && DesktopSpotify.isLoggedIn(prefs)
             try {
                 songResults = client.searchSongs(q)
                 albumResults = client.searchAlbums(q)
                 artistResults = client.searchArtists(q)
                 playlistResults = client.searchPlaylists(q)
-                if (songResults.isEmpty() && albumResults.isEmpty() && artistResults.isEmpty() && playlistResults.isEmpty()) {
+                if (songResults.isEmpty() && albumResults.isEmpty() && artistResults.isEmpty() && playlistResults.isEmpty() && spotifyResults.isEmpty()) {
                     error = "No results found"
                 }
             } catch (t: Throwable) {
@@ -737,6 +745,13 @@ private fun MuSicXApp(
                 error = t.message ?: t::class.simpleName ?: "Search failed"
             } finally {
                 loading = false
+            }
+        }
+        if (prefs.enableSpotify && prefs.useSpotifySearch && DesktopSpotify.isLoggedIn(prefs)) {
+            scope.launch {
+                spotifyResults =
+                    DesktopSpotify.search(q, prefs) { onPrefsChange(it) }.getOrDefault(SpotifySearchResult()).tracks?.items.orEmpty()
+                spotifyLoading = false
             }
         }
     }
@@ -863,6 +878,17 @@ private fun MuSicXApp(
                                     albumResults = albumResults,
                                     artistResults = artistResults,
                                     playlistResults = playlistResults,
+                                    spotifyTracks = spotifyResults,
+                                    spotifyLoading = spotifyLoading,
+                                    matchingSpotifyId = matchingSpotifyId,
+                                    onPlaySpotifyTrack = { track ->
+                                        matchingSpotifyId = track.id
+                                        scope.launch {
+                                            val hit = withContext(Dispatchers.IO) { DesktopSpotifyMatcher.resolveToYouTube(client, track) }
+                                            matchingSpotifyId = null
+                                            if (hit != null) playFrom(listOf(hit), 0) else error = "Could not match track on YouTube"
+                                        }
+                                    },
                                     nowPlayingId = nowPlaying?.videoId,
                                     busyId = busyId,
                                     onSearch = ::runSearch,
@@ -1417,6 +1443,10 @@ private fun SearchScreen(
     albumResults: List<SearchHit>,
     artistResults: List<SearchHit>,
     playlistResults: List<PlaylistHit>,
+    spotifyTracks: List<SpotifyTrack>,
+    spotifyLoading: Boolean,
+    matchingSpotifyId: String?,
+    onPlaySpotifyTrack: (SpotifyTrack) -> Unit,
     nowPlayingId: String?,
     busyId: String?,
     onSearch: () -> Unit,
@@ -1479,7 +1509,9 @@ private fun SearchScreen(
             (showSongs && songResults.isNotEmpty()) ||
                 (showAlbums && albumResults.isNotEmpty()) ||
                 (showArtists && artistResults.isNotEmpty()) ||
-                (showPlaylists && playlistResults.isNotEmpty())
+                (showPlaylists && playlistResults.isNotEmpty()) ||
+                spotifyTracks.isNotEmpty() ||
+                spotifyLoading
 
         when {
             loading ->
@@ -1495,6 +1527,29 @@ private fun SearchScreen(
                 )
             else ->
                 LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
+                    if (spotifyTracks.isNotEmpty() || spotifyLoading) {
+                        item { SectionHeader("Spotify") }
+                        if (spotifyTracks.isEmpty()) {
+                            item {
+                                Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        } else {
+                            items(spotifyTracks, key = { "spotify-${it.id}" }) { track ->
+                                MediaRow(
+                                    title = track.name,
+                                    subtitle = track.artists.joinToString(", ") { it.name },
+                                    thumbnailUrl = SpotifyMapper.getTrackThumbnail(track),
+                                    isActive = false,
+                                    isBusy = matchingSpotifyId == track.id,
+                                    onClick = { onPlaySpotifyTrack(track) },
+                                    image = { url, cd, m -> RemoteImage(url, cd, m) },
+                                )
+                            }
+                        }
+                    }
+
                     if (showSongs && songResults.isNotEmpty()) {
                         item { SectionHeader("Songs") }
                         itemsIndexed(songResults, key = { _, hit -> "song-${hit.videoId}" }) { index, hit ->
@@ -2653,6 +2708,12 @@ private fun SettingsSpotifyScreen(
                     onCheckedChange = { enabled -> update(prefs.copy(spotifyHomeOnly = enabled)) },
                 )
             }
+            SettingsToggleItem(
+                "Use Spotify for search",
+                checked = prefs.useSpotifySearch,
+                enabled = true,
+                onCheckedChange = { update(prefs.copy(useSpotifySearch = it)) },
+            )
         }
     }
 }
