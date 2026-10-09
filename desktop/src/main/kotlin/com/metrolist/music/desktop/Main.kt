@@ -1017,7 +1017,6 @@ private fun MuSicXApp(
                                         )
                                     else ->
                                         SettingsScreen(
-                                            sections = SettingsSection.entries.toList(),
                                             onSelectSection = { section ->
                                                 settingsSection = section
                                                 settingsSubScreen = null
@@ -1901,7 +1900,6 @@ private fun SignInHint(modifier: Modifier = Modifier) {
 
 @Composable
 private fun SettingsScreen(
-    sections: List<SettingsSection>,
     onSelectSection: (SettingsSection) -> Unit,
 ) {
     val groups =
@@ -1980,7 +1978,7 @@ private fun SettingsRowItem(
         title = title,
         description = subtitle,
         onClick = onClick,
-        enabled = onClick != null,
+        enabled = true,
     )
 }
 
