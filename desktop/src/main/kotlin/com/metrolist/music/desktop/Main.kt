@@ -1037,6 +1037,7 @@ private fun MuSicXApp(
                     seekPreview = null
                 },
                 onExpand = { if (nowPlaying != null) playerExpanded = true },
+                backgroundStyle = prefs.playerBackground,
                 isFavorite = isFavorite(nowPlaying),
                 onToggleFavorite = { nowPlaying?.let(::toggleFavorite) },
                 hasQueue = queue.isNotEmpty(),
@@ -2716,122 +2717,140 @@ private fun NowPlayingBar(
     onSeekChange: (Float) -> Unit,
     onSeekCommit: (Float) -> Unit,
     onExpand: () -> Unit,
+    backgroundStyle: String = "default",
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
     hasQueue: Boolean = false,
     onToggleQueue: (() -> Unit)? = null,
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surface,
+        color = if (backgroundStyle == "pure_black") Color.Black else MaterialTheme.colorScheme.surfaceContainer,
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         shadowElevation = 12.dp,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                RemoteImage(
-                    url = nowPlaying?.thumbnailUrl,
-                    contentDescription = nowPlaying?.title,
+        Box(modifier = Modifier.fillMaxWidth()) {
+            if (backgroundStyle == "gradient") {
+                val art = rememberArtColor(nowPlaying?.thumbnailUrl)
+                Box(
                     modifier =
-                        Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable(enabled = nowPlaying != null, onClick = onExpand),
+                        Modifier.matchParentSize().background(
+                            Brush.verticalGradient(listOf(art.copy(alpha = 0.5f), Color.Transparent)),
+                        ),
                 )
-                Column(
-                    modifier = Modifier.weight(1f).clickable(enabled = nowPlaying != null, onClick = onExpand),
+            }
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    Text(
-                        text = nowPlaying?.title ?: "Nothing playing",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    RemoteImage(
+                        url = nowPlaying?.thumbnailUrl,
+                        contentDescription = nowPlaying?.title,
+                        modifier =
+                            Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable(enabled = nowPlaying != null, onClick = onExpand),
                     )
-                    val secondary =
-                        when {
-                            busy -> "Loading…"
-                            nowPlaying == null -> "Choose a song and press play"
-                            !nowPlaying.subtitle.isNullOrBlank() -> nowPlaying.subtitle
-                            else -> "Now playing"
+                    Column(
+                        modifier = Modifier.weight(1f).clickable(enabled = nowPlaying != null, onClick = onExpand),
+                    ) {
+                        Text(
+                            text = nowPlaying?.title ?: "Nothing playing",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        val secondary =
+                            when {
+                                busy -> "Loading…"
+                                nowPlaying == null -> "Choose a song and press play"
+                                !nowPlaying.subtitle.isNullOrBlank() -> nowPlaying.subtitle
+                                else -> "Now playing"
+                            }
+                        Text(
+                            text = secondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    if (onToggleFavorite != null) {
+                        IconButton(onClick = onToggleFavorite, enabled = nowPlaying != null) {
+                            Icon(
+                                if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                                tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
-                    Text(
-                        text = secondary,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                IconButton(onClick = onExpand, enabled = nowPlaying != null) {
-                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Expand player", modifier = Modifier.size(26.dp))
-                }
-                if (onToggleFavorite != null) {
-                    IconButton(onClick = onToggleFavorite, enabled = nowPlaying != null) {
+                    }
+                    IconButton(onClick = onPrevious, enabled = hasPrevious && !busy) {
+                        Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(30.dp))
+                    }
+                    IconButton(
+                        onClick = onTogglePlay,
+                        enabled = nowPlaying != null && !busy,
+                        modifier = Modifier.size(52.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
+                    ) {
                         Icon(
-                            if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
-                            tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (playing) "Pause" else "Play",
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(28.dp),
+                        )
+                    }
+                    IconButton(onClick = onNext, enabled = hasNext && !busy) {
+                        Icon(Icons.Default.SkipNext, contentDescription = "Next", modifier = Modifier.size(30.dp))
+                    }
+                    IconButton(onClick = onExpand, enabled = nowPlaying != null) {
+                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Expand player", modifier = Modifier.size(26.dp))
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier = Modifier.padding(start = 8.dp),
+                    ) {
+                        IconButton(onClick = onToggleQueue ?: {}, enabled = hasQueue && onToggleQueue != null) {
+                            Icon(Icons.Default.QueueMusic, contentDescription = "Queue")
+                        }
+                        Icon(
+                            imageVector = if (volume == 0) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                            contentDescription = "Volume",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Slider(
+                            value = volume / 100f,
+                            onValueChange = { onVolumeChange((it * 100).toInt()) },
+                            modifier = Modifier.width(110.dp),
+                            colors =
+                                SliderDefaults.colors(
+                                    thumbColor = MaterialTheme.colorScheme.primary,
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                ),
                         )
                     }
                 }
-                IconButton(onClick = onPrevious, enabled = hasPrevious && !busy) {
-                    Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(30.dp))
-                }
-                IconButton(
-                    onClick = onTogglePlay,
-                    enabled = nowPlaying != null && !busy,
-                    modifier = Modifier.size(52.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
-                ) {
-                    Icon(
-                        if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (playing) "Pause" else "Play",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(28.dp),
-                    )
-                }
-                IconButton(onClick = onNext, enabled = hasNext && !busy) {
-                    Icon(Icons.Default.SkipNext, contentDescription = "Next", modifier = Modifier.size(30.dp))
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    modifier = Modifier.padding(start = 8.dp),
-                ) {
-                    IconButton(onClick = onToggleQueue ?: {}, enabled = hasQueue && onToggleQueue != null) {
-                        Icon(Icons.Default.QueueMusic, contentDescription = "Queue")
-                    }
-                    Icon(
-                        imageVector = if (volume == 0) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
-                        contentDescription = "Volume",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Slider(
-                        value = volume / 100f,
-                        onValueChange = { onVolumeChange((it * 100).toInt()) },
-                        modifier = Modifier.width(110.dp),
-                        colors =
-                            SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.primary,
-                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                            ),
-                    )
-                }
-            }
 
-            SeekRow(
-                positionMs = positionMs,
-                durationMs = durationMs,
-                seekPreview = seekPreview,
-                enabled = nowPlaying != null && durationMs > 0,
-                onSeekChange = onSeekChange,
-                onSeekCommit = onSeekCommit,
-            )
+                val sliderValue =
+                    seekPreview ?: if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+                Slider(
+                    value = sliderValue,
+                    onValueChange = { onSeekChange(it) },
+                    onValueChangeFinished = { onSeekCommit(seekPreview ?: sliderValue) },
+                    enabled = nowPlaying != null && durationMs > 0,
+                    modifier = Modifier.fillMaxWidth().height(20.dp),
+                    colors =
+                        SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                        ),
+                )
+            }
         }
     }
 }
