@@ -154,6 +154,12 @@ import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.NavigationTitle
 import com.metrolist.music.ui.component.AppNavigationRail
 import com.metrolist.music.ui.component.DesktopNavItem
+import com.metrolist.music.ui.component.EmptyPlaceholder
+import com.metrolist.music.ui.component.FilterChipsRow
+import com.metrolist.music.ui.component.MediaRow
+import com.metrolist.music.ui.component.ScreenTopBar
+import com.metrolist.music.ui.component.SectionHeader
+import com.metrolist.music.ui.component.SearchBar
 
 private val MuSicXRed = Color(0xFFED5564)
 
@@ -1182,6 +1188,7 @@ private fun SearchScreen(
     onOpenArtist: (SearchHit) -> Unit,
     onOpenPlaylist: (PlaylistHit) -> Unit,
 ) {
+    var filter by remember { mutableStateOf(0) }
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
         if (openDetail != null) {
             DetailPane(
@@ -1197,8 +1204,13 @@ private fun SearchScreen(
             return@Column
         }
 
-        ScreenTitle(title = "Search", subtitle = "Songs, albums, artists, playlists")
+        ScreenTopBar(title = "Search")
         SearchBar(query = query, onQueryChange = onQueryChange, enabled = !loading, onSearch = onSearch)
+        FilterChipsRow(
+            options = listOf("All", "Songs", "Albums", "Artists", "Playlists"),
+            selectedIndex = filter,
+            onSelect = { filter = it },
+        )
 
         error?.let {
             Text(
@@ -1209,62 +1221,98 @@ private fun SearchScreen(
             )
         }
 
-        if (loading) {
-            Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-            }
-        } else {
-            LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
-                if (songResults.isNotEmpty()) {
-                    item { Text("Songs", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)) }
-                    items(songResults, key = { it.videoId }) { hit ->
-                        val index = songResults.indexOf(hit)
-                        ResultRow(
-                            hit = hit,
-                            isActive = hit.videoId == nowPlayingId,
-                            isBusy = busyId == hit.videoId,
-                            onClick = { onPlayIndex(index) },
-                            isFavorite = isFavorite(hit),
-                            onToggleFavorite = { onToggleFavorite(hit) },
-                        )
-                    }
-                }
+        val showSongs = filter == 0 || filter == 1
+        val showAlbums = filter == 0 || filter == 2
+        val showArtists = filter == 0 || filter == 3
+        val showPlaylists = filter == 0 || filter == 4
+        val anyVisible =
+            (showSongs && songResults.isNotEmpty()) ||
+                (showAlbums && albumResults.isNotEmpty()) ||
+                (showArtists && artistResults.isNotEmpty()) ||
+                (showPlaylists && playlistResults.isNotEmpty())
 
-                if (albumResults.isNotEmpty()) {
-                    item { NavigationTitle(title = "Albums") }
-                    items(albumResults, key = { it.videoId }) { hit ->
-                        ResultRow(
-                            hit = hit,
-                            isActive = false,
-                            isBusy = false,
-                            onClick = { onOpenAlbum(hit) },
-                            isFavorite = false,
-                            onToggleFavorite = {},
-                        )
-                    }
+        when {
+            loading ->
+                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
+            !anyVisible ->
+                EmptyPlaceholder(
+                    icon = Icons.Default.Search,
+                    title = "No results",
+                    subtitle = "Try a different search",
+                    modifier = Modifier.weight(1f),
+                )
+            else ->
+                LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
+                    if (showSongs && songResults.isNotEmpty()) {
+                        item { SectionHeader("Songs") }
+                        itemsIndexed(songResults, key = { _, hit -> hit.videoId }) { index, hit ->
+                            MediaRow(
+                                title = hit.title,
+                                subtitle = hit.subtitle,
+                                thumbnailUrl = hit.thumbnailUrl,
+                                isActive = hit.videoId == nowPlayingId,
+                                isBusy = busyId == hit.videoId,
+                                onClick = { onPlayIndex(index) },
+                                image = { url, cd, m -> RemoteImage(url, cd, m) },
+                                trailing = {
+                                    IconButton(onClick = { onToggleFavorite(hit) }) {
+                                        Icon(
+                                            if (isFavorite(hit)) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                            contentDescription = "Favorite",
+                                        )
+                                    }
+                                },
+                            )
+                        }
+                    }
 
-                if (artistResults.isNotEmpty()) {
-                    item { NavigationTitle(title = "Artists") }
-                    items(artistResults, key = { it.videoId }) { hit ->
-                        ResultRow(
-                            hit = hit,
-                            isActive = false,
-                            isBusy = false,
-                            onClick = { onOpenArtist(hit) },
-                            isFavorite = false,
-                            onToggleFavorite = {},
-                        )
+                    if (showAlbums && albumResults.isNotEmpty()) {
+                        item { SectionHeader("Albums") }
+                        items(albumResults, key = { it.videoId }) { hit ->
+                            MediaRow(
+                                title = hit.title,
+                                subtitle = hit.subtitle,
+                                thumbnailUrl = hit.thumbnailUrl,
+                                isActive = false,
+                                isBusy = false,
+                                onClick = { onOpenAlbum(hit) },
+                                image = { url, cd, m -> RemoteImage(url, cd, m) },
+                            )
+                        }
                     }
-                }
 
-                if (playlistResults.isNotEmpty()) {
-                    item { NavigationTitle(title = "Playlists") }
-                    items(playlistResults, key = { it.id }) { hit ->
-                        PlaylistRow(item = hit, onClick = { onOpenPlaylist(hit) })
+                    if (showArtists && artistResults.isNotEmpty()) {
+                        item { SectionHeader("Artists") }
+                        items(artistResults, key = { it.videoId }) { hit ->
+                            MediaRow(
+                                title = hit.title,
+                                subtitle = hit.subtitle,
+                                thumbnailUrl = hit.thumbnailUrl,
+                                isActive = false,
+                                isBusy = false,
+                                onClick = { onOpenArtist(hit) },
+                                image = { url, cd, m -> RemoteImage(url, cd, m) },
+                            )
+                        }
+                    }
+
+                    if (showPlaylists && playlistResults.isNotEmpty()) {
+                        item { SectionHeader("Playlists") }
+                        items(playlistResults, key = { it.id }) { hit ->
+                            MediaRow(
+                                title = hit.title,
+                                subtitle = hit.subtitle,
+                                thumbnailUrl = hit.thumbnailUrl,
+                                isActive = false,
+                                isBusy = false,
+                                onClick = { onOpenPlaylist(hit) },
+                                image = { url, cd, m -> RemoteImage(url, cd, m) },
+                            )
+                        }
                     }
                 }
-            }
         }
     }
 }
