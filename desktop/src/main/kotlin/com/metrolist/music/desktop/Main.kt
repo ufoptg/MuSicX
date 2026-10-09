@@ -144,6 +144,7 @@ import com.metrolist.spotify.SpotifyMapper
 import com.metrolist.spotify.models.SpotifySearchResult
 import com.metrolist.spotify.models.SpotifySavedTrack
 import com.metrolist.spotify.models.SpotifyAlbum
+import com.metrolist.spotify.models.SpotifyArtist
 import com.metrolist.spotify.models.SpotifyPlaylist
 import com.metrolist.spotify.models.SpotifyTrack
 import kotlinx.coroutines.Dispatchers
@@ -363,6 +364,7 @@ private fun MuSicXApp(
     var spotifyResults by remember { mutableStateOf<List<SpotifyTrack>>(emptyList()) }
     var spotifySearchAlbums by remember { mutableStateOf<List<SpotifyAlbum>>(emptyList()) }
     var spotifySearchPlaylists by remember { mutableStateOf<List<SpotifyPlaylist>>(emptyList()) }
+    var spotifySearchArtists by remember { mutableStateOf<List<SpotifyArtist>>(emptyList()) }
     var spotifyLoading by remember { mutableStateOf(false) }
     var matchingSpotifyId by remember { mutableStateOf<String?>(null) }
     var spotifyLiked by remember { mutableStateOf<List<SpotifySavedTrack>>(emptyList()) }
@@ -371,6 +373,8 @@ private fun MuSicXApp(
     var spotifyPlaylists by remember { mutableStateOf<List<SpotifyPlaylist>>(emptyList()) }
     var spotifyPlaylistsTotal by remember { mutableStateOf(0) }
     var openSpotifyDetail by remember { mutableStateOf<SpotifyDetailState?>(null) }
+    var resolvingSpotifyDetail by remember { mutableStateOf(false) }
+
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -755,6 +759,7 @@ private fun MuSicXApp(
             spotifyResults = emptyList()
             spotifySearchAlbums = emptyList()
             spotifySearchPlaylists = emptyList()
+            spotifySearchArtists = emptyList()
             val spotifyActive = prefs.enableSpotify && prefs.useSpotifySearch && DesktopSpotify.isLoggedIn(prefs)
             spotifyLoading = spotifyActive
             try {
@@ -774,6 +779,7 @@ private fun MuSicXApp(
                 spotifyResults = result?.tracks?.items.orEmpty()
                 spotifySearchAlbums = result?.albums?.items.orEmpty()
                 spotifySearchPlaylists = result?.playlists?.items.orEmpty()
+                spotifySearchArtists = result?.artists?.items.orEmpty()
                 spotifyLoading = false
             }
             if (error == null &&
@@ -781,7 +787,10 @@ private fun MuSicXApp(
                 albumResults.isEmpty() &&
                 artistResults.isEmpty() &&
                 playlistResults.isEmpty() &&
-                spotifyResults.isEmpty()
+                spotifyResults.isEmpty() &&
+                spotifySearchAlbums.isEmpty() &&
+                spotifySearchPlaylists.isEmpty() &&
+                spotifySearchArtists.isEmpty()
             ) {
                 error = "No results found"
             }
@@ -876,6 +885,17 @@ private fun MuSicXApp(
         }
     }
 
+    fun playSpotifyTracks(tracks: List<SpotifyTrack>, shuffle: Boolean) {
+        if (tracks.isEmpty() || resolvingSpotifyDetail) return
+        val ordered = if (shuffle) tracks.shuffled() else tracks
+        scope.launch {
+            resolvingSpotifyDetail = true
+            val hits = withContext(Dispatchers.IO) { ordered.mapNotNull { DesktopSpotifyMatcher.resolveToYouTube(client, it) } }
+            resolvingSpotifyDetail = false
+            if (hits.isNotEmpty()) playFrom(hits, 0) else error = "Could not match tracks on YouTube"
+        }
+    }
+
     fun openSpotifyPlaylist(p: SpotifyPlaylist) {
         openSpotifyDetail =
             SpotifyDetailState(
@@ -904,8 +924,14 @@ private fun MuSicXApp(
                 a.artists.joinToString(", ") { it.name },
                 a.images.firstOrNull { (it.width ?: 0) in 200..400 }?.url ?: a.images.firstOrNull()?.url,
                 a.tracks?.items.orEmpty(),
-                false,
+                a.tracks == null,
             )
+        if (a.tracks == null) {
+            scope.launch(Dispatchers.IO) {
+                val tracks = DesktopSpotify.album(a.id, prefs, onUpdated = { onPrefsChange(it) }).getOrNull()?.tracks?.items.orEmpty()
+                openSpotifyDetail = openSpotifyDetail?.takeIf { it.id == a.id }?.copy(tracks = tracks, loading = false)
+            }
+        }
     }
 
     fun openSpotifyArtist(id: String, name: String, thumb: String?) {
@@ -975,11 +1001,22 @@ private fun MuSicXApp(
                     onSelect = { route ->
                         destination = Destination.entries.first { it.route == route }
                         openDetail = null
+                        openSpotifyDetail = null
                     },
                     pureBlack = prefs.pureBlack,
                 )
                 Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                    Crossfade(targetState = destination) { dest ->
+                    openSpotifyDetail?.let { detail ->
+                        SpotifyDetailPane(
+                            detail = detail,
+                            matchingId = matchingSpotifyId,
+                            resolving = resolvingSpotifyDetail,
+                            onPlayAll = { playSpotifyTracks(detail.tracks, false) },
+                            onShuffle = { playSpotifyTracks(detail.tracks, true) },
+                            onPlayTrack = ::playSpotifyTrack,
+                            onClose = ::closeSpotifyDetail,
+                        )
+                    } ?: Crossfade(targetState = destination) { dest ->
                         when (dest) {
                             Destination.Home ->
                                 HomeScreen(
@@ -1016,11 +1053,13 @@ private fun MuSicXApp(
                                     spotifyTracks = spotifyResults,
                                     spotifyAlbums = spotifySearchAlbums,
                                     spotifyPlaylists = spotifySearchPlaylists,
+                                    spotifyArtists = spotifySearchArtists,
                                     spotifyLoading = spotifyLoading,
                                     matchingSpotifyId = matchingSpotifyId,
                                     onPlaySpotifyTrack = ::playSpotifyTrack,
                                     onOpenSpotifyAlbum = ::openSpotifyAlbum,
                                     onOpenSpotifyPlaylist = ::openSpotifyPlaylist,
+                                    onOpenSpotifyArtist = { artist -> openSpotifyArtist(artist.id, artist.name, artist.images.firstOrNull()?.url) },
                                     nowPlayingId = nowPlaying?.videoId,
                                     busyId = busyId,
                                     onSearch = ::runSearch,
@@ -1244,14 +1283,7 @@ private fun MuSicXApp(
                                     spotifyLikedTotal = spotifyLikedTotal,
                                     spotifyPlaylists = spotifyPlaylists,
                                     matchingSpotifyId = matchingSpotifyId,
-                                    onPlaySpotifyLiked = { saved ->
-                                        matchingSpotifyId = spotifyIdentity(saved.track)
-                                        scope.launch {
-                                            val hit = withContext(Dispatchers.IO) { DesktopSpotifyMatcher.resolveToYouTube(client, saved.track) }
-                                            matchingSpotifyId = null
-                                            if (hit != null) playFrom(listOf(hit), 0) else error = "Could not match track on YouTube"
-                                        }
-                                    },
+                                    onPlaySpotifyLiked = { playSpotifyTrack(it.track) },
                                     onLoadMoreSpotifyLiked = ::loadMoreSpotifyLiked,
                                     onOpenSpotifyPlaylist = ::openSpotifyPlaylist,
                                     onOpenPlaylist = { item ->
@@ -1420,21 +1452,6 @@ private fun MuSicXApp(
                 onToggleDownload = ::toggleDownload,
             )
         }
-
-        AnimatedVisibility(
-            visible = openSpotifyDetail != null,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-        ) {
-            openSpotifyDetail?.let { detail ->
-                SpotifyDetailPane(
-                    detail = detail,
-                    matchingId = matchingSpotifyId,
-                    onPlayTrack = ::playSpotifyTrack,
-                    onClose = ::closeSpotifyDetail,
-                )
-            }
-        }
     }
 }
 
@@ -1442,6 +1459,9 @@ private fun MuSicXApp(
 private fun SpotifyDetailPane(
     detail: SpotifyDetailState,
     matchingId: String?,
+    resolving: Boolean,
+    onPlayAll: () -> Unit,
+    onShuffle: () -> Unit,
     onPlayTrack: (SpotifyTrack) -> Unit,
     onClose: () -> Unit,
 ) {
@@ -1455,7 +1475,9 @@ private fun SpotifyDetailPane(
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
+                if (resolving) CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
             }
             if (detail.loading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -1471,22 +1493,32 @@ private fun SpotifyDetailPane(
                             metadata = "${detail.tracks.size} songs",
                             thumbnailUrl = detail.thumbnailUrl,
                             image = { url, cd, m -> RemoteImage(url, cd, m) },
-                            onPlay = { detail.tracks.firstOrNull()?.let(onPlayTrack) },
-                            onShuffle = { detail.tracks.shuffled().firstOrNull()?.let(onPlayTrack) },
+                            onPlay = onPlayAll,
+                            onShuffle = onShuffle,
                             fullBleed = detail.type == SpotifyDetailType.Artist,
                         )
                     }
-                    item { SectionHeader("Tracks") }
-                    itemsIndexed(detail.tracks, key = { index, track -> "sdetail-${spotifyIdentity(track)}-$index" }) { _, track ->
-                        MediaRow(
-                            title = track.name,
-                            subtitle = track.artists.joinToString(", ") { it.name },
-                            thumbnailUrl = SpotifyMapper.getTrackThumbnail(track),
-                            isActive = false,
-                            isBusy = matchingId != null && matchingId == spotifyIdentity(track),
-                            onClick = { onPlayTrack(track) },
-                            image = { url, cd, m -> RemoteImage(url, cd, m) },
-                        )
+                    if (detail.tracks.isEmpty()) {
+                        item {
+                            EmptyPlaceholder(
+                                icon = Icons.Default.MusicNote,
+                                title = "No tracks found",
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    } else {
+                        item { SectionHeader("Tracks") }
+                        itemsIndexed(detail.tracks, key = { index, track -> "sdetail-${spotifyIdentity(track)}-$index" }) { _, track ->
+                            MediaRow(
+                                title = track.name,
+                                subtitle = track.artists.joinToString(", ") { it.name },
+                                thumbnailUrl = SpotifyMapper.getTrackThumbnail(track),
+                                isActive = false,
+                                isBusy = matchingId != null && matchingId == spotifyIdentity(track),
+                                onClick = { onPlayTrack(track) },
+                                image = { url, cd, m -> RemoteImage(url, cd, m) },
+                            )
+                        }
                     }
                 }
             }
@@ -1664,11 +1696,13 @@ private fun SearchScreen(
     spotifyTracks: List<SpotifyTrack>,
     spotifyAlbums: List<SpotifyAlbum>,
     spotifyPlaylists: List<SpotifyPlaylist>,
+    spotifyArtists: List<SpotifyArtist>,
     spotifyLoading: Boolean,
     matchingSpotifyId: String?,
     onPlaySpotifyTrack: (SpotifyTrack) -> Unit,
     onOpenSpotifyAlbum: (SpotifyAlbum) -> Unit,
     onOpenSpotifyPlaylist: (SpotifyPlaylist) -> Unit,
+    onOpenSpotifyArtist: (SpotifyArtist) -> Unit,
     nowPlayingId: String?,
     busyId: String?,
     onSearch: () -> Unit,
@@ -1735,6 +1769,7 @@ private fun SearchScreen(
                 spotifyTracks.isNotEmpty() ||
                 spotifyAlbums.isNotEmpty() ||
                 spotifyPlaylists.isNotEmpty() ||
+                spotifyArtists.isNotEmpty() ||
                 spotifyLoading
 
         when {
@@ -1799,6 +1834,21 @@ private fun SearchScreen(
                                 isActive = false,
                                 isBusy = false,
                                 onClick = { onOpenSpotifyPlaylist(playlist) },
+                                image = { url, cd, m -> RemoteImage(url, cd, m) },
+                            )
+                        }
+                    }
+
+                    if (spotifyArtists.isNotEmpty()) {
+                        item { SectionHeader("Spotify artists") }
+                        items(spotifyArtists, key = { "spartist-${it.id}" }) { artist ->
+                            MediaRow(
+                                title = artist.name,
+                                subtitle = "Artist",
+                                thumbnailUrl = artist.images.firstOrNull()?.url,
+                                isActive = false,
+                                isBusy = false,
+                                onClick = { onOpenSpotifyArtist(artist) },
                                 image = { url, cd, m -> RemoteImage(url, cd, m) },
                             )
                         }

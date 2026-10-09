@@ -45,7 +45,7 @@ object DesktopSpotify {
         if (!ensureAuthenticated(prefs, onUpdated)) {
             return Result.failure(IllegalStateException("Not signed in to Spotify"))
         }
-        return Spotify.search(query, types = listOf("track", "album", "playlist"), limit = 8)
+        return Spotify.search(query, types = listOf("track", "album", "playlist", "artist"), limit = 8)
     }
 
     suspend fun myPlaylists(
