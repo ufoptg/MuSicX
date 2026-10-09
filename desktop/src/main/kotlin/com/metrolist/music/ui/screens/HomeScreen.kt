@@ -3,75 +3,183 @@
  * Credits to Metrolist Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  *
- * Desktop Home Screen - adapted for desktop experience
+ * Desktop Home screen — mirrors the Android app's Home layout language.
  */
 
 package com.metrolist.music.ui.screens
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeFloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.metrolist.music.desktop.HomeRow
+import com.metrolist.music.desktop.SearchHit
+import com.metrolist.music.ui.component.GridItem
+import com.metrolist.music.ui.component.HeroCard
+import com.metrolist.music.ui.component.ImageLoader
+import com.metrolist.music.ui.component.SectionHeader
+import com.metrolist.music.ui.theme.Dimensions
 
 @Composable
 fun HomeScreen(
-    modifier: Modifier = Modifier
+    rows: List<HomeRow>,
+    recentlyPlayed: List<SearchHit>,
+    loading: Boolean,
+    error: String?,
+    hideYoutubeHome: Boolean,
+    spotifyHomeActive: Boolean,
+    nowPlayingId: String?,
+    busyId: String?,
+    onPlay: (List<SearchHit>, Int) -> Unit,
+    onShuffle: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onOpenStats: () -> Unit,
+    onRetry: () -> Unit,
+    image: ImageLoader,
+    modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState())
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().height(Dimensions.AppBarHeight).padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Home",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onOpenHistory) {
+                Icon(Icons.Default.History, contentDescription = "History")
+            }
+            IconButton(onClick = onOpenStats) {
+                Icon(Icons.Default.Insights, contentDescription = "Stats")
+            }
+        }
+
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            when {
+                hideYoutubeHome -> CenteredMessage(
+                    "YouTube home is hidden while Spotify home only is enabled.",
+                )
+                loading -> Box(Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+                error != null -> Column(
+                    modifier = Modifier.fillMaxWidth().padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        text = "Retry",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.clickable(onClick = onRetry).padding(8.dp),
+                    )
+                }
+                else -> LazyColumn(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(bottom = 96.dp)) {
+                    if (recentlyPlayed.isNotEmpty()) {
+                        item(key = "hero") {
+                            HeroCard(
+                                title = recentlyPlayed.first().title,
+                                subtitle = recentlyPlayed.first().subtitle,
+                                thumbnailUrl = recentlyPlayed.first().thumbnailUrl,
+                                isPlaying = recentlyPlayed.any { it.videoId == nowPlayingId },
+                                onPlayPause = { onPlay(recentlyPlayed, 0) },
+                                image = image,
+                            )
+                        }
+                        item(key = "recently_played_header") {
+                            SectionHeader("Recently played")
+                        }
+                        item(key = "recently_played_row") {
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            ) {
+                                itemsIndexed(recentlyPlayed, key = { _, hit -> hit.videoId }) { index, hit ->
+                                    GridItem(
+                                        title = hit.title,
+                                        subtitle = hit.subtitle,
+                                        isActive = hit.videoId == nowPlayingId,
+                                        isBusy = hit.videoId == busyId,
+                                        onClick = { onPlay(recentlyPlayed, index) },
+                                        image = image,
+                                        thumbnailUrl = hit.thumbnailUrl,
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    rows.forEach { row ->
+                        item(key = "header_${row.title}") {
+                            SectionHeader(row.title)
+                        }
+                        item(key = "row_${row.title}") {
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            ) {
+                                itemsIndexed(row.items, key = { _, hit -> hit.videoId }) { index, hit ->
+                                    GridItem(
+                                        title = hit.title,
+                                        subtitle = hit.subtitle,
+                                        isActive = hit.videoId == nowPlayingId,
+                                        isBusy = hit.videoId == busyId,
+                                        onClick = { onPlay(row.items, index) },
+                                        image = image,
+                                        thumbnailUrl = hit.thumbnailUrl,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!hideYoutubeHome && rows.isNotEmpty()) {
+                LargeFloatingActionButton(
+                    onClick = onShuffle,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(24.dp),
+                ) {
+                    Icon(Icons.Default.Shuffle, contentDescription = "Shuffle")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CenteredMessage(message: String) {
+    Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
         Text(
-            text = "Home",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 24.dp)
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        
-        // Quick actions
-        Text(
-            text = "Quick Actions",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-        
-        // TODO: Add quick action buttons
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        // Recently played
-        Text(
-            text = "Recently Played",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-        
-        // TODO: Add recently played items
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        // Recommended for you
-        Text(
-            text = "Recommended for You",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-        
-        // TODO: Add recommended items
     }
 }
