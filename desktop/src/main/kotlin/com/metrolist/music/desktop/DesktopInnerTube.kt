@@ -161,6 +161,17 @@ class DesktopInnerTube : AutoCloseable {
             }
         }
         walk(raw)
+        if (hits.isEmpty()) {
+            // Some regions/layouts omit playlist cards for the filtered search; fall back to the
+            // unfiltered search and collect playlist cards (browseId starts with "VL").
+            val fallback =
+                runCatching {
+                    innerTube
+                        .search(client = WEB_REMIX, query = trimmed, setLogin = false)
+                        .body<JsonObject>()
+                }.getOrDefault(JsonObject(emptyMap()))
+            walk(fallback)
+        }
         return hits.values.toList()
     }
 

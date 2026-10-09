@@ -97,6 +97,15 @@ object DesktopSpotify {
         return Spotify.me()
     }
 
+    suspend fun recentlyPlayed(
+        prefs: DesktopPrefs,
+        onUpdated: (DesktopPrefs) -> Unit,
+        limit: Int = 20,
+    ): Result<List<SpotifyTrack>> {
+        if (!ensureAuthenticated(prefs, onUpdated)) return Result.failure(IllegalStateException("Not signed in to Spotify"))
+        return Spotify.recentlyPlayed(limit = limit)
+    }
+
     suspend fun likedSongs(
         prefs: DesktopPrefs,
         onUpdated: (DesktopPrefs) -> Unit,

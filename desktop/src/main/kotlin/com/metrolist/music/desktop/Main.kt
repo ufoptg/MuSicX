@@ -150,6 +150,10 @@ import com.metrolist.spotify.models.SpotifyHomeFeedSection
 import com.metrolist.spotify.models.SpotifyPlaylist
 import com.metrolist.spotify.models.SpotifyTrack
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlin.random.Random
 import kotlinx.coroutines.launch
@@ -387,6 +391,9 @@ private fun MuSicXApp(
     var resolvingSpotifyDetail by remember { mutableStateOf(false) }
     var spotifyHomeSections by remember { mutableStateOf<List<SpotifyHomeFeedSection>>(emptyList()) }
     var spotifyHomeLoading by remember { mutableStateOf(false) }
+    var spotifyEnhanceEnabled by remember { mutableStateOf(false) }
+    var spotifyEnhanceLoading by remember { mutableStateOf(false) }
+    var spotifyEnhanceSuggestions by remember { mutableStateOf<List<SpotifyTrack>>(emptyList()) }
 
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -802,16 +809,27 @@ private fun MuSicXApp(
             val spotifyActive = prefs.enableSpotify && prefs.useSpotifySearch && DesktopSpotify.isLoggedIn(prefs)
             spotifyLoading = spotifyActive
             try {
-                songResults = client.searchSongs(q)
-                albumResults = client.searchAlbums(q)
-                artistResults = client.searchArtists(q)
-                playlistResults = client.searchPlaylists(q)
+                try {
+                    songResults = client.searchSongs(q)
+                    albumResults = client.searchAlbums(q)
+                    artistResults = client.searchArtists(q)
+                    playlistResults = client.searchPlaylists(q)
+                } catch (t: Throwable) {
+                    // The first request after a cold start can race the InnerTubeX player-script
+                    // download ("auto download failed") — retry once before surfacing an error.
+                    DesktopLog.log("search failed, retrying once", t)
+                    delay(500)
+                    songResults = client.searchSongs(q)
+                    albumResults = client.searchAlbums(q)
+                    artistResults = client.searchArtists(q)
+                    playlistResults = client.searchPlaylists(q)
+                }
             } catch (t: Throwable) {
                 songResults = emptyList()
                 albumResults = emptyList()
                 artistResults = emptyList()
                 playlistResults = emptyList()
-                error = t.message ?: t::class.simpleName ?: "Search failed"
+                error = "Search failed (${t.message ?: t::class.simpleName}). Please try again."
             }
             if (spotifyActive) {
                 val result = DesktopSpotify.search(q, prefs) { onPrefsChange(it) }.getOrNull()
@@ -911,8 +929,37 @@ private fun MuSicXApp(
         }
     }
 
+    fun toggleSpotifyEnhance() {
+        val detail = openSpotifyDetail ?: return
+        if (detail.type != SpotifyDetailType.Playlist) return
+        if (spotifyEnhanceEnabled) {
+            spotifyEnhanceEnabled = false
+            spotifyEnhanceSuggestions = emptyList()
+            return
+        }
+        spotifyEnhanceEnabled = true
+        spotifyEnhanceLoading = true
+        scope.launch(Dispatchers.IO) {
+            val existing = detail.tracks.map { spotifyIdentity(it) }.toSet()
+            val suggestions =
+                DesktopSpotify.recentlyPlayed(prefs, onUpdated = { onPrefsChange(it) }, limit = 12)
+                    .getOrNull().orEmpty()
+                    .filter { spotifyIdentity(it) !in existing && it.id.isNotBlank() }
+                    .take(8)
+            spotifyEnhanceSuggestions = suggestions
+            spotifyEnhanceLoading = false
+        }
+    }
+
+    fun resetSpotifyEnhance() {
+        spotifyEnhanceEnabled = false
+        spotifyEnhanceSuggestions = emptyList()
+        spotifyEnhanceLoading = false
+    }
+
     fun closeSpotifyDetail() {
         openSpotifyDetail = null
+        resetSpotifyEnhance()
     }
 
     fun playSpotifyTrack(track: SpotifyTrack) {
@@ -929,13 +976,34 @@ private fun MuSicXApp(
         val ordered = if (shuffle) tracks.shuffled() else tracks
         scope.launch {
             resolvingSpotifyDetail = true
-            val hits = withContext(Dispatchers.IO) { ordered.mapNotNull { DesktopSpotifyMatcher.resolveToYouTube(client, it) } }
+            // Start playback after matching only the first track, then fill the queue in the
+            // background so Play isn't blocked on a full-library match.
+            val firstHit = withContext(Dispatchers.IO) { DesktopSpotifyMatcher.resolveToYouTube(client, ordered.first()) }
             resolvingSpotifyDetail = false
-            if (hits.isNotEmpty()) playFrom(hits, 0) else error = "Could not match tracks on YouTube"
+            if (firstHit == null) {
+                error = "Could not match tracks on YouTube"
+                return@launch
+            }
+            playFrom(listOf(firstHit), 0)
+            scope.launch(Dispatchers.IO) {
+                val rest = ordered.drop(1)
+                val matches =
+                    coroutineScope {
+                        rest.chunked(4).map { chunk ->
+                            async { chunk.mapNotNull { DesktopSpotifyMatcher.resolveToYouTube(client, it) } }
+                        }.awaitAll().flatten()
+                    }
+                // Only fill the queue if the first track is still the one playing.
+                if (matches.isNotEmpty() && queue.firstOrNull()?.videoId == firstHit.videoId) {
+                    queue = matches
+                    currentIndex = 0
+                }
+            }
         }
     }
 
     fun openSpotifyPlaylist(p: SpotifyPlaylist) {
+        resetSpotifyEnhance()
         openSpotifyDetail =
             SpotifyDetailState(
                 SpotifyDetailType.Playlist,
@@ -955,6 +1023,7 @@ private fun MuSicXApp(
     }
 
     fun openSpotifyAlbum(a: SpotifyAlbum) {
+        resetSpotifyEnhance()
         openSpotifyDetail =
             SpotifyDetailState(
                 SpotifyDetailType.Album,
@@ -974,6 +1043,7 @@ private fun MuSicXApp(
     }
 
     fun openSpotifyArtist(id: String, name: String, thumb: String?) {
+        resetSpotifyEnhance()
         openSpotifyDetail = SpotifyDetailState(SpotifyDetailType.Artist, id, name, null, thumb, emptyList(), true)
         scope.launch(Dispatchers.IO) {
             val tracks = DesktopSpotify.artistTopTracks(id, prefs, onUpdated = { onPrefsChange(it) }).getOrNull().orEmpty()
@@ -989,6 +1059,7 @@ private fun MuSicXApp(
         thumb: String?,
         loader: suspend (String) -> List<SpotifyTrack>,
     ) {
+        resetSpotifyEnhance()
         openSpotifyDetail = SpotifyDetailState(type, id, title, subtitle, thumb, emptyList(), true)
         scope.launch(Dispatchers.IO) {
             val tracks = loader(id)
@@ -1064,6 +1135,7 @@ private fun MuSicXApp(
         spotifyPlaylists = emptyList()
         spotifyPlaylistsTotal = 0
         openSpotifyDetail = null
+        resetSpotifyEnhance()
         spotifyHomeSections = emptyList()
     }
 
@@ -1132,6 +1204,10 @@ private fun MuSicXApp(
                             onShuffle = { playSpotifyTracks(detail.tracks, true) },
                             onPlayTrack = ::playSpotifyTrack,
                             onClose = ::closeSpotifyDetail,
+                            enhanceEnabled = spotifyEnhanceEnabled,
+                            enhancing = spotifyEnhanceLoading,
+                            suggestions = spotifyEnhanceSuggestions,
+                            onToggleEnhance = ::toggleSpotifyEnhance,
                         )
                     } ?: Crossfade(targetState = destination) { dest ->
                         when (dest) {
@@ -1591,6 +1667,10 @@ private fun SpotifyDetailPane(
     onShuffle: () -> Unit,
     onPlayTrack: (SpotifyTrack) -> Unit,
     onClose: () -> Unit,
+    enhanceEnabled: Boolean,
+    enhancing: Boolean,
+    suggestions: List<SpotifyTrack>,
+    onToggleEnhance: () -> Unit,
 ) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
@@ -1623,6 +1703,8 @@ private fun SpotifyDetailPane(
                             onPlay = onPlayAll,
                             onShuffle = onShuffle,
                             fullBleed = detail.type == SpotifyDetailType.Artist,
+                            enhanced = enhanceEnabled,
+                            onToggleEnhance = if (detail.type == SpotifyDetailType.Playlist) onToggleEnhance else null,
                         )
                     }
                     if (detail.tracks.isEmpty()) {
@@ -1645,6 +1727,43 @@ private fun SpotifyDetailPane(
                                 onClick = { onPlayTrack(track) },
                                 image = { url, cd, m -> RemoteImage(url, cd, m) },
                             )
+                        }
+                    }
+                    if (enhanceEnabled) {
+                        item { SectionHeader("Suggested") }
+                        if (enhancing) {
+                            item {
+                                Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        } else if (suggestions.isEmpty()) {
+                            item {
+                                EmptyPlaceholder(
+                                    icon = Icons.Default.AutoAwesome,
+                                    title = "No suggestions found",
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        } else {
+                            itemsIndexed(suggestions, key = { index, track -> "sug-${spotifyIdentity(track)}-$index" }) { _, track ->
+                                MediaRow(
+                                    title = track.name,
+                                    subtitle = track.artists.joinToString(", ") { it.name },
+                                    thumbnailUrl = SpotifyMapper.getTrackThumbnail(track),
+                                    isActive = false,
+                                    isBusy = matchingId != null && matchingId == spotifyIdentity(track),
+                                    onClick = { onPlayTrack(track) },
+                                    image = { url, cd, m -> RemoteImage(url, cd, m) },
+                                    trailing = {
+                                        Icon(
+                                            Icons.Default.AutoAwesome,
+                                            contentDescription = "Suggested",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                        )
+                                    },
+                                )
+                            }
                         }
                     }
                 }
