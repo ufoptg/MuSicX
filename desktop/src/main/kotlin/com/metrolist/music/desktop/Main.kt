@@ -149,9 +149,6 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
 // Player components
-import com.metrolist.music.ui.player.MiniPlayer
-import com.metrolist.music.ui.player.Player
-import com.metrolist.music.ui.player.Queue
 import com.metrolist.music.ui.screens.HomeScreen
 import com.metrolist.music.ui.screens.LibraryScreen
 import com.metrolist.music.ui.screens.SearchScreen
