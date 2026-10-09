@@ -16,6 +16,8 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -2995,7 +2998,12 @@ private fun FullPlayer(
                         text = lyrics,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 160.dp)
+                                .verticalScroll(rememberScrollState())
+                                .padding(top = 8.dp),
                     )
                 }
 
@@ -3226,7 +3234,9 @@ private fun rememberArtColor(url: String?): Color {
             return@LaunchedEffect
         }
         val bmp = imageCache[url] ?: loadRemoteBitmap(url)?.also { imageCache[url] = it }
-        if (bmp != null) color = runCatching { averageColor(bmp) }.getOrDefault(fallback)
+        if (bmp != null) {
+            color = withContext(Dispatchers.Default) { runCatching { averageColor(bmp) }.getOrDefault(fallback) }
+        }
     }
     return color
 }
