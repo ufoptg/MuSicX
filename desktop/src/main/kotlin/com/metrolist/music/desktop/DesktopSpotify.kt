@@ -8,9 +8,13 @@ package com.metrolist.music.desktop
 
 import com.metrolist.spotify.Spotify
 import com.metrolist.spotify.SpotifyAuth
+import com.metrolist.spotify.models.SpotifyAlbum
 import com.metrolist.spotify.models.SpotifyPaging
+import com.metrolist.spotify.models.SpotifyPlaylist
+import com.metrolist.spotify.models.SpotifyPlaylistTrack
 import com.metrolist.spotify.models.SpotifySavedTrack
 import com.metrolist.spotify.models.SpotifySearchResult
+import com.metrolist.spotify.models.SpotifyTrack
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -42,6 +46,44 @@ object DesktopSpotify {
             return Result.failure(IllegalStateException("Not signed in to Spotify"))
         }
         return Spotify.search(query, types = listOf("track", "album", "playlist"), limit = 8)
+    }
+
+    suspend fun myPlaylists(
+        prefs: DesktopPrefs,
+        onUpdated: (DesktopPrefs) -> Unit,
+        limit: Int = 50,
+        offset: Int = 0,
+    ): Result<SpotifyPaging<SpotifyPlaylist>> {
+        if (!ensureAuthenticated(prefs, onUpdated)) {
+            return Result.failure(IllegalStateException("Not signed in to Spotify"))
+        }
+        return Spotify.myPlaylists(limit = limit, offset = offset)
+    }
+
+    suspend fun album(id: String, prefs: DesktopPrefs, onUpdated: (DesktopPrefs) -> Unit): Result<SpotifyAlbum> {
+        if (!ensureAuthenticated(prefs, onUpdated)) return Result.failure(IllegalStateException("Not signed in to Spotify"))
+        return Spotify.album(id)
+    }
+
+    suspend fun playlist(id: String, prefs: DesktopPrefs, onUpdated: (DesktopPrefs) -> Unit): Result<SpotifyPlaylist> {
+        if (!ensureAuthenticated(prefs, onUpdated)) return Result.failure(IllegalStateException("Not signed in to Spotify"))
+        return Spotify.playlist(id)
+    }
+
+    suspend fun playlistTracks(
+        id: String,
+        prefs: DesktopPrefs,
+        onUpdated: (DesktopPrefs) -> Unit,
+        limit: Int = 100,
+        offset: Int = 0,
+    ): Result<SpotifyPaging<SpotifyPlaylistTrack>> {
+        if (!ensureAuthenticated(prefs, onUpdated)) return Result.failure(IllegalStateException("Not signed in to Spotify"))
+        return Spotify.playlistTracks(id, limit = limit, offset = offset)
+    }
+
+    suspend fun artistTopTracks(id: String, prefs: DesktopPrefs, onUpdated: (DesktopPrefs) -> Unit): Result<List<SpotifyTrack>> {
+        if (!ensureAuthenticated(prefs, onUpdated)) return Result.failure(IllegalStateException("Not signed in to Spotify"))
+        return Spotify.artistTopTracks(id).map { it.tracks }
     }
 
     suspend fun likedSongs(
