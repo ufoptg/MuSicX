@@ -20,6 +20,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -158,6 +159,7 @@ import com.metrolist.music.ui.component.DesktopNavItem
 import com.metrolist.music.ui.component.EmptyPlaceholder
 import com.metrolist.music.ui.component.FilterChipsRow
 import com.metrolist.music.ui.component.MediaRow
+import com.metrolist.music.ui.component.GridItem
 import com.metrolist.music.ui.component.ScreenTopBar
 import com.metrolist.music.ui.component.SectionHeader
 import com.metrolist.music.ui.component.SearchBar
@@ -1185,14 +1187,90 @@ private fun StatsScreen(
     favorites: List<SearchHit>,
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
-        ScreenTitle(title = "Stats", subtitle = "Your listening summary")
-        Column(modifier = Modifier.fillMaxWidth().padding(top = 24.dp)) {
-            Text("Total plays: ${history.size}", style = MaterialTheme.typography.titleMedium)
-            Text("Favorites: ${favorites.size}", style = MaterialTheme.typography.titleMedium)
-            val topArtists = history.groupBy { it.subtitle ?: "Unknown" }.mapValues { it.value.size }.toList().sortedByDescending { it.second }.take(5)
-            Text("Top artists:", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 16.dp))
-            topArtists.forEach { (artist, count) ->
-                Text("  $artist: $count plays", style = MaterialTheme.typography.bodyMedium)
+        ScreenTopBar(title = "Stats")
+
+        if (history.isEmpty() && favorites.isEmpty()) {
+            EmptyPlaceholder(
+                icon = Icons.Default.Insights,
+                title = "No stats yet",
+                subtitle = "Play some music to see your stats.",
+                modifier = Modifier.weight(1f),
+            )
+            return@Column
+        }
+
+        val topSongs =
+            history.groupBy { it.videoId }.values.map { it.first() }
+                .sortedByDescending { song -> history.count { it.videoId == song.videoId } }
+                .take(10)
+        val topArtistCounts =
+            history.mapNotNull { it.subtitle?.takeIf { name -> name.isNotBlank() } }
+                .groupingBy { it }.eachCount()
+                .entries.sortedByDescending { it.value }.take(10)
+
+        LazyColumn(modifier = Modifier.weight(1f)) {
+            item {
+                Text(
+                    text = "Total plays: ${history.size}    Favorites: ${favorites.size}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 12.dp),
+                )
+            }
+            if (topSongs.isNotEmpty()) {
+                item { SectionHeader("Most played songs") }
+                item {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(horizontal = 12.dp)) {
+                        itemsIndexed(topSongs, key = { _, hit -> hit.videoId }) { _, hit ->
+                            GridItem(
+                                title = hit.title,
+                                subtitle = hit.subtitle,
+                                isActive = false,
+                                isBusy = false,
+                                onClick = {},
+                                image = { url, cd, m -> RemoteImage(url, cd, m) },
+                                thumbnailUrl = hit.thumbnailUrl,
+                            )
+                        }
+                    }
+                }
+            }
+            if (topArtistCounts.isNotEmpty()) {
+                item { SectionHeader("Top artists") }
+                item {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(horizontal = 12.dp)) {
+                        items(topArtistCounts, key = { it.key }) { entry ->
+                            val thumb = history.firstOrNull { it.subtitle == entry.key }?.thumbnailUrl
+                            GridItem(
+                                title = entry.key,
+                                subtitle = "${entry.value} plays",
+                                isActive = false,
+                                isBusy = false,
+                                onClick = {},
+                                image = { url, cd, m -> RemoteImage(url, cd, m) },
+                                thumbnailUrl = thumb,
+                            )
+                        }
+                    }
+                }
+            }
+            if (favorites.isNotEmpty()) {
+                item { SectionHeader("Favorites") }
+                item {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(horizontal = 12.dp)) {
+                        itemsIndexed(favorites, key = { _, hit -> hit.videoId }) { _, hit ->
+                            GridItem(
+                                title = hit.title,
+                                subtitle = hit.subtitle,
+                                isActive = false,
+                                isBusy = false,
+                                onClick = {},
+                                image = { url, cd, m -> RemoteImage(url, cd, m) },
+                                thumbnailUrl = hit.thumbnailUrl,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
