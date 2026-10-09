@@ -85,6 +85,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeFloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -806,6 +807,12 @@ private fun MuSicXApp(
                                     nowPlayingId = nowPlaying?.videoId,
                                     busyId = busyId,
                                     onPlay = { index -> playFrom(history, index) },
+                                    onShuffle = {
+                                        if (history.isNotEmpty()) {
+                                            shuffleOn = true
+                                            playFrom(history, Random.nextInt(history.size))
+                                        }
+                                    },
                                     onClearAll = {
                                         history = emptyList()
                                         persistLibrary()
@@ -1113,34 +1120,60 @@ private fun HistoryScreen(
     nowPlayingId: String?,
     busyId: String?,
     onPlay: (Int) -> Unit,
+    onShuffle: () -> Unit,
     onClearAll: () -> Unit,
     isFavorite: (SearchHit) -> Boolean,
     onToggleFavorite: (SearchHit) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
-        ScreenTitle(title = "History", subtitle = "Recently played")
-        if (history.isEmpty()) {
-            Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                Text("No history yet", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        } else {
-            Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                Row(modifier = Modifier.padding(vertical = 8.dp)) {
-                    TextButton(onClick = onClearAll) { Text("Clear all") }
-                }
-                LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                    items(history, key = { it.videoId }) { hit ->
-                        val index = history.indexOf(hit)
-                        ResultRow(
-                            hit = hit,
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
+            ScreenTopBar(
+                title = "History",
+                actions = {
+                    if (history.isNotEmpty()) {
+                        TextButton(onClick = onClearAll) { Text("Clear all") }
+                    }
+                },
+            )
+            if (history.isEmpty()) {
+                EmptyPlaceholder(
+                    icon = Icons.Default.History,
+                    title = "No history yet",
+                    subtitle = "Play a song and it'll show up here.",
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f).padding(bottom = 96.dp)) {
+                    item { SectionHeader("Recently played") }
+                    itemsIndexed(history, key = { _, hit -> hit.videoId }) { index, hit ->
+                        MediaRow(
+                            title = hit.title,
+                            subtitle = hit.subtitle,
+                            thumbnailUrl = hit.thumbnailUrl,
                             isActive = hit.videoId == nowPlayingId,
                             isBusy = busyId == hit.videoId,
                             onClick = { onPlay(index) },
-                            isFavorite = isFavorite(hit),
-                            onToggleFavorite = { onToggleFavorite(hit) },
+                            image = { url, cd, m -> RemoteImage(url, cd, m) },
+                            trailing = {
+                                IconButton(onClick = { onToggleFavorite(hit) }) {
+                                    Icon(
+                                        if (isFavorite(hit)) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                        contentDescription = "Favorite",
+                                    )
+                                }
+                            },
                         )
                     }
                 }
+            }
+        }
+
+        if (history.isNotEmpty()) {
+            LargeFloatingActionButton(
+                onClick = onShuffle,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(24.dp),
+            ) {
+                Icon(Icons.Default.Shuffle, contentDescription = "Shuffle")
             }
         }
     }
