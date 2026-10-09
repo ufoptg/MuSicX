@@ -86,9 +86,6 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -186,7 +183,7 @@ private fun MuSicXTheme(
 
 /**
  * Top-level navigation destinations, mirroring the Android app's bottom-navigation sections.
- * On desktop these are shown in a left-hand [NavigationRail].
+ * On desktop these are shown in a left-hand [AppNavigationRail].
  */
 private enum class Destination(
     val route: String,
@@ -732,7 +729,6 @@ private fun MuSicXApp(
                                     loading = homeLoading,
                                     error = homeError,
                                     hideYoutubeHome = hideYoutubeHome,
-                                    spotifyHomeActive = DesktopSpotify.spotifyHomeActive(prefs),
                                     nowPlayingId = nowPlaying?.videoId,
                                     busyId = busyId,
                                     onPlay = { list, index -> playFrom(list, index) },

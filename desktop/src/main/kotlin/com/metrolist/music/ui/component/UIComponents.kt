@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -86,7 +87,15 @@ fun GridItem(
                 modifier = Modifier.fillMaxWidth().height(Dimensions.GridThumbnailHeight),
                 isActive = isActive,
             )
-            OverlayPlayButton(visible = isActive, modifier = Modifier.align(Alignment.Center))
+            if (isBusy) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center).size(28.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            } else {
+                OverlayPlayButton(visible = isActive, modifier = Modifier.align(Alignment.Center))
+            }
         }
         Text(
             text = title,
@@ -151,6 +160,14 @@ fun ListItem(
                 )
             }
         }
-        trailing?.invoke()
+        if (isBusy) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        } else {
+            trailing?.invoke()
+        }
     }
 }

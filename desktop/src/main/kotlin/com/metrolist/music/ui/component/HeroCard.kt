@@ -45,7 +45,7 @@ fun HeroCard(
                     contentDescription = title,
                     image = image,
                     modifier = Modifier.fillMaxWidth().height(160.dp),
-                    isActive = true,
+                    isActive = isPlaying,
                 )
             }
             Row(

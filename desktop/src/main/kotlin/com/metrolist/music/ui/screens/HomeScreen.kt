@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -50,7 +51,6 @@ fun HomeScreen(
     loading: Boolean,
     error: String?,
     hideYoutubeHome: Boolean,
-    spotifyHomeActive: Boolean,
     nowPlayingId: String?,
     busyId: String?,
     onPlay: (List<SearchHit>, Int) -> Unit,
@@ -82,14 +82,20 @@ fun HomeScreen(
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when {
-                hideYoutubeHome -> CenteredMessage(
-                    "YouTube home is hidden while Spotify home only is enabled.",
-                )
-                loading -> Box(Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) {
+                hideYoutubeHome -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "YouTube home is hidden while Spotify home only is enabled.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(24.dp),
+                    )
+                }
+                loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
                 error != null -> Column(
-                    modifier = Modifier.fillMaxWidth().padding(24.dp),
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
+                    verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
@@ -100,60 +106,67 @@ fun HomeScreen(
                         modifier = Modifier.clickable(onClick = onRetry).padding(8.dp),
                     )
                 }
-                else -> LazyColumn(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(bottom = 96.dp)) {
-                    if (recentlyPlayed.isNotEmpty()) {
-                        item(key = "hero") {
-                            HeroCard(
-                                title = recentlyPlayed.first().title,
-                                subtitle = recentlyPlayed.first().subtitle,
-                                thumbnailUrl = recentlyPlayed.first().thumbnailUrl,
-                                isPlaying = recentlyPlayed.any { it.videoId == nowPlayingId },
-                                onPlayPause = { onPlay(recentlyPlayed, 0) },
-                                image = image,
-                            )
+                else -> {
+                    val heroIndex = recentlyPlayed.indexOfFirst { it.videoId == nowPlayingId }.takeIf { it >= 0 } ?: 0
+                    val heroTrack = recentlyPlayed.getOrNull(heroIndex)
+
+                    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
+                        if (heroTrack != null) {
+                            item(key = "hero") {
+                                HeroCard(
+                                    title = heroTrack.title,
+                                    subtitle = heroTrack.subtitle,
+                                    thumbnailUrl = heroTrack.thumbnailUrl,
+                                    isPlaying = heroTrack.videoId == nowPlayingId,
+                                    onPlayPause = { onPlay(recentlyPlayed, heroIndex) },
+                                    image = image,
+                                )
+                            }
                         }
-                        item(key = "recently_played_header") {
-                            SectionHeader("Recently played")
-                        }
-                        item(key = "recently_played_row") {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            ) {
-                                itemsIndexed(recentlyPlayed, key = { _, hit -> hit.videoId }) { index, hit ->
-                                    GridItem(
-                                        title = hit.title,
-                                        subtitle = hit.subtitle,
-                                        isActive = hit.videoId == nowPlayingId,
-                                        isBusy = hit.videoId == busyId,
-                                        onClick = { onPlay(recentlyPlayed, index) },
-                                        image = image,
-                                        thumbnailUrl = hit.thumbnailUrl,
-                                    )
+                        if (recentlyPlayed.isNotEmpty()) {
+                            item(key = "recently_played_header") {
+                                SectionHeader("Recently played")
+                            }
+                            item(key = "recently_played_row") {
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                ) {
+                                    itemsIndexed(recentlyPlayed, key = { _, hit -> hit.videoId }) { index, hit ->
+                                        GridItem(
+                                            title = hit.title,
+                                            subtitle = hit.subtitle,
+                                            isActive = hit.videoId == nowPlayingId,
+                                            isBusy = hit.videoId == busyId,
+                                            onClick = { onPlay(recentlyPlayed, index) },
+                                            image = image,
+                                            thumbnailUrl = hit.thumbnailUrl,
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    rows.forEach { row ->
-                        item(key = "header_${row.title}") {
-                            SectionHeader(row.title)
-                        }
-                        item(key = "row_${row.title}") {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            ) {
-                                itemsIndexed(row.items, key = { _, hit -> hit.videoId }) { index, hit ->
-                                    GridItem(
-                                        title = hit.title,
-                                        subtitle = hit.subtitle,
-                                        isActive = hit.videoId == nowPlayingId,
-                                        isBusy = hit.videoId == busyId,
-                                        onClick = { onPlay(row.items, index) },
-                                        image = image,
-                                        thumbnailUrl = hit.thumbnailUrl,
-                                    )
+                        rows.forEachIndexed { rowIndex, row ->
+                            item(key = "header_$rowIndex") {
+                                SectionHeader(row.title)
+                            }
+                            item(key = "row_$rowIndex") {
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                ) {
+                                    itemsIndexed(row.items, key = { _, hit -> hit.videoId }) { index, hit ->
+                                        GridItem(
+                                            title = hit.title,
+                                            subtitle = hit.subtitle,
+                                            isActive = hit.videoId == nowPlayingId,
+                                            isBusy = hit.videoId == busyId,
+                                            onClick = { onPlay(row.items, index) },
+                                            image = image,
+                                            thumbnailUrl = hit.thumbnailUrl,
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -170,16 +183,5 @@ fun HomeScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun CenteredMessage(message: String) {
-    Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
