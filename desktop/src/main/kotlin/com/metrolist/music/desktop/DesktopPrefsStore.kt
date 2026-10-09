@@ -58,6 +58,8 @@ data class DesktopPrefs(
     val spotifyHomeOnly: Boolean = false,
     /** Sync Spotify likes to the library */
     val syncSpotifyLikes: Boolean = false,
+    /** Include Spotify results in search */
+    val useSpotifySearch: Boolean = true,
     /** Discord rich presence token (client/app id override) */
     val discordToken: String = "",
     /** Discord rich presence enabled */

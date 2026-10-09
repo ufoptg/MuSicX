@@ -8,6 +8,7 @@ package com.metrolist.music.desktop
 
 import com.metrolist.spotify.Spotify
 import com.metrolist.spotify.SpotifyAuth
+import com.metrolist.spotify.models.SpotifySearchResult
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -30,8 +31,18 @@ object DesktopSpotify {
     fun hideYoutubeHome(prefs: DesktopPrefs): Boolean =
         spotifyHomeActive(prefs) && prefs.spotifyHomeOnly
 
-    suspend fun completeLogin(
-        spDc: String,
+    suspend fun search(
+        query: String,
+        prefs: DesktopPrefs,
+        onUpdated: (DesktopPrefs) -> Unit,
+    ): Result<SpotifySearchResult> {
+        if (!ensureAuthenticated(prefs, onUpdated)) {
+            return Result.failure(IllegalStateException("Not signed in to Spotify"))
+        }
+        return Spotify.search(query, types = listOf("track", "album", "playlist"), limit = 8)
+    }
+
+    suspend fun completeLogin(        spDc: String,
         spKey: String,
         prefs: DesktopPrefs,
     ): Result<DesktopPrefs> =
