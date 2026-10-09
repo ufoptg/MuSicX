@@ -19,6 +19,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -108,10 +109,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -3042,13 +3046,7 @@ private fun RemoteImage(
             bitmap = it
             return@LaunchedEffect
         }
-        val loaded =
-            withContext(Dispatchers.IO) {
-                runCatching {
-                    val bytes = URL(url).openStream().use { it.readBytes() }
-                    org.jetbrains.skia.Image.makeFromEncoded(bytes).toComposeImageBitmap()
-                }.getOrNull()
-            }
+        val loaded = loadRemoteBitmap(url)
         if (loaded != null) {
             imageCache[url] = loaded
             bitmap = loaded
@@ -3077,8 +3075,84 @@ private fun RemoteImage(
     }
 }
 
-private fun formatTime(ms: Long): String {
-    if (ms <= 0) return "0:00"
+private suspend fun loadRemoteBitmap(url: String): ImageBitmap? =
+    withContext(Dispatchers.IO) {
+        runCatching {
+            val bytes = URL(url).openStream().use { it.readBytes() }
+            org.jetbrains.skia.Image.makeFromEncoded(bytes).toComposeImageBitmap()
+        }.getOrNull()
+    }
+
+private fun averageColor(bitmap: ImageBitmap): Color {
+    val pixels = bitmap.toPixelMap()
+    var r = 0.0
+    var g = 0.0
+    var b = 0.0
+    var n = 0
+    val stepX = (pixels.width / 16).coerceAtLeast(1)
+    val stepY = (pixels.height / 16).coerceAtLeast(1)
+    var y = 0
+    while (y < pixels.height) {
+        var x = 0
+        while (x < pixels.width) {
+            val c = pixels[x, y]
+            r += c.red
+            g += c.green
+            b += c.blue
+            n++
+            x += stepX
+        }
+        y += stepY
+    }
+    return if (n == 0) Color.Gray else Color((r / n).toFloat(), (g / n).toFloat(), (b / n).toFloat())
+}
+
+@Composable
+private fun rememberArtColor(url: String?): Color {
+    val fallback = MaterialTheme.colorScheme.primary
+    var color by remember(url) { mutableStateOf(fallback) }
+    LaunchedEffect(url) {
+        if (url.isNullOrBlank()) {
+            color = fallback
+            return@LaunchedEffect
+        }
+        val bmp = imageCache[url] ?: loadRemoteBitmap(url)?.also { imageCache[url] = it }
+        if (bmp != null) color = runCatching { averageColor(bmp) }.getOrDefault(fallback)
+    }
+    return color
+}
+
+@Composable
+private fun PlayerBackdrop(
+    style: String,
+    thumbnailUrl: String?,
+    image: @Composable (String?, String?, Modifier) -> Unit,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        when (style) {
+            "blur" -> {
+                if (!thumbnailUrl.isNullOrBlank()) {
+                    image(thumbnailUrl, null, Modifier.matchParentSize().blur(60.dp))
+                }
+                Box(Modifier.matchParentSize().background(MaterialTheme.colorScheme.background.copy(alpha = 0.55f)))
+            }
+            "pure_black" -> Box(Modifier.matchParentSize().background(Color.Black))
+            "gradient" -> {
+                val art = rememberArtColor(thumbnailUrl)
+                Box(
+                    Modifier.matchParentSize().background(
+                        Brush.verticalGradient(listOf(art.copy(alpha = 0.55f), MaterialTheme.colorScheme.background)),
+                    ),
+                )
+            }
+            else -> Box(Modifier.matchParentSize().background(MaterialTheme.colorScheme.background))
+        }
+        content()
+    }
+}
+
+private fun formatTime(ms: Long): String {    if (ms <= 0) return "0:00"
     val totalSeconds = ms / 1000
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
