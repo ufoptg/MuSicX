@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
@@ -43,6 +44,46 @@ import com.metrolist.music.ui.component.HeroCard
 import com.metrolist.music.ui.component.ImageLoader
 import com.metrolist.music.ui.component.SectionHeader
 import com.metrolist.music.ui.theme.Dimensions
+import com.metrolist.spotify.models.SpotifyHomeFeedItem
+import com.metrolist.spotify.models.SpotifyHomeFeedSection
+
+private fun spotifyCardTitle(item: SpotifyHomeFeedItem): String =
+    when (item) {
+        is SpotifyHomeFeedItem.Playlist -> item.name
+        is SpotifyHomeFeedItem.Album -> item.name
+        is SpotifyHomeFeedItem.Artist -> item.name
+    }
+
+private fun spotifyCardSubtitle(item: SpotifyHomeFeedItem): String? =
+    when (item) {
+        is SpotifyHomeFeedItem.Playlist -> item.ownerName ?: "Playlist"
+        is SpotifyHomeFeedItem.Album -> item.artists.joinToString(", ") { it.name }
+        is SpotifyHomeFeedItem.Artist -> "Artist"
+    }
+
+private fun spotifyCardImage(item: SpotifyHomeFeedItem): String? =
+    when (item) {
+        is SpotifyHomeFeedItem.Playlist -> item.imageUrl
+        is SpotifyHomeFeedItem.Album -> item.imageUrl
+        is SpotifyHomeFeedItem.Artist -> item.imageUrl
+    }
+
+@Composable
+private fun SpotifyCard(
+    item: SpotifyHomeFeedItem,
+    onOpen: (SpotifyHomeFeedItem) -> Unit,
+    image: ImageLoader,
+) {
+    GridItem(
+        title = spotifyCardTitle(item),
+        subtitle = spotifyCardSubtitle(item),
+        isActive = false,
+        isBusy = false,
+        onClick = { onOpen(item) },
+        image = image,
+        thumbnailUrl = spotifyCardImage(item),
+    )
+}
 
 @Composable
 fun HomeScreen(
@@ -58,6 +99,9 @@ fun HomeScreen(
     onOpenHistory: () -> Unit,
     onOpenStats: () -> Unit,
     onRetry: () -> Unit,
+    spotifySections: List<SpotifyHomeFeedSection> = emptyList(),
+    spotifyLoading: Boolean = false,
+    onOpenSpotifyItem: (SpotifyHomeFeedItem) -> Unit = {},
     image: ImageLoader,
     modifier: Modifier = Modifier,
 ) {
@@ -82,13 +126,37 @@ fun HomeScreen(
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when {
-                hideYoutubeHome -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "YouTube home is hidden while Spotify home only is enabled.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(24.dp),
-                    )
+                hideYoutubeHome -> {
+                    if (spotifySections.isNotEmpty()) {
+                        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
+                            spotifySections.forEachIndexed { sectionIndex, section ->
+                                item(key = "sp_h_$sectionIndex") { SectionHeader(section.title ?: "For you") }
+                                item(key = "sp_r_$sectionIndex") {
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    ) {
+                                        items(section.items, key = { it.uri }) { card ->
+                                            SpotifyCard(card, onOpenSpotifyItem, image)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else if (spotifyLoading) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        }
+                    } else {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "Spotify home is empty — sign in to Spotify or check your connection.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(24.dp),
+                            )
+                        }
+                    }
                 }
                 loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -111,6 +179,19 @@ fun HomeScreen(
                     val heroTrack = recentlyPlayed.getOrNull(heroIndex)
 
                     LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
+                        spotifySections.forEachIndexed { sectionIndex, section ->
+                            item(key = "sp_h_$sectionIndex") { SectionHeader(section.title ?: "For you") }
+                            item(key = "sp_r_$sectionIndex") {
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                ) {
+                                    items(section.items, key = { it.uri }) { card ->
+                                        SpotifyCard(card, onOpenSpotifyItem, image)
+                                    }
+                                }
+                            }
+                        }
                         if (heroTrack != null) {
                             item(key = "hero") {
                                 HeroCard(

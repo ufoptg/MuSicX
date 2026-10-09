@@ -145,6 +145,8 @@ import com.metrolist.spotify.models.SpotifySearchResult
 import com.metrolist.spotify.models.SpotifySavedTrack
 import com.metrolist.spotify.models.SpotifyAlbum
 import com.metrolist.spotify.models.SpotifyArtist
+import com.metrolist.spotify.models.SpotifyHomeFeedItem
+import com.metrolist.spotify.models.SpotifyHomeFeedSection
 import com.metrolist.spotify.models.SpotifyPlaylist
 import com.metrolist.spotify.models.SpotifyTrack
 import kotlinx.coroutines.Dispatchers
@@ -374,6 +376,8 @@ private fun MuSicXApp(
     var spotifyPlaylistsTotal by remember { mutableStateOf(0) }
     var openSpotifyDetail by remember { mutableStateOf<SpotifyDetailState?>(null) }
     var resolvingSpotifyDetail by remember { mutableStateOf(false) }
+    var spotifyHomeSections by remember { mutableStateOf<List<SpotifyHomeFeedSection>>(emptyList()) }
+    var spotifyHomeLoading by remember { mutableStateOf(false) }
 
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -488,6 +492,7 @@ private fun MuSicXApp(
     var settingsSubScreen by remember { mutableStateOf<String?>(null) }
 
     val hideYoutubeHome = DesktopSpotify.hideYoutubeHome(prefs)
+    val spotifyHomeActive = DesktopSpotify.spotifyHomeActive(prefs)
 
     val nowPlaying = queue.getOrNull(currentIndex)
 
@@ -942,12 +947,58 @@ private fun MuSicXApp(
         }
     }
 
+    fun openSpotifyDetailById(
+        type: SpotifyDetailType,
+        id: String,
+        title: String,
+        subtitle: String?,
+        thumb: String?,
+        loader: suspend (String) -> List<SpotifyTrack>,
+    ) {
+        openSpotifyDetail = SpotifyDetailState(type, id, title, subtitle, thumb, emptyList(), true)
+        scope.launch(Dispatchers.IO) {
+            val tracks = loader(id)
+            openSpotifyDetail = openSpotifyDetail?.takeIf { it.id == id }?.copy(tracks = tracks, loading = false)
+        }
+    }
+
+    fun openSpotifyHomeItem(item: SpotifyHomeFeedItem) {
+        when (item) {
+            is SpotifyHomeFeedItem.Playlist ->
+                openSpotifyDetailById(SpotifyDetailType.Playlist, item.id, item.name, item.ownerName, item.imageUrl) { id ->
+                    DesktopSpotify.playlistTracks(id, prefs, onUpdated = { onPrefsChange(it) })
+                        .getOrNull()?.items?.mapNotNull { it.track }.orEmpty()
+                }
+            is SpotifyHomeFeedItem.Album ->
+                openSpotifyDetailById(SpotifyDetailType.Album, item.id, item.name, item.artists.joinToString(", ") { it.name }, item.imageUrl) { id ->
+                    DesktopSpotify.album(id, prefs, onUpdated = { onPrefsChange(it) })
+                        .getOrNull()?.tracks?.items.orEmpty()
+                }
+            is SpotifyHomeFeedItem.Artist ->
+                openSpotifyArtist(item.id, item.name, item.imageUrl)
+        }
+    }
+
+    LaunchedEffect(spotifyHomeActive, prefs.spDc) {
+        if (spotifyHomeActive && DesktopSpotify.isLoggedIn(prefs)) {
+            spotifyHomeLoading = true
+            withContext(Dispatchers.IO) {
+                spotifyHomeSections =
+                    DesktopSpotify.home(prefs, onUpdated = { onPrefsChange(it) }).getOrNull()?.sections.orEmpty()
+            }
+            spotifyHomeLoading = false
+        } else {
+            spotifyHomeSections = emptyList()
+        }
+    }
+
     LaunchedEffect(prefs.spDc) {
         spotifyLiked = emptyList()
         spotifyLikedTotal = 0
         spotifyPlaylists = emptyList()
         spotifyPlaylistsTotal = 0
         openSpotifyDetail = null
+        spotifyHomeSections = emptyList()
     }
 
     fun loadMoreSpotifyLiked() {
@@ -1038,6 +1089,9 @@ private fun MuSicXApp(
                                     onOpenHistory = { destination = Destination.History; openDetail = null },
                                     onOpenStats = { destination = Destination.Stats; openDetail = null },
                                     onRetry = { homeRows = emptyList(); loadHome() },
+                                    spotifySections = spotifyHomeSections,
+                                    spotifyLoading = spotifyHomeLoading,
+                                    onOpenSpotifyItem = ::openSpotifyHomeItem,
                                     image = { url, cd, m -> RemoteImage(url, cd, m) },
                                 )
                             Destination.Search ->

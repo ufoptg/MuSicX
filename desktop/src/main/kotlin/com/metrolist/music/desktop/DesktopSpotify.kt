@@ -9,6 +9,7 @@ package com.metrolist.music.desktop
 import com.metrolist.spotify.Spotify
 import com.metrolist.spotify.SpotifyAuth
 import com.metrolist.spotify.models.SpotifyAlbum
+import com.metrolist.spotify.models.SpotifyHomeFeed
 import com.metrolist.spotify.models.SpotifyPaging
 import com.metrolist.spotify.models.SpotifyPlaylist
 import com.metrolist.spotify.models.SpotifyPlaylistTrack
@@ -84,6 +85,16 @@ object DesktopSpotify {
     suspend fun artistTopTracks(id: String, prefs: DesktopPrefs, onUpdated: (DesktopPrefs) -> Unit): Result<List<SpotifyTrack>> {
         if (!ensureAuthenticated(prefs, onUpdated)) return Result.failure(IllegalStateException("Not signed in to Spotify"))
         return Spotify.artistTopTracks(id).map { it.tracks }
+    }
+
+    suspend fun home(prefs: DesktopPrefs, onUpdated: (DesktopPrefs) -> Unit): Result<SpotifyHomeFeed> {
+        if (!ensureAuthenticated(prefs, onUpdated)) return Result.failure(IllegalStateException("Not signed in to Spotify"))
+        return Spotify.home()
+    }
+
+    suspend fun me(prefs: DesktopPrefs, onUpdated: (DesktopPrefs) -> Unit): Result<com.metrolist.spotify.models.SpotifyUser> {
+        if (!ensureAuthenticated(prefs, onUpdated)) return Result.failure(IllegalStateException("Not signed in to Spotify"))
+        return Spotify.me()
     }
 
     suspend fun likedSongs(
