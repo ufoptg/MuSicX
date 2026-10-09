@@ -979,6 +979,32 @@ private fun MuSicXApp(
         }
     }
 
+    var spotifyPreloadStatus by remember { mutableStateOf<String?>(null) }
+
+    fun preloadSpotify() {
+        scope.launch {
+            spotifyPreloadStatus = "Preloading…"
+            val source =
+                if (spotifyLiked.isNotEmpty()) {
+                    spotifyLiked.map { it.track }
+                } else {
+                    DesktopSpotify.likedSongs(prefs, onUpdated = { onPrefsChange(it) }).getOrNull()?.items?.map { it.track }.orEmpty()
+                }
+            val matched = withContext(Dispatchers.IO) { source.count { DesktopSpotifyMatcher.resolveToYouTube(client, it) != null } }
+            spotifyPreloadStatus = "Matched $matched / ${source.size} tracks"
+        }
+    }
+
+    fun syncSpotifyLikesNow() {
+        scope.launch(Dispatchers.IO) {
+            val liked = DesktopSpotify.likedSongs(prefs, onUpdated = { onPrefsChange(it) }).getOrNull()?.items.orEmpty()
+            val matched = liked.mapNotNull { DesktopSpotifyMatcher.resolveToYouTube(client, it.track) }
+            val merged = (favorites + matched).distinctBy { it.videoId }
+            favorites = merged
+            persistLibrary()
+        }
+    }
+
     LaunchedEffect(spotifyHomeActive, prefs.spDc) {
         if (spotifyHomeActive && DesktopSpotify.isLoggedIn(prefs)) {
             spotifyHomeLoading = true
@@ -1222,6 +1248,9 @@ private fun MuSicXApp(
                                             onBack = { settingsSubScreen = null },
                                             prefs = prefs,
                                             onPrefsChange = onPrefsChange,
+                                            onSyncSpotifyLikes = ::syncSpotifyLikesNow,
+                                            onPreloadSpotify = ::preloadSpotify,
+                                            preloadStatus = spotifyPreloadStatus,
                                         )
                                     settingsSection == SettingsSection.Appearance ->
                                         SettingsAppearanceScreen(
@@ -1332,6 +1361,9 @@ private fun MuSicXApp(
                                     onPlayDownloads = { index -> playFrom(downloads.map { it.toHit() }, index) },
                                     onRemoveDownload = { info -> toggleDownload(info.toHit()) },
                                     spotifyAvailable = prefs.enableSpotify && DesktopSpotify.isLoggedIn(prefs),
+                                    hideYtmLiked = prefs.hideYtmLikedSongs,
+                                    spotifyLikedSortByTitle = prefs.spotifyLikedSortByTitle,
+                                    spotifyPlaylistsSortByTitle = prefs.spotifyPlaylistSortByTitle,
                                     spotifyLiked = spotifyLiked,
                                     spotifyLikedLoading = spotifyLikedLoading,
                                     spotifyLikedTotal = spotifyLikedTotal,
@@ -2147,9 +2179,12 @@ private fun LibraryScreen(
     onPlayDownloads: (Int) -> Unit,
     onRemoveDownload: (DownloadInfo) -> Unit,
     spotifyAvailable: Boolean,
+    hideYtmLiked: Boolean,
     spotifyLiked: List<SpotifySavedTrack>,
     spotifyLikedLoading: Boolean,
     spotifyLikedTotal: Int,
+    spotifyLikedSortByTitle: Boolean,
+    spotifyPlaylistsSortByTitle: Boolean,
     spotifyPlaylists: List<SpotifyPlaylist>,
     matchingSpotifyId: String?,
     onPlaySpotifyLiked: (SpotifySavedTrack) -> Unit,
@@ -2158,10 +2193,13 @@ private fun LibraryScreen(
 ) {
     var tab by remember { mutableStateOf(0) } // 0 Favorites, 1 History, 2 Playlists, 3 Liked, 4 Downloads, 5 Spotify
     LaunchedEffect(spotifyAvailable) { if (!spotifyAvailable && tab == 5) tab = 0 }
+    LaunchedEffect(hideYtmLiked) { if (hideYtmLiked && tab == 3) tab = 0 }
     val list = if (tab == 0) favorites else history
     val onPlayIndex = if (tab == 0) onPlayFavorites else onPlayHistory
     val onClear = if (tab == 0) onClearFavorites else onClearHistory
     val showClear = tab <= 1 && list.isNotEmpty()
+    val likedSorted = if (spotifyLikedSortByTitle) spotifyLiked.sortedBy { it.track.name.lowercase() } else spotifyLiked
+    val playlistsSorted = if (spotifyPlaylistsSortByTitle) spotifyPlaylists.sortedBy { it.name.lowercase() } else spotifyPlaylists
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
         ScreenTopBar(
@@ -2175,14 +2213,19 @@ private fun LibraryScreen(
                 }
             },
         )
+        val tabs =
+            buildList {
+                add(0 to "Favorites")
+                add(1 to "History")
+                add(2 to "Playlists")
+                if (!hideYtmLiked) add(3 to "Liked")
+                add(4 to "Downloads")
+                if (spotifyAvailable) add(5 to "Spotify")
+            }
         FilterChipsRow(
-            options =
-                buildList {
-                    addAll(listOf("Favorites", "History", "Playlists", "Liked", "Downloads"))
-                    if (spotifyAvailable) add("Spotify")
-                },
-            selectedIndex = tab,
-            onSelect = { tab = it },
+            options = tabs.map { it.second },
+            selectedIndex = tabs.indexOfFirst { it.first == tab }.coerceAtLeast(0),
+            onSelect = { position -> tab = tabs.getOrNull(position)?.first ?: 0 },
         )
         when (tab) {
             0, 1 ->
@@ -2331,11 +2374,11 @@ private fun LibraryScreen(
                 }
             5 ->
                 when {
-                    spotifyLikedLoading && spotifyPlaylists.isEmpty() && spotifyLiked.isEmpty() ->
+                    spotifyLikedLoading && playlistsSorted.isEmpty() && likedSorted.isEmpty() ->
                         Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         }
-                    spotifyPlaylists.isEmpty() && spotifyLiked.isEmpty() ->
+                    playlistsSorted.isEmpty() && likedSorted.isEmpty() ->
                         EmptyPlaceholder(
                             icon = Icons.Default.MusicNote,
                             title = "No Spotify library",
@@ -2343,9 +2386,9 @@ private fun LibraryScreen(
                         )
                     else ->
                         LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
-                            if (spotifyPlaylists.isNotEmpty()) {
+                            if (playlistsSorted.isNotEmpty()) {
                                 item { SectionHeader("Playlists") }
-                                items(spotifyPlaylists, key = { "sp-playlist-${it.id}" }) { playlist ->
+                                items(playlistsSorted, key = { "sp-playlist-${it.id}" }) { playlist ->
                                     MediaRow(
                                         title = playlist.name,
                                         subtitle = playlist.owner?.displayName ?: "${playlist.tracks?.total ?: 0} songs",
@@ -2357,9 +2400,9 @@ private fun LibraryScreen(
                                     )
                                 }
                             }
-                            if (spotifyLiked.isNotEmpty()) {
+                            if (likedSorted.isNotEmpty()) {
                                 item { SectionHeader("Liked songs") }
-                                itemsIndexed(spotifyLiked, key = { index, saved -> "spotify-${spotifyIdentity(saved.track)}-$index" }) { _, saved ->
+                                itemsIndexed(likedSorted, key = { index, saved -> "spotify-${spotifyIdentity(saved.track)}-$index" }) { _, saved ->
                                     MediaRow(
                                         title = saved.track.name,
                                         subtitle = saved.track.artists.joinToString(", ") { it.name },
@@ -3040,6 +3083,9 @@ private fun SettingsSpotifyScreen(
     onBack: () -> Unit,
     prefs: DesktopPrefs,
     onPrefsChange: (DesktopPrefs) -> Unit,
+    onSyncSpotifyLikes: () -> Unit,
+    onPreloadSpotify: () -> Unit,
+    preloadStatus: String?,
 ) {
     val scope = rememberCoroutineScope()
     var showLogin by remember { mutableStateOf(false) }
@@ -3134,6 +3180,37 @@ private fun SettingsSpotifyScreen(
                 checked = prefs.useSpotifySearch,
                 enabled = true,
                 onCheckedChange = { update(prefs.copy(useSpotifySearch = it)) },
+            )
+            SettingsRowItem("Account", prefs.spotifyUsername.ifBlank { "Connected" })
+            SettingsToggleItem(
+                "Sync Spotify likes to library",
+                checked = prefs.syncSpotifyLikes,
+                enabled = true,
+                onCheckedChange = { enabled ->
+                    update(prefs.copy(syncSpotifyLikes = enabled))
+                    if (enabled) onSyncSpotifyLikes()
+                },
+            )
+            SettingsToggleItem(
+                "Hide YouTube Music liked songs",
+                checked = prefs.hideYtmLikedSongs,
+                enabled = true,
+                onCheckedChange = { update(prefs.copy(hideYtmLikedSongs = it)) },
+            )
+            SettingsRowItem(
+                "Sort liked songs by title",
+                if (prefs.spotifyLikedSortByTitle) "A–Z" else "Spotify order",
+                onClick = { update(prefs.copy(spotifyLikedSortByTitle = !prefs.spotifyLikedSortByTitle)) },
+            )
+            SettingsRowItem(
+                "Sort Spotify playlists by title",
+                if (prefs.spotifyPlaylistSortByTitle) "A–Z" else "Spotify order",
+                onClick = { update(prefs.copy(spotifyPlaylistSortByTitle = !prefs.spotifyPlaylistSortByTitle)) },
+            )
+            SettingsRowItem(
+                "Preload library",
+                preloadStatus ?: "Match Spotify tracks to YouTube in advance",
+                onClick = onPreloadSpotify,
             )
         }
     }

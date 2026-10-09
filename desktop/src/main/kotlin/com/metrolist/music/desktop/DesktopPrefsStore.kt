@@ -60,6 +60,15 @@ data class DesktopPrefs(
     val syncSpotifyLikes: Boolean = false,
     /** Include Spotify results in search */
     val useSpotifySearch: Boolean = true,
+    /** Hide the YouTube Music liked-songs tab when Spotify is active */
+    val hideYtmLikedSongs: Boolean = false,
+    /** Spotify account display name (populated on login) */
+    val spotifyUsername: String = "",
+    /** Spotify account id (populated on login) */
+    val spotifyUserId: String = "",
+    /** Sort Spotify liked songs / playlists by title A-Z instead of Spotify order */
+    val spotifyLikedSortByTitle: Boolean = false,
+    val spotifyPlaylistSortByTitle: Boolean = false,
     /** Discord rich presence token (client/app id override) */
     val discordToken: String = "",
     /** Discord rich presence enabled */

@@ -116,11 +116,14 @@ object DesktopSpotify {
     ): Result<DesktopPrefs> =
         SpotifyAuth.fetchAccessToken(spDc, spKey).map { token ->
             Spotify.accessToken = token.accessToken
+            val user = runCatching { Spotify.me().getOrNull() }.getOrNull()
             prefs.copy(
                 spDc = spDc,
                 spKey = spKey,
                 spotifyAccessToken = token.accessToken,
                 spotifyTokenExpiry = token.accessTokenExpirationTimestampMs,
+                spotifyUsername = user?.displayName ?: user?.id ?: "",
+                spotifyUserId = user?.id ?: "",
             )
         }
 
