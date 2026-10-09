@@ -42,7 +42,8 @@ object DesktopSpotify {
         return Spotify.search(query, types = listOf("track", "album", "playlist"), limit = 8)
     }
 
-    suspend fun completeLogin(        spDc: String,
+    suspend fun completeLogin(
+        spDc: String,
         spKey: String,
         prefs: DesktopPrefs,
     ): Result<DesktopPrefs> =

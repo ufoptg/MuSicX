@@ -32,11 +32,15 @@ object DesktopSpotifyMatcher {
         }
 
     suspend fun resolveToYouTube(client: DesktopInnerTube, track: SpotifyTrack): SearchHit? {
-        cache[track.id]?.let { id -> return SearchHit(id, track.name, track.artists.firstOrNull()?.name) }
+        if (track.id.isNotEmpty()) {
+            synchronized(cache) { cache[track.id] }?.let { id ->
+                return SearchHit(id, track.name, track.artists.firstOrNull()?.name)
+            }
+        }
         val query = SpotifyMapper.buildSearchQuery(track)
         val candidates = runCatching { client.searchSongs(query).take(8) }.getOrDefault(emptyList())
         val match = bestMatch(track, candidates) ?: return null
-        if (track.id.isNotEmpty()) cache[track.id] = match.videoId
+        if (track.id.isNotEmpty()) synchronized(cache) { cache[track.id] = match.videoId }
         return match
     }
 }

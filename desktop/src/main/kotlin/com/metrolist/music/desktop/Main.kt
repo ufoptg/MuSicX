@@ -241,6 +241,8 @@ private fun nextPlayerBackground(current: String): String {
     return playerBackgroundOptions[(index + 1) % playerBackgroundOptions.size]
 }
 
+private fun spotifyIdentity(track: SpotifyTrack): String = track.id.ifEmpty { track.uri ?: track.name }
+
 private fun openInBrowser(url: String) {
     runCatching {
         if (java.awt.Desktop.isDesktopSupported()) {
@@ -728,31 +730,38 @@ private fun MuSicXApp(
             loading = true
             error = null
             spotifyResults = emptyList()
-            spotifyLoading = prefs.enableSpotify && prefs.useSpotifySearch && DesktopSpotify.isLoggedIn(prefs)
+            val spotifyActive = prefs.enableSpotify && prefs.useSpotifySearch && DesktopSpotify.isLoggedIn(prefs)
+            spotifyLoading = spotifyActive
             try {
                 songResults = client.searchSongs(q)
                 albumResults = client.searchAlbums(q)
                 artistResults = client.searchArtists(q)
                 playlistResults = client.searchPlaylists(q)
-                if (songResults.isEmpty() && albumResults.isEmpty() && artistResults.isEmpty() && playlistResults.isEmpty() && spotifyResults.isEmpty()) {
-                    error = "No results found"
-                }
             } catch (t: Throwable) {
                 songResults = emptyList()
                 albumResults = emptyList()
                 artistResults = emptyList()
                 playlistResults = emptyList()
                 error = t.message ?: t::class.simpleName ?: "Search failed"
-            } finally {
-                loading = false
             }
-        }
-        if (prefs.enableSpotify && prefs.useSpotifySearch && DesktopSpotify.isLoggedIn(prefs)) {
-            scope.launch {
+            if (spotifyActive) {
                 spotifyResults =
-                    DesktopSpotify.search(q, prefs) { onPrefsChange(it) }.getOrDefault(SpotifySearchResult()).tracks?.items.orEmpty()
+                    DesktopSpotify.search(q, prefs) { onPrefsChange(it) }
+                        .getOrNull()
+                        ?.tracks?.items
+                        .orEmpty()
                 spotifyLoading = false
             }
+            if (error == null &&
+                songResults.isEmpty() &&
+                albumResults.isEmpty() &&
+                artistResults.isEmpty() &&
+                playlistResults.isEmpty() &&
+                spotifyResults.isEmpty()
+            ) {
+                error = "No results found"
+            }
+            loading = false
         }
     }
 
@@ -882,7 +891,7 @@ private fun MuSicXApp(
                                     spotifyLoading = spotifyLoading,
                                     matchingSpotifyId = matchingSpotifyId,
                                     onPlaySpotifyTrack = { track ->
-                                        matchingSpotifyId = track.id
+                                        matchingSpotifyId = spotifyIdentity(track)
                                         scope.launch {
                                             val hit = withContext(Dispatchers.IO) { DesktopSpotifyMatcher.resolveToYouTube(client, track) }
                                             matchingSpotifyId = null
@@ -1536,13 +1545,13 @@ private fun SearchScreen(
                                 }
                             }
                         } else {
-                            items(spotifyTracks, key = { "spotify-${it.id}" }) { track ->
+                            itemsIndexed(spotifyTracks, key = { index, t -> "spotify-${spotifyIdentity(t)}-$index" }) { _, track ->
                                 MediaRow(
                                     title = track.name,
                                     subtitle = track.artists.joinToString(", ") { it.name },
                                     thumbnailUrl = SpotifyMapper.getTrackThumbnail(track),
                                     isActive = false,
-                                    isBusy = matchingSpotifyId == track.id,
+                                    isBusy = matchingSpotifyId != null && matchingSpotifyId == spotifyIdentity(track),
                                     onClick = { onPlaySpotifyTrack(track) },
                                     image = { url, cd, m -> RemoteImage(url, cd, m) },
                                 )
