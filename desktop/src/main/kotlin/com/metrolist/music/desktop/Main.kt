@@ -241,6 +241,13 @@ private val aiProviders =
 private val contentLanguages = listOf("en", "es", "fr", "de", "ja", "ko", "zh-CN", "pt", "ru", "hi")
 private val contentCountries = listOf("US", "GB", "CA", "AU", "DE", "FR", "JP", "KR", "BR", "IN")
 private val playerBackgroundOptions = listOf("default", "gradient", "blur", "pure_black")
+private val qobuzCountries = listOf("US", "FR", "NL", "NZ", "JP", "DE", "GB", "CA")
+
+private fun nextQobuzQuality(current: String): String {
+    val entries = DesktopQobuzQuality.entries
+    val index = entries.indexOfFirst { it.name.equals(current, ignoreCase = true) }
+    return entries[(index.coerceAtLeast(0) + 1) % entries.size].name
+}
 
 private fun nextPlayerBackground(current: String): String {
     val index = playerBackgroundOptions.indexOf(current).coerceAtLeast(0)
@@ -359,6 +366,8 @@ private fun MuSicXApp(
     onPrefsChange: (DesktopPrefs) -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
+    val qobuz = remember { DesktopQobuz() }
+    DisposableEffect(Unit) { onDispose { qobuz.close() } }
     var songResults by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
     var albumResults by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
     var artistResults by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
@@ -547,7 +556,32 @@ private fun MuSicXApp(
                     val stream = withContext(Dispatchers.IO) { client.resolveAudioStream(hit.videoId, prefs.playerQuality) }
                     DesktopLog.log("playHit: resolved in ${System.currentTimeMillis() - resolveStart} ms")
                     if (sleepStopped) return@launch
-                    player.play(stream)
+                    val qobuzUrl =
+                        if (prefs.enableQobuz) {
+                            withContext(Dispatchers.IO) {
+                                runCatching {
+                                    qobuz.resolve(
+                                        title = hit.title,
+                                        artists = listOfNotNull(hit.subtitle),
+                                        album = null,
+                                        isrc = null,
+                                        durationMs = null,
+                                        quality = DesktopQobuzQuality.fromName(prefs.qobuzAudioQuality),
+                                        backend = DesktopQobuzBackend.fromName(prefs.qobuzBackend),
+                                        countryCode = prefs.qobuzCountry,
+                                    )
+                                }.getOrNull()
+                            }
+                        } else {
+                            null
+                        }
+                    if (sleepStopped) return@launch
+                    if (qobuzUrl != null) {
+                        DesktopLog.log("playHit: Qobuz stream ${qobuzUrl.take(80)}")
+                        player.playUrl(qobuzUrl, referer = "https://play.qobuz.com")
+                    } else {
+                        player.play(stream)
+                    }
                 }
                 if (sleepStopped) {
                     player.stop()
@@ -980,6 +1014,7 @@ private fun MuSicXApp(
     }
 
     var spotifyPreloadStatus by remember { mutableStateOf<String?>(null) }
+    var spotifySyncStatus by remember { mutableStateOf<String?>(null) }
 
     fun preloadSpotify() {
         scope.launch {
@@ -996,12 +1031,17 @@ private fun MuSicXApp(
     }
 
     fun syncSpotifyLikesNow() {
-        scope.launch(Dispatchers.IO) {
-            val liked = DesktopSpotify.likedSongs(prefs, onUpdated = { onPrefsChange(it) }).getOrNull()?.items.orEmpty()
-            val matched = liked.mapNotNull { DesktopSpotifyMatcher.resolveToYouTube(client, it.track) }
+        scope.launch {
+            spotifySyncStatus = "Syncing…"
+            val matched =
+                withContext(Dispatchers.IO) {
+                    val liked = DesktopSpotify.likedSongs(prefs, onUpdated = { onPrefsChange(it) }).getOrNull()?.items.orEmpty()
+                    liked.mapNotNull { DesktopSpotifyMatcher.resolveToYouTube(client, it.track) }
+                }
             val merged = (favorites + matched).distinctBy { it.videoId }
             favorites = merged
             persistLibrary()
+            spotifySyncStatus = if (matched.isEmpty()) "No tracks synced" else "Synced ${matched.size} tracks"
         }
     }
 
@@ -1251,6 +1291,7 @@ private fun MuSicXApp(
                                             onSyncSpotifyLikes = ::syncSpotifyLikesNow,
                                             onPreloadSpotify = ::preloadSpotify,
                                             preloadStatus = spotifyPreloadStatus,
+                                            syncStatus = spotifySyncStatus,
                                         )
                                     settingsSection == SettingsSection.Appearance ->
                                         SettingsAppearanceScreen(
@@ -2517,6 +2558,16 @@ private fun SettingsScaffold(
 }
 
 @Composable
+private fun SettingsSectionLabel(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 4.dp),
+    )
+}
+
+@Composable
 private fun SettingsRowItem(
     title: String,
     subtitle: String? = null,
@@ -3086,6 +3137,7 @@ private fun SettingsSpotifyScreen(
     onSyncSpotifyLikes: () -> Unit,
     onPreloadSpotify: () -> Unit,
     preloadStatus: String?,
+    syncStatus: String?,
 ) {
     val scope = rememberCoroutineScope()
     var showLogin by remember { mutableStateOf(false) }
@@ -3123,6 +3175,7 @@ private fun SettingsSpotifyScreen(
     }
 
     SettingsScaffold(title = "Spotify", subtitle = "Spotify features", onBack = onBack) {
+        SettingsSectionLabel("Account")
         SettingsRowItem(
             "Status",
             when {
@@ -3152,6 +3205,7 @@ private fun SettingsSpotifyScreen(
             enabled = loggedIn,
             onCheckedChange = { enabled -> update(prefs.copy(enableSpotify = enabled)) },
         )
+        SettingsSectionLabel("Options")
         if (loggedIn && prefs.enableSpotify) {
             SettingsToggleItem(
                 "Use Spotify for home",
@@ -3184,6 +3238,7 @@ private fun SettingsSpotifyScreen(
             SettingsRowItem("Account", prefs.spotifyUsername.ifBlank { "Connected" })
             SettingsToggleItem(
                 "Sync Spotify likes to library",
+                subtitle = syncStatus,
                 checked = prefs.syncSpotifyLikes,
                 enabled = true,
                 onCheckedChange = { enabled ->
@@ -3207,10 +3262,48 @@ private fun SettingsSpotifyScreen(
                 if (prefs.spotifyPlaylistSortByTitle) "A–Z" else "Spotify order",
                 onClick = { update(prefs.copy(spotifyPlaylistSortByTitle = !prefs.spotifyPlaylistSortByTitle)) },
             )
+            SettingsSectionLabel("Preload")
             SettingsRowItem(
                 "Preload library",
                 preloadStatus ?: "Match Spotify tracks to YouTube in advance",
                 onClick = onPreloadSpotify,
+            )
+        }
+        SettingsSectionLabel("Information")
+        SettingsRowItem("Mapping", "Spotify tracks are matched to YouTube for playback")
+        SettingsSectionLabel("Qobuz")
+        SettingsToggleItem(
+            "Enable Qobuz (hi-res)",
+            subtitle = "Stream tracks from Qobuz when available; falls back to YouTube",
+            checked = prefs.enableQobuz,
+            enabled = true,
+            onCheckedChange = { update(prefs.copy(enableQobuz = it)) },
+        )
+        if (prefs.enableQobuz) {
+            SettingsRowItem(
+                "Qobuz quality",
+                DesktopQobuzQuality.fromName(prefs.qobuzAudioQuality).label,
+                onClick = {
+                    val next = nextQobuzQuality(prefs.qobuzAudioQuality)
+                    update(prefs.copy(qobuzAudioQuality = next))
+                },
+            )
+            SettingsRowItem(
+                "Qobuz backend",
+                DesktopQobuzBackend.fromName(prefs.qobuzBackend).label,
+                onClick = {
+                    val entries = DesktopQobuzBackend.entries
+                    val index = entries.indexOfFirst { it.name.equals(prefs.qobuzBackend, ignoreCase = true) }
+                    update(prefs.copy(qobuzBackend = entries[(index.coerceAtLeast(0) + 1) % entries.size].name))
+                },
+            )
+            SettingsRowItem(
+                "Qobuz country",
+                prefs.qobuzCountry,
+                onClick = {
+                    val index = qobuzCountries.indexOf(prefs.qobuzCountry).let { if (it < 0) 0 else (it + 1) % qobuzCountries.size }
+                    update(prefs.copy(qobuzCountry = qobuzCountries[index]))
+                },
             )
         }
     }

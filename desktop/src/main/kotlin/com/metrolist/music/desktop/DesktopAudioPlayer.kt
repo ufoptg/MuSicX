@@ -215,6 +215,47 @@ class DesktopAudioPlayer(private val normalizeAudio: Boolean = false) : AutoClos
         return false
     }
 
+    /**
+     * Plays a raw remote URL (e.g. a resolved Qobuz stream) through VLC.
+     * Returns true only once audio is actually playing.
+     */
+    suspend fun playUrl(
+        url: String,
+        referer: String? = null,
+    ): Boolean =
+        withContext(Dispatchers.IO) {
+            stopInternal()
+            lastError.set(null)
+            val options =
+                buildList {
+                    add(":no-video")
+                    add(":network-caching=2000")
+                    add(":http-reconnect")
+                    referer?.takeIf { it.isNotBlank() }?.let { add(":http-referrer=$it") }
+                }
+            val started = synchronized(playbackLock) { mediaPlayer.media().play(url, *options.toTypedArray()) }
+            if (!started) return@withContext false
+            mediaPlayer.audio().setVolume(volume)
+            mediaPlayer.audio().setMute(false)
+            repeat(400) {
+                delay(100)
+                lastError.get()?.let {
+                    stopInternal()
+                    return@withContext false
+                }
+                when (mediaPlayer.status().state()) {
+                    State.PLAYING, State.BUFFERING -> return@withContext true
+                    State.ERROR, State.ENDED -> {
+                        stopInternal()
+                        return@withContext false
+                    }
+                    else -> Unit
+                }
+            }
+            stopInternal()
+            false
+        }
+
     private suspend fun downloadThenPlay(stream: ExtractedStream) {
         val dlStart = System.currentTimeMillis()
         val file =

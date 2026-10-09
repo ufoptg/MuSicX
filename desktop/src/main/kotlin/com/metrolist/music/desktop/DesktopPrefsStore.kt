@@ -83,6 +83,11 @@ data class DesktopPrefs(
     val sponsorblockCategories: String = "music_offtopic",
     /** Equalizer enabled */
     val equalizerEnabled: Boolean = false,
+    /** Qobuz hi-res streaming (third-party resolver backends) */
+    val enableQobuz: Boolean = false,
+    val qobuzAudioQuality: String = "HI_RES_LOSSLESS",
+    val qobuzBackend: String = "SQUID",
+    val qobuzCountry: String = "US",
     /** VLC equalizer preset name (empty = flat / off when disabled) */
     val equalizerProfile: String = "",
     /** Player artwork backdrop: "default", "gradient", "blur", or "pure_black". */
