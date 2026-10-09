@@ -1404,69 +1404,51 @@ private fun LibraryScreen(
     val showClear = tab <= 1 && list.isNotEmpty()
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
-        ScreenTitle(title = "Library", subtitle = "Your favorites and recently played")
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            FilterChip(selected = tab == 0, onClick = { tab = 0 }, label = { Text("Favorites") },
-                leadingIcon = { Icon(Icons.Default.Favorite, null, Modifier.size(FilterChipDefaults.IconSize)) })
-            FilterChip(selected = tab == 1, onClick = { tab = 1 }, label = { Text("History") },
-                leadingIcon = { Icon(Icons.Default.History, null, Modifier.size(FilterChipDefaults.IconSize)) })
-            FilterChip(selected = tab == 2, onClick = { tab = 2 }, label = { Text("Playlists") },
-                leadingIcon = { Icon(Icons.Default.LibraryMusic, null, Modifier.size(FilterChipDefaults.IconSize)) })
-            FilterChip(selected = tab == 3, onClick = { tab = 3 }, label = { Text("Liked") },
-                leadingIcon = { Icon(Icons.Default.MusicNote, null, Modifier.size(FilterChipDefaults.IconSize)) })
-            FilterChip(selected = tab == 4, onClick = { tab = 4 }, label = { Text("Downloads") },
-                leadingIcon = { Icon(Icons.Default.Download, null, Modifier.size(FilterChipDefaults.IconSize)) })
-            Spacer(modifier = Modifier.weight(1f))
-            if (showClear) {
-                TextButton(onClick = onClear) {
-                    Icon(Icons.Default.DeleteOutline, null, Modifier.size(18.dp))
-                    Text("Clear", modifier = Modifier.padding(start = 4.dp))
+        ScreenTopBar(
+            title = "Library",
+            actions = {
+                if (showClear) {
+                    TextButton(onClick = onClear) {
+                        Icon(Icons.Default.DeleteOutline, null, Modifier.size(18.dp))
+                        Text("Clear", modifier = Modifier.padding(start = 4.dp))
+                    }
                 }
-            }
-        }
+            },
+        )
+        FilterChipsRow(
+            options = listOf("Favorites", "History", "Playlists", "Liked", "Downloads"),
+            selectedIndex = tab,
+            onSelect = { tab = it },
+        )
         when (tab) {
             0, 1 ->
                 run {
                     if (list.isEmpty()) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().weight(1f),
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Icon(
-                                if (tab == 0) Icons.Default.FavoriteBorder else Icons.Default.History,
-                                null,
-                                tint = MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier.size(64.dp),
-                            )
-                            Text(
-                                if (tab == 0) "No favorites yet" else "Nothing played yet",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(top = 12.dp),
-                            )
-                            Text(
-                                if (tab == 0) "Tap the heart on any song to save it here." else "Play a song and it'll show up here.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
-                        }
+                        EmptyPlaceholder(
+                            icon = if (tab == 0) Icons.Default.FavoriteBorder else Icons.Default.History,
+                            title = if (tab == 0) "No favorites yet" else "Nothing played yet",
+                            subtitle = if (tab == 0) "Tap the heart on any song to save it here." else "Play a song and it'll show up here.",
+                            modifier = Modifier.weight(1f),
+                        )
                     } else {
                         LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
-                            items(list, key = { it.videoId }) { hit ->
-                                val index = list.indexOf(hit)
-                                ResultRow(
-                                    hit = hit,
+                            itemsIndexed(list, key = { _, hit -> hit.videoId }) { index, hit ->
+                                MediaRow(
+                                    title = hit.title,
+                                    subtitle = hit.subtitle,
+                                    thumbnailUrl = hit.thumbnailUrl,
                                     isActive = hit.videoId == nowPlayingId,
                                     isBusy = busyId == hit.videoId,
                                     onClick = { onPlayIndex(index) },
-                                    isFavorite = isFavorite(hit),
-                                    onToggleFavorite = { onToggleFavorite(hit) },
+                                    image = { url, cd, m -> RemoteImage(url, cd, m) },
+                                    trailing = {
+                                        IconButton(onClick = { onToggleFavorite(hit) }) {
+                                            Icon(
+                                                if (isFavorite(hit)) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                                contentDescription = "Favorite",
+                                            )
+                                        }
+                                    },
                                 )
                             }
                         }
@@ -1491,17 +1473,24 @@ private fun LibraryScreen(
                         CircularProgressIndicator(Modifier.align(Alignment.Center))
                     }
                 } else if (libraryPlaylists.isEmpty()) {
-                    Box(Modifier.weight(1f).fillMaxWidth()) {
-                        Text(
-                            "No saved playlists",
-                            modifier = Modifier.align(Alignment.Center),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    EmptyPlaceholder(
+                        icon = Icons.Default.LibraryMusic,
+                        title = "No saved playlists",
+                        modifier = Modifier.weight(1f),
+                    )
                 } else {
                     LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
                         items(libraryPlaylists, key = { it.id }) { item ->
-                            PlaylistRow(item = item, onClick = { onOpenPlaylist(item) })
+                            MediaRow(
+                                title = item.title,
+                                subtitle = item.subtitle,
+                                thumbnailUrl = item.thumbnailUrl,
+                                isActive = false,
+                                isBusy = false,
+                                onClick = { onOpenPlaylist(item) },
+                                image = { url, cd, m -> RemoteImage(url, cd, m) },
+                                trailing = { Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Open") },
+                            )
                         }
                     }
                 }
@@ -1513,50 +1502,61 @@ private fun LibraryScreen(
                         CircularProgressIndicator(Modifier.align(Alignment.Center))
                     }
                 } else if (likedSongs.isEmpty()) {
-                    Box(Modifier.weight(1f).fillMaxWidth()) {
-                        Text(
-                            "No liked songs",
-                            modifier = Modifier.align(Alignment.Center),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    EmptyPlaceholder(
+                        icon = Icons.Default.MusicNote,
+                        title = "No liked songs",
+                        modifier = Modifier.weight(1f),
+                    )
                 } else {
                     LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
-                        items(likedSongs, key = { it.videoId }) { hit ->
-                            val index = likedSongs.indexOf(hit)
-                            ResultRow(
-                                hit = hit,
+                        itemsIndexed(likedSongs, key = { _, hit -> hit.videoId }) { index, hit ->
+                            MediaRow(
+                                title = hit.title,
+                                subtitle = hit.subtitle,
+                                thumbnailUrl = hit.thumbnailUrl,
                                 isActive = hit.videoId == nowPlayingId,
                                 isBusy = busyId == hit.videoId,
                                 onClick = { onPlayLiked(index) },
-                                isFavorite = isFavorite(hit),
-                                onToggleFavorite = { onToggleFavorite(hit) },
+                                image = { url, cd, m -> RemoteImage(url, cd, m) },
+                                trailing = {
+                                    IconButton(onClick = { onToggleFavorite(hit) }) {
+                                        Icon(
+                                            if (isFavorite(hit)) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                            contentDescription = "Favorite",
+                                        )
+                                    }
+                                },
                             )
                         }
                     }
                 }
             4 ->
                 if (downloads.isEmpty()) {
-                    Box(Modifier.weight(1f).fillMaxWidth()) {
-                        Text(
-                            "No downloads yet. Tap the download icon on a song in the queue or player.",
-                            modifier = Modifier.align(Alignment.Center),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    EmptyPlaceholder(
+                        icon = Icons.Default.Download,
+                        title = "No downloads yet",
+                        subtitle = "Tap the download icon on a song in the queue or player.",
+                        modifier = Modifier.weight(1f),
+                    )
                 } else {
                     LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
-                        items(downloads, key = { it.videoId }) { info ->
+                        itemsIndexed(downloads, key = { _, info -> info.videoId }) { index, info ->
                             val hit = info.toHit()
-                            ResultRow(
-                                hit = hit,
+                            MediaRow(
+                                title = hit.title,
+                                subtitle = hit.subtitle,
+                                thumbnailUrl = hit.thumbnailUrl,
                                 isActive = hit.videoId == nowPlayingId,
                                 isBusy = busyId == hit.videoId,
-                                onClick = { onPlayDownloads(downloads.indexOf(info)) },
-                                isFavorite = isFavorite(hit),
-                                onToggleFavorite = { onToggleFavorite(hit) },
-                                isDownloaded = true,
-                                onToggleDownload = { onRemoveDownload(info) },
+                                onClick = { onPlayDownloads(index) },
+                                image = { url, cd, m -> RemoteImage(url, cd, m) },
+                                trailing = {
+                                    DownloadButton(
+                                        isDownloaded = true,
+                                        isDownloading = false,
+                                        onToggle = { onRemoveDownload(info) },
+                                    )
+                                },
                             )
                         }
                     }
