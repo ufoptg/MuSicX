@@ -172,6 +172,8 @@ import com.metrolist.music.ui.component.MediaRow
 import com.metrolist.music.ui.component.GridItem
 import com.metrolist.music.ui.component.ScreenTopBar
 import com.metrolist.music.ui.component.SectionHeader
+import com.metrolist.music.ui.component.SettingsGroup
+import com.metrolist.music.ui.component.SettingsItem
 import com.metrolist.music.ui.component.SearchBar
 
 private val MuSicXRed = Color(0xFFED5564)
@@ -1894,67 +1896,35 @@ private fun SettingsScreen(
     sections: List<SettingsSection>,
     onSelectSection: (SettingsSection) -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 28.dp)
-    ) {
-        ScreenTitle(
-            title = "Settings",
-            subtitle = "Manage app preferences and settings"
+    val groups =
+        listOf(
+            "Appearance" to listOf(SettingsSection.Appearance, SettingsSection.Equalizer),
+            "Content & AI" to listOf(SettingsSection.Content, SettingsSection.AI),
+            "Player" to listOf(SettingsSection.Player),
+            "Storage & privacy" to listOf(SettingsSection.Storage, SettingsSection.Privacy, SettingsSection.BackupAndRestore),
+            "System" to listOf(SettingsSection.Integrations, SettingsSection.Updater, SettingsSection.About),
         )
-        
-        LazyColumn(modifier = Modifier.weight(1f).padding(top = 8.dp)) {
-            items(sections, key = { it.label }) { section ->
-                SettingsSectionTile(
-                    section = section,
-                    onClick = { onSelectSection(section) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsSectionTile(
-    section: SettingsSection,
-    onClick: () -> Unit,
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).verticalScroll(rememberScrollState()),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Icon(
-                imageVector = section.icon,
-                contentDescription = section.label,
-                modifier = Modifier.size(32.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            
-            Text(
-                text = section.label,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            
-            Spacer(modifier = Modifier.weight(1f))
-            
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = "Navigate",
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Text(
+            text = "Settings",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(vertical = 12.dp),
+        )
+        groups.forEach { (title, items) ->
+            SettingsGroup(title) {
+                items.forEach { section ->
+                    SettingsItem(
+                        icon = section.icon,
+                        title = section.label,
+                        onClick = { onSelectSection(section) },
+                    )
+                }
+            }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
@@ -1966,16 +1936,29 @@ private fun SettingsScaffold(
     onBack: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).verticalScroll(rememberScrollState())) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
             IconButton(onClick = onBack) {
                 Icon(Icons.Default.ArrowBack, contentDescription = "Back")
             }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(start = 4.dp),
+            )
         }
-        ScreenTitle(title = title, subtitle = subtitle)
-        LazyColumn(modifier = Modifier.weight(1f).padding(top = 8.dp)) {
-            item { content() }
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        SettingsGroup {
+            content()
         }
+        Spacer(Modifier.height(16.dp))
     }
 }
 
@@ -1985,32 +1968,12 @@ private fun SettingsRowItem(
     subtitle: String? = null,
     onClick: (() -> Unit)? = null,
 ) {
-    val enabled = onClick != null
-    Surface(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .then(if (enabled) Modifier.clickable { onClick?.invoke() } else Modifier)
-                .padding(horizontal = 4.dp, vertical = 6.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
-            }
-        }
-    }
+    SettingsItem(
+        title = title,
+        description = subtitle,
+        onClick = onClick,
+        enabled = onClick != null,
+    )
 }
 
 @Composable
@@ -2021,33 +1984,13 @@ private fun SettingsToggleItem(
     enabled: Boolean = false,
     onCheckedChange: (Boolean) -> Unit = {},
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).padding(vertical = 6.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                val note = subtitle ?: if (enabled) null else "Not available on desktop"
-                if (note != null) {
-                    Text(
-                        text = note,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 2.dp),
-                    )
-                }
-            }
-            Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
-        }
-    }
+    SettingsItem(
+        title = title,
+        description = subtitle ?: if (enabled) null else "Not available on desktop",
+        enabled = enabled,
+        onClick = if (enabled) ({ onCheckedChange(!checked) }) else null,
+        trailing = { Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled) },
+    )
 }
 
 @Composable
