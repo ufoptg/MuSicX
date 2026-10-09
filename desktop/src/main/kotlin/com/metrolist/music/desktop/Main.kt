@@ -43,6 +43,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
@@ -165,6 +166,7 @@ import com.metrolist.music.ui.component.NavigationTitle
 import com.metrolist.music.ui.component.AppNavigationRail
 import com.metrolist.music.ui.component.DesktopNavItem
 import com.metrolist.music.ui.component.EmptyPlaceholder
+import com.metrolist.music.ui.component.DetailHeader
 import com.metrolist.music.ui.component.FilterChipsRow
 import com.metrolist.music.ui.component.MediaRow
 import com.metrolist.music.ui.component.GridItem
@@ -632,6 +634,39 @@ private fun MuSicXApp(
         }
     }
 
+    fun detailTracks(): List<SearchHit> =
+        openDetail?.let { d -> d.tracks + if (d.enhanceEnabled) d.suggestions else emptyList() } ?: emptyList()
+
+    fun playDetailHit(hit: SearchHit) {
+        val t = detailTracks()
+        val index = t.indexOfFirst { it.videoId == hit.videoId }
+        if (index >= 0) playFrom(t, index)
+    }
+
+    fun reorderDetailTracks(from: Int, to: Int) {
+        openDetail = openDetail?.let { d -> d.copy(tracks = reorderQueue(d.tracks, 0, from, to).first) }
+    }
+
+    fun toggleDetailEnhance() {
+        val d = openDetail ?: return
+        if (d.enhanceEnabled) {
+            openDetail = d.copy(enhanceEnabled = false, enhancing = false, suggestions = emptyList())
+            return
+        }
+        openDetail = d.copy(enhanceEnabled = true, enhancing = true)
+        val seed = d.tracks.firstOrNull()
+        scope.launch(Dispatchers.IO) {
+            val suggestions =
+                if (seed != null) {
+                    runCatching { client.enhanceSuggestions(seed.title, seed.subtitle) }.getOrDefault(emptyList())
+                } else {
+                    emptyList()
+                }
+            val filtered = suggestions.filterNot { s -> d.tracks.any { it.videoId == s.videoId } }
+            openDetail = openDetail?.takeIf { it.id == d.id }?.copy(suggestions = filtered, enhancing = false)
+        }
+    }
+
     fun runSearch() {
         val q = query.trim()
         if (q.isEmpty() || loading) return
@@ -789,7 +824,20 @@ private fun MuSicXApp(
                                     onToggleFavorite = ::toggleFavorite,
                                     openDetail = openDetail,
                                     onCloseDetail = { openDetail = null },
-                                    onPlayDetailTracks = { index -> playFrom(openDetail?.tracks ?: emptyList(), index) },
+                                    onPlayDetailHit = ::playDetailHit,
+                                    onDetailPlayAll = {
+                                        val t = detailTracks()
+                                        if (t.isNotEmpty()) playFrom(t, 0)
+                                    },
+                                    onDetailShuffle = {
+                                        val t = detailTracks()
+                                        if (t.isNotEmpty()) {
+                                            shuffleOn = true
+                                            playFrom(t, Random.nextInt(t.size))
+                                        }
+                                    },
+                                    onDetailMove = ::reorderDetailTracks,
+                                    onDetailToggleEnhance = ::toggleDetailEnhance,
                                     onOpenAlbum = { hit ->
                                         openDetailEntity(
                                             DetailType.Album,
@@ -1004,7 +1052,20 @@ private fun MuSicXApp(
                                         openDetail = null
                                     },
                                     onPlayLiked = { index -> playFrom(likedSongs, index) },
-                                    onPlayPlaylistTracks = { index -> playFrom(openDetail?.tracks ?: emptyList(), index) },
+                                    onPlayPlaylistTracks = ::playDetailHit,
+                                    onDetailPlayAll = {
+                                        val t = detailTracks()
+                                        if (t.isNotEmpty()) playFrom(t, 0)
+                                    },
+                                    onDetailShuffle = {
+                                        val t = detailTracks()
+                                        if (t.isNotEmpty()) {
+                                            shuffleOn = true
+                                            playFrom(t, Random.nextInt(t.size))
+                                        }
+                                    },
+                                    onDetailMove = ::reorderDetailTracks,
+                                    onDetailToggleEnhance = ::toggleDetailEnhance,
                                 )
                         }
                     }
@@ -1331,7 +1392,11 @@ private fun SearchScreen(
     onToggleFavorite: (SearchHit) -> Unit,
     openDetail: DetailState?,
     onCloseDetail: () -> Unit,
-    onPlayDetailTracks: (Int) -> Unit,
+    onPlayDetailHit: (SearchHit) -> Unit,
+    onDetailPlayAll: () -> Unit,
+    onDetailShuffle: () -> Unit,
+    onDetailMove: (Int, Int) -> Unit,
+    onDetailToggleEnhance: () -> Unit,
     onOpenAlbum: (SearchHit) -> Unit,
     onOpenArtist: (SearchHit) -> Unit,
     onOpenPlaylist: (PlaylistHit) -> Unit,
@@ -1346,7 +1411,11 @@ private fun SearchScreen(
                 isFavorite = isFavorite,
                 onToggleFavorite = onToggleFavorite,
                 onClose = onCloseDetail,
-                onPlayIndex = onPlayDetailTracks,
+                onPlayHit = onPlayDetailHit,
+                onPlayAll = onDetailPlayAll,
+                onShuffle = onDetailShuffle,
+                onMoveTrack = onDetailMove,
+                onToggleEnhance = onDetailToggleEnhance,
                 modifier = Modifier.weight(1f),
             )
             return@Column
@@ -1473,53 +1542,132 @@ private fun DetailPane(
     isFavorite: (SearchHit) -> Boolean,
     onToggleFavorite: (SearchHit) -> Unit,
     onClose: () -> Unit,
-    onPlayIndex: (Int) -> Unit,
+    onPlayHit: (SearchHit) -> Unit,
+    onPlayAll: () -> Unit,
+    onShuffle: () -> Unit,
+    onMoveTrack: (Int, Int) -> Unit,
+    onToggleEnhance: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier) {
+    var sortByTitle by remember(detail.id) { mutableStateOf(false) }
+    val tracks = if (sortByTitle) detail.tracks.sortedBy { it.title.lowercase() } else detail.tracks
+    val displayList = tracks + if (detail.enhanceEnabled) detail.suggestions else emptyList()
+
+    Column(modifier = modifier.fillMaxSize().padding(horizontal = 28.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onClose) { Text("← Back") }
+            IconButton(onClick = onClose) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") }
             Text(
-                detail.title,
+                text = detail.title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
         when {
-            detail.loading -> {
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            detail.loading ->
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
-            }
-            detail.tracks.isEmpty() -> {
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    Text(
-                        "No tracks found",
-                        modifier = Modifier.align(Alignment.Center),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            displayList.isEmpty() ->
+                EmptyPlaceholder(
+                    icon = Icons.Default.MusicNote,
+                    title = "No tracks found",
+                    modifier = Modifier.weight(1f),
+                )
             else -> {
-                LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    itemsIndexed(detail.tracks, key = { _, hit -> hit.videoId }) { index, hit ->
-                        MediaRow(
-                            title = hit.title,
-                            subtitle = hit.subtitle,
-                            thumbnailUrl = hit.thumbnailUrl,
-                            isActive = hit.videoId == nowPlayingId,
-                            isBusy = busyId == hit.videoId,
-                            onClick = { onPlayIndex(index) },
+                val lazyListState = rememberLazyListState()
+                val reorderableState =
+                    rememberReorderableLazyListState(lazyListState) { from, to ->
+                        if (!sortByTitle && from.index < tracks.size && to.index < tracks.size) {
+                            onMoveTrack(from.index, to.index)
+                        }
+                    }
+                val uniqueIds = remember(tracks) { tracks.map { it.videoId }.toSet().size == tracks.size }
+                val keyFor: (Int, SearchHit) -> String = { index, hit ->
+                    if (uniqueIds) hit.videoId else "idx-$index-${hit.videoId}"
+                }
+
+                LazyColumn(state = lazyListState, modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    item(key = "header") {
+                        DetailHeader(
+                            label = detail.type.name,
+                            title = detail.title,
+                            subtitle = detail.subtitle,
+                            metadata = "${tracks.size} songs",
+                            thumbnailUrl = detail.thumbnailUrl,
                             image = { url, cd, m -> RemoteImage(url, cd, m) },
-                            trailing = {
-                                IconButton(onClick = { onToggleFavorite(hit) }) {
-                                    Icon(
-                                        if (isFavorite(hit)) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                        contentDescription = "Favorite",
-                                    )
-                                }
-                            },
+                            onPlay = onPlayAll,
+                            onShuffle = onShuffle,
+                            fullBleed = detail.type == DetailType.Artist,
+                            enhanced = detail.enhanceEnabled,
+                            onToggleEnhance = onToggleEnhance,
                         )
+                    }
+                    item(key = "sort") {
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "${tracks.size} songs",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(onClick = { sortByTitle = !sortByTitle }) {
+                                Text(if (sortByTitle) "A–Z" else "Default")
+                            }
+                        }
+                    }
+                    itemsIndexed(tracks, key = { index, hit -> keyFor(index, hit) }) { index, hit ->
+                        ReorderableItem(reorderableState, key = keyFor(index, hit)) {
+                            val handle = if (sortByTitle) null else Modifier.draggableHandle()
+                            MediaRow(
+                                title = hit.title,
+                                subtitle = hit.subtitle,
+                                thumbnailUrl = hit.thumbnailUrl,
+                                isActive = hit.videoId == nowPlayingId,
+                                isBusy = busyId == hit.videoId,
+                                onClick = { onPlayHit(hit) },
+                                image = { url, cd, m -> RemoteImage(url, cd, m) },
+                                trailing = {
+                                    IconButton(onClick = { onToggleFavorite(hit) }) {
+                                        Icon(
+                                            if (isFavorite(hit)) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                            contentDescription = "Favorite",
+                                        )
+                                    }
+                                },
+                                dragHandle = handle,
+                            )
+                        }
+                    }
+                    if (detail.enhanceEnabled) {
+                        item(key = "suggested_header") { SectionHeader("Suggested") }
+                        if (detail.enhancing) {
+                            item(key = "suggested_loading") {
+                                Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        } else {
+                            itemsIndexed(detail.suggestions, key = { index, hit -> "sug-$index-${hit.videoId}" }) { _, hit ->
+                                MediaRow(
+                                    title = hit.title,
+                                    subtitle = hit.subtitle,
+                                    thumbnailUrl = hit.thumbnailUrl,
+                                    isActive = hit.videoId == nowPlayingId,
+                                    isBusy = busyId == hit.videoId,
+                                    onClick = { onPlayHit(hit) },
+                                    image = { url, cd, m -> RemoteImage(url, cd, m) },
+                                    trailing = {
+                                        Icon(
+                                            Icons.Default.AutoAwesome,
+                                            contentDescription = "Suggested",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                        )
+                                    },
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -1548,7 +1696,11 @@ private fun LibraryScreen(
     onOpenPlaylist: (PlaylistHit) -> Unit,
     onClosePlaylist: () -> Unit,
     onPlayLiked: (Int) -> Unit,
-    onPlayPlaylistTracks: (Int) -> Unit,
+    onPlayPlaylistTracks: (SearchHit) -> Unit,
+    onDetailPlayAll: () -> Unit,
+    onDetailShuffle: () -> Unit,
+    onDetailMove: (Int, Int) -> Unit,
+    onDetailToggleEnhance: () -> Unit,
     downloads: List<DownloadInfo>,
     onPlayDownloads: (Int) -> Unit,
     onRemoveDownload: (DownloadInfo) -> Unit,
@@ -1621,7 +1773,11 @@ private fun LibraryScreen(
                         isFavorite = isFavorite,
                         onToggleFavorite = onToggleFavorite,
                         onClose = onClosePlaylist,
-                        onPlayIndex = onPlayPlaylistTracks,
+                        onPlayHit = onPlayPlaylistTracks,
+                        onPlayAll = onDetailPlayAll,
+                        onShuffle = onDetailShuffle,
+                        onMoveTrack = onDetailMove,
+                        onToggleEnhance = onDetailToggleEnhance,
                         modifier = Modifier.weight(1f),
                     )
                 } else if (playlistsLoading) {
