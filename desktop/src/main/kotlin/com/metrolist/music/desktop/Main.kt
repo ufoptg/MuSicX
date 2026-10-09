@@ -1227,7 +1227,6 @@ private fun StatsScreen(
                                 subtitle = hit.subtitle,
                                 isActive = false,
                                 isBusy = false,
-                                onClick = {},
                                 image = { url, cd, m -> RemoteImage(url, cd, m) },
                                 thumbnailUrl = hit.thumbnailUrl,
                             )
@@ -1246,7 +1245,6 @@ private fun StatsScreen(
                                 subtitle = "${entry.value} plays",
                                 isActive = false,
                                 isBusy = false,
-                                onClick = {},
                                 image = { url, cd, m -> RemoteImage(url, cd, m) },
                                 thumbnailUrl = thumb,
                             )
@@ -1264,7 +1262,6 @@ private fun StatsScreen(
                                 subtitle = hit.subtitle,
                                 isActive = false,
                                 isBusy = false,
-                                onClick = {},
                                 image = { url, cd, m -> RemoteImage(url, cd, m) },
                                 thumbnailUrl = hit.thumbnailUrl,
                             )
@@ -1358,7 +1355,7 @@ private fun SearchScreen(
                 LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
                     if (showSongs && songResults.isNotEmpty()) {
                         item { SectionHeader("Songs") }
-                        itemsIndexed(songResults, key = { _, hit -> hit.videoId }) { index, hit ->
+                        itemsIndexed(songResults, key = { _, hit -> "song-${hit.videoId}" }) { index, hit ->
                             MediaRow(
                                 title = hit.title,
                                 subtitle = hit.subtitle,
@@ -1381,7 +1378,7 @@ private fun SearchScreen(
 
                     if (showAlbums && albumResults.isNotEmpty()) {
                         item { SectionHeader("Albums") }
-                        items(albumResults, key = { it.videoId }) { hit ->
+                        items(albumResults, key = { "album-${it.videoId}" }) { hit ->
                             MediaRow(
                                 title = hit.title,
                                 subtitle = hit.subtitle,
@@ -1396,7 +1393,7 @@ private fun SearchScreen(
 
                     if (showArtists && artistResults.isNotEmpty()) {
                         item { SectionHeader("Artists") }
-                        items(artistResults, key = { it.videoId }) { hit ->
+                        items(artistResults, key = { "artist-${it.videoId}" }) { hit ->
                             MediaRow(
                                 title = hit.title,
                                 subtitle = hit.subtitle,
@@ -1411,7 +1408,7 @@ private fun SearchScreen(
 
                     if (showPlaylists && playlistResults.isNotEmpty()) {
                         item { SectionHeader("Playlists") }
-                        items(playlistResults, key = { it.id }) { hit ->
+                        items(playlistResults, key = { "playlist-${it.id}" }) { hit ->
                             MediaRow(
                                 title = hit.title,
                                 subtitle = hit.subtitle,

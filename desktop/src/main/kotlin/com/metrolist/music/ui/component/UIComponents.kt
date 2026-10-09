@@ -71,13 +71,18 @@ fun GridItem(
     subtitle: String?,
     isActive: Boolean,
     isBusy: Boolean,
-    onClick: () -> Unit,
     image: ImageLoader,
+    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     thumbnailUrl: String? = null,
 ) {
     Column(
-        modifier = modifier.width(160.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(8.dp),
+        modifier =
+            modifier
+                .width(160.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .padding(8.dp),
     ) {
         Box(modifier = Modifier.fillMaxWidth().height(Dimensions.GridThumbnailHeight)) {
             Thumbnail(
