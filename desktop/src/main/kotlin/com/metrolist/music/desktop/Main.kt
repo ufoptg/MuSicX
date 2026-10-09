@@ -142,6 +142,7 @@ import com.materialkolor.rememberDynamicColorScheme
 import com.metrolist.spotify.Spotify
 import com.metrolist.spotify.SpotifyMapper
 import com.metrolist.spotify.models.SpotifySearchResult
+import com.metrolist.spotify.models.SpotifySavedTrack
 import com.metrolist.spotify.models.SpotifyTrack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
@@ -348,6 +349,8 @@ private fun MuSicXApp(
     var spotifyResults by remember { mutableStateOf<List<SpotifyTrack>>(emptyList()) }
     var spotifyLoading by remember { mutableStateOf(false) }
     var matchingSpotifyId by remember { mutableStateOf<String?>(null) }
+    var spotifyLiked by remember { mutableStateOf<List<SpotifySavedTrack>>(emptyList()) }
+    var spotifyLikedLoading by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -839,6 +842,22 @@ private fun MuSicXApp(
         }
     }
 
+    LaunchedEffect(destination, prefs.enableSpotify, prefs.spDc) {
+        if (destination == Destination.Library &&
+            prefs.enableSpotify &&
+            DesktopSpotify.isLoggedIn(prefs) &&
+            spotifyLiked.isEmpty() &&
+            !spotifyLikedLoading
+        ) {
+            spotifyLikedLoading = true
+            scope.launch(Dispatchers.IO) {
+                spotifyLiked =
+                    DesktopSpotify.likedSongs(prefs, onUpdated = { onPrefsChange(it) }).getOrNull()?.items.orEmpty()
+                spotifyLikedLoading = false
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -1115,6 +1134,18 @@ private fun MuSicXApp(
                                     downloads = downloads,
                                     onPlayDownloads = { index -> playFrom(downloads.map { it.toHit() }, index) },
                                     onRemoveDownload = { info -> toggleDownload(info.toHit()) },
+                                    spotifyAvailable = prefs.enableSpotify && DesktopSpotify.isLoggedIn(prefs),
+                                    spotifyLiked = spotifyLiked,
+                                    spotifyLikedLoading = spotifyLikedLoading,
+                                    matchingSpotifyId = matchingSpotifyId,
+                                    onPlaySpotifyLiked = { saved ->
+                                        matchingSpotifyId = spotifyIdentity(saved.track)
+                                        scope.launch {
+                                            val hit = withContext(Dispatchers.IO) { DesktopSpotifyMatcher.resolveToYouTube(client, saved.track) }
+                                            matchingSpotifyId = null
+                                            if (hit != null) playFrom(listOf(hit), 0) else error = "Could not match track on YouTube"
+                                        }
+                                    },
                                     onOpenPlaylist = { item ->
                                         openDetailEntity(
                                             DetailType.Playlist,
@@ -1797,8 +1828,13 @@ private fun LibraryScreen(
     downloads: List<DownloadInfo>,
     onPlayDownloads: (Int) -> Unit,
     onRemoveDownload: (DownloadInfo) -> Unit,
+    spotifyAvailable: Boolean,
+    spotifyLiked: List<SpotifySavedTrack>,
+    spotifyLikedLoading: Boolean,
+    matchingSpotifyId: String?,
+    onPlaySpotifyLiked: (SpotifySavedTrack) -> Unit,
 ) {
-    var tab by remember { mutableStateOf(0) } // 0 Favorites, 1 History, 2 Playlists, 3 Liked, 4 Downloads
+    var tab by remember { mutableStateOf(0) } // 0 Favorites, 1 History, 2 Playlists, 3 Liked, 4 Downloads, 5 Spotify
     val list = if (tab == 0) favorites else history
     val onPlayIndex = if (tab == 0) onPlayFavorites else onPlayHistory
     val onClear = if (tab == 0) onClearFavorites else onClearHistory
@@ -1817,7 +1853,11 @@ private fun LibraryScreen(
             },
         )
         FilterChipsRow(
-            options = listOf("Favorites", "History", "Playlists", "Liked", "Downloads"),
+            options =
+                buildList {
+                    addAll(listOf("Favorites", "History", "Playlists", "Liked", "Downloads"))
+                    if (spotifyAvailable) add("Spotify")
+                },
             selectedIndex = tab,
             onSelect = { tab = it },
         )
@@ -1965,6 +2005,33 @@ private fun LibraryScreen(
                             )
                         }
                     }
+                }
+            5 ->
+                when {
+                    spotifyLikedLoading ->
+                        Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        }
+                    spotifyLiked.isEmpty() ->
+                        EmptyPlaceholder(
+                            icon = Icons.Default.MusicNote,
+                            title = "No Spotify liked songs",
+                            modifier = Modifier.weight(1f),
+                        )
+                    else ->
+                        LazyColumn(modifier = Modifier.weight(1f).padding(top = 12.dp)) {
+                            itemsIndexed(spotifyLiked, key = { index, saved -> "spotify-${spotifyIdentity(saved.track)}-$index" }) { _, saved ->
+                                MediaRow(
+                                    title = saved.track.name,
+                                    subtitle = saved.track.artists.joinToString(", ") { it.name },
+                                    thumbnailUrl = SpotifyMapper.getTrackThumbnail(saved.track),
+                                    isActive = false,
+                                    isBusy = matchingSpotifyId != null && matchingSpotifyId == spotifyIdentity(saved.track),
+                                    onClick = { onPlaySpotifyLiked(saved) },
+                                    image = { url, cd, m -> RemoteImage(url, cd, m) },
+                                )
+                            }
+                        }
                 }
         }
     }

@@ -8,6 +8,8 @@ package com.metrolist.music.desktop
 
 import com.metrolist.spotify.Spotify
 import com.metrolist.spotify.SpotifyAuth
+import com.metrolist.spotify.models.SpotifyPaging
+import com.metrolist.spotify.models.SpotifySavedTrack
 import com.metrolist.spotify.models.SpotifySearchResult
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -40,6 +42,18 @@ object DesktopSpotify {
             return Result.failure(IllegalStateException("Not signed in to Spotify"))
         }
         return Spotify.search(query, types = listOf("track", "album", "playlist"), limit = 8)
+    }
+
+    suspend fun likedSongs(
+        prefs: DesktopPrefs,
+        onUpdated: (DesktopPrefs) -> Unit,
+        limit: Int = 50,
+        offset: Int = 0,
+    ): Result<SpotifyPaging<SpotifySavedTrack>> {
+        if (!ensureAuthenticated(prefs, onUpdated)) {
+            return Result.failure(IllegalStateException("Not signed in to Spotify"))
+        }
+        return Spotify.likedSongs(limit = limit, offset = offset)
     }
 
     suspend fun completeLogin(
