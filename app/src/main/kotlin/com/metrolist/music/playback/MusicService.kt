@@ -425,6 +425,7 @@ class MusicService :
     private var isCrossfading = false
     private var crossfadeJob: Job? = null
     private var taskCleared = false
+    private var lastSavedPlayerState: PersistPlayerState? = null
     private var mediaSession: MediaLibrarySession? = null
     private var controllerFuture: com.google.common.util.concurrent.ListenableFuture<MediaController>? = null
 
@@ -1610,6 +1611,7 @@ class MusicService :
         runCatching { filesDir.resolve(PERSISTENT_QUEUE_FILE).delete() }
         runCatching { filesDir.resolve(PERSISTENT_AUTOMIX_FILE).delete() }
         runCatching { filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).delete() }
+        lastSavedPlayerState = null
     }
 
     private fun waitOnNetworkError() {
@@ -4736,12 +4738,15 @@ class MusicService :
             currentMediaItemIndex = player.currentMediaItemIndex,
             playbackState = player.playbackState,
         )
+        // While paused nothing changes, so skip the periodic rewrite.
+        if (playerState == lastSavedPlayerState) return
         runCatching {
             filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
                 ObjectOutputStream(fos).use { oos ->
                     oos.writeObject(playerState)
                 }
             }
+            lastSavedPlayerState = playerState
             Timber.tag(TAG).d("Player state saved successfully")
         }.onFailure {
             Timber.tag(TAG).e(it, "Failed to save player state")
@@ -4974,7 +4979,12 @@ class MusicService :
         runCatching { pauseAllPlayersAndStopSelf() }.onFailure { stopSelf() }
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo) = mediaSession
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? {
+        // External controllers (Android Auto, Bluetooth, Wear) only connect when the user is using
+        // them, and they keep this instance alive after a task clear, so they must lift the guard.
+        if (controllerInfo.packageName != packageName) taskCleared = false
+        return mediaSession
+    }
 
     override fun onUpdateNotification(
         session: MediaSession,
@@ -5007,8 +5017,12 @@ class MusicService :
         startId: Int,
     ): Int {
         if (taskCleared) {
-            stopSelf()
-            return START_NOT_STICKY
+            // A media button press (headset, car) is the user resuming; anything else is a stale restart.
+            if (intent?.action != Intent.ACTION_MEDIA_BUTTON) {
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            taskCleared = false
         }
         // On Android O+, every startForegroundService() call requires
         // Service.startForeground() to be called within a short timeout.
