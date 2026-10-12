@@ -2593,7 +2593,17 @@ object YouTube {
             }
 
             Timber.d("[PODCAST_API] newEpisodes SUCCESS: ${episodesList.size} items")
-            episodesList
+            coroutineScope {
+                episodesList.map { episode ->
+                    async {
+                        if (episode.artists.isNotEmpty()) return@async episode
+                        val mediaInfo = innerTube.getMediaInfo(episode.id).getOrNull()
+                        if (mediaInfo?.author != null) {
+                            episode.copy(artists = listOf(Artist(mediaInfo.author, mediaInfo.authorId)))
+                        } else episode
+                    }
+                }.awaitAll()
+            }
         }.also { result ->
             result.onFailure { e -> Timber.e(e, "[PODCAST_API] newEpisodes FAILED") }
         }
