@@ -2974,7 +2974,8 @@ object YouTube {
                                     ?.endpoint
                                     ?.browseEndpoint,
                             currentIndex = currentIndex,
-                            endpoint = watchPlaylistEndpoint,
+                            endpoint = endpoint,
+                            continuation = playlistPanelRenderer.continuations?.getContinuation(),
                         )
                     }
                 }
