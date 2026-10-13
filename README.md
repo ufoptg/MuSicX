@@ -396,6 +396,8 @@ MuSicX is a fork that adds: full Spotify integration (login, home, library, sear
 
 <h1>Disclaimer</h1>
 
+signed by SignPath
+
 This project is **not affiliated with, funded, authorized, endorsed by, or in any way associated** with YouTube, Google LLC, Spotify AB, Qobuz, Metrolist Group LLC, meld, or any of their affiliates and subsidiaries.
 
 All trademarks, service marks, and intellectual property rights referenced in this project belong to their respective owners.
