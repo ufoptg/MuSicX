@@ -185,7 +185,11 @@ jobs:
       - name: Download release APK artifacts
         uses: actions/download-artifact@v8
         with:
-          pattern: MuSicX-Nightly*
+          # Exact name, not a `MuSicX-Nightly*` glob: the build_debug job's
+          # artifacts (`MuSicX-Nightly-debug-with-Google-Cast`) also match that
+          # prefix, so debug-signed APKs used to ride along into the nightly
+          # pre-release and trigger Google Play Protect "unsafe app" warnings.
+          pattern: MuSicX-Nightly-with-Google-Cast
           path: nightly_apks/
           merge-multiple: false
 
@@ -193,14 +197,21 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
-          # Copy each APK and prefix its filename with the artifact name so
-          # foss and gms builds don't collide on disk.
-          find nightly_apks -mindepth 2 -name "*.apk" -print0 \
+          # download-artifact@v8 lays a *single* matching artifact out flat in
+          # nightly_apks/, but gives each of several matches its own
+          # subdirectory. Match at any depth so either layout works — the old
+          # `-mindepth 2` silently assembled nothing when only one matched.
+          find nightly_apks -name "*.apk" -print0 \
             | while IFS= read -r -d '' apk; do
-                artifact=$(basename "$(dirname "$apk")")
-                base=$(basename "$apk")
-                cp "$apk" "out/${artifact}-${base}"
+                cp "$apk" "out/$(basename "$apk")"
               done
+          # Fail loudly here rather than letting `gh release create out/*.apk`
+          # blow up later with an unexplained "no matches found".
+          if [ "$(find out -name '*.apk' | wc -l)" -eq 0 ]; then
+            echo "::error::No APKs assembled — check the download pattern above."
+            find nightly_apks -ls || true
+            exit 1
+          fi
           echo "Assembled APKs:"
           ls -la out/
 
