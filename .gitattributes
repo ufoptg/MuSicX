@@ -1,0 +1,6 @@
+# MuSicX customizes these CI workflows (branding, submodules, nightly/release).
+# Prefer our copy on upstream merges so sync never commits conflict markers.
+.github/workflows/build.yml merge=ours
+.github/workflows/build_pr.yml merge=ours
+.github/workflows/build_quick.yml merge=ours
+.github/workflows/release.yml merge=ours
