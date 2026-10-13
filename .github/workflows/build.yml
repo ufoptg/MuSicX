@@ -185,7 +185,11 @@ jobs:
       - name: Download release APK artifacts
         uses: actions/download-artifact@v8
         with:
-          pattern: MuSicX-Nightly*
+          # Exact name, not a `MuSicX-Nightly*` glob: the build_debug job's
+          # artifacts (`MuSicX-Nightly-debug-with-Google-Cast`) also match that
+          # prefix, so debug-signed APKs used to ride along into the nightly
+          # pre-release and trigger Google Play Protect "unsafe app" warnings.
+          pattern: MuSicX-Nightly-with-Google-Cast
           path: nightly_apks/
           merge-multiple: false
 
