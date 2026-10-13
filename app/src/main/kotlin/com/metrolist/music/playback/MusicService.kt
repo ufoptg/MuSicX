@@ -2778,21 +2778,31 @@ class MusicService :
         ) {
             if (currentQueue.hasNextPage()) {
                 scope.launch(SilentHandler) {
-                    val mediaItems =
-                        withContext(Dispatchers.IO) {
-                            currentQueue
-                                .nextPage()
-                                .filterExplicit(cachedHideExplicit)
-                                .filterVideoSongs(cachedHideVideoSongs)
-                        }
-                    if (player.playbackState != STATE_IDLE && mediaItems.isNotEmpty()) {
-                        player.addMediaItems(mediaItems)
-                        if (player.shuffleModeEnabled) {
-                            applyShuffleOrder(
-                                player.currentMediaItemIndex,
-                                player.mediaItemCount,
-                                cachedShufflePlaylistFirst,
-                            )
+                    // Grow the queue aggressively: keep fetching pages until we have
+                    // at least 20 items remaining or the queue is exhausted.
+                    while (
+                        currentQueue === currentQueue &&
+                        player.mediaItemCount - player.currentMediaItemIndex <= 20 &&
+                        currentQueue.hasNextPage()
+                    ) {
+                        val mediaItems =
+                            withContext(Dispatchers.IO) {
+                                currentQueue
+                                    .nextPage()
+                                    .filterExplicit(cachedHideExplicit)
+                                    .filterVideoSongs(cachedHideVideoSongs)
+                            }
+                        if (player.playbackState != STATE_IDLE && mediaItems.isNotEmpty()) {
+                            player.addMediaItems(mediaItems)
+                            if (player.shuffleModeEnabled) {
+                                applyShuffleOrder(
+                                    player.currentMediaItemIndex,
+                                    player.mediaItemCount,
+                                    cachedShufflePlaylistFirst,
+                                )
+                            }
+                        } else {
+                            break
                         }
                     }
                 }
@@ -2848,9 +2858,10 @@ class MusicService :
                 }
 
             // First page may be mostly duplicates of the current queue; keep
-            // paginating once so we still have something to append.
-            if (newItems.isEmpty() && radioQueue.hasNextPage()) {
-                newItems =
+            // paginating (up to 5 pages) so we still have something to append.
+            var pagesChecked = 0
+            while (newItems.isEmpty() && radioQueue.hasNextPage() && pagesChecked < 5) {
+                val moreItems =
                     withContext(Dispatchers.IO) {
                         radioQueue
                             .nextPage()
@@ -2858,6 +2869,11 @@ class MusicService :
                             .filterVideoSongs(cachedHideVideoSongs)
                             .filter { it.mediaId !in existingIds }
                     }
+                if (moreItems.isNotEmpty()) {
+                    newItems = moreItems
+                    break
+                }
+                pagesChecked++
             }
 
             if (player.playbackState == STATE_IDLE) return
@@ -5750,7 +5766,7 @@ class MusicService :
          *  in [playQueue] for the full rationale. Set high enough that a
          *  mid-playback shuffle toggle actually feels random, low enough
          *  that we don't hammer YouTube search on every playQueue call. */
-        private const val TARGET_INITIAL_QUEUE_SIZE = 60
+        private const val TARGET_INITIAL_QUEUE_SIZE = 200
 
         @Volatile
         var isRunning = false
