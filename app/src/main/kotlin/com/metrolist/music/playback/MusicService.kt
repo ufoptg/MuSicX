@@ -438,8 +438,8 @@ class MusicService :
     fun isDjQueueActive(): Boolean = currentQueue is DjQueue
 
     /**
-     * One-shot voice command from the UI (push-to-talk) or after Hey DJ 6 wake
-     * (system speech UI). [requireWake] is false after wake so “skip” alone works.
+     * One-shot voice command from the UI (Talk to DJ 6 push-to-talk).
+     * [requireWake] defaults to true so the utterance must address “DJ 6”.
      */
     fun submitDjSpokenUtterance(
         spoken: String,
@@ -447,13 +447,6 @@ class MusicService :
     ) {
         val command = DjCommandParser.parse(spoken, requireWake = requireWake) ?: return
         handleDjVoiceCommand(command)
-    }
-
-    fun onDjCommandListenFinished() {
-        djWakeCommander?.setPaused(false)
-        if (djBanterJob?.isActive != true && djWakeCommander != null) {
-            djDuckVolumeMultiplier.value = WAKE_LISTEN_DUCK
-        }
     }
 
     private fun stopDjWakeListening() {
@@ -486,7 +479,7 @@ class MusicService :
                         context = this,
                         scope = scope,
                         onCommand = { command -> handleDjVoiceCommand(command) },
-                        onWake = { commandAlreadyParsed ->
+                        onWake = {
                             DjWakeSound.playChirp(this@MusicService)
                             android.widget.Toast
                                 .makeText(
@@ -495,18 +488,6 @@ class MusicService :
                                     android.widget.Toast.LENGTH_SHORT,
                                 ).show()
                             djDuckVolumeMultiplier.value = 0.25f
-                            if (!commandAlreadyParsed) {
-                                // Same system Speak-now sheet as Talk to DJ 6.
-                                djWakeCommander?.setPaused(true)
-                                startActivity(
-                                    android.content.Intent(
-                                        this@MusicService,
-                                        com.metrolist.music.dj.DjCommandListenActivity::class.java,
-                                    ).apply {
-                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    },
-                                )
-                            }
                         },
                         onReturnedToWake = {
                             if (djBanterJob?.isActive != true) {
@@ -5380,19 +5361,6 @@ class MusicService :
             PlaylistWidgetReceiver.ACTION_PLAY_TARGET -> {
                 handlePlaylistWidgetPlay(intent)
             }
-
-            ACTION_DJ_SPOKEN_UTTERANCE -> {
-                val spoken = intent.getStringExtra(EXTRA_DJ_UTTERANCE).orEmpty()
-                val requireWake = intent.getBooleanExtra(EXTRA_DJ_REQUIRE_WAKE, true)
-                if (spoken.isNotBlank()) {
-                    submitDjSpokenUtterance(spoken, requireWake = requireWake)
-                }
-                onDjCommandListenFinished()
-            }
-
-            ACTION_DJ_LISTEN_FINISHED -> {
-                onDjCommandListenFinished()
-            }
         }
 
         return super.onStartCommand(intent, flags, startId)
@@ -6019,10 +5987,6 @@ class MusicService :
     companion object {
         const val ACTION_ALARM_TRIGGER = "com.metrolist.music.action.ALARM_TRIGGER"
         const val ACTION_DISMISS_NOTIFICATION = "com.metrolist.music.action.DISMISS_NOTIFICATION"
-        const val ACTION_DJ_SPOKEN_UTTERANCE = "com.metrolist.music.action.DJ_SPOKEN_UTTERANCE"
-        const val ACTION_DJ_LISTEN_FINISHED = "com.metrolist.music.action.DJ_LISTEN_FINISHED"
-        const val EXTRA_DJ_UTTERANCE = "extra_dj_utterance"
-        const val EXTRA_DJ_REQUIRE_WAKE = "extra_dj_require_wake"
         const val EXTRA_ALARM_ID = "extra_alarm_id"
         const val EXTRA_ALARM_PLAYLIST_ID = "extra_alarm_playlist_id"
         const val EXTRA_ALARM_RANDOM_SONG = "extra_alarm_random_song"

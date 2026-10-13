@@ -737,7 +737,7 @@
     <string name="ai_dj_voice_prompt">Tell DJ 6 what to play</string>
     <string name="ai_dj_voice_unavailable">Voice input isn’t available on this device</string>
     <string name="ai_dj_listen_commands">Hey DJ 6 voice commands</string>
-    <string name="ai_dj_listen_commands_desc">While DJ 6 is active, say “Hey DJ 6” — you’ll get a chirp and the same Speak-now prompt as Talk to DJ 6. Then say skip / pause / resume / previous / play …. The mic stays on in the background only to hear the wake phrase. Player menu → Talk to DJ 6 also works anytime.</string>
+    <string name="ai_dj_listen_commands_desc">While DJ 6 is active, say “Hey DJ 6” — you’ll hear a chirp, then say skip / next / previous / pause / resume / play. Commands are recognised on-device in the background (a small voice model is downloaded once). Player menu → Talk to DJ 6 also works anytime.</string>
     <string name="ai_dj_wake_listening">DJ 6 listening…</string>
     <string name="ai_dj_talk_command">Talk to DJ 6</string>
     <string name="ai_dj_talk_command_prompt">Say skip, previous, pause, resume, or play …</string>
