@@ -123,3 +123,9 @@ test_result.md
 .cortexkit
 .mcp.json
 *.har
+
+# Bundled LibVLC from ir.mahozad.vlc-setup (downloaded on CI / Windows builds)
+desktop/appResources/**/vlc/
+desktop/appResources/**/*.dll
+desktop/appResources/**/*.so
+desktop/appResources/**/*.dylib

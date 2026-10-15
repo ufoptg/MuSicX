@@ -8,7 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  issues: write            # <-- labels use the Issues API (fixes GITHUB_TOKEN fallback)
+  issues: write
 
 concurrency:
   group: sync-upstream-metrolist
@@ -24,6 +24,12 @@ jobs:
       SYNC_BRANCH_PREFIX: chore/sync-upstream
       SYNC_LABEL: upstream-sync
       CONFLICT_LABEL: needs-manual-resolution
+      # MuSicX-branded workflows — always keep ours on conflict (also in .gitattributes).
+      MUSICX_WORKFLOWS: >-
+        .github/workflows/build.yml
+        .github/workflows/build_pr.yml
+        .github/workflows/build_quick.yml
+        .github/workflows/release.yml
       GH_TOKEN: ${{ secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
 
     steps:
@@ -69,8 +75,12 @@ jobs:
         if: steps.diff.outputs.behind != '0'
         id: existing_pr
         run: |
-          existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
-            --label "$SYNC_LABEL" --json number --jq '.[0].number // empty' 2>/dev/null || true)
+          # Match by branch prefix (reliable) and label (cosmetic fallback).
+          existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number,headRefName,labels \
+            --jq '[.[] | select(
+              (.headRefName | startswith("'"$SYNC_BRANCH_PREFIX"'"))
+              or (.labels[].name == "'"$SYNC_LABEL"'")
+            ) | .number] | first // empty' 2>/dev/null || true)
           if [[ -n "$existing" ]]; then
             echo "::notice::Open sync PR #$existing already exists. Skipping."
             echo "skip=true"  >> "$GITHUB_OUTPUT"
@@ -82,30 +92,146 @@ jobs:
         if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true'
         id: merge
         run: |
+          set -euo pipefail
           stamp=$(date -u +%Y%m%d-%H%M)
           branch="${SYNC_BRANCH_PREFIX}-${stamp}"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
           git checkout -b "$branch" "origin/$LOCAL_BASE"
 
           set +e
-          git merge --no-ff "upstream/$UPSTREAM_BRANCH" \
-            -m "chore: sync upstream MetrolistGroup/Metrolist@main"
+          git merge --no-ff --no-commit "upstream/$UPSTREAM_BRANCH"
           status=$?
           set -e
 
-          if [[ "$status" -eq 0 ]]; then
-            echo "clean_merge=true" >> "$GITHUB_OUTPUT"
+          auto_resolved=""
+          if [[ "$status" -ne 0 ]]; then
+            mapfile -t conflicts < <(git diff --name-only --diff-filter=U)
+            echo "::notice::Merge conflicts in: ${conflicts[*]}"
+
+            for f in $MUSICX_WORKFLOWS; do
+              if printf '%s\n' "${conflicts[@]}" | grep -Fxq "$f"; then
+                git checkout --ours -- "$f"
+                git add -- "$f"
+                auto_resolved+="$f "
+              fi
+            done
+
+            mapfile -t remaining < <(git diff --name-only --diff-filter=U)
+            if [[ "${#remaining[@]}" -gt 0 && -n "${remaining[0]:-}" ]]; then
+              echo "::error::Unresolved conflicts outside MuSicX CI workflows: ${remaining[*]}"
+              echo "::error::Not committing conflict markers. Opened no sync PR — create an issue/PR manually."
+              git merge --abort
+              gh issue create --repo "$GITHUB_REPOSITORY" \
+                --title "Upstream Metrolist sync blocked by conflicts" \
+                --body "$(printf '%s\n' \
+                  "Automated sync could not merge \`MetrolistGroup/Metrolist@${UPSTREAM_BRANCH}\` into \`${LOCAL_BASE}\`." \
+                  "" \
+                  "Unresolved files:" \
+                  "$(printf -- '- `%s`\n' "${remaining[@]}")" \
+                  "" \
+                  "MuSicX CI workflows are auto-kept via \`.gitattributes\` (\`merge=ours\`). These other paths need a human merge." \
+                  "" \
+                  "Re-run **Sync Upstream Metrolist** after resolving, or merge upstream locally.")" \
+                || echo "::warning::could not open issue"
+              echo "skip_pr=true" >> "$GITHUB_OUTPUT"
+              echo "clean_merge=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::notice::Auto-resolved MuSicX workflows: ${auto_resolved:-none}"
+          fi
+
+          # Take newer GitHub Action pins from upstream without adopting Metrolist branding.
+          python3 - <<'PY'
+          import pathlib, re, subprocess, sys
+
+          files = [
+              ".github/workflows/build.yml",
+              ".github/workflows/build_pr.yml",
+              ".github/workflows/build_quick.yml",
+              ".github/workflows/release.yml",
+          ]
+          uses_re = re.compile(
+              r"^(?P<pre>\s*-?\s*uses:\s+)(?P<action>[^\s@]+)@(?P<ver>v?\d+(?:\.\d+)*)(?P<post>\s*)$"
+          )
+
+          def ver_tuple(v: str):
+              return tuple(int(p) for p in v.lstrip("v").split("."))
+
+          changed = False
+          for path in files:
+              p = pathlib.Path(path)
+              if not p.exists():
+                  continue
+              try:
+                  upstream = subprocess.check_output(
+                      ["git", "show", f"upstream/main:{path}"], text=True
+                  )
+              except subprocess.CalledProcessError:
+                  continue
+
+              up_ver = {}
+              for line in upstream.splitlines():
+                  m = uses_re.match(line)
+                  if m:
+                      up_ver[m.group("action")] = m.group("ver")
+
+              ours = p.read_text()
+              out_lines = []
+              file_changed = False
+              for line in ours.splitlines():
+                  m = uses_re.match(line)
+                  if m and m.group("action") in up_ver:
+                      cur, nxt = m.group("ver"), up_ver[m.group("action")]
+                      try:
+                          if ver_tuple(nxt) > ver_tuple(cur):
+                              line = f"{m.group('pre')}{m.group('action')}@{nxt}{m.group('post')}"
+                              file_changed = True
+                      except ValueError:
+                          pass
+                  out_lines.append(line)
+
+              if file_changed:
+                  text = "\n".join(out_lines)
+                  if ours.endswith("\n"):
+                      text += "\n"
+                  p.write_text(text)
+                  changed = True
+                  print(f"bumped action pins in {path}")
+
+          PY
+          git add -- $MUSICX_WORKFLOWS
+
+          if git grep -n -E '^<<<<<<< |^>>>>>>> ' -- .; then
+            echo "::error::Conflict markers still present after resolution; aborting."
+            git merge --abort || true
+            exit 1
+          fi
+
+          # Upstream-only edits to MuSicX-kept workflows yield an empty tree; still
+          # record the merge so the next sync is not perpetually "behind".
+          if [[ -f .git/MERGE_HEAD ]]; then
+            if git diff --cached --quiet && git diff --quiet; then
+              git commit --no-verify --allow-empty \
+                -m "chore: sync upstream MetrolistGroup/Metrolist@main" \
+                -m "No tree changes (MuSicX CI workflows kept via merge=ours)."
+            else
+              git commit --no-verify -m "chore: sync upstream MetrolistGroup/Metrolist@main"
+            fi
           else
-            echo "clean_merge=false" >> "$GITHUB_OUTPUT"
-            conflicts=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
-            git add -A
-            git commit --no-verify \
-              -m "chore: sync upstream MetrolistGroup/Metrolist@main (CONFLICTS)" \
-              -m "Files requiring manual resolution: $conflicts"
+            echo "::error::Merge state missing; refusing to commit."
+            exit 1
+          fi
+
+          echo "skip_pr=false" >> "$GITHUB_OUTPUT"
+          echo "clean_merge=true" >> "$GITHUB_OUTPUT"
+          if [[ -n "${auto_resolved}" ]]; then
+            echo "auto_resolved=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "auto_resolved=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build PR body
-        if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true'
+        if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true' && steps.merge.outputs.skip_pr != 'true'
         run: |
           {
             echo "## What"
@@ -113,6 +239,7 @@ jobs:
             echo ""
             echo "- Behind by: ${{ steps.diff.outputs.behind }} commit(s)"
             echo "- Clean merge: ${{ steps.merge.outputs.clean_merge }}"
+            echo "- MuSicX workflows auto-kept: ${{ steps.merge.outputs.auto_resolved }}"
             echo ""
             echo "## Upstream commits"
             git log --oneline --no-decorate "origin/$LOCAL_BASE..upstream/$UPSTREAM_BRANCH" | sed 's/^/- /'
@@ -122,20 +249,23 @@ jobs:
             git diff --stat --no-color "origin/$LOCAL_BASE..upstream/$UPSTREAM_BRANCH" | tail -n 40
             echo '```'
             echo ""
+            echo "## Notes"
+            echo "- MuSicX CI workflows (\`build\`, \`build_pr\`, \`build_quick\`, \`release\`) are kept via \`merge=ours\` + action-pin bumps from upstream."
+            echo "- MuSicX branding, application IDs, artifact names, and \`submodules: recursive\` are preserved."
+            echo ""
             echo "## Reviewer checklist"
             echo "- [ ] Verify no MuSicX features regressed"
             echo "- [ ] Check CI builds"
           } > pr_body.md
 
       - name: Push sync branch
-        if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true'
+        if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true' && steps.merge.outputs.skip_pr != 'true'
         run: git push origin "${{ steps.merge.outputs.branch }}"
 
       - name: Open Pull Request
-        if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true'
+        if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true' && steps.merge.outputs.skip_pr != 'true'
         id: pr
         run: |
-          # Create the PR WITHOUT labels so a missing label can never fail this step.
           url=$(gh pr create \
             --repo "$GITHUB_REPOSITORY" \
             --base "$LOCAL_BASE" \
@@ -145,19 +275,10 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "::notice::Opened PR: $url"
 
-          # Labels are cosmetic now — attach best-effort, never fail the job.
           gh pr edit "$url" --add-label "$SYNC_LABEL" || echo "::warning::could not add $SYNC_LABEL"
-          if [[ "${{ steps.merge.outputs.clean_merge }}" != "true" ]]; then
-            gh pr edit "$url" --add-label "$CONFLICT_LABEL" || echo "::warning::could not add $CONFLICT_LABEL"
-          fi
 
-      - name: Enable auto-merge (clean syncs only)
-        if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true' && steps.merge.outputs.clean_merge == 'true'
+      - name: Enable auto-merge
+        if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true' && steps.merge.outputs.skip_pr != 'true' && steps.merge.outputs.clean_merge == 'true'
         run: |
           gh pr merge "${{ steps.pr.outputs.url }}" --squash --auto
           echo "::notice::Squash auto-merge enabled - will land on main once required checks pass."
-
-      - name: Conflict notice
-        if: steps.diff.outputs.behind != '0' && steps.existing_pr.outputs.skip != 'true' && steps.merge.outputs.clean_merge == 'false'
-        run: |
-          echo "::warning::Merge had conflicts. PR opened with the needs-manual-resolution label - resolve it manually."
