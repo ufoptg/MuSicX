@@ -135,7 +135,7 @@ object DiscoverRecommendationEngine {
             return@withContext collected.shuffled().take(count)
         }
 
-        // Second pass: widened seeds, relaxed history, original explicit/video filtering.
+        // Second pass: widened seeds, original explicit/video filtering; played history still excluded.
         appendUnique(
             collected,
             collectedIds,
@@ -153,7 +153,7 @@ object DiscoverRecommendationEngine {
             return@withContext collected.shuffled().take(count)
         }
 
-        // Third pass: widened seeds, relaxed history, explicit/video filters disabled.
+        // Third pass: widened seeds, explicit/video filters disabled; played history still excluded.
         appendUnique(
             collected,
             collectedIds,
