@@ -110,6 +110,7 @@ class HomeViewModel @Inject constructor(
     val quickPicks = MutableStateFlow<List<Song>?>(null)
     val discoverSomethingNew = MutableStateFlow<List<SongItem>?>(null)
     val discoverSomethingNewHidden = MutableStateFlow<List<SongItem>>(emptyList())
+    private val consumedDiscoverTrackIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     val recentlyPlayed = MutableStateFlow<List<Song>?>(null)
     val dailyDiscover = MutableStateFlow<List<DailyDiscoverItem>?>(null)
     val forgottenFavorites = MutableStateFlow<List<Song>?>(null)
@@ -387,6 +388,7 @@ class HomeViewModel @Inject constructor(
         if (reserve.isEmpty()) return null
         val track = reserve.first()
         discoverSomethingNewHidden.value = reserve.drop(1)
+        consumedDiscoverTrackIds.add(track.id)
         viewModelScope.launch(Dispatchers.IO) { replenishDiscoverHiddenReserve() }
         return track
     }
@@ -396,7 +398,8 @@ class HomeViewModel @Inject constructor(
         val hideExplicit = context.dataStore.get(HideExplicitKey, false)
         val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
         val excluded = discoverSomethingNew.value.orEmpty().map { it.id }.toSet() +
-            discoverSomethingNewHidden.value.map { it.id }.toSet()
+            discoverSomethingNewHidden.value.map { it.id }.toSet() +
+            consumedDiscoverTrackIds.toSet()
         val fresh = DiscoverRecommendationEngine.generate(
             context = context,
             database = database,
@@ -406,7 +409,8 @@ class HomeViewModel @Inject constructor(
             excludedIds = excluded,
         )
         val existingIds = discoverSomethingNewHidden.value.map { it.id }.toSet() +
-            (discoverSomethingNew.value?.map { it.id }?.toSet() ?: emptySet())
+            (discoverSomethingNew.value?.map { it.id }?.toSet() ?: emptySet()) +
+            consumedDiscoverTrackIds.toSet()
         discoverSomethingNewHidden.value =
             (discoverSomethingNewHidden.value + fresh.filterNot { it.id in existingIds })
                 .distinctBy { it.id }
