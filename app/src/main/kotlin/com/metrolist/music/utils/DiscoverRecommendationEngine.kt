@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withIndex
 import timber.log.Timber
 import java.time.LocalDateTime
 import java.util.Collections
@@ -132,7 +131,7 @@ object DiscoverRecommendationEngine {
 
             // Parallel pass inside a supervisor scope so one failing seed never cancels the others.
             supervisorScope {
-                seeds.withIndex().forEach { (_, seed) ->
+                seeds.forEach { seed ->
                     launch(Dispatchers.IO) {
                         try {
                             val recs = relatedSongsFor(seed.id)
@@ -152,12 +151,14 @@ object DiscoverRecommendationEngine {
                 }
             }
 
-            // Sequential retry (throttled) if the parallel pass produced nothing for every seed.
+            // Sequential retry (throttled) if the parallel pass is all-empty.
             // Parallel bursts are the most likely to trip 403/throttle without a PoToken.
             if (candidates.isEmpty()) {
                 Timber.w("$TAG: all ${seeds.size} seeds empty on parallel pass, retrying sequentially")
-                seeds.withIndex().forEach { (i, seed) ->
-                    if (i > 0) delay(SEQUENTIAL_THROTTLE_MS)
+                var retryIndex = 0
+                seeds.forEach { seed ->
+                    if (retryIndex > 0) delay(SEQUENTIAL_THROTTLE_MS)
+                    retryIndex++
                     try {
                         val recs = relatedSongsFor(seed.id)
                         for (song in recs) {
