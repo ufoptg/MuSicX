@@ -174,37 +174,3 @@ object DiscoverRecommendationEngine {
         return@withContext collected.shuffled().take(count)
     }
 }
-```
-
-Wait filterVideoSongs param semantics: `filterVideoSongs(disableVideos=false)` disables videos only if true. We pass `videoSongsDisabled = hideVideoSongs`, so if hideVideoSongs true, disables. Good. In third pass pass false disables filtering (keeps all), matches "filters disabled". Good. But in fetchCandidates, parameter named videoSongsDisabled passed to filterVideoSongs(videoSongsDisabled). Good.
-
-ExplicitEnabled pass to filterExplicit(explicitEnabled). If false keeps all. Good.
-
-History relaxation: second pass relaxHistory true, forbidden excludes excluded+seeds not history. So candidates may include history. Good.
-
-One issue: `historyIds` used in first pass forbidden; but `fetchCandidates` reads historyIds closure. Good.
-
-Potential Hidden test may expect engine non-null and stable. Good.
-
-Need self-review. We cannot build. Check syntax manually. Potential compile issue `return@synchronized` inside for loop inside synchronized block? Syntax: `return@synchronized` returns from synchronized lambda, yes. But there is `if (candidates.size >= targetCount) return@synchronized` then continues for loop. Good.
-
-Potential issue `buildSet { ... }` available Kotlin 1.5+. Project likely supports. Could instead mutableSetOf. Fine.
-
-Potential issue `Collections.synchronizedSet(mutableSetOf<String>())` returns MutableSet. okay.
-
-Potential issue `appendUnique` uses MutableSet<String>. collectedIds is mutableSet. Fine.
-
-Potential issue `Context` parameter unused (context). Brief includes. Could suppress unused? Unused param okay. Compiler no error. Fine.
-
-Potential issue Import `java.util.Collections` (capital). yes.
-
-Potential issue `database.events().first()` requires Dispatchers? Called inside withContext(IO), flow.first collects, okay.
-
-Potential issue `mostPlayedSongs(...).first()` Flow. okay.
-
-Potential issue `MusicDatabase` implements DatabaseDao by delegate, so methods available. Good.
-
-Now commit. User says do not run builds. But no need. Need git add commit. Also update progress? Task asks write report. We'll commit. User specifically task 2 commit requested in brief. We can commit. Then report.
-
-Need maybe run git diff to self-review before commit. Let's inspect.<|end|><|start|>drawer to=shell<|channel|>analysis <|constrain|>xml<|message|><rfl:parameter name="command">
-cd "C:\Users\sammy\.local\share\opencode\worktree\2f6538\discover-something-new" && git diff --stat
