@@ -25,7 +25,7 @@ https://metrolist.cc/listen?code=04UMRJ89
 >
 > Available for **Android** (stable) and **Windows** (desktop port in progress on `feat/windows-desktop`).
 >
-> Latest stable: **v13.14**
+> Latest stable: **v13.14.5**
 
 > [!WARNING]
 > **Regional Restriction** — If YouTube Music is unavailable in your region, this app will not work without a **VPN or proxy** connecting to a supported region.
@@ -57,6 +57,7 @@ Features added on top of Metrolist upstream:
 
 | Feature | Status | Notes |
 |---|---|---|
+| 🟢 **Discover Something New** ✨ new | Shipped v13.14.5 | A taste-seeded discovery row on **Home** plus a synthetic **Library** tile. Seeds come from your own history — 5 recent, 5 most-played, and up to 15 random liked songs — then expand through YouTube `related()`. **Played history is always excluded**, so nothing you've already heard resurfaces. The Home row holds 20 visible tracks plus a hidden reserve of 5: tapping the section title immediately plays a surprise track that isn't shown, and each tap swaps in a new one. The Library tile opens a browsable 50-track list with a refresh action. Batches live in memory only, so reopening the app yields a fresh set. |
 | 🟢 **Interleaved playlist recommendations** ✨ new | Shipped v13.12 → v13.14 | The playlist *Enhance* (recommended) toggle **interleaves** one recommended track after every 3 songs instead of dumping them all at the bottom, so suggestions are discovered in context. As of **v13.14** this is unified across **all three** playlist types — Local, online YouTube Music, *and* Spotify — via a single shared `buildPlaylistRows` so the behaviour can't drift between screens (online YT and Spotify were converted from the old bottom-dump "Recommended" section). Drag-to-reorder is disabled while Enhance is on so playlist order can't be corrupted; queue start indices stay correct and any leftover recommendations still append at the end. |
 | 🟢 **Wider Start Radio scope** ✨ new | Shipped v13.13 | *Start radio* now **round-robin interleaves** related songs *through* the mix (after the current track) instead of appending them at the tail — so variety shows up early instead of after 20+ same-artist tracks. Any throttle/error during expansion falls back gracefully to the narrow mix, and the empty-radio retry fallback is preserved. |
 | 🟢 **Smarter Enhance seeding + fallbacks** ✨ new | Shipped v13.13 | The Enhance recommendation engine adds per-seed diagnostics and a **watch-next → radio fallback** when a seed's `related()` shelf comes back empty, plus a throttled sequential retry when a parallel pass yields nothing — so Enhance returns tracks instead of an "no results" toast. |
