@@ -4,7 +4,7 @@
 
 # MuSicX
 
-### YouTube Music client with Spotify integration & FLAC hi-res streaming for Android — supercharged.
+### YouTube Music client with Spotify integration & FLAC hi-res streaming for Android & Windows — supercharged.
 
 https://metrolist.cc/listen?code=04UMRJ89
 
@@ -22,6 +22,8 @@ https://metrolist.cc/listen?code=04UMRJ89
 
 > [!NOTE]
 > **MuSicX** is a maintained fork of [Metrolist](https://github.com/MetrolistGroup/Metrolist) with additional integrations (Spotify, SponsorBlock, Music Recognition, Podcasts, LyricsPlus, Expressive player, playlist Enhance, and experimental FLAC / Hi-Res streaming via Qobuz), crash reporting, and an automated nightly upstream sync. Same great UX, more music sources, more resilience.
+>
+> Available for **Android** (stable) and **Windows** (desktop port in progress on `feat/windows-desktop`).
 >
 > Latest stable: **v13.14**
 
@@ -79,6 +81,7 @@ Features added on top of Metrolist upstream:
 | 🟢 **Now-playing widgets + Flex Window** | Shipped v13.9.13 | 4×1, 4×2, and **4×4** large now-playing widgets with prev / play / next. Optional Galaxy Z Flip Flex Window cover-screen widget. |
 | 🟢 **Notification swipe-to-dismiss** | Shipped v13.9.11+ | Swipe the media notification away while paused to fully tear down playback / queue / service (not just pause). |
 | 🟢 **InnerTubeX stream extraction** ✨ new | Shipped v13.11 | Upstream Metrolist sync adopts [InnerTubeX](https://github.com/MetrolistGroup/innertubex) as the sole YouTube stream extractor (replacing the older NewPipe-based path), with MuSicX Spotify / Qobuz / SponsorBlock / Enhance stacks kept intact. |
+| 🟢 **Windows Desktop port** ✨ new | In progress (`feat/windows-desktop`) | Full Compose Desktop (Windows) port with VLC-backed playback, InnerTubeX stream extraction, Spotify integration (search, home, library, liked songs, playlists), Qobuz hi-res streaming, SponsorBlock, Discord rich presence, synced lyrics (LrcLib), sleep timer, downloads, queue drag-to-reorder, history & stats screens, and Android-style Material 3 UI with navigation rail. Embedded Chromium (JCEF) for sign-in. Windows EXE packaging with CI. |
 
 <br/>
 
@@ -195,6 +198,21 @@ Features added on top of Metrolist upstream:
 </td>
     <td width="50%" valign="top">
 
+#### Desktop (Windows) ✨
+- **Compose Desktop (Windows) port** — full Android-parity UI with Material 3 & navigation rail ✨
+- **VLC-backed audio playback** via vlcj (replaces ExoPlayer on desktop) ✨
+- **Spotify integration** — search, home shelves, library, liked songs, playlists ✨
+- **Qobuz hi-res streaming** — FLAC / Hi-Res playback on desktop ✨
+- **SponsorBlock** — skip sponsor segments on desktop ✨
+- **Discord Rich Presence** — show what you're listening to ✨
+- **Synced lyrics** via LrcLib ✨
+- **Sleep timer** ✨
+- **Downloads & offline storage management** ✨
+- **Queue drag-to-reorder** ✨
+- **History & Stats screens** ✨
+- **Embedded Chromium (JCEF) sign-in** — auto-import browser cookies or paste `sp_dc` ✨
+- **Windows EXE packaging** with CI (jpackage) ✨
+
 #### Coming Soon
 - Cross-device queue sync (P2)
 - Smarter offline mode (P2)
@@ -212,6 +230,25 @@ Features added on top of Metrolist upstream:
 <div align="center">
 
 <h1><a id="download-now"></a>Download Now</h1>
+
+<h2>Windows Desktop (Pre-release)</h2>
+
+<table>
+  <tr>
+    <th align="center">Feature Branch</th>
+    <th align="center">Notes</th>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/ufoptg/MuSicX/tree/feat/windows-desktop">
+        <img src="https://img.shields.io/badge/feat%2Fwindows--desktop-in%20progress-blue?style=for-the-badge" alt="Windows desktop branch" height="40">
+      </a>
+    </td>
+    <td align="center">
+      Compose Desktop port (VLC playback, Spotify, Qobuz, SponsorBlock, Discord RPC, synced lyrics). Build from the branch via <code>:desktop:packageExe</code>
+    </td>
+  </tr>
+</table>
 
 <h2>Stable Release</h2>
 
@@ -238,18 +275,12 @@ Features added on top of Metrolist upstream:
 
 <table>
   <tr>
-    <th align="center">GitHub Nightly (foss)</th>
-    <th align="center">GitHub Nightly (with Google Cast)</th>
+    <th align="center">GitHub Pre-Release (rolling <code>nightly</code> tag)</th>
   </tr>
   <tr>
     <td align="center">
-      <a href="https://nightly.link/ufoptg/MuSicX/workflows/build/main/MuSicX-Nightly.zip">
+      <a href="https://github.com/ufoptg/MuSicX/releases/tag/nightly">
         <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="MuSicX Nightly" height="60">
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://nightly.link/ufoptg/MuSicX/workflows/build/main/MuSicX-Nightly-with-Google-Cast.zip">
-        <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="MuSicX Nightly (Cast)" height="60">
       </a>
     </td>
   </tr>
@@ -291,6 +322,11 @@ Three ways: (1) <strong>Search</strong> → type any podcast name → tap the "P
 <details>
 <summary><strong>What does the Enhance (sparkles) button do?</strong></summary>
 On Spotify, Local, and online YouTube Music playlists, the sparkles toggle next to Play/Shuffle loads an ephemeral “Recommended” section at the bottom. Recs disappear when you turn Enhance off. On Local (and Spotify) playlists you can long-press a recommendation and choose <strong>Add to this playlist</strong> to keep it; on online YT playlists long-press opens the normal song menu.
+</details>
+
+<details>
+<summary><strong>Is there a Windows version?</strong></summary>
+An early <strong>Windows desktop port</strong> is in development on the <a href="https://github.com/ufoptg/MuSicX/tree/feat/windows-desktop"><code>feat/windows-desktop</code></a> branch. It's a Compose Desktop app with VLC-backed playback, Spotify integration, Qobuz hi-res streaming, SponsorBlock, Discord rich presence, and synced lyrics. It's not yet an official release, but you can build it yourself with <code>./gradlew :desktop:packageExe</code> from that branch.
 </details>
 
 <details>

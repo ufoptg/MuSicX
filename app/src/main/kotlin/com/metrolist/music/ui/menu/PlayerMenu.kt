@@ -83,7 +83,7 @@ import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
-import com.metrolist.music.ui.component.spotify.SpotifyAddToPlaylistDialog
+import com.metrolist.music.playback.SpotifyYouTubeMapper
 import com.metrolist.music.constants.ListItemHeight
 import com.metrolist.music.constants.VarispeedKey
 import com.metrolist.music.listentogether.ConnectionState
@@ -170,9 +170,15 @@ fun PlayerMenu(
             database.getSpotifyMatchByYouTubeId(mediaMetadata.id)?.spotifyId?.let { "spotify:track:$it" }
         }.getOrNull()
     }
-    SpotifyAddToPlaylistDialog(
-        show = showAddToSpotifyDialog && musicxSpotifyEnabled && musicxSpotifySpDc.isNotEmpty(),
+    val musicxSpotifyMapper = remember(database) { SpotifyYouTubeMapper(database) }
+    AddToSpotifyPlaylistFlow(
+        showDialog = showAddToSpotifyDialog && musicxSpotifyEnabled && musicxSpotifySpDc.isNotEmpty(),
+        youtubeId = mediaMetadata.id,
+        title = mediaMetadata.title,
+        artist = mediaMetadata.artists.firstOrNull()?.name ?: "",
+        durationSec = mediaMetadata.duration,
         spotifyUri = musicxSpotifyUri,
+        mapper = musicxSpotifyMapper,
         onDismiss = { showAddToSpotifyDialog = false },
     )
 
