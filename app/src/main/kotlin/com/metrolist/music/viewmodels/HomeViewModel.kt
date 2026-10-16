@@ -44,6 +44,7 @@ import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.models.SimilarRecommendation
 import com.metrolist.music.ui.screens.wrapped.WrappedAudioService
 import com.metrolist.music.ui.screens.wrapped.WrappedManager
+import com.metrolist.music.utils.DiscoverRecommendationEngine
 import com.metrolist.music.utils.NetworkConnectivityObserver
 import com.metrolist.music.utils.SyncUtils
 import com.metrolist.music.utils.dataStore
@@ -107,6 +108,8 @@ class HomeViewModel @Inject constructor(
     }.distinctUntilChanged()
 
     val quickPicks = MutableStateFlow<List<Song>?>(null)
+    val discoverSomethingNew = MutableStateFlow<List<SongItem>?>(null)
+    val discoverSomethingNewHidden = MutableStateFlow<List<SongItem>>(emptyList())
     val recentlyPlayed = MutableStateFlow<List<Song>?>(null)
     val dailyDiscover = MutableStateFlow<List<DailyDiscoverItem>?>(null)
     val forgottenFavorites = MutableStateFlow<List<Song>?>(null)
@@ -365,6 +368,51 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    private suspend fun getDiscoverSomethingNew() {
+        val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+        val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
+        val batch = DiscoverRecommendationEngine.generate(
+            context = context,
+            database = database,
+            hideExplicit = hideExplicit,
+            hideVideoSongs = hideVideoSongs,
+            count = 25,
+        )
+        discoverSomethingNew.value = batch.take(20)
+        discoverSomethingNewHidden.value = batch.drop(20).shuffled()
+    }
+
+    fun consumeDiscoverHiddenTrack(): SongItem? {
+        val reserve = discoverSomethingNewHidden.value
+        if (reserve.isEmpty()) return null
+        val track = reserve.first()
+        discoverSomethingNewHidden.value = reserve.drop(1)
+        viewModelScope.launch(Dispatchers.IO) { replenishDiscoverHiddenReserve() }
+        return track
+    }
+
+    private suspend fun replenishDiscoverHiddenReserve() {
+        if (discoverSomethingNewHidden.value.size >= 5) return
+        val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+        val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
+        val excluded = discoverSomethingNew.value.orEmpty().map { it.id }.toSet() +
+            discoverSomethingNewHidden.value.map { it.id }.toSet()
+        val fresh = DiscoverRecommendationEngine.generate(
+            context = context,
+            database = database,
+            hideExplicit = hideExplicit,
+            hideVideoSongs = hideVideoSongs,
+            count = 5,
+            excludedIds = excluded,
+        )
+        val existingIds = discoverSomethingNewHidden.value.map { it.id }.toSet() +
+            (discoverSomethingNew.value?.map { it.id }?.toSet() ?: emptySet())
+        discoverSomethingNewHidden.value =
+            (discoverSomethingNewHidden.value + fresh.filterNot { it.id in existingIds })
+                .distinctBy { it.id }
+                .take(5)
+    }
+
     private suspend fun getCommunityPlaylists() {
         val fromTimeStamp = LocalDateTime.now().minusWeeks(4)
         val artistSeeds = database.mostPlayedArtists(fromTimeStamp, limit = 10).first()
@@ -507,6 +555,8 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) { getDailyDiscover() }
 
         viewModelScope.launch(Dispatchers.IO) { getCommunityPlaylists() }
+
+        viewModelScope.launch(Dispatchers.IO) { getDiscoverSomethingNew() }
 
         viewModelScope.launch(Dispatchers.IO) {
             YouTube.explore().onSuccess { page ->
