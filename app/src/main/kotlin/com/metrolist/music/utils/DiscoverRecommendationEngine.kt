@@ -14,18 +14,24 @@ import com.metrolist.innertube.models.filterExplicit
 import com.metrolist.innertube.models.filterVideoSongs
 import com.metrolist.music.db.MusicDatabase
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withIndex
+import timber.log.Timber
 import java.time.LocalDateTime
 import java.util.Collections
 
 object DiscoverRecommendationEngine {
+    private const val TAG = "DiscoverRecEngine"
     private const val RecentSeedCount = 5
     private const val MostPlayedSeedCount = 5
     private const val LikedSeedCount = 15
     private const val RawCandidateTargetMultiplier = 2
+    /** Throttle guard between sequential related() calls when retrying after an all-empty pass. */
+    private const val SEQUENTIAL_THROTTLE_MS = 350L
 
     suspend fun generate(
         context: Context,
@@ -39,13 +45,6 @@ object DiscoverRecommendationEngine {
 
         val historyIds: Set<String> =
             database.events().first().map { it.song.id }.toSet() + excludedIds
-
-        fun appendUnique(target: MutableList<SongItem>, seen: MutableSet<String>, items: List<SongItem>) {
-            for (item in items) {
-                if (item.id.isBlank()) continue
-                if (seen.add(item.id)) target.add(item)
-            }
-        }
 
         suspend fun fetchCandidates(
             recentCount: Int,
@@ -87,32 +86,103 @@ object DiscoverRecommendationEngine {
             val candidates = Collections.synchronizedList(mutableListOf<SongItem>())
             val seenCandidateIds = Collections.synchronizedSet(mutableSetOf<String>())
 
-            coroutineScope {
-                seeds.map { seed ->
-                    launch(Dispatchers.IO) {
-                        val endpoint = YouTube.next(WatchEndpoint(videoId = seed.id))
-                            .getOrNull()
-                            ?.relatedEndpoint
-                        val page = endpoint?.let { YouTube.related(it).getOrNull() }
-                        val songs = page?.songs.orEmpty()
-                            .filterExplicit(explicitEnabled)
-                            .filterVideoSongs(videoSongsDisabled)
+            suspend fun relatedSongsFor(videoId: String): List<SongItem> {
+                val nextResult = YouTube.next(WatchEndpoint(videoId = videoId)).getOrNull()
+                if (nextResult == null) {
+                    Timber.w("$TAG: seed=$videoId next() returned null")
+                    return emptyList()
+                }
 
-                        for (song in songs) {
+                val relatedEndpoint = nextResult.relatedEndpoint
+                Timber.d(
+                    "$TAG: seed=$videoId relatedEndpoint=${relatedEndpoint != null} " +
+                        "watchNextItems=${nextResult.items.size}",
+                )
+
+                if (relatedEndpoint != null) {
+                    val page = YouTube.related(relatedEndpoint).getOrNull()
+                    Timber.d("$TAG: seed=$videoId related.songs=${page?.songs?.size ?: -1}")
+                    val related = page?.songs.orEmpty()
+                        .filterExplicit(explicitEnabled)
+                        .filterVideoSongs(videoSongsDisabled)
+                        .filter { it.id.isNotBlank() && it.id != videoId }
+                    if (related.isNotEmpty()) return related
+                }
+
+                // Fallback 1: the watch-next up-next queue (already fetched above).
+                val watchNext = nextResult.items
+                    .filterExplicit(explicitEnabled)
+                    .filterVideoSongs(videoSongsDisabled)
+                    .filter { it.id.isNotBlank() && it.id != videoId }
+                if (watchNext.isNotEmpty()) {
+                    Timber.d("$TAG: seed=$videoId related empty → watch-next fallback yielded ${watchNext.size}")
+                    return watchNext
+                }
+
+                // Fallback 2: an explicit RDAMVM radio mix.
+                val radio = YouTube.next(
+                    WatchEndpoint(videoId = videoId, playlistId = "RDAMVM$videoId")
+                ).getOrNull()?.items.orEmpty()
+                    .filterExplicit(explicitEnabled)
+                    .filterVideoSongs(videoSongsDisabled)
+                    .filter { it.id.isNotBlank() && it.id != videoId }
+                Timber.d("$TAG: seed=$videoId related+watch-next empty → radio fallback yielded ${radio.size}")
+                return radio
+            }
+
+            // Parallel pass inside a supervisor scope so one failing seed never cancels the others.
+            supervisorScope {
+                seeds.withIndex().forEach { (_, seed) ->
+                    launch(Dispatchers.IO) {
+                        try {
+                            val recs = relatedSongsFor(seed.id)
+                            for (song in recs) {
+                                synchronized(candidates) {
+                                    if (candidates.size >= targetCount) return@synchronized
+                                    if (song.id in forbidden) return@synchronized
+                                    if (seenCandidateIds.add(song.id)) {
+                                        candidates.add(song)
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Timber.e(e, "$TAG: seed=${seed.id} failed")
+                        }
+                    }
+                }
+            }
+
+            // Sequential retry (throttled) if the parallel pass produced nothing for every seed.
+            // Parallel bursts are the most likely to trip 403/throttle without a PoToken.
+            if (candidates.isEmpty()) {
+                Timber.w("$TAG: all ${seeds.size} seeds empty on parallel pass, retrying sequentially")
+                seeds.withIndex().forEach { (i, seed) ->
+                    if (i > 0) delay(SEQUENTIAL_THROTTLE_MS)
+                    try {
+                        val recs = relatedSongsFor(seed.id)
+                        for (song in recs) {
                             synchronized(candidates) {
                                 if (candidates.size >= targetCount) return@synchronized
-                                if (song.id.isBlank()) return@synchronized
                                 if (song.id in forbidden) return@synchronized
                                 if (seenCandidateIds.add(song.id)) {
                                     candidates.add(song)
                                 }
                             }
                         }
+                    } catch (e: Exception) {
+                        Timber.e(e, "$TAG: sequential seed=${seed.id} failed")
                     }
-                }.forEach { it.join() }
+                }
             }
 
             return candidates
+        }
+
+        fun appendUnique(target: MutableList<SongItem>, seen: MutableSet<String>, items: List<SongItem>) {
+            for (item in items) {
+                if (item.id.isBlank()) continue
+                if (seen.add(item.id)) target.add(item)
+            }
         }
 
         // First pass: normal filtering and full history/exclusion handling.
