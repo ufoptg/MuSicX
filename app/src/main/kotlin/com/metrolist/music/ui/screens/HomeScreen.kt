@@ -36,6 +36,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
@@ -145,6 +146,8 @@ import com.metrolist.music.ui.component.AlbumGridItem
 import com.metrolist.music.ui.component.ArtistGridItem
 import com.metrolist.music.ui.component.ChipsRow
 import com.metrolist.music.ui.component.HideOnScrollFAB
+import com.metrolist.music.ui.component.ItemThumbnail
+import com.metrolist.music.ui.component.ListItem
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.component.NavigationTitle
@@ -188,6 +191,8 @@ sealed class HomeSection(
     data object SpeedDial : HomeSection("speed_dial", 100)
 
     data object QuickPicks : HomeSection("quick_picks", 90)
+
+    data object DiscoverSomethingNew : HomeSection("discover_something_new", 88)
 
     data object RecentlyPlayed : HomeSection("recently_played", 85)
 
@@ -670,6 +675,7 @@ fun HomeScreen(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
     val quickPicks by viewModel.quickPicks.collectAsStateWithLifecycle()
+    val discoverSomethingNew by viewModel.discoverSomethingNew.collectAsStateWithLifecycle()
     val recentlyPlayed by viewModel.recentlyPlayed.collectAsStateWithLifecycle()
     val forgottenFavorites by viewModel.forgottenFavorites.collectAsStateWithLifecycle()
     val keepListening by viewModel.keepListening.collectAsStateWithLifecycle()
@@ -1066,6 +1072,7 @@ fun HomeScreen(
             selectedChip,
             speedDialItems,
             quickPicks,
+            discoverSomethingNew,
             recentlyPlayed,
             mediaMetadata?.id,
             spotifyHomeActive,
@@ -1087,6 +1094,7 @@ fun HomeScreen(
             if (!chipActive && !hideLocalHomeSections) {
                 if (speedDialItems.isNotEmpty()) list.add(HomeSection.SpeedDial)
                 if (quickPicks?.isNotEmpty() == true) list.add(HomeSection.QuickPicks)
+                if (discoverSomethingNew?.isNotEmpty() == true) list.add(HomeSection.DiscoverSomethingNew)
                 if ((recentlyPlayed?.isNotEmpty() == true || mediaMetadata != null) && !spotifyHomeActive) {
                     list.add(HomeSection.RecentlyPlayed)
                 }
@@ -1136,6 +1144,7 @@ fun HomeScreen(
 
                             HomeSection.SpeedDial,
                             HomeSection.QuickPicks,
+                            HomeSection.DiscoverSomethingNew,
                             HomeSection.DailyDiscover,
                             -> 500
 
@@ -1161,6 +1170,7 @@ fun HomeScreen(
                             // Range: [500-200, 500+400] = [300, 900]
                             HomeSection.SpeedDial,
                             HomeSection.QuickPicks,
+                            HomeSection.DiscoverSomethingNew,
                             HomeSection.DailyDiscover,
                             -> sectionRandom.nextInt(-200, 400)
 
@@ -1184,6 +1194,7 @@ fun HomeScreen(
                         HomeSection.RecentlyPlayed to 1000,
                         HomeSection.SpeedDial to 100,
                         HomeSection.QuickPicks to 90,
+                        HomeSection.DiscoverSomethingNew to 89,
                         HomeSection.FromTheCommunity to 80,
                         HomeSection.DailyDiscover to 70,
                         HomeSection.KeepListening to 60,
@@ -2180,6 +2191,91 @@ fun HomeScreen(
                                                                 }
                                                             },
                                                         ),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        HomeSection.DiscoverSomethingNew -> {
+                            discoverSomethingNew?.takeIf { it.isNotEmpty() }?.let { discoverItems ->
+                                item(key = "discover_something_new_title") {
+                                    NavigationTitle(
+                                        title = stringResource(R.string.discover_something_new),
+                                        onClick =
+                                            if (!isListenTogetherGuest) {
+                                                {
+                                                    viewModel.consumeDiscoverHiddenTrack()?.let { hidden ->
+                                                        playerConnection.playQueue(
+                                                            ListQueue(
+                                                                title = hidden.title,
+                                                                items = listOf(hidden.toMediaItem()),
+                                                            ),
+                                                        )
+                                                    }
+                                                }
+                                            } else {
+                                                null
+                                            },
+                                    )
+                                }
+
+                                item(key = "discover_something_new_list") {
+                                    val discoverTitle = stringResource(R.string.discover_something_new)
+                                    val artistSeparator = " ${stringResource(R.string.and)} "
+                                    LazyHorizontalGrid(
+                                        rows = GridCells.Fixed(4),
+                                        contentPadding =
+                                            WindowInsets.systemBars
+                                                .only(WindowInsetsSides.Horizontal)
+                                                .asPaddingValues(),
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .height(ListItemHeight * 4),
+                                    ) {
+                                        itemsIndexed(
+                                            items = discoverItems,
+                                            key = { _, item -> "home_discover_${item.id}" },
+                                        ) { index, item ->
+                                            val isActive = item.id == mediaMetadata?.id
+                                            ListItem(
+                                                title = item.title,
+                                                subtitle =
+                                                    item.artists.joinToArtistString(artistSeparator) {
+                                                        it.name
+                                                    },
+                                                thumbnailContent = {
+                                                    ItemThumbnail(
+                                                        thumbnailUrl = item.thumbnail,
+                                                        isActive = isActive,
+                                                        isPlaying = isPlaying,
+                                                        shape = RoundedCornerShape(ThumbnailCornerRadius),
+                                                        modifier = Modifier.size(ListThumbnailSize),
+                                                    )
+                                                },
+                                                modifier =
+                                                    Modifier
+                                                        .width(horizontalLazyGridItemWidth)
+                                                        .combinedClickable(
+                                                            onClick = {
+                                                                if (!isListenTogetherGuest) {
+                                                                    if (isActive) {
+                                                                        playerConnection.togglePlayPause()
+                                                                    } else {
+                                                                        playerConnection.playQueue(
+                                                                            ListQueue(
+                                                                                title = discoverTitle,
+                                                                                items = discoverItems.map { it.toMediaItem() },
+                                                                                startIndex = index,
+                                                                            ),
+                                                                        )
+                                                                    }
+                                                                }
+                                                            },
+                                                        ),
+                                                isActive = isActive,
                                             )
                                         }
                                     }
