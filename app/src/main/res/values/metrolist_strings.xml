@@ -1158,4 +1158,5 @@
     <string name="qobuz_provider_health_latency">%1$d ms</string>
     <string name="top_result">Top result</string>
     <string name="other">Other</string>
+    <string name="discover_something_new">Discover Something New</string>
 </resources>
