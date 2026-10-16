@@ -53,7 +53,6 @@ object DiscoverRecommendationEngine {
             likedCount: Int,
             explicitEnabled: Boolean,
             videoSongsDisabled: Boolean,
-            relaxHistory: Boolean,
             excluded: Set<String>,
         ): List<SongItem> {
             val events = database.events().first()
@@ -79,7 +78,7 @@ object DiscoverRecommendationEngine {
 
             val seedIds = seeds.map { it.id }.toSet()
             val forbidden = buildSet {
-                if (!relaxHistory) addAll(historyIds)
+                addAll(historyIds)
                 addAll(excluded)
                 addAll(seedIds)
             }
@@ -128,7 +127,6 @@ object DiscoverRecommendationEngine {
                 likedCount = LikedSeedCount,
                 explicitEnabled = hideExplicit,
                 videoSongsDisabled = hideVideoSongs,
-                relaxHistory = false,
                 excluded = excludedIds,
             ),
         )
@@ -147,7 +145,6 @@ object DiscoverRecommendationEngine {
                 likedCount = 10,
                 explicitEnabled = hideExplicit,
                 videoSongsDisabled = hideVideoSongs,
-                relaxHistory = true,
                 excluded = excludedIds,
             ),
         )
@@ -166,7 +163,6 @@ object DiscoverRecommendationEngine {
                 likedCount = 10,
                 explicitEnabled = false,
                 videoSongsDisabled = false,
-                relaxHistory = true,
                 excluded = excludedIds,
             ),
         )
