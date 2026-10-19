@@ -221,6 +221,17 @@ fun LibraryMixScreen(
             songThumbnails = emptyList(),
         )
 
+    val discoverPlaylist =
+        Playlist(
+            playlist =
+                PlaylistEntity(
+                    id = UUID.randomUUID().toString(),
+                    name = stringResource(R.string.discover_something_new),
+                ),
+            songCount = 0,
+            songThumbnails = emptyList(),
+        )
+
     val (showLiked) = rememberPreference(ShowLikedPlaylistKey, true)
     val (showDownloaded) = rememberPreference(ShowDownloadedPlaylistKey, true)
     val (showTop) = rememberPreference(ShowTopPlaylistKey, true)
@@ -234,6 +245,7 @@ fun LibraryMixScreen(
     val showUploadedPlaylists =
         showUploaded && matchesNormalizedQuery(normalizedQuery, uploadedPlaylist.playlist.name)
     val showCachedPlaylists = showCached && matchesNormalizedQuery(normalizedQuery, cachedPlaylist.playlist.name)
+    val showDiscoverPlaylist = matchesNormalizedQuery(normalizedQuery, discoverPlaylist.playlist.name)
 
 
     val albums = viewModel.albums.collectAsStateWithLifecycle()
@@ -568,6 +580,24 @@ fun LibraryMixScreen(
                         }
                     }
 
+                    if (showDiscoverPlaylist) {
+                        item(
+                            key = "discoverPlaylist",
+                            contentType = { CONTENT_TYPE_PLAYLIST },
+                        ) {
+                            PlaylistListItem(
+                                playlist = discoverPlaylist,
+                                autoPlaylist = true,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            navController.navigate("discover_new")
+                                        }.animateItem(),
+                            )
+                        }
+                    }
+
                     // MuSicX Spotify playlists (Liked Songs + folders + playlists) — after auto-playlists
                     spotifyLibraryPlaylists(navController)
 
@@ -773,6 +803,7 @@ fun LibraryMixScreen(
                         !showCachedPlaylists &&
                         !showTopPlaylists &&
                         !showUploadedPlaylists &&
+                        !showDiscoverPlaylist &&
                         searchQuery.isNotBlank()
                     ) {
                         item(key = "empty_search_result") {
@@ -908,6 +939,27 @@ fun LibraryMixScreen(
                                         .clickable {
                                             navController.navigate("auto_playlist/uploaded")
                                         }.animateItem(),
+                            )
+                        }
+                    }
+
+                    if (showDiscoverPlaylist) {
+                        item(
+                            key = "discoverPlaylist",
+                            contentType = { CONTENT_TYPE_PLAYLIST },
+                        ) {
+                            PlaylistGridItem(
+                                playlist = discoverPlaylist,
+                                fillMaxWidth = true,
+                                autoPlaylist = true,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .combinedClickable(
+                                            onClick = {
+                                                navController.navigate("discover_new")
+                                            },
+                                        ).animateItem(),
                             )
                         }
                     }
@@ -1052,6 +1104,7 @@ fun LibraryMixScreen(
                         !showCachedPlaylists &&
                         !showTopPlaylists &&
                         !showUploadedPlaylists &&
+                        !showDiscoverPlaylist &&
                         searchQuery.isNotBlank()
                     ) {
                         item(

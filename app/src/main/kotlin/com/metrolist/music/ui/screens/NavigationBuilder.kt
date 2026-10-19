@@ -35,6 +35,7 @@ import com.metrolist.music.ui.screens.equalizer.wizard.WizardScreen
 import com.metrolist.music.ui.screens.library.LibraryScreen
 import com.metrolist.music.ui.screens.playlist.AutoPlaylistScreen
 import com.metrolist.music.ui.screens.playlist.CachePlaylistScreen
+import com.metrolist.music.ui.screens.playlist.DiscoverScreen
 import com.metrolist.music.ui.screens.playlist.LocalPlaylistScreen
 import com.metrolist.music.ui.screens.playlist.OnlinePlaylistScreen
 import com.metrolist.music.ui.screens.playlist.TopPlaylistScreen
@@ -334,6 +335,10 @@ fun NavGraphBuilder.navigationBuilder(
             ),
     ) {
         TopPlaylistScreen(navController)
+    }
+
+    composable("discover_new") {
+        DiscoverScreen(navController)
     }
 
     composable(
