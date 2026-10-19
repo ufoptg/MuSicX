@@ -31,12 +31,25 @@ jobs:
       - name: Resolve release tag
         id: tag
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           TAG="${{ github.event.release.tag_name || inputs.tag }}"
           if [ -z "$TAG" ]; then
             echo "::error::Could not resolve a release tag"
             exit 1
+          fi
+          # Accept either the exact tag ("v13.15") or just the version ("13.15"):
+          # pick whichever tag actually exists so a manual dispatch typo still works.
+          if ! gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$TAG" >/dev/null 2>&1; then
+              echo "Tag '$TAG' not found; using 'v$TAG' instead."
+              TAG="v$TAG"
+            else
+              echo "::error::No tag '$TAG' or 'v$TAG' exists in $GITHUB_REPOSITORY"
+              exit 1
+            fi
           fi
           # Strip leading v and keep only the numeric MAJOR[.MINOR[.PATCH]] part,
           # which is what jpackage accepts as a Windows package version.
