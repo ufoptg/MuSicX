@@ -74,7 +74,10 @@ compose.desktop {
             // jdk.swing.interop classes, which the default runtime image strips.
             includeAllModules = true
             packageName = "MuSicX"
-            packageVersion = "13.14.2"
+            // Overridable from CI (release workflow passes the release tag) so the
+            // installer version matches the GitHub release. Falls back to the baseline.
+            packageVersion = (project.findProperty("desktopPackageVersion") as String?)
+                ?.takeIf { it.isNotBlank() } ?: "13.14.2"
             description = "MuSicX Desktop — YouTube Music client with Spotify integration"
             copyright = "© 2026 ufoptg / MuSicX contributors"
             vendor = "ufoptg"
