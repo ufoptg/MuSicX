@@ -118,14 +118,14 @@ def scan_classpath(classpath):
         path = Path(path)
         if path.is_dir():
             entries = ((file.relative_to(path).as_posix(), file.read_bytes())
-                       for file in sorted((path / 'com/metrolist').rglob('*.class')))
+                       for file in sorted((path / 'dev/musicx').rglob('*.class')))
             for name, data in entries:
                 if name[:-6] not in classes:
                     classes[name[:-6]] = read_class(data)
         else:
             with zipfile.ZipFile(path) as archive:
                 for name in sorted(archive.namelist()):
-                    if name.startswith('com/metrolist/') and name.endswith('.class'):
+                    if name.startswith('dev/musicx/') and name.endswith('.class'):
                         # The first classpath definition wins, as it does on the JVM.
                         if name[:-6] not in classes:
                             classes[name[:-6]] = read_class(archive.read(name))

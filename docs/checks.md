@@ -284,7 +284,7 @@ Android runs ktlint, lint and unit tests. PRs also assemble the debug APK. Deskt
 
 ARM64 desktop verification, macOS and Windows packaging, Arch builds, Flatpak validation and packaged launch checks run only through manual workflows or the existing release paths. Native Nightly builds skip launch probes. Arch compilation can take an hour and Flatpak validation installs extra tools, so neither runs automatically for packaging edits. Dispatch `build-desktop.yml`, `verify-aur-package.yml` or `verify-repository-checks.yml` when changing their inputs. `release.yml` keeps its verification gate, signing, Sentry finalization and publication steps.
 
-The table counts jobs that acquire a runner, including selection jobs and Nightly's five jobs on eligible main pushes. It excludes skipped jobs, tags and manual runs. The before counts use the former path rules. The [main desktop run](https://github.com/MetrolistGroup/Metrolist/actions/runs/43665327533) had both Linux architectures. The [sample PR desktop run](https://github.com/MetrolistGroup/Metrolist/actions/runs/43663069470) had Linux x64 only; its four sibling Verify workflows added five runner jobs.
+The table counts jobs that acquire a runner, including selection jobs and Nightly's five jobs on eligible main pushes. It excludes skipped jobs, tags and manual runs. The before counts use the former path rules. The [main desktop run](https://github.com/MuSicXGroup/MuSicX/actions/runs/43665327533) had both Linux architectures. The [sample PR desktop run](https://github.com/MuSicXGroup/MuSicX/actions/runs/43663069470) had Linux x64 only; its four sibling Verify workflows added five runner jobs.
 
 | Change | Before | After |
 | --- | ---: | ---: |

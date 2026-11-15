@@ -1,6 +1,6 @@
 ---v14.0.0
 # First public multiplatform release
-Metrolist 14.0.0 replaces the standalone Android app with Metrolist-KMP.
+MuSicX 14.0.0 replaces the standalone Android app with MuSicX-KMP.
 
 ## Highlights
 - Added Windows portable ZIPs and an x64 installer, macOS DMGs, and Linux AppImages, with x64 and ARM64 desktop builds (@l6t9 @nyxiereal @applxcake)
@@ -37,11 +37,11 @@ Metrolist 14.0.0 replaces the standalone Android app with Metrolist-KMP.
 - iOS does not yet support music-video playback, casting, Device Connect, SponsorBlock or foreign-app backup import
 - iOS HLS fallback streams cannot use MetroEQ or independent pitch adjustment
 
-Full changelog: https://github.com/MetrolistGroup/Metrolist/commits/v14.0.0
+Full changelog: https://github.com/MuSicXGroup/MuSicX/commits/v14.0.0
 
 ---v13.7.0
 # KMP status update
-Metrolist-KMP remains in alpha. To try it, join our Discord and donate at least $1 to support development.
+MuSicX-KMP remains in alpha. To try it, join our Discord and donate at least $1 to support development.
 
 ## Highlights
 - Migrated networking to InnerTubeX with automatic client fallback (@nyxiereal)
@@ -69,7 +69,7 @@ Metrolist-KMP remains in alpha. To try it, join our Discord and donate at least 
 
 New contributors: @RizkLee (#4277), @GameOn223 (#4269), and @makro17 (#4270)
 
-Full changelog: https://github.com/MetrolistGroup/Metrolist/compare/v13.6.3...v13.7.0
+Full changelog: https://github.com/MuSicXGroup/MuSicX/compare/v13.6.3...v13.7.0
 
 ---v13.6.3
 
@@ -77,7 +77,7 @@ This hotfix repairs lyrics and the media controller.
 
 ---v13.6.2
 # KMP development
-We are fixing the remaining bugs in Metrolist KMP and preparing for release. It is still at least a couple of weeks away.
+We are fixing the remaining bugs in MuSicX KMP and preparing for release. It is still at least a couple of weeks away.
 
 # Major changes
 - Fixed playback issues caused by changes that also broke official apps (@nyxiereal)
@@ -100,14 +100,14 @@ We are fixing the remaining bugs in Metrolist KMP and preparing for release. It 
 - Updated dependencies (@nyxiereal)
 
 ## New contributors
-* @SimoneFelici made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/4102
-* @arpitagarwal1301 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/4178
+* @SimoneFelici made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/4102
+* @arpitagarwal1301 made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/4178
 
-Full changelog: https://github.com/MetrolistGroup/Metrolist/compare/v13.6.1...v13.6.2
+Full changelog: https://github.com/MuSicXGroup/MuSicX/compare/v13.6.1...v13.6.2
 
 ---v13.6.1
 # KMP development
-We aim to release the Kotlin Multiplatform version of Metrolist within the next month. Until then, the current app remains in maintenance mode and receives bug fixes and minor improvements.
+We aim to release the Kotlin Multiplatform version of MuSicX within the next month. Until then, the current app remains in maintenance mode and receives bug fixes and minor improvements.
 
 # Major changes
 - Improved playback reliability and recovery from YouTube player failures (@alltechdev @JASK625 @kairosci @mostafaalagamy @nyxiereal)
@@ -127,13 +127,13 @@ We aim to release the Kotlin Multiplatform version of Metrolist within the next 
 - Improved library sync performance and YouTube player compatibility (@mostafaalagamy @nyxiereal)
 
 ## New contributors
-* @HansHolz09 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3837
+* @HansHolz09 made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3837
 
-Full changelog: https://github.com/MetrolistGroup/Metrolist/compare/v13.6.0...v13.6.1
+Full changelog: https://github.com/MuSicXGroup/MuSicX/compare/v13.6.0...v13.6.1
 
 ---v13.5.0
 # Maintenance mode
-Metrolist is in maintenance mode. We accept only bug fixes and minor improvements. Do not submit PRs for new features or major changes.
+MuSicX is in maintenance mode. We accept only bug fixes and minor improvements. Do not submit PRs for new features or major changes.
 
 # Major changes
 - Rewrote the Discord RPC integration again (@adrielGGmotion @nyxiereal)
@@ -155,12 +155,12 @@ Metrolist is in maintenance mode. We accept only bug fixes and minor improvement
 - Fixed history sync not working (@kairosci)
 
 ## New contributors
-- @DanielSchmerber made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3777
-- @Arjuanto made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3780
+- @DanielSchmerber made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3777
+- @Arjuanto made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3780
 
 ---v13.4.3
 # Maintenance mode
-Metrolist is in maintenance mode. We accept only bug fixes and minor improvements. Do not submit PRs for new features or major changes.
+MuSicX is in maintenance mode. We accept only bug fixes and minor improvements. Do not submit PRs for new features or major changes.
 
 # Major changes
 - Rewrote the Discord RPC integration (@adrielGGmotion)
@@ -182,11 +182,11 @@ Metrolist is in maintenance mode. We accept only bug fixes and minor improvement
 - Made smaller improvements (@kairosci)
 
 ## New contributors
-- @Jeff0945 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3358
+- @Jeff0945 made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3358
 
 ---v13.4.2
 # Maintenance mode
-Metrolist is in maintenance mode. We accept only bug fixes and minor improvements. Do not submit PRs for new features or major changes.
+MuSicX is in maintenance mode. We accept only bug fixes and minor improvements. Do not submit PRs for new features or major changes.
 
 # Major changes
 - Fixed random crashes and some memory leaks (@nyxiereal)
@@ -208,13 +208,13 @@ Metrolist is in maintenance mode. We accept only bug fixes and minor improvement
 - Improved the Android Auto icon (@ThatOneCalculator)
 
 ## New contributors
-- @ndellagrotte made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3487
-- @cmeka made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3534
-- @punkscience made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3517
+- @ndellagrotte made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3487
+- @cmeka made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3534
+- @punkscience made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3517
 
 ---v13.4.1
 # Maintenance mode
-Metrolist is in maintenance mode. We accept only bug fixes and minor improvements. Do not submit PRs for new features or major changes.
+MuSicX is in maintenance mode. We accept only bug fixes and minor improvements. Do not submit PRs for new features or major changes.
 
 # Major changes
 - Fixed cached songs showing up in the downloads playlist (@nyxiereal)
@@ -244,19 +244,19 @@ Metrolist is in maintenance mode. We accept only bug fixes and minor improvement
 - Fixed pause music on task clear not working (@nyxiereal)
 
 ## New contributors
-* @ibratabian17 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3474
-* @sasha-melech made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3301
-* @FireLion137 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3500
-* @binimum made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3493
-* @stopper2408 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3506
-* @SunjeetKajla made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3505
+* @ibratabian17 made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3474
+* @sasha-melech made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3301
+* @FireLion137 made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3500
+* @binimum made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3493
+* @stopper2408 made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3506
+* @SunjeetKajla made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3505
 
-Full changelog: https://github.com/MetrolistGroup/Metrolist/compare/v13.4.0...v13.4.1
+Full changelog: https://github.com/MuSicXGroup/MuSicX/compare/v13.4.0...v13.4.1
 ---v13.4.0
 # Maintenance mode
-Metrolist is in maintenance mode. We accept only bug fixes and minor improvements. Do not submit PRs for new features or major changes.
+MuSicX is in maintenance mode. We accept only bug fixes and minor improvements. Do not submit PRs for new features or major changes.
 
-This April 1 release starts maintenance mode. Metrolist development continues.
+This April 1 release starts maintenance mode. MuSicX development continues.
 
 # Major changes
 - Multiple playback fixes and reliability improvements (@alltechdev)
@@ -292,13 +292,13 @@ This April 1 release starts maintenance mode. Metrolist development continues.
 - Fixed links in the README (@Lolen10 @nyxiereal)
 
 ## New contributors
-* @AntonioDionisio05 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3255
-* @David-2765 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3271
-* @luigiwwmf made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3293
-* @gergesh made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3300
-* @Lolen10 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3328
+* @AntonioDionisio05 made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3255
+* @David-2765 made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3271
+* @luigiwwmf made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3293
+* @gergesh made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3300
+* @Lolen10 made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3328
 
-Full changelog: https://github.com/MetrolistGroup/Metrolist/compare/v13.3.0...v13.3.1
+Full changelog: https://github.com/MuSicXGroup/MuSicX/compare/v13.3.0...v13.3.1
 ---v13.3.0
 # Major changes
 - Added song uploads and deletion (@alltechdev)
@@ -326,9 +326,9 @@ Full changelog: https://github.com/MetrolistGroup/Metrolist/compare/v13.3.0...v1
 - Updated dependencies (@nyxiereal)
 
 ## New contributors
-* @isotjs made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3090
+* @isotjs made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/3090
 
-Full changelog: https://github.com/MetrolistGroup/Metrolist/compare/v13.2.1...v13.3.0
+Full changelog: https://github.com/MuSicXGroup/MuSicX/compare/v13.2.1...v13.3.0
 ---v13.2.1
 >[!WARNING]
 >Listen Together does not work in v13.2.1. Use v13.2.0 if you need it.
@@ -338,7 +338,7 @@ Full changelog: https://github.com/MetrolistGroup/Metrolist/compare/v13.2.1...v1
 - Fixed navigation to local playlists pinned in Speed Dial
 - Removed "cache songs only after playback has started" option
 
-Full changelog: https://github.com/MetrolistGroup/Metrolist/compare/v13.2.0...v13.2.1
+Full changelog: https://github.com/MuSicXGroup/MuSicX/compare/v13.2.0...v13.2.1
 ---v13.2.0
 # Major changes
 - Fixed playback breaking due to YouTube's February 2026 n-transform changes (@alltechdev)
@@ -365,6 +365,6 @@ Full changelog: https://github.com/MetrolistGroup/Metrolist/compare/v13.2.0...v1
 - Fixed crash when creating local playlists (@mostafaalagamy)
 
 ## New contributors
-* @johannesbrauer made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/2991
+* @johannesbrauer made their first contribution in https://github.com/MuSicXGroup/MuSicX/pull/2991
 
-Full changelog: https://github.com/MetrolistGroup/Metrolist/compare/v13.1.1...v13.2.0
+Full changelog: https://github.com/MuSicXGroup/MuSicX/compare/v13.1.1...v13.2.0

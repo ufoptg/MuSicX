@@ -20,13 +20,13 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent.parent
-ICON_DIR = ROOT / "shared/src/commonMain/kotlin/com/metrolist/shared/ui/icons"
+ICON_DIR = ROOT / "shared/src/commonMain/kotlin/dev/musicx/shared/ui/icons"
 UPSTREAM_REVISION = "10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7"
 ICON_FILES = (
-    "MetrolistIconsOutlined.kt",
-    "MetrolistIconsFilled.kt",
-    "MetrolistIconsRounded.kt",
-    "MetrolistIcons.kt",
+    "MuSicXIconsOutlined.kt",
+    "MuSicXIconsFilled.kt",
+    "MuSicXIconsRounded.kt",
+    "MuSicXIcons.kt",
     "SongStatusIcons.kt",
 )
 ALIASES = {
@@ -134,7 +134,7 @@ def refresh(revision: str, verify: bool, styles: list[str] | None = None, fill: 
 
 
 def add_icons(revision: str, style: str, names: list[str], fill: int | None = None) -> None:
-    path = ICON_DIR / f"MetrolistIcons{style.capitalize()}.kt"
+    path = ICON_DIR / f"MuSicXIcons{style.capitalize()}.kt"
     source = path.read_text()
     entries = {}
     for prop in names:

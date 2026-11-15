@@ -23,8 +23,8 @@ class MacosArchitectureTest(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        self.app = Path(temporary.name) / 'Metrolist with spaces.app'
-        self.launcher = self.app / 'Contents/MacOS/Metrolist'
+        self.app = Path(temporary.name) / 'MuSicX with spaces.app'
+        self.launcher = self.app / 'Contents/MacOS/MuSicX'
         self.runtime = self.app / 'Contents/runtime/Contents/Home/lib/server/libjvm.dylib'
         self.library = self.app / 'Contents/app/resources/libsidecar.dylib'
         for path in (self.launcher, self.runtime, self.library):
@@ -55,7 +55,7 @@ class MacosArchitectureTest(unittest.TestCase):
     def test_checks_launcher_runtime_sidecars_and_jar_libraries(self):
         tool, output = self.verify()
         self.assertEqual(8, tool.call_count)
-        self.assertIn('Contents/MacOS/Metrolist', output)
+        self.assertIn('Contents/MacOS/MuSicX', output)
         self.assertIn('libjvm.dylib', output)
         self.assertIn('ffmpeg.jar!/org/bytedeco/ffmpeg/macosx-x86_64/libavcodec.dylib', output)
 
@@ -83,7 +83,7 @@ class MacosArchitectureTest(unittest.TestCase):
 
     def test_skiko_library_path_requires_a_loose_target_library_even_when_jar_contains_it(self):
         app_directory = self.app / 'Contents/app'
-        (app_directory / 'Metrolist.cfg').write_text(
+        (app_directory / 'MuSicX.cfg').write_text(
             '[JavaOptions]\njava-options=-Xmx384m\njava-options=-Dskiko.library.path=$APPDIR\n')
         for architecture, skiko_architecture in (('x86_64', 'x64'), ('arm64', 'arm64')):
             native = f'libskiko-macos-{skiko_architecture}.dylib'
@@ -106,7 +106,7 @@ class MacosArchitectureTest(unittest.TestCase):
             native = app_directory / f'libskiko-macos-{skiko_architecture}.dylib'
             for directory in ('$APPDIR', '$APPDIR/', str(app_directory)):
                 with self.subTest(architecture=architecture, directory=directory):
-                    (app_directory / 'Metrolist.cfg').write_text(
+                    (app_directory / 'MuSicX.cfg').write_text(
                         f'[JavaOptions]\njava-options=-Dskiko.library.path={directory}\n')
                     native.write_text(architecture)
                     _, output = self.verify(architecture)
@@ -117,7 +117,7 @@ class MacosArchitectureTest(unittest.TestCase):
             native.unlink()
 
     def test_skiko_in_a_jar_is_allowed_without_a_library_path_override(self):
-        (self.app / 'Contents/app/Metrolist.cfg').write_text(
+        (self.app / 'Contents/app/MuSicX.cfg').write_text(
             '[JavaOptions]\njava-options=-Xmx384m\n')
         with zipfile.ZipFile(self.jar, 'w') as archive:
             archive.writestr('libskiko-macos-x64.dylib', 'x86_64')
@@ -195,7 +195,7 @@ class MacosBuildTest(unittest.TestCase):
                 output = root / 'desktopApp/build/compose/binaries/main-release/dmg'
                 output.mkdir(parents=True)
                 for index in range(count):
-                    (output / f'Metrolist-{index}.dmg').touch()
+                    (output / f'MuSicX-{index}.dmg').touch()
                 tools = root / 'tools'
                 tools.mkdir()
                 for name, body in (
@@ -220,7 +220,7 @@ class MacosBuildTest(unittest.TestCase):
                     self.assertEqual(['attach', 'detach'], log)
                     continue
                 self.assertEqual('.github/scripts/verify_macos_arch.py', log[1])
-                self.assertTrue(log[2].endswith('/Metrolist.app'))
+                self.assertTrue(log[2].endswith('/MuSicX.app'))
                 self.assertEqual(['x86_64', 'detach'], log[3:])
 
     def test_x64_uses_native_gradle_and_a_separate_packaging_jdk(self):

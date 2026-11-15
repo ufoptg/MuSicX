@@ -16,7 +16,7 @@ from package import macos_minimum_version
 from verify_linux_audio import verify_linux_audio
 
 ROOT = Path(__file__).resolve().parents[2]
-METADATA = Path(__file__).parent / 'resources/META-INF/native-image/com.metrolist/desktop-experiment'
+METADATA = Path(__file__).parent / 'resources/META-INF/native-image/dev.musicx/desktop-experiment'
 
 
 def host_platform():
@@ -106,7 +106,7 @@ WINDOWS_MANIFEST = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 
 
 def windows_resources(work, version, rc=None):
-    """Compile the manifest, icon and version info that Native Image links into Metrolist.exe."""
+    """Compile the manifest, icon and version info that Native Image links into MuSicX.exe."""
     directory = work / 'windows-resources'
     directory.mkdir(parents=True, exist_ok=True)
     (directory / 'metrolist.manifest').write_text(WINDOWS_MANIFEST, encoding='utf-8')
@@ -119,9 +119,9 @@ def windows_resources(work, version, rc=None):
         f'1 24 {quoted(directory / "metrolist.manifest")}',
         '1 VERSIONINFO', f'FILEVERSION {numeric}', f'PRODUCTVERSION {numeric}', 'BEGIN',
         '  BLOCK "StringFileInfo"', '  BEGIN', '    BLOCK "040904B0"', '    BEGIN',
-        '      VALUE "FileDescription", "Metrolist"', f'      VALUE "FileVersion", "{version}"',
-        '      VALUE "InternalName", "Metrolist"', '      VALUE "OriginalFilename", "Metrolist.exe"',
-        '      VALUE "ProductName", "Metrolist"', f'      VALUE "ProductVersion", "{version}"',
+        '      VALUE "FileDescription", "MuSicX"', f'      VALUE "FileVersion", "{version}"',
+        '      VALUE "InternalName", "MuSicX"', '      VALUE "OriginalFilename", "MuSicX.exe"',
+        '      VALUE "ProductName", "MuSicX"', f'      VALUE "ProductVersion", "{version}"',
         '    END', '  END', '  BLOCK "VarFileInfo"', '  BEGIN', '    VALUE "Translation", 0x0409, 0x04B0', '  END', 'END', '']),
         encoding='utf-8')
     if rc is None:
@@ -162,8 +162,8 @@ def arguments(graal, work, output, target, experiment=False, agent=None, macos_v
             options += [f'-H:NativeLinkerOption=-mmacosx-version-min={macos_version or macos_deployment_target(graal)}',
                         f'-H:NativeLinkerOption={work / "macos-awt.o"}',
                         '-J--add-exports=org.graalvm.nativeimage.builder/com.oracle.svm.core.jdk=ALL-UNNAMED',
-                        '--features=com.metrolist.desktop.nativeimage.MacosAwtFeature']
-    main = 'com.metrolist.desktop.experiment.NativeImageMainKt' if experiment else 'com.metrolist.desktop.nativeimage.NativeDesktopMainKt'
+                        '--features=dev.musicx.desktop.nativeimage.MacosAwtFeature']
+    main = 'dev.musicx.desktop.experiment.NativeImageMainKt' if experiment else 'dev.musicx.desktop.nativeimage.NativeDesktopMainKt'
     classpath = (work / 'classpath.txt').read_text().strip()
     classpath = str(work / 'serialization-config') + os.pathsep + classpath
     if not experiment:
@@ -183,7 +183,7 @@ def build(graal, work, target, experiment=False, agent=None):
     run_options = {'env': dict(os.environ, MACOSX_DEPLOYMENT_TARGET=macos_version)} if macos_version else {}
     with tempfile.TemporaryDirectory(prefix='image-build.', dir=work) as directory:
         image = Path(directory)
-        name = 'metrolist' if experiment else 'Metrolist'
+        name = 'metrolist' if experiment else 'MuSicX'
         output = image / (name + ('.exe' if target.startswith('windows') else ''))
         if not experiment:
             glue = work / 'native-glue'
@@ -239,7 +239,7 @@ def build(graal, work, target, experiment=False, agent=None):
         if target.startswith('windows'):
             (image / 'bin').mkdir(exist_ok=True)
             shutil.copy2(source, image / 'bin' / library)
-            # Metrolist.exe and the JDK DLLs link the MSVC runtime; ship GraalVM's app-local copies like the JDK does,
+            # MuSicX.exe and the JDK DLLs link the MSVC runtime; ship GraalVM's app-local copies like the JDK does,
             # because clean Windows installs have no Visual C++ Redistributable.
             runtimes = sorted([*(graal / 'bin').glob('vcruntime*.dll'), *(graal / 'bin').glob('msvcp*.dll')])
             if not any(path.name.lower() == 'vcruntime140_1.dll' for path in runtimes):

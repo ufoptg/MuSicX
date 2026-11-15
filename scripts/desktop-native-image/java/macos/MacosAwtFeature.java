@@ -1,8 +1,8 @@
 /* Encoding binding adapted from Nucleus 67e9920f171a6d569e520d95b53c8e594b44a4d4.
  * Copyright (c) 2026 Elie Gambache. MIT license and provenance:
- * resources/META-INF/native-image/com.metrolist/desktop-experiment/nucleus/README.md
+ * resources/META-INF/native-image/dev.musicx/desktop-experiment/nucleus/README.md
  */
-package com.metrolist.desktop.nativeimage;
+package dev.musicx.desktop.nativeimage;
 
 import com.oracle.svm.core.jdk.RuntimeSupport;
 import java.nio.file.Files;

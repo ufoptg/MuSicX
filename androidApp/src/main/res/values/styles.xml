@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Widget.Metrolist" parent="@android:style/Theme.DeviceDefault">
+    <style name="Theme.Widget.MuSicX" parent="@android:style/Theme.DeviceDefault">
         <item name="android:colorBackground">#E6E1E5</item>
     </style>
 
-    <style name="MetrolistPlaylistWidgetCard">
+    <style name="MuSicXPlaylistWidgetCard">
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_weight">1</item>
@@ -12,12 +12,12 @@
         <item name="android:gravity">center_horizontal</item>
     </style>
 
-    <style name="MetrolistPlaylistWidgetArtworkFrame">
+    <style name="MuSicXPlaylistWidgetArtworkFrame">
         <item name="android:layout_width">72dp</item>
         <item name="android:layout_height">72dp</item>
     </style>
 
-    <style name="MetrolistPlaylistWidgetArtwork">
+    <style name="MuSicXPlaylistWidgetArtwork">
         <item name="android:layout_width">72dp</item>
         <item name="android:layout_height">72dp</item>
         <item name="android:scaleType">centerCrop</item>
@@ -25,7 +25,7 @@
         <item name="android:contentDescription">@string/playlists</item>
     </style>
 
-    <style name="MetrolistPlaylistWidgetCardPlayButton">
+    <style name="MuSicXPlaylistWidgetCardPlayButton">
         <item name="android:layout_width">48dp</item>
         <item name="android:layout_height">48dp</item>
         <item name="android:layout_gravity">bottom|end</item>
@@ -34,7 +34,7 @@
         <item name="android:background">@drawable/widget_playlist_card_play_bg</item>
     </style>
 
-    <style name="MetrolistPlaylistWidgetCardPlayIcon">
+    <style name="MuSicXPlaylistWidgetCardPlayIcon">
         <item name="android:layout_width">22dp</item>
         <item name="android:layout_height">22dp</item>
         <item name="android:layout_gravity">center</item>
@@ -42,7 +42,7 @@
         <item name="android:contentDescription">@string/play</item>
     </style>
 
-    <style name="MetrolistPlaylistWidgetCardTitle">
+    <style name="MuSicXPlaylistWidgetCardTitle">
         <item name="android:layout_width">76dp</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_marginTop">5dp</item>

@@ -1,8 +1,8 @@
 package meow.nyx.spotlib
 
-import com.metrolist.shared.network.sharedHttpEngine
-import com.metrolist.shared.youtube.playback.PlaybackEventKind
-import com.metrolist.shared.youtube.playback.PlaybackEventLog
+import dev.musicx.shared.network.sharedHttpEngine
+import dev.musicx.shared.youtube.playback.PlaybackEventKind
+import dev.musicx.shared.youtube.playback.PlaybackEventLog
 import io.ktor.client.request.get
 import kotlinx.coroutines.runBlocking
 import kotlin.test.AfterTest

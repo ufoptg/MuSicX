@@ -16,13 +16,13 @@ appimageTools.wrapType2 {
     export GIO_EXTRA_MODULES="${glib-networking}/lib/gio/modules''${GIO_EXTRA_MODULES:+:$GIO_EXTRA_MODULES}"
   '';
   extraInstallCommands = ''
-    install -Dm644 ${contents}/Metrolist.desktop $out/share/applications/Metrolist.desktop
-    sed -i "s|^Exec=.*|Exec=$out/bin/metrolist %u|" $out/share/applications/Metrolist.desktop
-    install -Dm644 ${contents}/Metrolist.png $out/share/icons/hicolor/512x512/apps/Metrolist.png
+    install -Dm644 ${contents}/MuSicX.desktop $out/share/applications/MuSicX.desktop
+    sed -i "s|^Exec=.*|Exec=$out/bin/metrolist %u|" $out/share/applications/MuSicX.desktop
+    install -Dm644 ${contents}/MuSicX.png $out/share/icons/hicolor/512x512/apps/MuSicX.png
   '';
   meta = {
     description = "YouTube Music desktop client";
-    homepage = "https://github.com/MetrolistGroup/Metrolist";
+    homepage = "https://github.com/MuSicXGroup/MuSicX";
     license = lib.licenses.gpl3;
     platforms = [ "x86_64-linux" "aarch64-linux" ];
     mainProgram = pname;

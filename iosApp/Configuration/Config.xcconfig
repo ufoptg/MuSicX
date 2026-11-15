@@ -1,13 +1,13 @@
 //
 // Config.xcconfig
-// Metrolist iOS App Scaffold Configuration
+// MuSicX iOS App Scaffold Configuration
 //
 
-PRODUCT_NAME = Metrolist
-PRODUCT_BUNDLE_IDENTIFIER = com.metrolist.MetrolistApp
+PRODUCT_NAME = MuSicX
+PRODUCT_BUNDLE_IDENTIFIER = dev.musicx.MuSicXApp
 CODE_SIGN_ENTITLEMENTS = Configuration/iosApp.entitlements
 INFOPLIST_PREPROCESS = YES
-INFOPLIST_PREFIX_HEADER = $(DERIVED_FILE_DIR)/MetrolistVersion.h
+INFOPLIST_PREFIX_HEADER = $(DERIVED_FILE_DIR)/MuSicXVersion.h
 SWIFT_VERSION = 5.9
 SWIFT_STRICT_CONCURRENCY = complete
 IPHONEOS_DEPLOYMENT_TARGET = 17.0

@@ -83,7 +83,7 @@ The expressive mini-player title and artist stay on one line and show an ellipsi
 
 ## Lyrics
 
-Shared lyrics live under `shared/src/commonMain/kotlin/com/metrolist/shared/ui/components/lyrics/`. Read the selected renderer and its position/visibility inputs before changing timing. Keep song offsets, global offsets and retimed timestamps consistent with tap-to-seek diagnostics.
+Shared lyrics live under `shared/src/commonMain/kotlin/dev/musicx/shared/ui/components/lyrics/`. Read the selected renderer and its position/visibility inputs before changing timing. Keep song offsets, global offsets and retimed timestamps consistent with tap-to-seek diagnostics.
 
 Lyrics and player lyric captions disable standard font ligatures so letters such as `fi` stay separate. Background vocals, translations and romanization inherit this text style.
 

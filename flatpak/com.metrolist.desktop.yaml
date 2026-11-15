@@ -1,8 +1,8 @@
-app-id: com.metrolist.desktop
+app-id: dev.musicx.desktop
 runtime: org.gnome.Platform
 runtime-version: "51"
 sdk: org.gnome.Sdk
-command: com.metrolist.desktop
+command: dev.musicx.desktop
 
 build-options:
   env:
@@ -50,19 +50,19 @@ modules:
         path: ..
         skip-if-not-changed: false
       - type: file
-        path: com.metrolist.desktop.desktop
+        path: dev.musicx.desktop.desktop
       - type: file
-        path: com.metrolist.desktop.metainfo.xml
+        path: dev.musicx.desktop.metainfo.xml
       - type: file
-        path: com.metrolist.desktop.png
+        path: dev.musicx.desktop.png
       - type: file
-        path: com.metrolist.desktop.svg
+        path: dev.musicx.desktop.svg
     build-commands:
       - ./gradlew clean :desktopApp:verifyReleaseDistributableJars --no-daemon --no-build-cache --no-configuration-cache
       - mkdir -p /app
-      - cp -r desktopApp/build/compose/binaries/main-release/app/Metrolist/* /app/
+      - cp -r desktopApp/build/compose/binaries/main-release/app/MuSicX/* /app/
       - |
-        cat > /app/bin/com.metrolist.desktop <<'LAUNCHER'
+        cat > /app/bin/dev.musicx.desktop <<'LAUNCHER'
         #!/bin/sh
         export SKIKO_WAYLAND="${SKIKO_WAYLAND:-1}"
         export GDK_BACKEND="${GDK_BACKEND:-x11}"
@@ -72,17 +72,17 @@ modules:
         export WEBKIT_DISABLE_COMPOSITING_MODE=1
         export LC_NUMERIC=C
         DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-        exec "$DIR/Metrolist" "$@"
+        exec "$DIR/MuSicX" "$@"
         LAUNCHER
-      - chmod +x /app/bin/com.metrolist.desktop
+      - chmod +x /app/bin/dev.musicx.desktop
       - mkdir -p /app/share/metainfo
       - |
         APP_VERSION="$(grep '^appVersion=' gradle.properties | cut -d= -f2)"
         BUILD_DATE="$(date +%Y-%m-%d)"
         sed -e "s/@VERSION@/$APP_VERSION/" -e "s/@DATE@/$BUILD_DATE/" \
-          com.metrolist.desktop.metainfo.xml > /app/share/metainfo/com.metrolist.desktop.metainfo.xml
-      - install -Dm644 com.metrolist.desktop.desktop /app/share/applications/com.metrolist.desktop.desktop
-      - install -Dm644 com.metrolist.desktop.png /app/share/icons/hicolor/512x512/apps/com.metrolist.desktop.png
-      - install -Dm644 com.metrolist.desktop.svg /app/share/icons/hicolor/scalable/apps/com.metrolist.desktop.svg
+          dev.musicx.desktop.metainfo.xml > /app/share/metainfo/dev.musicx.desktop.metainfo.xml
+      - install -Dm644 dev.musicx.desktop.desktop /app/share/applications/dev.musicx.desktop.desktop
+      - install -Dm644 dev.musicx.desktop.png /app/share/icons/hicolor/512x512/apps/dev.musicx.desktop.png
+      - install -Dm644 dev.musicx.desktop.svg /app/share/icons/hicolor/scalable/apps/dev.musicx.desktop.svg
     cleanup:
       - /jdk

@@ -5,7 +5,7 @@ const handle = require('./reporter-labels.cjs');
 function fixture(body = '/label bug') {
   const calls = [];
   const comments = [];
-  const target = { owner: 'MetrolistGroup', repo: 'Metrolist', issue_number: 42 };
+  const target = { owner: 'MuSicXGroup', repo: 'MuSicX', issue_number: 42 };
   const context = {
     repo: { owner: target.owner, repo: target.repo },
     payload: {

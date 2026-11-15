@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Opt-in real Secret Service regression probe; never opens Metrolist or the user's keyring.
+"""Opt-in real Secret Service regression probe; never opens MuSicX or the user's keyring.
 
 Compile desktop tests and supply their runtime classpath via --classpath-file.
 Each probe invocation starts a fresh JVM, with only synthetic credentials.
@@ -36,7 +36,7 @@ def run_session(classpath, java, root):
 
     def probe(mode, *values, env=None):
         run(java, "-Djava.util.prefs.userRoot=" + str(root / "prefs"), "-cp", classpath,
-            "com.metrolist.shared.settings.LinuxSecretServiceProbe", mode, *values, env=env)
+            "dev.musicx.shared.settings.LinuxSecretServiceProbe", mode, *values, env=env)
 
     def unlock():
         run("gnome-keyring-daemon", "--unlock", "--components=secrets", "--control-directory",
@@ -128,20 +128,20 @@ def run_session(classpath, java, root):
         "org.freedesktop.secrets", "/org/freedesktop/secrets", "org.freedesktop.Secret.Service", "SetAlias",
         GLib.Variant("(so)", ("default", collection)), None, Gio.DBusCallFlags.NONE, 5000, None,
     )
-    run("secret-tool", "store", "--label=Metrolist Desktop Secrets", "service", "com.metrolist.desktop",
-        "schema", "metrolist-settings", "account", "desktop-secrets", input="#Metrolist desktop secrets")
+    run("secret-tool", "store", "--label=MuSicX Desktop Secrets", "service", "dev.musicx.desktop",
+        "schema", "metrolist-settings", "account", "desktop-secrets", input="#MuSicX desktop secrets")
     probe("duplicate-keyrings")
     probe("recovered", "innerTubeCookie=SAPISID=last-login", "lyricsDeepLApiKey=fake-duplicate-keyrings",
           "lastFmSession=lastfm-while-service-absent", "discordAccessToken=fake-discord")
-    run("secret-tool", "store", "--label=Metrolist Desktop Secrets", "service", "com.metrolist.desktop",
+    run("secret-tool", "store", "--label=MuSicX Desktop Secrets", "service", "dev.musicx.desktop",
         "schema", "metrolist-settings", "account", "desktop-secrets", input="innerTubeCookie=SAPISID=stale-duplicate")
     probe("clear-duplicates")
     probe("cleared")
 
-    run("secret-tool", "clear", "service", "com.metrolist.desktop", "schema", "metrolist-settings",
+    run("secret-tool", "clear", "service", "dev.musicx.desktop", "schema", "metrolist-settings",
         "account", "desktop-secrets")
-    run("secret-tool", "store", "--label=Metrolist Desktop Secrets", "service", "com.metrolist.desktop",
-        "schema", "metrolist-settings", "account", "desktop-secrets", input="#Metrolist desktop secrets")
+    run("secret-tool", "store", "--label=MuSicX Desktop Secrets", "service", "dev.musicx.desktop",
+        "schema", "metrolist-settings", "account", "desktop-secrets", input="#MuSicX desktop secrets")
     lock()
     probe("default-keyring")
     probe("recovered", "lyricsDeepLApiKey=fake-default-keyring")
@@ -170,7 +170,7 @@ def run_session(classpath, java, root):
         set_secret(path, secret)
 
     unlock()
-    attributes = {"service": "com.metrolist.desktop", "schema": "metrolist-settings", "account": "desktop-secrets"}
+    attributes = {"service": "dev.musicx.desktop", "schema": "metrolist-settings", "account": "desktop-secrets"}
     stale = b"innerTubeCookie=SAPISID=locked-duplicate\nlastFmSession=locked-lastfm"
     login_item, prompt = call(
         "/org/freedesktop/secrets/collection/login", "org.freedesktop.Secret.Collection", "CreateItem",
@@ -203,7 +203,7 @@ def run_session(classpath, java, root):
     assert bytes(get_secret(login_item)[2]) == stale
     saved = get_secret(default_item)
 
-    header = (session, [], list(b"#Metrolist desktop secrets\n"), "text/plain")
+    header = (session, [], list(b"#MuSicX desktop secrets\n"), "text/plain")
     set_secret(default_item, header)
     lock()
     probe("unreadable-duplicates")
@@ -260,7 +260,7 @@ def main():
     classpath = args.classpath_file.resolve().read_text().strip()
     java = str(Path(args.java).resolve())
     if args.inside_session:
-        root = Path(os.environ["METROLIST_CREDENTIAL_TEST_ROOT"])
+        root = Path(os.environ["MUSICX_CREDENTIAL_TEST_ROOT"])
         assert Path(os.environ["HOME"]) == root
         run_session(classpath, java, root)
         return
@@ -278,7 +278,7 @@ def main():
         env = dict(os.environ, HOME=directory, XDG_CONFIG_HOME=str(root / "config"),
                    XDG_DATA_HOME=str(root / "data"), XDG_STATE_HOME=str(root / "state"),
                    XDG_RUNTIME_DIR=str(root / "run"), GNOME_KEYRING_CONTROL=str(root / "control"),
-                   METROLIST_CREDENTIAL_TEST_ROOT=directory, METROLIST_CREDENTIAL_TEST_SECRET_TOOL=shutil.which("secret-tool"),
+                   MUSICX_CREDENTIAL_TEST_ROOT=directory, MUSICX_CREDENTIAL_TEST_SECRET_TOOL=shutil.which("secret-tool"),
                    DISPLAY="", WAYLAND_DISPLAY="")
         subprocess.run(
             ["dbus-run-session", "--config-file=" + str(config), "--", sys.executable,

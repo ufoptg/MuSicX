@@ -1,6 +1,6 @@
 # Agent guide
 
-Metrolist is a YouTube Music client for Android, desktop and iOS.
+MuSicX is a YouTube Music client for Android, desktop and iOS.
 
 ## One task per PR
 
@@ -36,6 +36,9 @@ Do not propose or implement these additions:
 - Audio visualizers.
 - Custom app icons.
 
+Exceptions to "Other streaming services as music-playback backends":
+- Qobuz hi-res audio backend (existing MuSicX feature) is explicitly permitted and must be preserved during the upstream port.
+
 - Keep each PR focused on one problem or feature and inspect the complete diff against the remote base before publication.
 - Before starting and before publishing, check the canonical issue and related PRs, including cross-repository references, for assignments and existing efforts. Do not take over assigned work or duplicate an existing implementation; report unclear overlap with links.
 - Preserve attribution, provenance, license notices and unrelated changes. Do not alter another contributor's work or issue assignments without authorization.
@@ -60,11 +63,11 @@ Explain this policy and ask for a maintainer decision before coding a rejected f
 - **No hardcoded fallback values.** Never use hardcoded language codes (e.g. `"en"`, `"de"`, `"it"`, `"es"`) as fallbacks or defaults. Derive locale-specific values from resource directories, system locale, or user settings at runtime.
 - **No placeholders or workarounds.** Do not introduce placeholder values, hardcoded fallback strings, or workaround hacks. If a value depends on configuration, resolve it properly from settings or resources.
 - **No hardcoded lists of supported languages.** Never hardcode `listOf("en", "de", "es", "it")` or similar. Derive bundled languages dynamically from the `composeResources/values*/` directory structure.
-- **No inline fully qualified class names.** Always use proper `import` statements. Never write `com.metrolist.shared.viewmodels.UserPlaylist` inline; import it and use `UserPlaylist`.
+- **No inline fully qualified class names.** Always use proper `import` statements. Never write `dev.musicx.shared.viewmodels.UserPlaylist` inline; import it and use `UserPlaylist`.
 - **No foreign strings in resource files.** Each `values-XX/strings.xml` must contain only text in language XX. The base `values/strings.xml` must contain only English. Never mix languages across resource files (e.g. no Italian in `values/strings.xml`, no English in `values-it/strings.xml`).
 - **Desktop homepage sections:** Do not show library or locally-sourced sections on the desktop home page. Personalized API recommendation sections and Speed Dial are allowed, but filter out all `FEmusic_library*` browse IDs and library/local-only sections.
 - **Content language must respect user settings.** When `contentLanguage` or `contentCountry` is set to `SYSTEM`, use the JVM system locale. When set to a specific code, use that code. Never silently fall back to English.
-- **Shared strings:** Android and desktop string resources live only in `shared/src/commonMain/composeResources/values*/strings.xml`. Desktop uses `com.metrolist.shared.generated.resources.Res`; Android gets a generated subset containing only the keys it references (see `docs/strings.md`).
+- **Shared strings:** Android and desktop string resources live only in `shared/src/commonMain/composeResources/values*/strings.xml`. Desktop uses `dev.musicx.shared.generated.resources.Res`; Android gets a generated subset containing only the keys it references (see `docs/strings.md`).
 
 ## Modules
 
@@ -96,7 +99,7 @@ Use [development.md](docs/development.md) for setup and the code map. Before bui
 ## Strings and locale
 
 - Never hardcode user-facing Kotlin text. Add English to `shared/src/commonMain/composeResources/values/strings.xml` and use `stringResource(Res.string.<key>)` or `pluralStringResource(Res.plurals.<key>, ...)`.
-- Desktop uses `com.metrolist.shared.generated.resources.Res`; Android generates its referenced subset. Do not create platform-local catalogs.
+- Desktop uses `dev.musicx.shared.generated.resources.Res`; Android generates its referenced subset. Do not create platform-local catalogs.
 - Add English only to `values/strings.xml`, including KMP-only keys. The shared XML catalogs are the single source of truth; translators maintain `values-*/strings.xml` only through Weblate as described in [strings.md](docs/strings.md). Missing UI translations fall back to the base English resources at runtime. Do not add translation side tables or copy English into locale catalogs.
 - Derive locale defaults and fallbacks from system locale, settings or resources. Never silently fall back to English or hardcode language or country defaults. Derive bundled languages from `composeResources/values*/`, never a hardcoded list.
 - When `contentLanguage` or `contentCountry` is `SYSTEM`, use the JVM system locale. Otherwise use the selected code.

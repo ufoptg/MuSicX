@@ -13,7 +13,7 @@
     android:paddingTop="8dp"
     android:paddingEnd="8dp"
     android:paddingBottom="8dp"
-    android:theme="@style/Theme.Widget.Metrolist">
+    android:theme="@style/Theme.Widget.MuSicX">
 
     <ImageView
         android:id="@+id/widget_recognizer_album_art"

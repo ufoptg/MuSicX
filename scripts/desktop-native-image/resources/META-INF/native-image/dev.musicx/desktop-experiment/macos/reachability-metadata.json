@@ -1,0 +1,88 @@
+{
+  "reflection": [
+    {
+      "type": "dev.musicx.desktop.utils.NativeMemoryTrimmer$MacAllocator",
+      "jniAccessible": true,
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    },
+    {
+      "type": "dev.musicx.desktop.utils.MacMenuBarTemplateHelper$LibDispatch",
+      "jniAccessible": true,
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    },
+    {
+      "type": "dev.musicx.desktop.utils.MacMenuBarTemplateHelper$LibObjC",
+      "jniAccessible": true,
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    },
+    {
+      "type": {
+        "proxy": [
+          "dev.musicx.desktop.utils.NativeMemoryTrimmer$MacAllocator"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "dev.musicx.desktop.utils.MacMenuBarTemplateHelper$LibDispatch"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "dev.musicx.desktop.utils.MacMenuBarTemplateHelper$LibObjC"
+        ]
+      }
+    },
+    {
+      "type": "dev.musicx.desktop.utils.MacMenuBarTemplateHelper$DispatchCallback",
+      "jniAccessible": true,
+      "allDeclaredMethods": true
+    },
+    {
+      "type": "dev.musicx.desktop.utils.MacMenuBarTemplateHelper$MenuWillOpenCallback",
+      "jniAccessible": true,
+      "allDeclaredMethods": true
+    },
+    {
+      "type": "org.jetbrains.skiko.renderer.MetalRenderer",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "onOcclusionStateChanged",
+          "parameterTypes": [
+            "boolean"
+          ]
+        },
+        {
+          "name": "onLiveResizeStarted",
+          "parameterTypes": []
+        },
+        {
+          "name": "onLiveResizeEnded",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.jetbrains.skiko.RenderExceptionsHandler",
+      "jniAccessible": true,
+      "methods": [
+        {
+          "name": "throwException",
+          "parameterTypes": [
+            "java.lang.String"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -33,7 +33,7 @@ def propose(kind, generated, repository, version):
         if os.environ.get("FLATPAK_BINARY_EXCEPTION") != "true":
             print("Skipping Flatpak: no confirmed Flathub binary-build exception")
             return
-        tree = ET.parse(generated / "flatpak/com.metrolist.desktop.metainfo.xml")
+        tree = ET.parse(generated / "flatpak/dev.musicx.desktop.metainfo.xml")
         if tree.find("./screenshots/screenshot/image") is None:
             raise ValueError("Flathub proposals require desktop screenshots")
     source = generated / kind
@@ -73,7 +73,7 @@ def propose(kind, generated, repository, version):
         if run("git", "diff", "--cached", "--name-only", cwd=checkout):
             run("git", "-c", "user.name=github-actions[bot]", "-c",
                 "user.email=41898282+github-actions[bot]@users.noreply.github.com",
-                "commit", "-m", f"build(packaging): update Metrolist to {version}", cwd=checkout)
+                "commit", "-m", f"build(packaging): update MuSicX to {version}", cwd=checkout)
             run(*git, "push", "origin", branch, cwd=checkout)
         elif not remote:
             print(f"Recipes already match {repository}:{base}")
@@ -82,9 +82,9 @@ def propose(kind, generated, repository, version):
             print(f"Proposal already exists for {repository}:{branch}")
             return
         body = Path(temporary) / "body.md"
-        body.write_text(f"Update Metrolist to {version} using checksums verified against the published release assets.\n")
+        body.write_text(f"Update MuSicX to {version} using checksums verified against the published release assets.\n")
         run("gh", "pr", "create", "--repo", repository, "--base", base, "--head", branch,
-            "--draft", "--title", f"build(packaging): update Metrolist to {version}",
+            "--draft", "--title", f"build(packaging): update MuSicX to {version}",
             "--body-file", str(body))
 
 

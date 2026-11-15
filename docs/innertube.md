@@ -2,7 +2,7 @@
 
 ## Dependency development
 
-`innerTubeXVersion` in `gradle.properties` pins the hosted artifact from [InnerTubeX](https://github.com/MetrolistGroup/innertubex). App builds do not need its source checkout.
+`innerTubeXVersion` in `gradle.properties` pins the hosted artifact from [InnerTubeX](https://github.com/MuSicXGroup/innertubex). App builds do not need its source checkout.
 
 For dependency development, choose one substitution:
 
@@ -13,7 +13,7 @@ These flags do not alter hosted pins. QuackJS handles signature and throttling t
 
 ## Pagination
 
-App callers use `shared/src/commonMain/kotlin/com/metrolist/shared/api/YouTubeRepository.kt`.
+App callers use `shared/src/commonMain/kotlin/dev/musicx/shared/api/YouTubeRepository.kt`.
 
 - Playlist page flows are cold and emit deltas without prefetch. `first()` must not request continuations. Resume from the saved cursor and preserve duplicates by song ID plus playlist occurrence ID.
 - Consumers sharing a playlist cursor reuse successful deltas. Failure or cancellation leaves it retryable. Keep account/session checks around reused results.
@@ -76,7 +76,7 @@ Player metadata uses current-live flags or an HLS-only response without a finite
 
 ## Live tests
 
-`Live*` tests under `shared/src/desktopTest/kotlin/com/metrolist/shared/youtube/innertube/` contact YouTube. They require explicit opt-in and never run in CI. Supply `INNERTUBE_TOKEN_BASE64` through the environment or untracked `local.properties` for signed-in probes. Never commit credentials or unsanitized traces.
+`Live*` tests under `shared/src/desktopTest/kotlin/dev/musicx/shared/youtube/innertube/` contact YouTube. They require explicit opt-in and never run in CI. Supply `INNERTUBE_TOKEN_BASE64` through the environment or untracked `local.properties` for signed-in probes. Never commit credentials or unsanitized traces.
 
 Run `./gradlew :shared:desktopTest --tests '*<suite>' <flags>`.
 

@@ -81,7 +81,7 @@ for name in ('libjava.so', 'libjvm.so'):
         for failure in (None, 'clang', 'native-image'):
             with self.subTest(failure=failure), tempfile.TemporaryDirectory(prefix='macos build ') as directory:
                 work = Path(directory); graal = work/'graal'
-                (work/'image').mkdir(); (work/'image/Metrolist').write_text('previous')
+                (work/'image').mkdir(); (work/'image/MuSicX').write_text('previous')
                 zipfile.ZipFile(work/'app.jar', 'w').close(); (work/'classpath.txt').write_text(str(work/'app.jar'))
                 (graal/'lib').mkdir(parents=True); (graal/'lib/libjawt.dylib').write_text('jawt')
                 commands = []
@@ -112,7 +112,7 @@ for name in ('libjava.so', 'libjvm.so'):
                             native_image.build(graal, work, 'macos-arm64')
                     else:
                         native_image.build(graal, work, 'macos-arm64')
-                self.assertEqual((work/'image/Metrolist').read_text(), 'previous' if failure else 'macOS native executable')
+                self.assertEqual((work/'image/MuSicX').read_text(), 'previous' if failure else 'macOS native executable')
                 self.assertEqual(list(work.glob('image-build.*')), [])
                 self.assertEqual(commands[0][0], 'clang')
 

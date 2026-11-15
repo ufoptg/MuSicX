@@ -125,12 +125,12 @@ val windowsArm64FfmpegNatives =
             )
             doFirst {
                 environment(
-                    "METROLIST_FFMPEG_JAVA",
+                    "MUSICX_FFMPEG_JAVA",
                     java
                         .get()
                         .executablePath.asFile.absolutePath,
                 )
-                environment("METROLIST_FFMPEG_CLASSPATH", classpath.asPath)
+                environment("MUSICX_FFMPEG_CLASSPATH", classpath.asPath)
             }
         }
     }
@@ -308,11 +308,11 @@ abstract class GenerateRoomMigrationTestSchemas : DefaultTask() {
 
     @TaskAction
     fun generate() {
-        val output = outputDirectory.file("com/metrolist/shared/db/HistoricalRoomSchemas.kt").get().asFile
+        val output = outputDirectory.file("dev/musicx/shared/db/HistoricalRoomSchemas.kt").get().asFile
         output.parentFile.mkdirs()
         output.writeText(
             buildString {
-                appendLine("package com.metrolist.shared.db")
+                appendLine("package dev.musicx.shared.db")
                 appendLine("import kotlin.io.encoding.Base64")
                 appendLine("internal fun historicalRoomSchema(version: Int): String = when (version) {")
                 schemaDirectory
@@ -335,7 +335,7 @@ abstract class GenerateRoomMigrationTestSchemas : DefaultTask() {
 
 val generateRoomMigrationTestSchemas =
     tasks.register<GenerateRoomMigrationTestSchemas>("generateRoomMigrationTestSchemas") {
-        schemaDirectory.set(layout.projectDirectory.dir("schemas/com.metrolist.shared.db.MusicDatabase"))
+        schemaDirectory.set(layout.projectDirectory.dir("schemas/dev.musicx.shared.db.MusicDatabase"))
         outputDirectory.set(layout.buildDirectory.dir("generated/source/roomMigrationTest/kotlin"))
     }
 
@@ -349,11 +349,11 @@ abstract class GenerateOpusTestFixture : DefaultTask() {
 
     @TaskAction
     fun generate() {
-        val destination = outputDirectory.file("com/metrolist/shared/playback/opus/OpusTestFixture.kt").get().asFile
+        val destination = outputDirectory.file("dev/musicx/shared/playback/opus/OpusTestFixture.kt").get().asFile
         destination.parentFile.mkdirs()
         val encoded = Base64.getEncoder().encodeToString(fixture.get().asFile.readBytes())
         destination.writeText(
-            "package com.metrolist.shared.playback.opus\n" +
+            "package dev.musicx.shared.playback.opus\n" +
                 "import kotlin.io.encoding.Base64\n" +
                 "internal fun opusWebmFixture(): ByteArray = Base64.decode(\"$encoded\")\n",
         )
@@ -394,7 +394,7 @@ val bundledLanguageTags =
 
 kotlin {
     android {
-        namespace = "com.metrolist.shared"
+        namespace = "dev.musicx.shared"
         compileSdk {
             version = release(37) { minorApiLevel = 1 }
         }
@@ -619,7 +619,7 @@ val prepareComposeResourceAliases =
     }
 
 compose.resources {
-    packageOfResClass = "com.metrolist.shared.generated.resources"
+    packageOfResClass = "dev.musicx.shared.generated.resources"
     publicResClass = true
     customDirectory("commonMain", layout.dir(prepareComposeResourceAliases.map { it.destinationDir }))
 }
@@ -739,11 +739,11 @@ val generateBuildConfig =
         outputs.cacheIf { false }
 
         doLast {
-            val configFile = outputDir.resolve("com/metrolist/shared/BuildConfig.kt")
+            val configFile = outputDir.resolve("dev/musicx/shared/BuildConfig.kt")
             configFile.parentFile.mkdirs()
             configFile.writeText(
                 """
-                package com.metrolist.shared
+                package dev.musicx.shared
 
                 import kotlin.experimental.ExperimentalObjCRefinement
                 import kotlin.native.HiddenFromObjC

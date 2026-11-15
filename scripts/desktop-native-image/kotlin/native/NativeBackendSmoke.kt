@@ -1,9 +1,9 @@
-package com.metrolist.desktop.nativeimage
+package dev.musicx.desktop.nativeimage
 
-import com.metrolist.desktop.utils.isDesktopPlatformSupported
-import com.metrolist.desktop.window.jna.User32Extend
-import com.metrolist.desktop.window.jna.structure.MENUITEMINFO
-import com.metrolist.desktop.window.jna.structure.windowsBuildNumber
+import dev.musicx.desktop.utils.isDesktopPlatformSupported
+import dev.musicx.desktop.window.jna.User32Extend
+import dev.musicx.desktop.window.jna.structure.MENUITEMINFO
+import dev.musicx.desktop.window.jna.structure.windowsBuildNumber
 import com.sun.jna.Pointer
 import com.sun.jna.platform.win32.COM.COMUtils
 import com.sun.jna.platform.win32.Ole32

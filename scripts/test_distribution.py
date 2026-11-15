@@ -48,7 +48,7 @@ class DistributionTest(unittest.TestCase):
         installer = next((self.output / 'winget').rglob('*.installer.yaml')).read_text()
         self.assertIn('--silent --launch=false', installer)
         self.assertIn('metrolist-installer-windows-x64-14.0.0.exe', installer)
-        self.assertNotIn('Metrolist-Desktop-windows.zip', installer)
+        self.assertNotIn('MuSicX-Desktop-windows.zip', installer)
         data = json.loads((self.output / 'nix/packaging/release.json').read_text())
         self.assertEqual(set(data['linux']), {'x86_64-linux', 'aarch64-linux'})
         nix_recipe = (self.output / 'nix/packaging/nix/package.nix').read_text()
@@ -56,12 +56,12 @@ class DistributionTest(unittest.TestCase):
         for asset in data['linux'].values():
             self.assertEqual(asset['sha256'], hashlib.sha256((self.assets / asset['name']).read_bytes()).hexdigest())
             self.assertTrue(asset['hash'].startswith('sha256-'))
-        flatpak = json.loads((self.output / 'flatpak/com.metrolist.desktop.json').read_text())
+        flatpak = json.loads((self.output / 'flatpak/dev.musicx.desktop.json').read_text())
         self.assertNotIn('build-options', flatpak)
         sources = flatpak['modules'][0]['sources']
         self.assertEqual([source['only-arches'] for source in sources if 'url' in source], [['x86_64'], ['aarch64']])
         self.assertNotIn('--own-name=org.mpris.MediaPlayer2.*', flatpak['finish-args'])
-        tree = ET.parse(self.output / 'flatpak/com.metrolist.desktop.metainfo.xml')
+        tree = ET.parse(self.output / 'flatpak/dev.musicx.desktop.metainfo.xml')
         self.assertEqual(tree.find('./releases/release/description/p').text, 'Fix playback & <login>.')
         self.assertEqual(tree.find('./releases/release').get('date'), '2026-10-31')
         self.assertEqual(tree.find('./screenshots/screenshot').get('type'), 'default')

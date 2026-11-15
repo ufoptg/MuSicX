@@ -91,7 +91,7 @@ configurations.matching { it.name.startsWith("jvm") }.configureEach {
     exclude(group = "it.krzeminski")
 }
 
-group = "com.metrolist"
+group = "dev.musicx"
 val appVersion = providers.gradleProperty("appVersion").get()
 version = appVersion
 
@@ -561,7 +561,7 @@ tasks.withType<JavaExec>().configureEach {
             detectCursorSize()?.let { size ->
                 environment("XCURSOR_SIZE", size)
             }
-            environment("METROLIST_CURSOR_CONFIGURED", "1")
+            environment("MUSICX_CURSOR_CONFIGURED", "1")
         }
     }
 
@@ -595,7 +595,7 @@ val sentrySourceRevision =
         .filter { it.matches(Regex("[0-9a-fA-F]{40}")) }
         .orElse("local")
         .get()
-val sentryBundleId = UUID.nameUUIDFromBytes("com.metrolist.desktop:$platform:$appVersion:$sentrySourceRevision".encodeToByteArray())
+val sentryBundleId = UUID.nameUUIDFromBytes("dev.musicx.desktop:$platform:$appVersion:$sentrySourceRevision".encodeToByteArray())
 val generateSentryDebugMetaProperties =
     tasks.register<WriteProperties>("generateSentryDebugMetaProperties") {
         destinationFile.set(sentryDebugMetaProperties)
@@ -614,7 +614,7 @@ tasks.named<ProcessResources>("jvmProcessResources") {
 }
 
 compose.resources {
-    packageOfResClass = "com.metrolist.desktop.generated.resources"
+    packageOfResClass = "dev.musicx.desktop.generated.resources"
 }
 
 // Compose strips command-line tools from its runtime; temporarily restore java to generate the base CDS archive.
@@ -700,7 +700,7 @@ compose.desktop {
             }
         }
 
-        mainClass = "com.metrolist.desktop.MainKt"
+        mainClass = "dev.musicx.desktop.MainKt"
         javaHome =
             providers.gradleProperty("metrolist.desktop.javaHome").orNull?.let { home ->
                 val release = Properties().apply { file("$home/release").inputStream().use(::load) }
@@ -720,7 +720,7 @@ compose.desktop {
                 "-Dorg.slf4j.simpleLogger.log.org.freedesktop.dbus=warn",
                 "-XX:ErrorFile=${
                     when (platform) {
-                        "linux" -> "\$METROLIST_JVM_ERROR_FILE"
+                        "linux" -> "\$MUSICX_JVM_ERROR_FILE"
                         "win" -> "\$USERPROFILE/.local/state/metrolist/logs/hs_err_pid%p.log"
                         else -> "\$HOME/.local/state/metrolist/logs/hs_err_pid%p.log"
                     }
@@ -733,7 +733,7 @@ compose.desktop {
                 "mac" -> targetFormats(TargetFormat.Dmg)
                 else -> targetFormats(TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.AppImage)
             }
-            packageName = "Metrolist"
+            packageName = "MuSicX"
             val versionMatch =
                 Regex("""^(\d+)\.(\d+)\.(\d+)(?:-[A-Za-z0-9][A-Za-z0-9._-]*)?(?:\+[0-9A-Za-z.-]+)?$""")
                     .matchEntire(appVersion)
@@ -758,9 +758,9 @@ compose.desktop {
                 } else {
                     versionComponents.joinToString(".")
                 }
-            description = "Metrolist music player"
-            copyright = "© 2026 Metrolist"
-            vendor = "MetrolistGroup"
+            description = "MuSicX music player"
+            copyright = "© 2026 MuSicX"
+            vendor = "MuSicXGroup"
 
             appResourcesRootDir.set(nativeResourcesDir)
 
@@ -806,12 +806,12 @@ compose.desktop {
                 jvmArgs += listOf("-Djava.locale.providers=CLDR,SPI", "-Dwebkit.disable.dmabuf.renderer=1")
             }
             macOS {
-                bundleID = "com.metrolist.desktop"
+                bundleID = "dev.musicx.desktop"
                 infoPlist {
                     extraKeysRawXml =
                         """
                         <key>NSLocalNetworkUsageDescription</key>
-                        <string>Metrolist uses the local network to find and control casting devices.</string>
+                        <string>MuSicX uses the local network to find and control casting devices.</string>
                         <key>NSBonjourServices</key>
                         <array>
                             <string>_fcast._tcp</string>
@@ -821,7 +821,7 @@ compose.desktop {
                         <array>
                             <dict>
                                 <key>CFBundleURLName</key>
-                                <string>Metrolist URL</string>
+                                <string>MuSicX URL</string>
                                 <key>CFBundleURLSchemes</key>
                                 <array>
                                     <string>metrolist</string>
@@ -833,7 +833,7 @@ compose.desktop {
                 }
                 iconFile.set(project.file("src/desktopMain/resources/logo.icns"))
                 dmgPackageVersion = packageVersion
-                dockName = "Metrolist"
+                dockName = "MuSicX"
             }
         }
     }
@@ -841,9 +841,9 @@ compose.desktop {
 
 val cdsCache =
     when (platform) {
-        "win" -> "\$LOCALAPPDATA/Metrolist/cache"
-        "mac" -> "\$HOME/Library/Caches/com.metrolist.desktop"
-        else -> "\$METROLIST_CDS_CACHE"
+        "win" -> "\$LOCALAPPDATA/MuSicX/cache"
+        "mac" -> "\$HOME/Library/Caches/dev.musicx.desktop"
+        else -> "\$MUSICX_CDS_CACHE"
     }
 // Compose assigns launcherJvmArgs while registering its tasks after project evaluation.
 afterEvaluate {

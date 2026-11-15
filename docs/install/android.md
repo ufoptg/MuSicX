@@ -2,7 +2,7 @@
 
 ## Requirements and download
 
-Use Android 7 or later, API 24. Download the universal APK through [the project channels](README.md#get-the-package). The release app ID is `com.metrolist.music`, so it updates the original 13.x app in place; debug uses `com.metrolist.music.debug`.
+Use Android 7 or later, API 24. Download the universal APK through [the project channels](README.md#get-the-package). The release app ID is `dev.musicx.music`, so it updates the original 13.x app in place; debug uses `dev.musicx.music.debug`.
 
 ## Install and verify
 

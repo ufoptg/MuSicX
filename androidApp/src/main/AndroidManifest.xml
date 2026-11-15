@@ -64,7 +64,7 @@
     <!-- PiP is explicitly user-entered and replaces the player layout, so automatic entry and a persistent source rect do not apply. -->
     <application
         tools:ignore="PictureInPictureIssue"
-        android:name="com.metrolist.android.App"
+        android:name="dev.musicx.android.App"
         android:banner="@mipmap/tv_banner"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="true"
@@ -75,13 +75,13 @@
         android:enableOnBackInvokedCallback="true"
         android:networkSecurityConfig="@xml/network_security_config"
         tools:targetApi="tiramisu"
-        android:theme="@style/Theme.Metrolist.Starting">
+        android:theme="@style/Theme.MuSicX.Starting">
         <meta-data
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
         <!-- Media clients need exported artwork URIs; the provider checks callers and serves only approved artwork. -->
         <provider
-            android:name="com.metrolist.android.playback.MediaArtworkProvider"
+            android:name="dev.musicx.android.playback.MediaArtworkProvider"
             android:authorities="${applicationId}.media-artwork"
             android:exported="true"
             tools:ignore="ExportedContentProvider" />
@@ -99,7 +99,7 @@
             android:resource="@xml/automotive_app_desc" />
 
         <activity
-            android:name="com.metrolist.android.MainActivity"
+            android:name="dev.musicx.android.MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
             android:supportsPictureInPicture="true"
@@ -110,12 +110,12 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
             <intent-filter>
-                <action android:name="com.metrolist.music.action.SEARCH" />
+                <action android:name="dev.musicx.music.action.SEARCH" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
             <intent-filter>
-                <action android:name="com.metrolist.music.action.LIBRARY" />
+                <action android:name="dev.musicx.music.action.LIBRARY" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
@@ -217,7 +217,7 @@
         </activity>
 
         <activity
-            android:name="com.metrolist.android.backup.RestoreRestartActivity"
+            android:name="dev.musicx.android.backup.RestoreRestartActivity"
             android:excludeFromRecents="true"
             android:exported="false"
             android:finishOnTaskLaunch="true"
@@ -232,7 +232,7 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
             android:label="${appLabel}"
-            android:targetActivity="com.metrolist.android.MainActivity">
+            android:targetActivity="dev.musicx.android.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -250,7 +250,7 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher_arctic_haze"
             android:label="${appLabel}"
-            android:targetActivity="com.metrolist.android.MainActivity">
+            android:targetActivity="dev.musicx.android.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -268,7 +268,7 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher_lavender_leap"
             android:label="${appLabel}"
-            android:targetActivity="com.metrolist.android.MainActivity">
+            android:targetActivity="dev.musicx.android.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -286,7 +286,7 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher_metromallow"
             android:label="${appLabel}"
-            android:targetActivity="com.metrolist.android.MainActivity">
+            android:targetActivity="dev.musicx.android.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -304,7 +304,7 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher_pride_special"
             android:label="${appLabel}"
-            android:targetActivity="com.metrolist.android.MainActivity">
+            android:targetActivity="dev.musicx.android.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -322,7 +322,7 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
             android:label="${appLabel}"
-            android:targetActivity="com.metrolist.android.MainActivity">
+            android:targetActivity="dev.musicx.android.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -340,7 +340,7 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher_kaye_static"
             android:label="${appLabel}"
-            android:targetActivity="com.metrolist.android.MainActivity">
+            android:targetActivity="dev.musicx.android.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -358,7 +358,7 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher_zenith_black"
             android:label="${appLabel}"
-            android:targetActivity="com.metrolist.android.MainActivity">
+            android:targetActivity="dev.musicx.android.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -376,7 +376,7 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher_zenith_white"
             android:label="${appLabel}"
-            android:targetActivity="com.metrolist.android.MainActivity">
+            android:targetActivity="dev.musicx.android.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -394,7 +394,7 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher_gradient"
             android:label="${appLabel}"
-            android:targetActivity="com.metrolist.android.MainActivity">
+            android:targetActivity="dev.musicx.android.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -412,7 +412,7 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
             android:label="${appLabel}"
-            android:targetActivity="com.metrolist.android.MainActivity">
+            android:targetActivity="dev.musicx.android.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -430,7 +430,7 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
             android:label="${appLabel}"
-            android:targetActivity="com.metrolist.android.MainActivity">
+            android:targetActivity="dev.musicx.android.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -443,24 +443,24 @@
         </activity-alias>
 
         <service
-            android:name="com.metrolist.shared.youtube.playback.PoTokenService"
+            android:name="dev.musicx.shared.youtube.playback.PoTokenService"
             android:exported="false"
             android:process=":potoken" />
 
         <service
-            android:name="com.metrolist.android.playlistimport.AndroidPlaylistImportService"
+            android:name="dev.musicx.android.playlistimport.AndroidPlaylistImportService"
             android:exported="false"
             android:foregroundServiceType="dataSync"
             android:stopWithTask="false" />
 
         <service
-            android:name="com.metrolist.android.playback.DownloadService"
+            android:name="dev.musicx.android.playback.DownloadService"
             android:exported="false"
             android:foregroundServiceType="dataSync"
             android:stopWithTask="false" />
 
         <service
-            android:name="com.metrolist.android.playback.MusicService"
+            android:name="dev.musicx.android.playback.MusicService"
             android:enabled="true"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback"
@@ -472,23 +472,23 @@
         </service>
 
         <receiver
-            android:name="com.metrolist.android.listentogether.ListenTogetherNotificationReceiver"
+            android:name="dev.musicx.android.listentogether.ListenTogetherNotificationReceiver"
             android:exported="false" />
 
         <receiver
-            android:name="com.metrolist.android.playback.DownloadNotificationReceiver"
+            android:name="dev.musicx.android.playback.DownloadNotificationReceiver"
             android:exported="false" />
 
         <receiver
-            android:name="com.metrolist.android.update.CrashUpdateInstallReceiver"
+            android:name="dev.musicx.android.update.CrashUpdateInstallReceiver"
             android:process=":crash"
             android:exported="false" />
         <receiver
-            android:name="com.metrolist.android.update.UpdateInstallReceiver"
+            android:name="dev.musicx.android.update.UpdateInstallReceiver"
             android:exported="false" />
 
         <receiver
-            android:name="com.metrolist.android.widget.MusicWidgetReceiver"
+            android:name="dev.musicx.android.widget.MusicWidgetReceiver"
             android:exported="true"
             android:label="@string/widget_music_player">
             <intent-filter>
@@ -501,7 +501,7 @@
         </receiver>
 
         <receiver
-            android:name="com.metrolist.android.widget.PlaylistWidgetReceiver"
+            android:name="dev.musicx.android.widget.PlaylistWidgetReceiver"
             android:exported="true"
             android:label="@string/playlists">
             <intent-filter>
@@ -514,7 +514,7 @@
         </receiver>
 
         <receiver
-            android:name="com.metrolist.android.widget.TurntableWidgetReceiver"
+            android:name="dev.musicx.android.widget.TurntableWidgetReceiver"
             android:exported="true"
             android:label="@string/widget_turntable">
             <intent-filter>
@@ -527,7 +527,7 @@
         </receiver>
 
         <receiver
-            android:name="com.metrolist.android.widget.RecognizerWidgetReceiver"
+            android:name="dev.musicx.android.widget.RecognizerWidgetReceiver"
             android:exported="true"
             android:label="@string/widget_recognizer_name">
             <intent-filter>
@@ -540,12 +540,12 @@
         </receiver>
 
         <service
-            android:name="com.metrolist.android.recognition.RecognitionWidgetService"
+            android:name="dev.musicx.android.recognition.RecognitionWidgetService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
 
         <activity
-            android:name="com.metrolist.android.recognition.RecognitionLaunchActivity"
+            android:name="dev.musicx.android.recognition.RecognitionLaunchActivity"
             android:excludeFromRecents="true"
             android:exported="false"
             android:launchMode="singleTask"
@@ -553,7 +553,7 @@
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <service
-            android:name="com.metrolist.android.quicksettings.MusicRecognizerTileService"
+            android:name="dev.musicx.android.quicksettings.MusicRecognizerTileService"
             android:exported="true"
             android:icon="@drawable/ic_widget_mic"
             android:label="@string/recognize_music"
@@ -567,7 +567,7 @@
         </service>
 
         <receiver
-            android:name="com.metrolist.android.widget.WidgetActionReceiver"
+            android:name="dev.musicx.android.widget.WidgetActionReceiver"
             android:exported="false" />
 
         <activity
@@ -584,7 +584,7 @@
             android:theme="@android:style/Theme.NoDisplay"
             android:process=":crash">
             <intent-filter>
-                <action android:name="com.metrolist.music.action.CRASH_LOGS" />
+                <action android:name="dev.musicx.music.action.CRASH_LOGS" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { createContext, runInContext } from "node:vm";
 
 const source = readFileSync(new URL(
-    "../shared/src/commonMain/kotlin/com/metrolist/shared/youtube/playback/PageBoundPoTokenMinter.kt",
+    "../shared/src/commonMain/kotlin/dev/musicx/shared/youtube/playback/PageBoundPoTokenMinter.kt",
     import.meta.url,
 ), "utf8");
 const generate = source.slice(source.indexOf("suspend fun generate("));

@@ -1,4 +1,4 @@
--- Synthetic Prism v8 library, authored for Metrolist; see docs/test-fixtures.md.
+-- Synthetic Prism v8 library, authored for MuSicX; see docs/test-fixtures.md.
 CREATE TABLE songs (
     id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL, artistName TEXT NOT NULL,
     artistId TEXT, albumTitle TEXT, albumId TEXT, durationSec INTEGER NOT NULL,

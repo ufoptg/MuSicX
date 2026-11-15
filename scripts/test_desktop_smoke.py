@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check desktop smoke-test failures without launching Metrolist or a display."""
+"""Check desktop smoke-test failures without launching MuSicX or a display."""
 
 from contextlib import redirect_stderr, nullcontext
 import io
@@ -146,7 +146,7 @@ while True:
             output = Path(temporary) / "out"
             with patch.object(smoke, "screenshot", side_effect=RuntimeError("handle is invalid")), \
                     patch.object(smoke.subprocess, "Popen") as popen, patch("builtins.print") as printed:
-                self.assertEqual(0, smoke.smoke(Path(temporary) / "Metrolist.zip", output, "win32"))
+                self.assertEqual(0, smoke.smoke(Path(temporary) / "MuSicX.zip", output, "win32"))
             popen.assert_not_called()
             self.assertIn("skipped", (output / "result.txt").read_text())
             self.assertTrue(printed.call_args.args[0].startswith("::warning::"))
@@ -172,7 +172,7 @@ while True:
                 logs=Path(options["env"]["XDG_STATE_HOME"])/"metrolist/logs"
                 (logs/"native_err_pid7.log").write_text("hung")
                 raise smoke.subprocess.TimeoutExpired(command, 60)
-            with patch.object(smoke,"packaged_command",return_value=nullcontext(["Metrolist"])), patch.object(smoke.subprocess,"run",side_effect=run):
+            with patch.object(smoke,"packaged_command",return_value=nullcontext(["MuSicX"])), patch.object(smoke.subprocess,"run",side_effect=run):
                 self.assertEqual(1,smoke.native_backend_smoke(Path("native.AppImage"),output,"linux"))
             self.assertEqual("hung",(output/"native_err_pid7.log").read_text())
 
@@ -186,7 +186,7 @@ while True:
                     if missing:
                         (logs/"native_err_pid1.log").write_text("MissingJNIRegistrationError")
                     return Mock(returncode=0)
-                with patch.object(smoke,"packaged_command",return_value=nullcontext(["Metrolist.exe"])), patch.object(smoke.subprocess,"run",side_effect=run):
+                with patch.object(smoke,"packaged_command",return_value=nullcontext(["MuSicX.exe"])), patch.object(smoke.subprocess,"run",side_effect=run):
                     self.assertEqual(int(missing),smoke.native_backend_smoke(Path("native.zip"),output,"win32"))
 
     def test_windows_uses_the_extracted_zip_launcher(self):
@@ -194,18 +194,18 @@ while True:
             work = Path(directory)
             package = work / "portable.zip"
             with zipfile.ZipFile(package, "w") as archive:
-                archive.writestr("Metrolist.exe", b"launcher")
+                archive.writestr("MuSicX.exe", b"launcher")
                 archive.writestr("runtime/bin/server/jvm.dll", b"runtime")
             with smoke.packaged_command(package, work, "win32", None) as command:
-                self.assertEqual([str(work / "app/Metrolist.exe")], command)
+                self.assertEqual([str(work / "app/MuSicX.exe")], command)
                 self.assertEqual(b"launcher", Path(command[0]).read_bytes())
                 self.assertTrue((work / "app/runtime/bin/server/jvm.dll").is_file())
 
     def test_macos_launches_app_and_zip_with_executable_modes(self):
         with tempfile.TemporaryDirectory() as directory:
             work = Path(directory)
-            app = work / 'Metrolist.app'
-            launcher = app / 'Contents/MacOS/Metrolist'
+            app = work / 'MuSicX.app'
+            launcher = app / 'Contents/MacOS/MuSicX'
             launcher.parent.mkdir(parents=True)
             launcher.write_bytes(b'launcher')
             launcher.chmod(0o755)
@@ -214,9 +214,9 @@ while True:
                     self.assertEqual(command, [str(launcher)])
                 package = work / 'native.zip'
                 with zipfile.ZipFile(package, 'w') as archive:
-                    archive.write(launcher, 'Metrolist.app/Contents/MacOS/Metrolist')
+                    archive.write(launcher, 'MuSicX.app/Contents/MacOS/MuSicX')
                 with smoke.packaged_command(package, work, 'darwin', None) as command:
-                    extracted = work / 'app/Metrolist.app/Contents/MacOS/Metrolist'
+                    extracted = work / 'app/MuSicX.app/Contents/MacOS/MuSicX'
                     self.assertEqual(command, [str(extracted)])
                     self.assertEqual(extracted.read_bytes(), b'launcher')
                     self.assertEqual(extracted.stat().st_mode & 0o777, 0o755)
@@ -229,7 +229,7 @@ while True:
                 with patch.object(smoke.subprocess, "run") as run:
                     try:
                         with smoke.packaged_command(work / "final.dmg", work, "darwin", None) as command:
-                            self.assertEqual([str(work / "dmg/Metrolist.app/Contents/MacOS/Metrolist")], command)
+                            self.assertEqual([str(work / "dmg/MuSicX.app/Contents/MacOS/MuSicX")], command)
                             if failure:
                                 raise RuntimeError("launch failed")
                     except RuntimeError:
@@ -258,10 +258,10 @@ while True:
         process = Mock(pid=123, returncode=0)
         process.poll.return_value = 0
         with patch.object(smoke.subprocess, "run") as run:
-            smoke.quit_app(process, r"C:\app\Metrolist.exe", "win32")
+            smoke.quit_app(process, r"C:\app\MuSicX.exe", "win32")
         script = run.call_args.args[0][-1]
         self.assertIn("CloseMainWindow()", script)
-        self.assertIn(r"C:\app\Metrolist.exe", script)
+        self.assertIn(r"C:\app\MuSicX.exe", script)
         self.assertNotIn("Stop-Process", script)
         process.wait.assert_called_once_with(timeout=smoke.SHUTDOWN_SECONDS)
 
@@ -270,10 +270,10 @@ while True:
             with self.subTest(java_trace=trace):
                 process = Mock(pid=123)
                 process.poll.return_value = None
-                process.wait.side_effect = [subprocess.TimeoutExpired("Metrolist.exe", 2), None]
+                process.wait.side_effect = [subprocess.TimeoutExpired("MuSicX.exe", 2), None]
                 with patch.object(smoke.subprocess, "run") as run:
                     with self.assertRaises(subprocess.TimeoutExpired):
-                        smoke.quit_app(process, r"C:\app\Metrolist.exe", "win32", java_trace=trace)
+                        smoke.quit_app(process, r"C:\app\MuSicX.exe", "win32", java_trace=trace)
                 self.assertEqual(["taskkill", "/PID", "123", "/T", "/F"], run.call_args.args[0])
                 if trace:
                     self.assertIn("Get-Process -Id 123", run.call_args_list[0].args[0][-1])

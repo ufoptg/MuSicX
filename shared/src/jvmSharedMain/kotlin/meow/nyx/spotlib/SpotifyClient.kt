@@ -1,7 +1,7 @@
 package meow.nyx.spotlib
 
-import com.metrolist.shared.network.ExpectedHttpFailureStatusCodes
-import com.metrolist.shared.network.TextResponse
+import dev.musicx.shared.network.ExpectedHttpFailureStatusCodes
+import dev.musicx.shared.network.TextResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.request.headers
 import io.ktor.client.request.setBody

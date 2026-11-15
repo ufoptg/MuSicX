@@ -22,7 +22,7 @@ class ChangelogTest(unittest.TestCase):
                 self.assertEqual(0, result.returncode, result.stderr)
                 self.assertTrue(result.stdout.startswith('# First public multiplatform release\n'))
                 self.assertIn('## Known limitations\n', result.stdout)
-                self.assertIn('Full changelog: https://github.com/MetrolistGroup/Metrolist/commits/v14.0.0\n', result.stdout)
+                self.assertIn('Full changelog: https://github.com/MuSicXGroup/MuSicX/commits/v14.0.0\n', result.stdout)
                 self.assertNotIn('---v', result.stdout)
                 self.assertNotIn('KMP status update', result.stdout)
 
@@ -131,7 +131,7 @@ class StableReleaseNotesTest(unittest.TestCase):
                 root = Path(directory)
                 self.fixture(root)
                 (root / 'release-assets').mkdir()
-                (root / 'release-assets/Metrolist.apk').write_bytes(b'apk')
+                (root / 'release-assets/MuSicX.apk').write_bytes(b'apk')
                 gh = root / 'gh'
                 gh.write_text(textwrap.dedent('''\
                     #!/bin/bash
@@ -140,7 +140,7 @@ class StableReleaseNotesTest(unittest.TestCase):
                       if [[ " $* " == *' --json isDraft '* ]]; then
                         if [[ "$STATE" == draft ]]; then echo true; else echo false; fi
                       elif [[ " $* " == *' --json assets '* ]]; then
-                        if [[ "$STATE" != published-missing-asset ]]; then echo Metrolist.apk; fi
+                        if [[ "$STATE" != published-missing-asset ]]; then echo MuSicX.apk; fi
                       else
                         [[ "$STATE" != missing ]]
                       fi

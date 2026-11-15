@@ -37,23 +37,23 @@ if RECIPE_BUILD_EXIT=7 build; then
   exit 1
 fi
 
-appdir="$test_dir/project/desktopApp/build/compose/binaries/main-release/app/Metrolist"
+appdir="$test_dir/project/desktopApp/build/compose/binaries/main-release/app/MuSicX"
 mkdir -p "$appdir/bin" "$test_dir/project/desktopApp/src/desktopMain/resources"
-printf '#!/bin/sh\nexit 0\n' > "$appdir/bin/Metrolist"
-chmod +x "$appdir/bin/Metrolist"
+printf '#!/bin/sh\nexit 0\n' > "$appdir/bin/MuSicX"
+chmod +x "$appdir/bin/MuSicX"
 printf 'Test license\n' > "$test_dir/project/LICENSE"
 printf 'Test icon\n' > "$test_dir/project/desktopApp/src/desktopMain/resources/logo.png"
 cp "$recipe_dir/metrolist.desktop" "$srcdir/"
 package
-[[ -x "$pkgdir/opt/metrolist/bin/Metrolist" ]]
-[[ "$(readlink "$pkgdir/usr/bin/metrolist")" == /opt/metrolist/bin/Metrolist ]]
+[[ -x "$pkgdir/opt/metrolist/bin/MuSicX" ]]
+[[ "$(readlink "$pkgdir/usr/bin/metrolist")" == /opt/metrolist/bin/MuSicX ]]
 cmp "$test_dir/project/LICENSE" "$pkgdir/usr/share/licenses/metrolist-git/LICENSE"
-cmp "$srcdir/metrolist.desktop" "$pkgdir/usr/share/applications/Metrolist.desktop"
+cmp "$srcdir/metrolist.desktop" "$pkgdir/usr/share/applications/MuSicX.desktop"
 cmp "$test_dir/project/desktopApp/src/desktopMain/resources/logo.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/metrolist.png"
 
 rm "$test_dir/project/settings.gradle.kts"
 # shellcheck source=aur/PKGBUILD
 source "$test_dir/project/aur/PKGBUILD"
 [[ "$(_source_dir)" == "$srcdir/metrolist-kmp" ]]
-[[ "${source[0]}" == metrolist-kmp::git+https://github.com/MetrolistGroup/Metrolist.git#branch=main ]]
+[[ "${source[0]}" == metrolist-kmp::git+https://github.com/MuSicXGroup/MuSicX.git#branch=main ]]
 printf 'Arch recipe checks passed\n'

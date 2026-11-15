@@ -36,8 +36,8 @@ def main():
     xcconfig_path = repository / "iosApp/Configuration/Config.xcconfig"
     xcconfig = xcconfig_path.read_text()
     inherited_settings = {
-        "PRODUCT_NAME": "Metrolist",
-        "PRODUCT_BUNDLE_IDENTIFIER": "com.metrolist.MetrolistApp",
+        "PRODUCT_NAME": "MuSicX",
+        "PRODUCT_BUNDLE_IDENTIFIER": "dev.musicx.MuSicXApp",
         "CODE_SIGN_ENTITLEMENTS": "Configuration/iosApp.entitlements",
         "SWIFT_VERSION": "5.9",
         "IPHONEOS_DEPLOYMENT_TARGET": "17.0",
@@ -49,9 +49,9 @@ def main():
     assert "./gradlew :shared:embedAndSignAppleFrameworkForXcode" in framework_phase
     assert "sourceRevision" not in framework_phase, "The Xcode archive must use the real commit revision"
     assert "bash scripts/ios_version.sh" in framework_phase
-    assert '"$(DERIVED_FILE_DIR)/MetrolistVersion.h"' in framework_phase
+    assert '"$(DERIVED_FILE_DIR)/MuSicXVersion.h"' in framework_phase
     assert "INFOPLIST_PREPROCESS = YES" in xcconfig
-    assert "INFOPLIST_PREFIX_HEADER = $(DERIVED_FILE_DIR)/MetrolistVersion.h" in xcconfig
+    assert "INFOPLIST_PREFIX_HEADER = $(DERIVED_FILE_DIR)/MuSicXVersion.h" in xcconfig
     for setting, value in inherited_settings.items():
         assert f"{setting} = {value}" in xcconfig, setting
         assert f"{setting} =" not in xcode_project, setting
@@ -64,7 +64,7 @@ def main():
     reusable = (repository / ".github/workflows/reusable-ios-build.yml").read_text()
     reusable_purged = "\n".join(line for line in reusable.splitlines() if not line.lstrip().startswith("#"))
     assert 'if: inputs.staging-release-tag != \'\'' in reusable_purged
-    assert 'gh release upload "$STAGING_RELEASE_TAG" dist/Metrolist.ipa' in reusable_purged
+    assert 'gh release upload "$STAGING_RELEASE_TAG" dist/MuSicX.ipa' in reusable_purged
     assert "if: inputs.build-ipa || inputs.upload-artifact || inputs.staging-release-tag != ''" in reusable_purged
     assert "Build iOS Simulator" not in reusable_purged
     test_job = reusable_purged.split("  build-ios:\n", 1)[1].split("  package-ios:\n", 1)[0]
@@ -134,7 +134,7 @@ def main():
             (root / "gradle.properties").write_text(f"appVersion={version}\n")
             header = root / "version.h"
             subprocess.run(["bash", str(root / "scripts/ios_version.sh"), str(header)], check=True)
-            assert header.read_text() == "#define METROLIST_VERSION 14.0.0\n"
+            assert header.read_text() == "#define MUSICX_VERSION 14.0.0\n"
             plist = subprocess.run(
                 ["cpp", "-P", "-traditional-cpp", "-include", str(header),
                  str(repository / "iosApp/Configuration/Info.plist")],

@@ -21,7 +21,7 @@ from audio import private_audio
 
 
 ROOT = Path(__file__).resolve().parents[2]
-MAIN = "com.metrolist.desktop.experiment.NativeImageMainKt"
+MAIN = "dev.musicx.desktop.experiment.NativeImageMainKt"
 
 
 def disable_core_dump():
@@ -60,8 +60,8 @@ def environment(profile):
         config.write_text("desktopOnboardingComplete=true\ndesktopOnboardingInitialized=true\n"
                           "sentryEnabled=false\nenableLogging=true\nenableDiscordIntegration=false\n")
     env.update(HOME=str(profile), DBUS_SESSION_BUS_ADDRESS="unix:path=/nonexistent-r6-bus",
-               MALLOC_ARENA_MAX="2", METROLIST_STARTUP_TRACE="1", SKIKO_RENDER_API="SOFTWARE_COMPAT",
-               LIBGL_ALWAYS_SOFTWARE="1", METROLIST_CURSOR_CONFIGURED="1")
+               MALLOC_ARENA_MAX="2", MUSICX_STARTUP_TRACE="1", SKIKO_RENDER_API="SOFTWARE_COMPAT",
+               LIBGL_ALWAYS_SOFTWARE="1", MUSICX_CURSOR_CONFIGURED="1")
     temporary = profile / "tmp"
     temporary.mkdir(exist_ok=True)
     env["TMPDIR"] = str(temporary)
@@ -146,8 +146,8 @@ def release_options(config, profile):
     logs = profile / "state/metrolist/logs"
     cache.mkdir(parents=True, exist_ok=True)
     logs.mkdir(parents=True, exist_ok=True)
-    variables = {"APPDIR": str(config.resolve().parent), "METROLIST_CDS_CACHE": str(cache),
-                 "METROLIST_JVM_ERROR_FILE": str(logs / "hs_err_pid%p.log")}
+    variables = {"APPDIR": str(config.resolve().parent), "MUSICX_CDS_CACHE": str(cache),
+                 "MUSICX_JVM_ERROR_FILE": str(logs / "hs_err_pid%p.log")}
 
     def expand(value):
         def replace(match):

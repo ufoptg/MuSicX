@@ -2,7 +2,7 @@
 
 ## Availability
 
-Device Connect uses authenticated encrypted JSON under `shared/src/commonMain/kotlin/com/metrolist/shared/deviceconnect/`. It does not use Listen Together protobufs. The audible target owns playback; controllers send commands and display state.
+Device Connect uses authenticated encrypted JSON under `shared/src/commonMain/kotlin/dev/musicx/shared/deviceconnect/`. It does not use Listen Together protobufs. The audible target owns playback; controllers send commands and display state.
 
 Android and desktop expose it in Integrations and the player device picker. It defaults off. Disabling stops discovery, listeners, sessions and retries without deleting paired devices. iOS does not expose it because its cryptography is unimplemented.
 

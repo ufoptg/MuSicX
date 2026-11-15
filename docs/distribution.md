@@ -6,9 +6,9 @@
 
 ```sh
 mkdir -p build
-gh release view "$tag" --repo MetrolistGroup/Metrolist \
+gh release view "$tag" --repo MuSicXGroup/MuSicX \
   --json tagName,isDraft,isPrerelease,url,publishedAt,body,assets > build/release.json
-gh release download "$tag" --repo MetrolistGroup/Metrolist \
+gh release download "$tag" --repo MuSicXGroup/MuSicX \
   --dir build/distribution-assets --pattern SHA256SUMS \
   --pattern 'metrolist-installer-windows-*.exe' \
   --pattern 'metrolist-desktop-linux-*.AppImage' \
@@ -22,13 +22,13 @@ The workflow keeps `distribution-recipes` for 30 days. Cleanup removes only inte
 
 ## WinGet
 
-`packaging/winget/` defines version, locale and installer manifests under `manifests/m/MetrolistGroup/Metrolist/VERSION/`. WinGet uses the release-bound MetrolistManager executable, not the portable ZIP. Its silent options and per-user uninstall identity must match that pinned manager.
+`packaging/winget/` defines version, locale and installer manifests under `manifests/m/MuSicXGroup/MuSicX/VERSION/`. WinGet uses the release-bound MuSicXManager executable, not the portable ZIP. Its silent options and per-user uninstall identity must match that pinned manager.
 
 Run `winget validate --manifest PATH` on Windows, then test clean install, upgrade and uninstall before submission. Do not request elevation or purge user data.
 
 ## Homebrew
 
-`packaging/homebrew/metrolist.rb.in` selects a checksummed DMG by architecture and installs `Metrolist.app`. Output belongs at `Casks/metrolist.rb` in the configured tap. Preserve Gatekeeper and user data.
+`packaging/homebrew/metrolist.rb.in` selects a checksummed DMG by architecture and installs `MuSicX.app`. Output belongs at `Casks/metrolist.rb` in the configured tap. Preserve Gatekeeper and user data.
 
 Run `brew style --cask PATH` and `brew audit --cask --online TOKEN` in the tap. Test both architectures and follow [unsigned-app installation](install/macos.md#install-and-verify).
 
@@ -42,28 +42,28 @@ The source recipe and verification live in `aur/`. The generator writes `aur/rel
 
 The sandbox includes `glib-networking` and adds its GIO modules to `GIO_EXTRA_MODULES` for WebKitGTK TLS. It preserves any existing module paths.
 
-Nix and Arch install `Metrolist.desktop`, matching the AppImage and native AppImage desktop files, `StartupWMClass=Metrolist` and the Linux window's `Metrolist` app ID.
+Nix and Arch install `MuSicX.desktop`, matching the AppImage and native AppImage desktop files, `StartupWMClass=MuSicX` and the Linux window's `MuSicX` app ID.
 
 ```sh
 nix build path:./build/distribution/nix
 nix run path:./build/distribution/nix
 ```
 
-The root flake reads the committed `packaging/release.json`, so `nix run github:MetrolistGroup/Metrolist` installs the latest stable release. After each stable release, copy the generated `release.json` to `packaging/release.json` and commit it. Missing metadata fails with generation instructions rather than a fake hash. Verify login, Secret Service, audio and desktop integration on both architectures.
+The root flake reads the committed `packaging/release.json`, so `nix run github:MuSicXGroup/MuSicX` installs the latest stable release. After each stable release, copy the generated `release.json` to `packaging/release.json` and commit it. Missing metadata fails with generation instructions rather than a fake hash. Verify login, Secret Service, audio and desktop integration on both architectures.
 
 ## Flatpak and Flathub
 
-The [local source manifest](../flatpak/com.metrolist.desktop.yaml) builds the checkout with Gradle and network access. The [release template](../packaging/flatpak/com.metrolist.desktop.json.in) extracts checksum-pinned AppImages without Gradle or build-time network. Read each manifest's runtime pin; they are separate build paths.
+The [local source manifest](../flatpak/dev.musicx.desktop.yaml) builds the checkout with Gradle and network access. The [release template](../packaging/flatpak/dev.musicx.desktop.json.in) extracts checksum-pinned AppImages without Gradle or build-time network. Read each manifest's runtime pin; they are separate build paths.
 
 After generation:
 
 ```sh
-flatpak-builder --show-manifest build/distribution/flatpak/com.metrolist.desktop.json
-flatpak-builder-lint manifest build/distribution/flatpak/com.metrolist.desktop.json
-appstreamcli validate --no-net build/distribution/flatpak/com.metrolist.desktop.metainfo.xml
-desktop-file-validate build/distribution/flatpak/com.metrolist.desktop.desktop
+flatpak-builder --show-manifest build/distribution/flatpak/dev.musicx.desktop.json
+flatpak-builder-lint manifest build/distribution/flatpak/dev.musicx.desktop.json
+appstreamcli validate --no-net build/distribution/flatpak/dev.musicx.desktop.metainfo.xml
+desktop-file-validate build/distribution/flatpak/dev.musicx.desktop.desktop
 flatpak-builder --user --install-deps-from=flathub --force-clean \
-  build/flatpak-release build/distribution/flatpak/com.metrolist.desktop.json
+  build/flatpak-release build/distribution/flatpak/dev.musicx.desktop.json
 ```
 
 Permissions cover X11, IPC, DRI, PulseAudio, network, Secret Service, the app's MPRIS name, Downloads and Music. Neither manifest grants the whole home directory or session bus. Check login, credentials, local files, downloads, audio and GPU rendering in the sandbox.
@@ -95,7 +95,7 @@ python3 scripts/test_build_appimage.py
 python3 .github/tests/test_release_workflows.py
 python3 .github/tests/test_repository_checks.py
 bash -n scripts/build_appimage.sh
-shellcheck scripts/build_appimage.sh packaging/flatpak/com.metrolist.desktop
+shellcheck scripts/build_appimage.sh packaging/flatpak/dev.musicx.desktop
 actionlint .github/workflows/ci.yml .github/workflows/release.yml .github/workflows/verify-repository-checks.yml
 ```
 

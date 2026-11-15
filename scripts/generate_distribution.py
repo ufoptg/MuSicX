@@ -14,8 +14,8 @@ from urllib.parse import urlsplit
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
-REPOSITORY = "MetrolistGroup/Metrolist"
-APP_ID = "com.metrolist.desktop"
+REPOSITORY = "MuSicXGroup/MuSicX"
+APP_ID = "dev.musicx.desktop"
 
 
 def release_assets(version):
@@ -116,7 +116,7 @@ def generate(assets_dir, metadata, output, screenshots):
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=output.parent) as temporary:
         stage = Path(temporary) / "distribution"
-        winget = stage / "winget/manifests/m/MetrolistGroup/Metrolist" / version
+        winget = stage / "winget/manifests/m/MuSicXGroup/MuSicX" / version
         winget.mkdir(parents=True)
         for source in sorted((ROOT / "packaging/winget").glob("*.yaml.in")):
             (winget / source.name.removesuffix(".in")).write_text(render(source, substitutions))

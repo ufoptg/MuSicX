@@ -1,12 +1,12 @@
 <div style="display: flex; gap: 1rem;">
-  <img src="fastlane/metadata/android/en-US/images/icon.png" alt="Metrolist app icon" width="200" height="200" />
+  <img src="fastlane/metadata/android/en-US/images/icon.png" alt="MuSicX app icon" width="200" height="200" />
   <div>
-      <h1>Metrolist</h1>
+      <h1>MuSicX</h1>
       <h3>A Material Design YouTube Music client for Android, iOS and desktop</h3>
       <div style="display: flex; gap: 1rem;">
-        <a href="https://github.com/MetrolistGroup/Metrolist/releases"><img src="https://img.shields.io/github/v/release/MetrolistGroup/Metrolist?style=for-the-badge&labelColor=0d1117" alt="Latest release" /></a>
-        <a href="https://github.com/MetrolistGroup/Metrolist/blob/main/LICENSE"><img src="https://img.shields.io/github/license/MetrolistGroup/metrolist?style=for-the-badge&labelColor=0d1117" alt="License" /></a>
-        <a href="https://github.com/MetrolistGroup/Metrolist/releases"><img src="https://img.shields.io/github/downloads/MetrolistGroup/Metrolist/total?style=for-the-badge&labelColor=0d1117" alt="Downloads" /></a>
+        <a href="https://github.com/MuSicXGroup/MuSicX/releases"><img src="https://img.shields.io/github/v/release/MuSicXGroup/MuSicX?style=for-the-badge&labelColor=0d1117" alt="Latest release" /></a>
+        <a href="https://github.com/MuSicXGroup/MuSicX/blob/main/LICENSE"><img src="https://img.shields.io/github/license/MuSicXGroup/metrolist?style=for-the-badge&labelColor=0d1117" alt="License" /></a>
+        <a href="https://github.com/MuSicXGroup/MuSicX/releases"><img src="https://img.shields.io/github/downloads/MuSicXGroup/MuSicX/total?style=for-the-badge&labelColor=0d1117" alt="Downloads" /></a>
       </div>
   </div>
 </div>
@@ -23,8 +23,8 @@
 
 > [!WARNING]
 > <details>
->   <summary>The use of Metrolist to access YouTube Music may violate YouTube's Terms of Service.</summary>
->   <p>You use Metrolist at your own risk. You are solely responsible for any consequences. Metrolist's contributors are not liable for damages, claims or actions against your account. We have received no reports of bans or restrictions for using Metrolist, but that does not guarantee your account's safety.</p>
+>   <summary>The use of MuSicX to access YouTube Music may violate YouTube's Terms of Service.</summary>
+>   <p>You use MuSicX at your own risk. You are solely responsible for any consequences. MuSicX's contributors are not liable for damages, claims or actions against your account. We have received no reports of bans or restrictions for using MuSicX, but that does not guarantee your account's safety.</p>
 > </details>
 >
 > YouTube Music is region-restricted. If the service is unavailable in your region, you need a [VPN or proxy in a supported region](https://one.one.one.one/) to use the app. [Changing your DNS](https://developers.cloudflare.com/1.1.1.1/setup/) can bypass some blocks.
@@ -77,10 +77,10 @@ DO NOT REMOVE THIS SECTION, I WANT TO ADD IT LATER!!!
 
 <h1><a id="download-now"></a>Download now</h1>
 
-<p>Install Metrolist: <a href="docs/install/android.md">Android</a>, <a href="docs/install/ios.md">iOS</a>, <a href="docs/install/windows.md">Windows</a>, <a href="docs/install/macos.md">macOS</a> or <a href="docs/install/linux.md">Linux</a>. Check <a href="docs/install/README.md#get-the-package">download availability</a> before choosing a package.</p>
+<p>Install MuSicX: <a href="docs/install/android.md">Android</a>, <a href="docs/install/ios.md">iOS</a>, <a href="docs/install/windows.md">Windows</a>, <a href="docs/install/macos.md">macOS</a> or <a href="docs/install/linux.md">Linux</a>. Check <a href="docs/install/README.md#get-the-package">download availability</a> before choosing a package.</p>
 
 <p>
-  <a href="https://github.com/MetrolistGroup/Metrolist/releases/latest">Choose a release for your device</a>
+  <a href="https://github.com/MuSicXGroup/MuSicX/releases/latest">Choose a release for your device</a>
 </p>
 
 <table>
@@ -90,29 +90,29 @@ DO NOT REMOVE THIS SECTION, I WANT TO ADD IT LATER!!!
       <p>Windows 10+ · pick your chip</p>
       <p><sub>x64 · installer and portable</sub></p>
       <p>
-        <a href="https://github.com/MetrolistGroup/Metrolist/releases/latest">
+        <a href="https://github.com/MuSicXGroup/MuSicX/releases/latest">
           <img alt="Download the Windows installer (.exe)" src="assets/badges/platform/windows-installer.svg">
         </a>
       </p>
       <p>
-        <a href="https://github.com/MetrolistGroup/Metrolist/releases/latest/download/Metrolist-Desktop-windows.zip"><img alt="Download the portable Windows x64 package (.zip)" src="assets/badges/platform/windows-portable.svg"></a>
+        <a href="https://github.com/MuSicXGroup/MuSicX/releases/latest/download/MuSicX-Desktop-windows.zip"><img alt="Download the portable Windows x64 package (.zip)" src="assets/badges/platform/windows-portable.svg"></a>
       </p>
       <p><sub>ARM64 · portable only</sub></p>
       <p>
-        <a href="https://github.com/MetrolistGroup/Metrolist/releases/latest"><img alt="Download the portable Windows ARM64 package (.zip)" src="assets/badges/platform/windows-portable.svg"></a>
+        <a href="https://github.com/MuSicXGroup/MuSicX/releases/latest"><img alt="Download the portable Windows ARM64 package (.zip)" src="assets/badges/platform/windows-portable.svg"></a>
       </p>
     </td>
     <td align="center" valign="top" width="33%">
       <h2>macOS</h2>
       <p>macOS 15+ · pick your chip</p>
       <p>
-        <a href="https://github.com/MetrolistGroup/Metrolist/releases/latest">
-          <img alt="Download Metrolist for macOS on Apple silicon (.dmg)" src="assets/badges/platform/macos-apple-silicon.svg">
+        <a href="https://github.com/MuSicXGroup/MuSicX/releases/latest">
+          <img alt="Download MuSicX for macOS on Apple silicon (.dmg)" src="assets/badges/platform/macos-apple-silicon.svg">
         </a>
       </p>
       <p>
-        <a href="https://github.com/MetrolistGroup/Metrolist/releases/latest">
-          <img alt="Download Metrolist for macOS on Intel (.dmg)" src="assets/badges/platform/macos-intel.svg">
+        <a href="https://github.com/MuSicXGroup/MuSicX/releases/latest">
+          <img alt="Download MuSicX for macOS on Intel (.dmg)" src="assets/badges/platform/macos-intel.svg">
         </a>
       </p>
       <p><sub>Unsigned app, you need to trust it first</sub></p>
@@ -121,7 +121,7 @@ DO NOT REMOVE THIS SECTION, I WANT TO ADD IT LATER!!!
       <h2>iOS</h2>
       <p>iPhone &amp; iPad · iOS 17+</p>
       <p>
-        <a href="https://github.com/MetrolistGroup/Metrolist/releases/latest/download/Metrolist.ipa">
+        <a href="https://github.com/MuSicXGroup/MuSicX/releases/latest/download/MuSicX.ipa">
           <img alt="Download the iOS IPA package" src="assets/badges/platform/ios-ipa.svg">
         </a>
       </p>
@@ -133,7 +133,7 @@ DO NOT REMOVE THIS SECTION, I WANT TO ADD IT LATER!!!
       <h2>Android</h2>
       <p>Android 7+</p>
       <p>
-        <a href="https://github.com/MetrolistGroup/Metrolist/releases/latest/download/Metrolist.apk">
+        <a href="https://github.com/MuSicXGroup/MuSicX/releases/latest/download/MuSicX.apk">
           <img alt="Download the stable Android APK" src="assets/badges/platform/android-stable.svg">
         </a>
       </p>
@@ -143,17 +143,17 @@ DO NOT REMOVE THIS SECTION, I WANT TO ADD IT LATER!!!
       <p>glibc · pick your chip</p>
       <p><sub>x86_64 · AppImage or packages</sub></p>
       <p>
-        <a href="https://github.com/MetrolistGroup/Metrolist/releases/latest"><img alt="Download the x86_64 Linux AppImage" src="assets/badges/platform/linux-appimage.svg"></a>
+        <a href="https://github.com/MuSicXGroup/MuSicX/releases/latest"><img alt="Download the x86_64 Linux AppImage" src="assets/badges/platform/linux-appimage.svg"></a>
       </p>
       <p>
-        <a href="https://aur.archlinux.org/packages/metrolist-desktop-bin"><img alt="Get the AUR PKGBUILD for Metrolist" src="assets/badges/platform/linux-aur.svg"></a>
+        <a href="https://aur.archlinux.org/packages/metrolist-desktop-bin"><img alt="Get the AUR PKGBUILD for MuSicX" src="assets/badges/platform/linux-aur.svg"></a>
       </p>
       <p>
         <a href="docs/install/linux.md#nix"><img alt="Get the Nix flake" src="assets/badges/platform/linux-nix.svg"></a>
       </p>
       <p><sub>ARM64 · AppImage or Nix</sub></p>
       <p>
-        <a href="https://github.com/MetrolistGroup/Metrolist/releases/latest"><img alt="Download the ARM64 Linux AppImage" src="assets/badges/platform/linux-appimage.svg"></a>
+        <a href="https://github.com/MuSicXGroup/MuSicX/releases/latest"><img alt="Download the ARM64 Linux AppImage" src="assets/badges/platform/linux-appimage.svg"></a>
       </p>
       <p>
         <a href="docs/install/linux.md#nix"><img alt="Get the Nix flake" src="assets/badges/platform/linux-nix.svg"></a>
@@ -163,18 +163,18 @@ DO NOT REMOVE THIS SECTION, I WANT TO ADD IT LATER!!!
       <h2>Android stores</h2>
       <p>The app already has a built-in updater.</p>
       <p>
-        <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/MetrolistGroup/Metrolist/">
-          <img alt="Add the Metrolist repository to Obtainium" src="assets/badges/platform/store-obtainium.svg">
+        <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/MuSicXGroup/MuSicX/">
+          <img alt="Add the MuSicX repository to Obtainium" src="assets/badges/platform/store-obtainium.svg">
         </a>
       </p>
       <p>
-        <a href="https://apt.izzysoft.de/fdroid/index/apk/com.metrolist.music">
-          <img alt="Find Metrolist in the IzzyOnDroid F-Droid repository" src="assets/badges/platform/store-izzyondroid.svg">
+        <a href="https://apt.izzysoft.de/fdroid/index/apk/dev.musicx.music">
+          <img alt="Find MuSicX in the IzzyOnDroid F-Droid repository" src="assets/badges/platform/store-izzyondroid.svg">
         </a>
       </p>
       <p>
-        <a href="https://www.openapk.net/metrolist/com.metrolist.music/">
-          <img alt="Find the Metrolist APK on OpenAPK" src="assets/badges/platform/store-openapk.svg">
+        <a href="https://www.openapk.net/metrolist/dev.musicx.music/">
+          <img alt="Find the MuSicX APK on OpenAPK" src="assets/badges/platform/store-openapk.svg">
         </a>
       </p>
     </td>
@@ -189,7 +189,7 @@ DO NOT REMOVE THIS SECTION, I WANT TO ADD IT LATER!!!
 
 <h1><a id="support-the-project"></a>Support the project</h1>
 
-Metrolist is free and open-source. Donations support its development.
+MuSicX is free and open-source. Donations support its development.
 
 <p>
   <a href="https://github.com/sponsors/nyxiereal">
@@ -225,7 +225,7 @@ Metrolist is free and open-source. Donations support its development.
 
 <h1>Special thanks</h1>
 
-Metrolist uses these projects and services.
+MuSicX uses these projects and services.
 
 <table>
   <thead>
@@ -240,7 +240,7 @@ Metrolist uses these projects and services.
       <td>Music recognition through the Shazam API</td>
     </tr>
     <tr>
-      <td align="center"><a href="https://github.com/MetrolistGroup/innertubex">InnerTubeX</a></td>
+      <td align="center"><a href="https://github.com/MuSicXGroup/innertubex">InnerTubeX</a></td>
       <td>YouTube streaming engine, developed with help from <a href="https://github.com/ZemerTeam/">ZemerTeam</a></td>
     </tr>
     <tr>
@@ -248,7 +248,7 @@ Metrolist uses these projects and services.
       <td>Lyrics provider</td>
     </tr>
     <tr>
-      <td align="center"><a href="https://github.com/MetrolistGroup/metroserver">metroserver</a></td>
+      <td align="center"><a href="https://github.com/MuSicXGroup/metroserver">metroserver</a></td>
       <td>Listen Together real-time synchronization backend</td>
     </tr>
     <tr>
@@ -267,10 +267,10 @@ Metrolist uses these projects and services.
 
 [![Translation status](https://img.shields.io/weblate/progress/metrolist?style=for-the-badge&labelColor=0d1117)](https://hosted.weblate.org/engage/metrolist/)
 
-<p>We use Weblate to translate Metrolist. <a href="https://hosted.weblate.org/projects/Metrolist/">Contribute a translation</a>.</p>
+<p>We use Weblate to translate MuSicX. <a href="https://hosted.weblate.org/projects/MuSicX/">Contribute a translation</a>.</p>
 
-<a href="https://hosted.weblate.org/projects/Metrolist/">
-  <img src="https://hosted.weblate.org/widget/Metrolist/horizontal-auto.svg" alt="Translation status" />
+<a href="https://hosted.weblate.org/projects/MuSicX/">
+  <img src="https://hosted.weblate.org/widget/MuSicX/horizontal-auto.svg" alt="Translation status" />
 </a>
 </div>
 
@@ -279,8 +279,8 @@ Metrolist uses these projects and services.
 <div align="center">
 <h1>Contributors</h1>
 <p>To contribute code, start with the <a href="docs/README.md">developer docs</a>.</p>
-<a href="https://github.com/MetrolistGroup/Metrolist/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=MetrolistGroup/Metrolist" alt="Contributors" />
+<a href="https://github.com/MuSicXGroup/MuSicX/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=MuSicXGroup/MuSicX" alt="Contributors" />
 </a>
 </div>
 
@@ -296,7 +296,7 @@ Metrolist uses these projects and services.
 
 <div align="center">
 
-**Developed by [the Metrolist development team](https://github.com/MetrolistGroup)**
+**Developed by [the MuSicX development team](https://github.com/MuSicXGroup)**
 
 **This project stands with Palestine 🇵🇸**
 

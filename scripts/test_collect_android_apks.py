@@ -13,8 +13,8 @@ class CollectAndroidApksTest(unittest.TestCase):
             self.metadata(root, "release", ["universal"])
             (root / "stale.apk").write_bytes(b"stale")
             collect(root, root / "dist", "14.0.0-rc0", "release")
-            self.assertEqual({"Metrolist.apk"}, {path.name for path in (root / "dist").iterdir()})
-            self.assertEqual(b"universal", (root / "dist/Metrolist.apk").read_bytes())
+            self.assertEqual({"MuSicX.apk"}, {path.name for path in (root / "dist").iterdir()})
+            self.assertEqual(b"universal", (root / "dist/MuSicX.apk").read_bytes())
             self.metadata(root, "release", ["universal", "arm64-v8a"])
             with self.assertRaises(ValueError):
                 collect(root, root / "split", "14.0.0-rc0", "release")
@@ -49,7 +49,7 @@ class CollectAndroidApksTest(unittest.TestCase):
             metadata["elements"][0]["versionName"] = "14.0.0+abcdef0"
             (root / "output-metadata.json").write_text(json.dumps(metadata))
             collect(root, root / "dist", "14.0.0+abcdef0", "release")
-            self.assertTrue((root / "dist/Metrolist.apk").is_file())
+            self.assertTrue((root / "dist/MuSicX.apk").is_file())
             with self.assertRaises(ValueError):
                 collect(root, root / "other", "14.0.0", "release")
 

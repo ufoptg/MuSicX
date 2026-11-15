@@ -26,7 +26,7 @@ Dispatch `build-desktop-native.yml` for one target; the package and its evidence
 
 [`nightly.yml`](../.github/workflows/nightly.yml) runs after pushes to main, except changes limited to docs, Markdown, fastlane metadata or assets. GitHub's `[skip ci]` commit marker skips push runs. Maintainers can also dispatch it on main. New runs cancel an unfinished nightly. CI runs the affected platform's ktlint and unit tests alongside Nightly, without debug APK assembly or a separate desktop compile task. Native launch probes run on manual builds only.
 
-All three builds must succeed before publication. The rolling `nightly` tag moves to the built commit, and the "Metrolist Nightly" prerelease replaces its assets with exactly one signed Android release APK, one native Linux x64 AppImage and one native Windows x64 portable ZIP. The assets use the stable release names: `Metrolist.apk`, `metrolist-desktop-linux-x64-<version>.AppImage` and `Metrolist-Desktop-windows.zip`. Publication keeps the release in draft while replacing assets, then publishes it as a prerelease without marking it latest. A failed publication can leave a draft; rerun the workflow to finish it.
+All three builds must succeed before publication. The rolling `nightly` tag moves to the built commit, and the "MuSicX Nightly" prerelease replaces its assets with exactly one signed Android release APK, one native Linux x64 AppImage and one native Windows x64 portable ZIP. The assets use the stable release names: `MuSicX.apk`, `metrolist-desktop-linux-x64-<version>.AppImage` and `MuSicX-Desktop-windows.zip`. Publication keeps the release in draft while replacing assets, then publishes it as a prerelease without marking it latest. A failed publication can leave a draft; rerun the workflow to finish it.
 
 Notes link the built commit and list up to 50 first-parent commits since the previous nightly tag target. Nightly builds override `appVersion` with the commit as semver build metadata, such as `14.0.0+abc1234`, so the app and filenames show the exact commit. Build metadata keeps update checks treating a nightly as equal to its base release, where a `-suffix` would mark it older and offer the stable release as an update. The reusable Android and native workflows take this through their `app-version` input, which sets `ORG_GRADLE_PROJECT_appVersion`. Android uses the same signing, Last.fm and Lyprio secrets as stable releases; signing must be available to push runs. Signing secrets stay in the Android job. Nightlies do not upload or finalize Sentry releases. Mapping files and native build evidence remain workflow artifacts.
 
@@ -34,7 +34,7 @@ Notes link the built commit and list up to 50 first-parent commits since the pre
 
 `release.yml` runs on `v*.*.*` tags. The tag must be exactly `vMAJOR.MINOR.PATCH` and equal the suffix-free `appVersion`.
 
-Android 14.0.0 uses `versionCode = 154` in `androidApp/build.gradle.kts`, one above legacy 13.7.0's 153. Raise it above the previous stable release before later tags. Legacy v13 apps update from `MetrolistGroup/Metrolist` `releases/latest`: they read the release title as a dotted version and download `Metrolist.apk` or, for Google Cast builds, `Metrolist-with-Google-Cast.apk`. Keep the title as the bare version and both asset names.
+Android 14.0.0 uses `versionCode = 154` in `androidApp/build.gradle.kts`, one above legacy 13.7.0's 153. Raise it above the previous stable release before later tags. Legacy v13 apps update from `MuSicXGroup/MuSicX` `releases/latest`: they read the release title as a dotted version and download `MuSicX.apk` or, for Google Cast builds, `MuSicX-with-Google-Cast.apk`. Keep the title as the bare version and both asset names.
 
 1. Run the affected [checks](checks.md) before tagging.
 2. Supply Android signing, Last.fm and Lyprio credentials. The workflow checks the APK with `apksigner`.
@@ -42,7 +42,7 @@ Android 14.0.0 uses `versionCode = 154` in `androidApp/build.gradle.kts`, one ab
 4. Publication validates expected assets and checksums in a draft, then publishes. A rerun cannot modify a published release; it succeeds only when all expected assets already exist.
 5. Sentry finalization and intermediate-artifact cleanup run after successful publication. Failures keep artifacts for retry within their retention period.
 
-Android release builds preserve class/method names but optimize line numbers. Use the published `Metrolist-KMP-mapping.txt` with `retrace` to restore source lines. The redacted crash trace keeps its R8 map identifier.
+Android release builds preserve class/method names but optimize line numbers. Use the published `MuSicX-KMP-mapping.txt` with `retrace` to restore source lines. The redacted crash trace keeps its R8 map identifier.
 
 After publication, the workflow downloads assets and generates the `distribution-recipes` artifact. External draft PRs require separate configuration; see [distribution](distribution.md#optional-external-proposals).
 

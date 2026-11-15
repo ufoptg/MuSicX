@@ -5,7 +5,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>Metrolist</string>
+    <string>MuSicX</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -17,9 +17,9 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-    <string>METROLIST_VERSION</string>
+    <string>MUSICX_VERSION</string>
     <key>CFBundleVersion</key>
-    <string>METROLIST_VERSION</string>
+    <string>MUSICX_VERSION</string>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>

@@ -1,4 +1,4 @@
-package com.metrolist.desktop.nativeimage;
+package dev.musicx.desktop.nativeimage;
 
 import com.oracle.svm.core.annotate.Alias;
 import com.oracle.svm.core.annotate.Substitute;

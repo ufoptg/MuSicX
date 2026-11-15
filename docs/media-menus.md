@@ -2,7 +2,7 @@
 
 ## Models and hosts
 
-Shared definitions live in `shared/src/commonMain/kotlin/com/metrolist/shared/ui/menu/`. `MediaMenuModel.kt` defines item menus. `SongMenuActions.kt` supplies common song/player actions. Hosts provide playback, navigation, downloads, sharing and dialogs. Missing callbacks hide unavailable actions.
+Shared definitions live in `shared/src/commonMain/kotlin/dev/musicx/shared/ui/menu/`. `MediaMenuModel.kt` defines item menus. `SongMenuActions.kt` supplies common song/player actions. Hosts provide playback, navigation, downloads, sharing and dialogs. Missing callbacks hide unavailable actions.
 
 `MediaMenuPlaybackActions.kt` shares collection playback and queue insertion for desktop and the mobile host. Keep loaders and error presentation in host adapters. Preserve duplicate occurrences, cancellation and the existing queue when loading fails.
 

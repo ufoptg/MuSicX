@@ -57,7 +57,7 @@ check_deps() {
 
 find_desktop_pids() {
     local status=0
-    pgrep -f "com.metrolist.desktop.MainKt" || status=$?
+    pgrep -f "dev.musicx.desktop.MainKt" || status=$?
     # pgrep uses 1 for an empty process list; other failures must stop the launch.
     if [[ "$status" -gt 1 ]]; then
         return "$status"
@@ -132,8 +132,8 @@ verify_pid() {
     fi
     local cmdline
     cmdline=$(cat "/proc/$pid/cmdline" 2>/dev/null | tr '\0' ' ')
-    if [[ "$cmdline" != *"java"* && "$cmdline" != *"Metrolist"* && "$cmdline" != *"metrolist"* ]]; then
-        warn "PID $pid does not appear to be a Metrolist/Java process"
+    if [[ "$cmdline" != *"java"* && "$cmdline" != *"MuSicX"* && "$cmdline" != *"metrolist"* ]]; then
+        warn "PID $pid does not appear to be a MuSicX/Java process"
         info "Continue anyway? [Y/n]"
         read -r resp
         if [[ "$resp" =~ ^[nN] ]]; then exit 1; fi
@@ -405,7 +405,7 @@ cleanup() {
 run_interactive() {
     echo ""
     echo "═══════════════════════════════════════════════════════════════════"
-    echo "  Metromem -- Metrolist Memory Profiler -- PID $PID"
+    echo "  Metromem -- MuSicX Memory Profiler -- PID $PID"
     echo "═══════════════════════════════════════════════════════════════════"
     echo ""
     echo "  Suggested stages:"

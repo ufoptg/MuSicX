@@ -2,7 +2,7 @@ pkgbase = metrolist-git
 	pkgdesc = YouTube Music desktop client
 	pkgver = 14.0.0
 	pkgrel = 1
-	url = https://github.com/MetrolistGroup/Metrolist
+	url = https://github.com/MuSicXGroup/MuSicX
 	arch = x86_64
 	license = GPL-3.0-only
 	makedepends = git
@@ -23,7 +23,7 @@ pkgbase = metrolist-git
 	conflicts = metrolist
 	options = !strip
 	options = !debug
-	source = metrolist-kmp::git+https://github.com/MetrolistGroup/Metrolist.git#branch=main
+	source = metrolist-kmp::git+https://github.com/MuSicXGroup/MuSicX.git#branch=main
 	source = metrolist.desktop
 	sha256sums = SKIP
 	sha256sums = 1c1b9dedc07ec7ed0efc27f524c21e35727b934791772296bff8f7a4461cbef0

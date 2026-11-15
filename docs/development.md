@@ -53,27 +53,27 @@ Use macOS with Xcode, its command-line tools and an installed iOS Simulator runt
 ./scripts/build_ios.sh --sim --run
 ```
 
-The script builds the shared Kotlin framework through the Xcode project and copies the simulator app to `dist/Metrolist.app`. Open `iosApp/iosApp.xcodeproj` to debug the Swift host or configure signing. Direct Xcode builds and the script both derive bundle version metadata from `appVersion` through `scripts/ios_version.sh`.
+The script builds the shared Kotlin framework through the Xcode project and copies the simulator app to `dist/MuSicX.app`. Open `iosApp/iosApp.xcodeproj` to debug the Swift host or configure signing. Direct Xcode builds and the script both derive bundle version metadata from `appVersion` through `scripts/ios_version.sh`.
 
 ```bash
 ./scripts/build_ios.sh --ipa
 ```
 
-This produces an unsigned `dist/Metrolist.ipa`. It needs signing or a sideloading tool before device installation. Linux can compile shared iOS sources but cannot build or run the Xcode app.
+This produces an unsigned `dist/MuSicX.ipa`. It needs signing or a sideloading tool before device installation. Linux can compile shared iOS sources but cannot build or run the Xcode app.
 
 ## Find the code for a change
 
-See [AGENTS.md](../AGENTS.md#modules) for modules and source sets. Put reusable logic in `shared`; keep platform APIs and native lifecycle handling in their platform source sets. Desktop Kotlin is under `desktopApp/src/jvmMain/kotlin/`, but its resources belong in `desktopApp/src/desktopMain/resources/`. The iOS Swift host is under `iosApp/`; its shared Compose entry point is `shared/src/iosMain/kotlin/com/metrolist/shared/MainViewController.kt`.
+See [AGENTS.md](../AGENTS.md#modules) for modules and source sets. Put reusable logic in `shared`; keep platform APIs and native lifecycle handling in their platform source sets. Desktop Kotlin is under `desktopApp/src/jvmMain/kotlin/`, but its resources belong in `desktopApp/src/desktopMain/resources/`. The iOS Swift host is under `iosApp/`; its shared Compose entry point is `shared/src/iosMain/kotlin/dev/musicx/shared/MainViewController.kt`.
 
 | Change | Start here |
 | --- | --- |
-| Screens and components | `androidApp/src/main/kotlin/com/metrolist/android/ui/`, `desktopApp/src/jvmMain/kotlin/com/metrolist/desktop/ui/`, and `shared/src/commonMain/kotlin/com/metrolist/shared/ui/` |
-| Screen state and loading | `shared/src/commonMain/kotlin/com/metrolist/shared/viewmodels/`; Android also has wrappers under `androidApp/.../viewmodels/` |
-| YouTube requests and parsing | `shared/src/commonMain/kotlin/com/metrolist/shared/api/YouTubeRepository.kt` and the adjacent API operations; stream extraction is under `shared/.../youtube/` |
-| Database entities and queries | `shared/src/commonMain/kotlin/com/metrolist/shared/db/`, starting with `MusicDatabase.kt` |
+| Screens and components | `androidApp/src/main/kotlin/dev/musicx/android/ui/`, `desktopApp/src/jvmMain/kotlin/dev/musicx/desktop/ui/`, and `shared/src/commonMain/kotlin/dev/musicx/shared/ui/` |
+| Screen state and loading | `shared/src/commonMain/kotlin/dev/musicx/shared/viewmodels/`; Android also has wrappers under `androidApp/.../viewmodels/` |
+| YouTube requests and parsing | `shared/src/commonMain/kotlin/dev/musicx/shared/api/YouTubeRepository.kt` and the adjacent API operations; stream extraction is under `shared/.../youtube/` |
+| Database entities and queries | `shared/src/commonMain/kotlin/dev/musicx/shared/db/`, starting with `MusicDatabase.kt` |
 | Preferences | `shared/.../constants/PreferenceKeys.kt` and `shared/.../settings/Settings.kt` |
 | Playback | Shared `ui/playback/PlaybackController.kt`, Android `playback/PlayerConnection.kt`, desktop `state/playback/`, and shared `iosMain/.../playback/` |
-| Casting | `shared/src/jvmSharedMain/kotlin/com/metrolist/shared/cast/` |
+| Casting | `shared/src/jvmSharedMain/kotlin/dev/musicx/shared/cast/` |
 
 For example, Android's `ui/screens/HomeScreen.kt` uses the Android `HomeViewModel`, which wraps the shared `HomeViewModel`. The shared class loads API data through `YouTubeRepository` and reads local state through `MusicDatabase`. Follow a screen's imports rather than assuming every platform uses the same wrapper. Koin registrations are in the platform `di/` directories and shared `youtube/di/SharedModule.kt`.
 
@@ -91,11 +91,11 @@ Gradient app icon sources live in `assets/app-icons/gradient/`. Its foreground, 
 
 Android's Original icon matches the README icon (`fastlane/metadata/android/en-US/images/icon.png`). The picker, the adaptive icon and the legacy launcher icon share `ic_launcher_foreground.xml` and `app_icon_original_background.xml`; themed icons use `ic_launcher_monochrome.xml`. Below API 31 it is a white glyph on black. On API 31+ `values-v31/colors.xml` uses the wallpaper's primary container and on-primary-container colors, like the About screen logo. Desktop's `logo.*` files and iOS's `AppIcon.appiconset` use separate artwork.
 
-Shared UI glyphs in `shared/src/commonMain/kotlin/com/metrolist/shared/ui/icons/` come from Google's [Material Symbols SVGs](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/symbols/web) under the [Apache 2.0 license](https://github.com/google/material-design-icons/blob/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/LICENSE), included at `assets/material-symbols/LICENSE`. `scripts/generate_material_symbols.py` pins that revision and maps property names to SVG names. It uses weight 400, grade 0 and optical size 24. Filled uses the Outlined family with `fill1`; Rounded keeps each entry's fill. `FavoriteBorder` always stays hollow. `Movie` and `PictureInPicture` map to `smart_display` and `picture_in_picture_alt`. The script also covers auto-mirrored entries and the Explicit, Saved, Liked and Downloaded status badges, keeping their mirroring, sizes and colors.
+Shared UI glyphs in `shared/src/commonMain/kotlin/dev/musicx/shared/ui/icons/` come from Google's [Material Symbols SVGs](https://github.com/google/material-design-icons/tree/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/symbols/web) under the [Apache 2.0 license](https://github.com/google/material-design-icons/blob/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/LICENSE), included at `assets/material-symbols/LICENSE`. `scripts/generate_material_symbols.py` pins that revision and maps property names to SVG names. It uses weight 400, grade 0 and optical size 24. Filled uses the Outlined family with `fill1`; Rounded keeps each entry's fill. `FavoriteBorder` always stays hollow. `Movie` and `PictureInPicture` map to `smart_display` and `picture_in_picture_alt`. The script also covers auto-mirrored entries and the Explicit, Saved, Liked and Downloaded status badges, keeping their mirroring, sizes and colors.
 
 Run `python3 scripts/generate_material_symbols.py regen`, then `verify`. To refresh upstream, pass `--revision <full-commit-sha>`, update `UPSTREAM_REVISION` and record that SHA in the commit body. Paths use the 960-unit grid and `materialSymbol` translates them down by 960. The script normalizes Google's 24-unit SVGs with fontTools. Run `python3 scripts/test_generate_material_symbols.py` and the shared desktop icon test after changing the generator.
 
-The `taskbar` command refreshes Windows' four 75 px ICO glyphs under `desktopApp/src/jvmMain/resources/` with `rsvg-convert` and Pillow, keeping their black outlines, white interiors and PNG encoding. Windows title-bar glyphs in `WindowsWindowFrame.kt` use platform-native artwork. Tray and launcher logos, the eight `MetrolistIconsBrand` marks, iOS app-icon assets and Android notification and widget drawables are separate artwork.
+The `taskbar` command refreshes Windows' four 75 px ICO glyphs under `desktopApp/src/jvmMain/resources/` with `rsvg-convert` and Pillow, keeping their black outlines, white interiors and PNG encoding. Windows title-bar glyphs in `WindowsWindowFrame.kt` use platform-native artwork. Tray and launcher logos, the eight `MuSicXIconsBrand` marks, iOS app-icon assets and Android notification and widget drawables are separate artwork.
 
 ## Navigation
 
@@ -169,7 +169,7 @@ Queue rows show the title, artist and duration without source subtitles. Source 
 
 The shared queue header and rows use a 12 dp horizontal inset, 12 dp corners and 4 dp gaps. The desktop header's top corners match the panel's 16 dp radius. When unlocked, rows without a reorder handle reserve its space so artwork and text align.
 
-Legacy shuffle is on by default. It puts the current occurrence first and randomizes every other occurrence, including played songs and generated recommendations, matching legacy Metrolist's [`MusicService.applyShuffleOrder`](https://github.com/MetrolistGroup/Metrolist/blob/e6fea3b36c68841bad21daa6252e1d69ecd3afbe/app/src/main/kotlin/com/metrolist/music/playback/MusicService.kt#L2876). The queue shows the reordered list directly instead of a Media3 shuffle permutation. With Legacy shuffle off, shuffling keeps the current occurrence and played history, randomizes only upcoming explicit entries and keeps generated and auto-mix entries afterward in order. Both modes preserve duplicate occurrences and active playback. Disabling shuffle restores the canonical order of unplayed entries. Changing the setting applies the next time shuffle is enabled.
+Legacy shuffle is on by default. It puts the current occurrence first and randomizes every other occurrence, including played songs and generated recommendations, matching legacy MuSicX's [`MusicService.applyShuffleOrder`](https://github.com/MuSicXGroup/MuSicX/blob/e6fea3b36c68841bad21daa6252e1d69ecd3afbe/app/src/main/kotlin/com/metrolist/music/playback/MusicService.kt#L2876). The queue shows the reordered list directly instead of a Media3 shuffle permutation. With Legacy shuffle off, shuffling keeps the current occurrence and played history, randomizes only upcoming explicit entries and keeps generated and auto-mix entries afterward in order. Both modes preserve duplicate occurrences and active playback. Disabling shuffle restores the canonical order of unplayed entries. Changing the setting applies the next time shuffle is enabled.
 
 Playlist and album **Shuffle** actions put a random song first and shuffle every other occurrence into the upcoming queue, including through Device Connect. With **Persistent shuffle**, selecting a song in a new queue keeps shuffle active and starts that occurrence; Android Auto follows the same policy.
 
@@ -377,7 +377,7 @@ Android and desktop offer an opt-in **SponsorBlock (podcasts)** switch. Only ite
 
 ### Sentry
 
-Every platform passes reports and breadcrumbs through `redactDiagnosticText` and `redactDiagnosticUrl` in `beforeSend` and `beforeBreadcrumb`, removing credentials, tokens, cookies, query strings, long opaque path segments and IP addresses. Playback reports attach the last 200 playback events. Android and desktop report playback failures only after recovery is exhausted or a track cannot start. iOS releases are named `com.metrolist.ios@<appVersion>` because sideloaded builds get random bundle IDs, and release workflows upload dSYMs. iOS reports HTTP 5xx automatically only for HTTPS on port 443 to `metrolist.cc`, its subdomains and `metroserverx.meowery.eu`; see [HTTP client errors](https://docs.sentry.io/platforms/apple/configuration/http-client-errors/).
+Every platform passes reports and breadcrumbs through `redactDiagnosticText` and `redactDiagnosticUrl` in `beforeSend` and `beforeBreadcrumb`, removing credentials, tokens, cookies, query strings, long opaque path segments and IP addresses. Playback reports attach the last 200 playback events. Android and desktop report playback failures only after recovery is exhausted or a track cannot start. iOS releases are named `dev.musicx.ios@<appVersion>` because sideloaded builds get random bundle IDs, and release workflows upload dSYMs. iOS reports HTTP 5xx automatically only for HTTPS on port 443 to `metrolist.cc`, its subdomains and `metroserverx.meowery.eu`; see [HTTP client errors](https://docs.sentry.io/platforms/apple/configuration/http-client-errors/).
 
 ### Imports and scrobbling
 

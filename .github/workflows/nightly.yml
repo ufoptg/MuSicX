@@ -141,9 +141,9 @@ jobs:
           done
           # Same names as the stable release assets; the version carries the commit.
           mkdir nightly-assets
-          cp "${apks[0]}" nightly-assets/Metrolist.apk
+          cp "${apks[0]}" nightly-assets/MuSicX.apk
           cp "${appimages[0]}" "nightly-assets/metrolist-desktop-linux-x64-${APP_VERSION}.AppImage"
-          cp "${zips[0]}" nightly-assets/Metrolist-Desktop-windows.zip
+          cp "${zips[0]}" nightly-assets/MuSicX-Desktop-windows.zip
 
       - name: Write nightly notes
         shell: bash
@@ -186,9 +186,9 @@ jobs:
             done < "$RUNNER_TEMP/old-nightly-assets.txt"
           else
             gh release create nightly --verify-tag --target "$GITHUB_SHA" \
-              --title "Metrolist Nightly" --draft --prerelease --latest=false
+              --title "MuSicX Nightly" --draft --prerelease --latest=false
           fi
           gh release upload nightly nightly-assets/* --clobber
           gh release edit nightly --target "$GITHUB_SHA" \
-            --title "Metrolist Nightly" --notes-file "$RUNNER_TEMP/nightly-notes.md" \
+            --title "MuSicX Nightly" --notes-file "$RUNNER_TEMP/nightly-notes.md" \
             --draft=false --prerelease --latest=false

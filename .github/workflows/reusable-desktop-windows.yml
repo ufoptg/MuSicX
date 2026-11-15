@@ -59,13 +59,13 @@ jobs:
           - arch: x64
             runner: blacksmith-4vcpu-windows-2025
             rid: win-x64
-            zip: Metrolist-Desktop-Windows.zip
+            zip: MuSicX-Desktop-Windows.zip
             machine: '8664'
           # Blacksmith has no Windows ARM64 runners; GitHub's native one avoids cross-building the runtime and launcher.
           - arch: arm64
             runner: ${{ vars.WINDOWS_ARM64_RUNNER || 'windows-11-arm' }}
             rid: win-arm64
-            zip: Metrolist-Desktop-Windows-arm64.zip
+            zip: MuSicX-Desktop-Windows-arm64.zip
             machine: AA64
     env:
       PACKAGE_ZIP: dist/${{ matrix.zip }}
@@ -181,8 +181,8 @@ jobs:
             -Pmetrolist.desktop.arch=${{ matrix.arch == 'arm64' && 'aarch64' || 'x86_64' }} \
             --no-daemon \
             --no-configuration-cache
-          if [[ "dist/Metrolist-Desktop-Windows.zip" != "$PACKAGE_ZIP" ]]; then
-            mv dist/Metrolist-Desktop-Windows.zip "$PACKAGE_ZIP"
+          if [[ "dist/MuSicX-Desktop-Windows.zip" != "$PACKAGE_ZIP" ]]; then
+            mv dist/MuSicX-Desktop-Windows.zip "$PACKAGE_ZIP"
           fi
 
       # The artifact quota can be full, so failed test details go to the log.
@@ -215,11 +215,11 @@ jobs:
           $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $archive))
           try {
             $manifest = $zip.Entries | Where-Object FullName -eq "install-manifest.json"
-            $launcher = $zip.Entries | Where-Object FullName -eq "Metrolist.exe"
+            $launcher = $zip.Entries | Where-Object FullName -eq "MuSicX.exe"
             $helper = @($zip.Entries | Where-Object { $_.FullName -match '(^|/)resources/(windows/)?metro-wv2-helper\.exe$' })
             $helperChecksum = @($zip.Entries | Where-Object { $_.FullName -match '(^|/)resources/(windows/)?metro-wv2-helper\.exe\.sha256$' })
             if ($null -eq $manifest) { throw "Portable ZIP is missing install-manifest.json" }
-            if ($null -eq $launcher) { throw "Portable ZIP is missing Metrolist.exe" }
+            if ($null -eq $launcher) { throw "Portable ZIP is missing MuSicX.exe" }
             if ($helper.Count -ne 1) { throw "Portable ZIP must contain exactly one Windows login helper, found $($helper.Count)" }
             if ($helperChecksum.Count -ne 1) { throw "Portable ZIP must contain exactly one Windows login helper checksum, found $($helperChecksum.Count)" }
             $jvm = $zip.Entries | Where-Object { $_.FullName -match '(^|/)runtime/bin/server/jvm\.dll$' }

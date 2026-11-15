@@ -66,9 +66,9 @@ def packaged_command(package, work, system, stdout):
         app = work / "app"
         with zipfile.ZipFile(package) as archive:
             archive.extractall(app)
-        yield [str(app / "Metrolist.exe")]
+        yield [str(app / "MuSicX.exe")]
     elif system == "darwin" and package.suffix == ".app":
-        yield [str(package / "Contents/MacOS/Metrolist")]
+        yield [str(package / "Contents/MacOS/MuSicX")]
     elif system == "darwin" and package.suffix == ".zip":
         app = work / "app"
         with zipfile.ZipFile(package) as archive:
@@ -76,7 +76,7 @@ def packaged_command(package, work, system, stdout):
             for entry in archive.infolist():
                 if entry.external_attr >> 16 and not entry.is_dir():
                     (app / entry.filename).chmod((entry.external_attr >> 16) & 0o777)
-        yield [str(app / "Metrolist.app/Contents/MacOS/Metrolist")]
+        yield [str(app / "MuSicX.app/Contents/MacOS/MuSicX")]
     elif system == "darwin":
         mount = work / "dmg"
         mount.mkdir()
@@ -85,7 +85,7 @@ def packaged_command(package, work, system, stdout):
                 ["hdiutil", "attach", str(package), "-mountpoint", str(mount), "-readonly", "-nobrowse"],
                 check=True, timeout=30, stdout=stdout, stderr=subprocess.STDOUT,
             )
-            yield [str(mount / "Metrolist.app/Contents/MacOS/Metrolist")]
+            yield [str(mount / "MuSicX.app/Contents/MacOS/MuSicX")]
         finally:
             subprocess.run(
                 ["hdiutil", "detach", "-force", str(mount)], check=True, timeout=15,
@@ -191,7 +191,7 @@ def quit_app(process, launcher, system, java_trace=False):
                 path = launcher.replace("'", "''")
                 # jpackage can keep a parent launcher waiting for the GUI process.
                 close = (
-                    f"$apps = @(Get-Process Metrolist | Where-Object {{ $_.Path -eq '{path}' -and $_.MainWindowHandle -ne 0 }}); "
+                    f"$apps = @(Get-Process MuSicX | Where-Object {{ $_.Path -eq '{path}' -and $_.MainWindowHandle -ne 0 }}); "
                     "if ($apps.Count -eq 0) { throw 'Packaged app has no main window to close' }; "
                     "foreach ($app in $apps) { if (-not $app.CloseMainWindow()) { throw 'Window close failed' } }"
                 )
@@ -319,7 +319,7 @@ def smoke(package, output, system=sys.platform, native=False, trace_java=None, t
             command_context = nullcontext([str(trace_java), f"-agentlib:native-image-agent=config-merge-dir={trace_agent}",
                 "--enable-native-access=ALL-UNNAMED", "--add-opens=java.desktop/sun.awt=ALL-UNNAMED",
                 f"-Dcompose.application.resources.dir={resources}", "-Xms32m", "-Xmx384m",
-                "-cp", trace_classpath.read_text().strip(), "com.metrolist.desktop.MainKt"])
+                "-cp", trace_classpath.read_text().strip(), "dev.musicx.desktop.MainKt"])
         with (output / "stdout.log").open("wb") as stdout:
             try:
                 with (command_context if trace_java else packaged_command(package, work, system, stdout)) as command:

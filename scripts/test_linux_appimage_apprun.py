@@ -17,17 +17,17 @@ class AppRunTest(unittest.TestCase):
         self.app = self.root / 'mounted app'
         (self.app / 'bin').mkdir(parents=True)
         shutil.copyfile(Path(__file__).with_name('linux-appimage-apprun.sh'), self.app / 'AppRun')
-        self.image = self.root / 'Metrolist space % " $ ` \\.AppImage'
+        self.image = self.root / 'MuSicX space % " $ ` \\.AppImage'
         self.image.write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$TEST_LAUNCH_LOG"\n')
         self.image.chmod(0o755)
-        shutil.copyfile(self.image, self.app / 'bin/Metrolist')
-        (self.app / 'bin/Metrolist').chmod(0o755)
-        (self.app / 'Metrolist.desktop').write_text(
-            '[Desktop Entry]\nType=Application\nName=Metrolist\nExec=Metrolist %u\n'
-            'Icon=Metrolist\nStartupWMClass=Metrolist\nTerminal=false\n'
+        shutil.copyfile(self.image, self.app / 'bin/MuSicX')
+        (self.app / 'bin/MuSicX').chmod(0o755)
+        (self.app / 'MuSicX.desktop').write_text(
+            '[Desktop Entry]\nType=Application\nName=MuSicX\nExec=MuSicX %u\n'
+            'Icon=MuSicX\nStartupWMClass=MuSicX\nTerminal=false\n'
             'MimeType=x-scheme-handler/metrolist;x-scheme-handler/metrolist-auth;\n'
         )
-        (self.app / 'Metrolist.png').write_bytes(b'icon')
+        (self.app / 'MuSicX.png').write_bytes(b'icon')
         self.data = self.root / 'user data'
         self.log = self.root / 'launched'
         self.env = {
@@ -46,11 +46,11 @@ class AppRunTest(unittest.TestCase):
 
     def test_pin_relaunches_after_mount_is_removed_and_keeps_uri_arguments(self):
         self.launch()
-        entry = self.data / 'applications/Metrolist.desktop'
+        entry = self.data / 'applications/MuSicX.desktop'
         self.assertTrue(entry.is_file())
-        self.assertEqual(b'icon', (self.data / 'icons/hicolor/512x512/apps/Metrolist.png').read_bytes())
+        self.assertEqual(b'icon', (self.data / 'icons/hicolor/512x512/apps/MuSicX.png').read_bytes())
         self.assertNotIn(str(self.app), entry.read_text())
-        self.assertIn('StartupWMClass=Metrolist\n', entry.read_text())
+        self.assertIn('StartupWMClass=MuSicX\n', entry.read_text())
         shutil.rmtree(self.app)
         self.log.unlink()
         if not shutil.which('gio'):
@@ -66,7 +66,7 @@ class AppRunTest(unittest.TestCase):
     def test_respects_system_package_desktop_entry(self):
         directory = Path(self.env['XDG_DATA_DIRS']) / 'applications'
         directory.mkdir(parents=True)
-        (directory / 'Metrolist.desktop').write_text('system entry')
+        (directory / 'MuSicX.desktop').write_text('system entry')
         self.launch()
         self.assertFalse(self.data.exists())
 
@@ -78,7 +78,7 @@ class AppRunTest(unittest.TestCase):
     def test_relative_data_home_uses_home_and_relaunch_updates_moved_image(self):
         self.env['XDG_DATA_HOME'] = 'relative'
         self.launch()
-        entry = Path(self.env['HOME']) / '.local/share/applications/Metrolist.desktop'
+        entry = Path(self.env['HOME']) / '.local/share/applications/MuSicX.desktop'
         self.assertTrue(entry.is_file())
         moved = self.root / 'moved.AppImage'
         self.image.rename(moved)

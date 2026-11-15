@@ -22,19 +22,19 @@ class DesktopLauncherTest(unittest.TestCase):
         ).read_text()
         wrapper = source.split("// Write the wrapper script", 1)[1]
         wrapper = wrapper.split('$$"""', 1)[1].split('""".trimIndent()', 1)[0]
-        self.launcher = self.bin / "Metrolist"
+        self.launcher = self.bin / "MuSicX"
         self.executable(self.launcher, wrapper)
         self.executable(
-            self.bin / "Metrolist.bin",
+            self.bin / "MuSicX.bin",
             'printf "%s\\n" "$XCURSOR_THEME" "$XCURSOR_SIZE" '
-            '"$METROLIST_CURSOR_CONFIGURED" "$METROLIST_CDS_CACHE" "$@"',
+            '"$MUSICX_CURSOR_CONFIGURED" "$MUSICX_CDS_CACHE" "$@"',
         )
-        self.native_launcher = self.bin / "Metrolist.native-wrapper"
+        self.native_launcher = self.bin / "MuSicX.native-wrapper"
         native = Path(__file__).resolve().parents[2] / "scripts/desktop-native-image/linux-launcher.sh"
         self.executable(self.native_launcher, native.read_text())
-        native_binary = self.bin.parent / "lib/native/Metrolist"
+        native_binary = self.bin.parent / "lib/native/MuSicX"
         native_binary.parent.mkdir(parents=True)
-        self.executable(native_binary, (self.bin / "Metrolist.bin").read_text())
+        self.executable(native_binary, (self.bin / "MuSicX.bin").read_text())
         self.environment = {
             "PATH": f"{self.tools}:/usr/bin:/bin",
             "HOME": str(self.root / "user home"),
@@ -58,14 +58,14 @@ class DesktopLauncherTest(unittest.TestCase):
         return result.stdout.splitlines()
 
     def test_webview_uses_x11_and_preserves_explicit_backend(self):
-        self.executable(self.bin / "Metrolist.bin", 'printf "%s\n" "$GDK_BACKEND"')
+        self.executable(self.bin / "MuSicX.bin", 'printf "%s\n" "$GDK_BACKEND"')
         self.environment.update(XCURSOR_THEME="Theme", XCURSOR_SIZE="24")
         self.assertEqual(["x11"], self.launch())
         self.environment["GDK_BACKEND"] = "x11,wayland"
         self.assertEqual(["x11,wayland"], self.launch())
 
     def test_missing_display_is_not_guessed_from_global_sockets(self):
-        self.executable(self.bin / "Metrolist.bin", 'printf "%s\\n" "${DISPLAY-unset}"')
+        self.executable(self.bin / "MuSicX.bin", 'printf "%s\\n" "${DISPLAY-unset}"')
         self.environment.update(XCURSOR_THEME="UserTheme", XCURSOR_SIZE="24")
         del self.environment["DISPLAY"]
         self.assertEqual(["unset"], self.launch())
@@ -85,7 +85,7 @@ class DesktopLauncherTest(unittest.TestCase):
 
     def test_crash_file_path_respects_state_directory_and_escapes_hotspot_tokens(self):
         self.executable(
-            self.bin / "Metrolist.bin", 'printf "%s\\n" "$METROLIST_JVM_ERROR_FILE"'
+            self.bin / "MuSicX.bin", 'printf "%s\\n" "$MUSICX_JVM_ERROR_FILE"'
         )
         self.environment.update(XCURSOR_THEME="Theme", XCURSOR_SIZE="24")
         for state in (None, "relative", str(self.root / "state with spaces%p")):

@@ -2,11 +2,11 @@
 # libraries compiled by JavaCPP from the same preset classes the app loads. Run inside an MSVC ARM64 environment.
 param(
     [Parameter(Mandatory = $true)][string]$Output,
-    [string]$Java = $env:METROLIST_FFMPEG_JAVA,
-    [string]$ClassPath = $env:METROLIST_FFMPEG_CLASSPATH
+    [string]$Java = $env:MUSICX_FFMPEG_JAVA,
+    [string]$ClassPath = $env:MUSICX_FFMPEG_CLASSPATH
 )
 $ErrorActionPreference = "Stop"
-if (-not $Java -or -not $ClassPath) { throw "Pass -Java and -ClassPath or set METROLIST_FFMPEG_JAVA and METROLIST_FFMPEG_CLASSPATH" }
+if (-not $Java -or -not $ClassPath) { throw "Pass -Java and -ClassPath or set MUSICX_FFMPEG_JAVA and MUSICX_FFMPEG_CLASSPATH" }
 $ProgressPreference = "SilentlyContinue"
 # JavaCPP runs the compiler from its output directory, so every path handed to it must be absolute.
 if (-not [IO.Path]::IsPathRooted($Output)) { $Output = Join-Path (Get-Location).Path $Output }

@@ -63,10 +63,10 @@ class ExperimentTest(unittest.TestCase):
             work = Path(directory)
             jar = work / "app.jar"
             jar.touch()
-            config = work / "Metrolist.cfg"
+            config = work / "MuSicX.cfg"
             config.write_text("app.classpath=$APPDIR/app.jar\njava-options=-Xmx384m\n"
-                              "java-options=-XX:SharedArchiveFile=$METROLIST_CDS_CACHE/app.jsa\n"
-                              "java-options=-XX:ErrorFile=$METROLIST_JVM_ERROR_FILE\n")
+                              "java-options=-XX:SharedArchiveFile=$MUSICX_CDS_CACHE/app.jsa\n"
+                              "java-options=-XX:ErrorFile=$MUSICX_JVM_ERROR_FILE\n")
             options, classpath = run.release_options(config, work / "profile")
             self.assertEqual(classpath, str(jar))
             self.assertIn(f"-XX:SharedArchiveFile={work / 'profile/cache/metrolist/app.jsa'}", options)
@@ -77,7 +77,7 @@ class ExperimentTest(unittest.TestCase):
     def test_release_options_reject_unknown_environment_variables(self):
         with tempfile.TemporaryDirectory() as directory:
             work = Path(directory)
-            config = work / "Metrolist.cfg"
+            config = work / "MuSicX.cfg"
             config.write_text("app.classpath=$HOME/private.jar\n")
             with self.assertRaisesRegex(ValueError, "Unrecognized package variable"):
                 run.release_options(config, work / "profile")

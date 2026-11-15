@@ -14,7 +14,7 @@ val opusCmakeVersion = "4.1.2"
 val opusAbis = listOf("arm64-v8a", "armeabi-v7a")
 
 android {
-    namespace = "com.metrolist.opus"
+    namespace = "dev.musicx.opus"
     compileSdk {
         version = release(37) { minorApiLevel = 1 }
     }

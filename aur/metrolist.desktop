@@ -1,10 +1,10 @@
 [Desktop Entry]
 Type=Application
-Name=Metrolist
+Name=MuSicX
 Comment=YouTube Music desktop client
 Exec=/usr/bin/metrolist %u
 Icon=metrolist
 Terminal=false
-StartupWMClass=Metrolist
+StartupWMClass=MuSicX
 Categories=AudioVideo;Player;
 MimeType=x-scheme-handler/metrolist;x-scheme-handler/metrolist-auth;

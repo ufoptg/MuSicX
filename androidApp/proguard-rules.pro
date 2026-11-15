@@ -18,4 +18,4 @@
 -dontwarn kotlin.reflect.jvm.ReflectJvmMapping
 
 # ScrobbleManager uses coroutine lambdas that R8 may strip as unreachable.
--keep class com.metrolist.shared.scrobble.ScrobbleManager$** { *; }
+-keep class dev.musicx.shared.scrobble.ScrobbleManager$** { *; }

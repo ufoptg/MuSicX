@@ -50,8 +50,8 @@ class MaterialSymbolsTest(unittest.TestCase):
 
     def test_add_keeps_existing_entries_and_refreshes_without_duplicates(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "MetrolistIconsFilled.kt"
-            original = 'object MetrolistIconsFilled {\n    val Old = "untouched"\n}\n'
+            path = Path(directory) / "MuSicXIconsFilled.kt"
+            original = 'object MuSicXIconsFilled {\n    val Old = "untouched"\n}\n'
             path.write_text(original)
             with patch.object(generator, "ICON_DIR", Path(directory)), patch.object(generator, "fetch_path", return_value="M80-80Z"):
                 generator.add_icons(generator.UPSTREAM_REVISION, "filled", ["LightMode"])

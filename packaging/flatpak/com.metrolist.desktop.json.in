@@ -1,9 +1,9 @@
 {
-  "app-id": "com.metrolist.desktop",
+  "app-id": "dev.musicx.desktop",
   "runtime": "org.gnome.Platform",
   "runtime-version": "50",
   "sdk": "org.gnome.Sdk",
-  "command": "com.metrolist.desktop",
+  "command": "dev.musicx.desktop",
   "finish-args": [
     "--share=network",
     "--share=ipc",
@@ -20,26 +20,26 @@
       "name": "metrolist",
       "buildsystem": "simple",
       "build-commands": [
-        "chmod +x Metrolist.AppImage",
-        "./Metrolist.AppImage --appimage-extract",
-        "test -x squashfs-root/bin/Metrolist",
+        "chmod +x MuSicX.AppImage",
+        "./MuSicX.AppImage --appimage-extract",
+        "test -x squashfs-root/bin/MuSicX",
         "test -f squashfs-root/lib/runtime/lib/server/libjvm.so",
         "mkdir -p /app/metrolist /app/bin",
         "cp -a squashfs-root/. /app/metrolist/",
-        "install -Dm755 com.metrolist.desktop /app/bin/com.metrolist.desktop",
-        "install -Dm644 com.metrolist.desktop.desktop /app/share/applications/com.metrolist.desktop.desktop",
-        "install -Dm644 com.metrolist.desktop.metainfo.xml /app/share/metainfo/com.metrolist.desktop.metainfo.xml",
-        "install -Dm644 com.metrolist.desktop.png /app/share/icons/hicolor/512x512/apps/com.metrolist.desktop.png",
-        "install -Dm644 com.metrolist.desktop.svg /app/share/icons/hicolor/scalable/apps/com.metrolist.desktop.svg"
+        "install -Dm755 dev.musicx.desktop /app/bin/dev.musicx.desktop",
+        "install -Dm644 dev.musicx.desktop.desktop /app/share/applications/dev.musicx.desktop.desktop",
+        "install -Dm644 dev.musicx.desktop.metainfo.xml /app/share/metainfo/dev.musicx.desktop.metainfo.xml",
+        "install -Dm644 dev.musicx.desktop.png /app/share/icons/hicolor/512x512/apps/dev.musicx.desktop.png",
+        "install -Dm644 dev.musicx.desktop.svg /app/share/icons/hicolor/scalable/apps/dev.musicx.desktop.svg"
       ],
       "sources": [
-        {"type": "file", "url": "@LINUX_X64_URL@", "sha256": "@LINUX_X64_SHA256@", "dest-filename": "Metrolist.AppImage", "only-arches": ["x86_64"]},
-        {"type": "file", "url": "@LINUX_ARM64_URL@", "sha256": "@LINUX_ARM64_SHA256@", "dest-filename": "Metrolist.AppImage", "only-arches": ["aarch64"]},
-        {"type": "file", "path": "com.metrolist.desktop"},
-        {"type": "file", "path": "com.metrolist.desktop.desktop"},
-        {"type": "file", "path": "com.metrolist.desktop.metainfo.xml"},
-        {"type": "file", "path": "com.metrolist.desktop.png"},
-        {"type": "file", "path": "com.metrolist.desktop.svg"}
+        {"type": "file", "url": "@LINUX_X64_URL@", "sha256": "@LINUX_X64_SHA256@", "dest-filename": "MuSicX.AppImage", "only-arches": ["x86_64"]},
+        {"type": "file", "url": "@LINUX_ARM64_URL@", "sha256": "@LINUX_ARM64_SHA256@", "dest-filename": "MuSicX.AppImage", "only-arches": ["aarch64"]},
+        {"type": "file", "path": "dev.musicx.desktop"},
+        {"type": "file", "path": "dev.musicx.desktop.desktop"},
+        {"type": "file", "path": "dev.musicx.desktop.metainfo.xml"},
+        {"type": "file", "path": "dev.musicx.desktop.png"},
+        {"type": "file", "path": "dev.musicx.desktop.svg"}
       ]
     }
   ]
