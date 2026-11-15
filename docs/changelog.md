@@ -1,4 +1,20 @@
----v14.0.0
+# MuSicX 15.0.0
+
+## Highlights
+- Fresh start of MuSicX, rebuilt on the Metrolist v14 KMP codebase, Android-only
+- Full Spotify integration
+- Qobuz hi-res streaming
+- Playlist Enhance with interleaved recommendations
+- Discover Something New
+
+## Changes from 13.x
+- New app identity `dev.musicx` (15.0.0, versionCode 15000): a fresh install that coexists with MuSicX v13; data does not migrate automatically and the APK signature differs, so v13 cannot update in place
+- v15 owns the `nightly` release tag; v13 nightlies are archived as `nightly-v13`
+
+## Known limitations
+- Desktop, iOS and Wear are not part of 15.0 (follow-ups)
+- No automatic data migration from MuSicX v13
+
 # First public multiplatform release
 Metrolist 14.0.0 replaces the standalone Android app with Metrolist-KMP.
 

@@ -1,11 +1,15 @@
-Material 3 YouTube Music client for Android
+MuSicX 15: a Material Design YouTube Music client for Android.
 
 Features:
 
 - Blazingly fast interruption-free YouTube Music playback
 - YouTube Music login support, logged-out users can also fully enjoy the app
+- Full Spotify integration: Home, Library, Search, track menus, and playback of playlists, albums and liked songs
+- Qobuz hi-res streaming with quality ladder, backend selection and ISRC matching
+- Playlist Enhance: interleaved recommendations across Spotify, online YouTube Music and local playlists
+- Discover Something New: Home row, Library tile and browsable list
 - **Material 3 Expressive** design
-- **Discord Rich Presence**, Scrobbling thru **Last.fm and Listenbrainz**
+- **Discord Rich Presence**, scrobbling thru **Last.fm and Listenbrainz**
 - **No ads**, ever
 - Listen Together with other people online in real-time
 - Casting to **Google Cast**, F-Cast, SONOS devices, and over DLNA
@@ -18,4 +22,5 @@ Features:
 - **Canvas from Apple Music**, Spotify, and YouTube Music
 - Multiple player, thumbnail, miniplayer, and background types to choose from
 - Custom font and app icon support
-- ... and much more!
+
+Note: MuSicX 15 is a fresh install (package dev.musicx). It coexists with MuSicX v13 but does not migrate its data automatically.

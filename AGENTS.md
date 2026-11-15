@@ -1,6 +1,8 @@
 # Agent guide
 
-Metrolist is a YouTube Music client for Android, desktop and iOS.
+MuSicX is a YouTube Music client. The 15.0 release is Android-only (desktop and iOS follow in later releases).
+
+Active branch is `v15` (forked from the Metrolist v14 upstream); `main` is the retired v13 line. Builds are gated by GitHub Actions on standard Ubuntu runners — `.github/workflows/musicx-v15.yml` (debug APK), `.github/workflows/nightly.yml` (signed nightly) and `.github/workflows/reusable-android-build.yml` (shared build) — CI is the authoritative build gate. Version 15.0.0 / versionCode 15000 was authorized for the initial release; the no-bump rule still applies afterwards.
 
 ## One task per PR
 

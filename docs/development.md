@@ -1,6 +1,8 @@
 # Development
 
 ## Set up a checkout
+Active branch is `v15`.
+Android only for 15.0; CI is the build gate, main is the retired v13 line.
 
 Use Eclipse Temurin 25, including for the IDE's Gradle JVM. The build requires the `ADOPTIUM` vendor. Java and Kotlin bytecode target 21; the desktop runtime is Java 25. For a custom JDK location, set Gradle's `org.gradle.java.installations.paths`.
 
