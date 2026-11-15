@@ -1,0 +1,22 @@
+name: MuSicX v15 Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - v15
+
+jobs:
+  android:
+    name: Android
+    uses: ./.github/workflows/reusable-android-build.yml
+    with:
+      variant: debug
+      assemble: true
+      upload-artifact: true
+      artifact-name: nightly-v15
+    permissions:
+      contents: read
+    secrets:
+      # Only include if needed for local debug builds
+      # GRADLE_ENCRYPTION_KEY: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
