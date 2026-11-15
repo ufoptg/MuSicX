@@ -29,7 +29,6 @@ enum class SettingsPlatform {
 }
 
 enum class SettingsPageId {
-    MUSICX,
     APPEARANCE,
     APPEARANCE_NAVIGATION,
     PLAYER,
@@ -65,6 +64,7 @@ enum class SettingsPageId {
     DEVICE_CONNECT,
     LISTEN_TOGETHER,
     EQUALIZER,
+    MUSICX,
 }
 
 enum class SettingsChangeEffect {

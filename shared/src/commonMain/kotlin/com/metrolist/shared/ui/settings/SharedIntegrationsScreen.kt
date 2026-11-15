@@ -693,9 +693,32 @@ private fun buildIntegrationsRegistry(
                 ),
         )
     }
-    builder.rootGroup(SettingsPageId.MUSICX, *listOf(
+    builder.page(
+        id = SettingsPageId.MUSICX,
+        title = stringResource(Res.string.musicx_features),
+        subtitle = stringResource(Res.string.musicx_features_subtitle),
+        icon = MetrolistIcons.Outlined.AutoAwesome,
+        tone = SettingsTone.BLUE,
+    ) {
+        group("musicxFeatures", "") {
+            switch(
+                id = "enableEnhancements",
+                title = stringResource(Res.string.enhance_playlist_enhance),
+                description = stringResource(Res.string.enhance_playlist_enhance_description),
+                checked = settings.enableEnhancements,
+            ) { settings.enableEnhancements = it }
+            switch(
+                id = "uiDiscover",
+                title = stringResource(Res.string.discover_something_new),
+                description = stringResource(Res.string.discover_something_new_description),
+                checked = settings.uiDiscover,
+            ) { settings.uiDiscover = it }
+        }
+    }
+    builder.rootGroup(
         stringResource(Res.string.integrations),
         *listOfNotNull(
+            SettingsPageId.MUSICX,
             SettingsPageId.DISCORD,
             SettingsPageId.LAST_FM,
             SettingsPageId.LISTEN_BRAINZ,
