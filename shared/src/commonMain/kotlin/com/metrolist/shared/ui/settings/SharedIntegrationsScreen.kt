@@ -693,7 +693,7 @@ private fun buildIntegrationsRegistry(
                 ),
         )
     }
-    builder.rootGroup(
+    builder.rootGroup(SettingsPageId.MUSICX, *listOf(
         stringResource(Res.string.integrations),
         *listOfNotNull(
             SettingsPageId.DISCORD,

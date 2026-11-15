@@ -29,6 +29,7 @@ enum class SettingsPlatform {
 }
 
 enum class SettingsPageId {
+    MUSICX,
     APPEARANCE,
     APPEARANCE_NAVIGATION,
     PLAYER,
