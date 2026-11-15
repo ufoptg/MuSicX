@@ -21,7 +21,7 @@ jobs:
   version:
     name: Resolve nightly version
     if: github.ref == 'refs/heads/v15'
-    runs-on: blacksmith-2vcpu-ubuntu-2604
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       value: ${{ steps.version.outputs.value }}
@@ -49,7 +49,6 @@ jobs:
       variant: release
       app-version: ${{ needs.version.outputs.value }}
       upload-artifact: true
-      require-signing: true
       artifact-name: nightly-android
       require-signing: true
     secrets:
@@ -63,16 +62,10 @@ jobs:
       LYPRIO_BASE_URL: ${{ secrets.LYPRIO_BASE_URL }}
       LYPRIO_HMAC_KEY: ${{ secrets.LYPRIO_HMAC_KEY }}
 
-  # linux:
-
-
-  # windows:
-
-
   publish:
     name: Publish nightly prerelease
     needs: [version, android]
-    runs-on: blacksmith-2vcpu-ubuntu-2604
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
@@ -83,23 +76,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: 
+      - name: Download signed Android APK
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: nightly-android
           path: artifacts/android
-
-      - name: 
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
-        with:
-          
-          path: artifacts/linux
-
-      - name: 
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
-        with:
-          
-          path: artifacts/windows
 
       - name: Prepare nightly assets
         shell: bash
@@ -107,20 +88,14 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           apks=(artifacts/android/*.apk)
-          appimages=(artifacts/linux/*.AppImage)
-          zips=(artifacts/windows/*.zip)
-          [[ ${#apks[@]} -eq 1 && ${#appimages[@]} -eq 1 && ${#zips[@]} -eq 1 ]] || {
+          [[ ${#apks[@]} -eq 1 ]] || {
             echo "Expected one signed APK" >&2
             exit 1
           }
-          for file in "${apks[0]}" "${appimages[0]}" "${zips[0]}"; do
-            test -s "$file" || { echo "Empty nightly asset: $file" >&2; exit 1; }
-          done
+          test -s "${apks[0]}" || { echo "Empty nightly asset: ${apks[0]}" >&2; exit 1; }
           # Fixed names, so latest-nightly download links never change; the release notes carry the version.
           mkdir nightly-assets
           cp "${apks[0]}" nightly-assets/MuSicX.apk
-          cp "${appimages[0]}" nightly-assets/Metrolist-Desktop-linux-x64.AppImage
-          cp "${zips[0]}" nightly-assets/Metrolist-Desktop-windows.zip
 
       - name: Write nightly notes
         shell: bash
