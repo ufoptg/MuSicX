@@ -178,7 +178,7 @@ object SpotifyYouTubeMapper {
 
     // ---- Internal: Search Query Building ----
 
-    private fun buildSearchQuery(track: TrackItem): String {
+    internal fun buildSearchQuery(track: TrackItem): String {
         val title = track.name
         val artists = track.artists.joinToString(", ")
         return if (artists.isEmpty()) title else "$title $artists".trim()
@@ -186,7 +186,7 @@ object SpotifyYouTubeMapper {
 
     // ---- Internal: Precomputation ----
 
-    private fun precompute(track: TrackItem): PrecomputedTrack {
+    internal fun precompute(track: TrackItem): PrecomputedTrack {
         val key = track.uri
         precomputedCache[key]?.let { return it }
 
@@ -210,7 +210,7 @@ object SpotifyYouTubeMapper {
 
     // ---- Internal: Normalization ----
 
-    private fun normalizeTitle(raw: String): String {
+    internal fun normalizeTitle(raw: String): String {
         normalizationCache[raw]?.let { return it }
 
         var normalized = raw.lowercase()
@@ -228,11 +228,11 @@ object SpotifyYouTubeMapper {
 
     // ---- Internal: Bigrams ----
 
-    private fun getBigrams(text: String): Set<List<String>> {
+    internal fun getBigrams(text: String): Set<List<String>> {
         bigramCache[text]?.let { return it }
         val bigrams = mutableSetOf<List<String>>()
         for (i in 0 until text.length - 1) {
-            bigrams.add(text.substring(i, i + 2).toList())
+            bigrams.add(listOf(text[i].toString(), text[i + 1].toString()))
         }
         val result = bigrams.toSet()
         bigramCache[text] = result
@@ -241,7 +241,7 @@ object SpotifyYouTubeMapper {
 
     // ---- Internal: Scoring ----
 
-    private fun matchScorePrecomputed(pre: PrecomputedTrack, candidate: SongItem): Double {
+    internal fun matchScorePrecomputed(pre: PrecomputedTrack, candidate: SongItem): Double {
         val candidateTitleNorm = normalizeTitle(candidate.title)
         val candidateArtistNorm = normalizeTitle(candidate.artists.map { it.name }.joinToString(" "))
 
@@ -257,7 +257,7 @@ object SpotifyYouTubeMapper {
         return score.coerceAtMost(1.0)
     }
 
-    private fun durationScore(expectedSec: Double, actualSec: Double): Double {
+    internal fun durationScore(expectedSec: Double, actualSec: Double): Double {
         if (actualSec <= 0.0 || expectedSec <= 0.0) return 0.5
         val diff = abs(expectedSec - actualSec)
         return when {
@@ -269,7 +269,7 @@ object SpotifyYouTubeMapper {
         }
     }
 
-    private fun bigramSimilarity(a: Set<List<String>>, b: Set<List<String>>): Double {
+    internal fun bigramSimilarity(a: Set<List<String>>, b: Set<List<String>>): Double {
         if (a.isEmpty() || b.isEmpty()) return 0.0
         val intersection = a.intersect(b).size
         val union = a.size + b.size - intersection
