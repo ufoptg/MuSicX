@@ -3,11 +3,11 @@ package com.metrolist.shared.spotifymatch
 import com.metrolist.shared.model.SearchSummaryPage
 import com.metrolist.shared.model.SongItem
 import com.metrolist.shared.state.GlobalYouTubeRepository
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlin.math.abs
 import meow.nyx.spotlib.SpotifyPriorityGate
 import meow.nyx.spotlib.TrackItem
+import kotlin.math.abs
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.util.LinkedHashMap
 import java.util.concurrent.ConcurrentHashMap
 
@@ -15,9 +15,8 @@ import java.util.concurrent.ConcurrentHashMap
  * Spotify-to-YouTube Music fuzzy mapping layer.
  *
  * Ported from v13 [SpotifyMapper] and [SpotifyYouTubeMapper].
- * Uses bigram Dice coefficient for title/artist similarity, duration
- * weighting, and early-exit thresholds. Caches normalization and
- * bigram results in bounded LRU maps.
+ * Uses bigram Dice coefficient for title/artist similarity, duration weighting,
+ * and early-exit thresholds. Caches normalization and bigrams in bounded LRU maps.
  *
  * v15 note: no Room DB persistence (no schema change). Match results are
  * cached in-memory only. Manual overrides live in memory as well.
@@ -44,24 +43,32 @@ object SpotifyYouTubeMapper {
 
     // ---- LRU Caches ----
 
-    /** LRU cache for normalized strings. Avoids re-running 7 regex replacements per call. */
-    private val normalizationCache = object : LinkedHashMap<String, String>(NORM_CACHE_MAX_SIZE + 1, 0.75f, true) {
-        override fun removeEldestEntry(eldest: Map.Entry<String, String>): Boolean = size > NORM_CACHE_MAX_SIZE
+    /** LRU cache for normalized strings. Avoids re-running 7 regex replacements per call. Bounded to NORM_CACHE_MAX_SIZE entries. */
+    private val normalizationCache = object : LinkedHashMap<String, String>(NORM_CACHE_MAX_SIZE, 0.75f, true) {
+        override fun removeEldestEntry(eldest: Map.Entry<String, String>?): Boolean =
+            size > NORM_CACHE_MAX_SIZE
     }
 
-    /** LRU cache for bigram sets. */
-    private val bigramCache = object : LinkedHashMap<String, Set<String>>(BIGRAM_CACHE_MAX_SIZE + 1, 0.75f, true) {
-        override fun removeEldestEntry(eldest: Map.Entry<String, Set<String>>): Boolean = size > BIGRAM_CACHE_MAX_SIZE
+    /** LRU cache for pre-computed bigram sets. Bounded to NORM_CACHE_MAX_SIZE entries. */
+    private val bigramCache = object : LinkedHashMap<String, Set<String>>(
+        NORM_CACHE_MAX_SIZE, 0.75f, true
+    ) {
+        override fun removeEldestEntry(eldest: Map.Entry<String, Set<String>>?): Boolean =
+            size > NORM_CACHE_MAX_SIZE
     }
 
-    /** LRU cache for precomputed track metadata. */
-    private val precomputedCache = object : LinkedHashMap<String, PrecomputedTrack>(PRECOMPUTED_CACHE_MAX_SIZE + 1, 0.75f, true) {
-        override fun removeEldestEntry(eldest: Map.Entry<String, PrecomputedTrack>): Boolean = size > PRECOMPUTED_CACHE_MAX_SIZE
+    /** LRU cache for precomputed track metadata keyed by track URI. Bounded to PRECOMPUTED_CACHE_MAX_SIZE entries. */
+    private val precomputedCache = object : LinkedHashMap<String, PrecomputedTrack>(
+        PRECOMPUTED_CACHE_MAX_SIZE + 1, 0.75f, true
+    ) {
+        override fun removeEldestEntry(eldest: Map.Entry<String, PrecomputedTrack>?): Boolean =
+            size > PRECOMPUTED_CACHE_MAX_SIZE
     }
 
-    /** In-memory recent matches cache (spotifyUri -> SongItem). */
+    /** In-memory recent matches cache (youtubeId -> SongItem). Bounded to MEM_CACHE_MAX_SIZE entries. */
     private val matchCache = object : LinkedHashMap<String, SongItem>(MEM_CACHE_MAX_SIZE + 1, 0.75f, true) {
-        override fun removeEldestEntry(eldest: Map.Entry<String, SongItem>): Boolean = size > MEM_CACHE_MAX_SIZE
+        override fun removeEldestEntry(eldest: Map.Entry<String, SongItem>?): Boolean =
+            size > MEM_CACHE_MAX_SIZE
     }
 
     /** In-memory manual overrides (youtubeId -> spotifyUri). No Room persistence in v15. */
@@ -74,19 +81,19 @@ object SpotifyYouTubeMapper {
         val titleNorm: String,
         val artistNorm: String,
         val durationMs: Long,
-        val titleBigrams: Set<String>,
-        val artistBigrams: Set<String>,
+        val titleBigrams: Set<List<String>>,
+        val artistBigrams: Set<List<String>>,
     )
 
     // ---- Public API ----
 
     /**
      * Map a Spotify [TrackItem] to a YouTube Music [SongItem] via fuzzy search.
-     * Returns null if no match meets [MIN_MATCH_THRESHOLD].
+     * Returns null if no suitable match is found.
      *
      * Resolution order:
      * 1. Manual override (youtubeId -> spotifyUri) then song metadata lookup
-     * 2. Recent match cache (spotifyUri -> SongItem)
+     * 2. Recent match cache (youtubeId -> SongItem)
      * 3. YouTube search + fuzzy match (title 45% / artist 35% / duration 20%)
      */
     suspend fun mapToYouTube(track: TrackItem): SongItem? = withContext(Dispatchers.IO) {
@@ -125,9 +132,9 @@ object SpotifyYouTubeMapper {
      * Resolve a YouTube video ID to its Spotify URI (for scrobbling/queueing).
      * Uses the playback priority gate so lookups don't stall behind background jobs.
      *
-     * Fast path checks the registry and manual overrides. The slow path
-     * (Spotify search) is deferred until SpotifyClient.search is ported
-     * (P3.3+); callers fall back to YouTube-only queueing when null.
+     * Fast path checks the registry and manual overrides. The slow path (Spotify search)
+     * is deferred until SpotifyClient.search is ported (P3.3+); callers fall back to
+     * YouTube-only queueing when null.
      */
     suspend fun resolveToSpotifyUri(
         youtubeId: String,
@@ -135,14 +142,14 @@ object SpotifyYouTubeMapper {
         artist: String,
         durationSec: Long = -1,
     ): String? = SpotifyPriorityGate.withPlaybackPriority {
-        // 1. Check registry (registered during mapToYouTube)
+        // 1. Fast path — check local registry (registered during mapToYouTube)
         val cachedTrack = SpotifyMetadataRegistry.get(youtubeId)
         if (cachedTrack != null) return@withPlaybackPriority cachedTrack.uri
 
-        // 2. Check manual override
+        // 2. Slow path — manual override
         manualOverrides[youtubeId]?.let { return@withPlaybackPriority it }
 
-        // 3. Slow path deferred — no Spotify search endpoint ported to v14 yet
+        // 3. No match found
         null
     }
 
@@ -164,6 +171,7 @@ object SpotifyYouTubeMapper {
      */
     suspend fun invalidateOverride(youtubeId: String) {
         manualOverrides.remove(youtubeId)
+        SpotifyMetadataRegistry.invalidate(youtubeId)
     }
 
     /**
@@ -171,6 +179,7 @@ object SpotifyYouTubeMapper {
      */
     suspend fun clearOverrides() {
         manualOverrides.clear()
+        SpotifyMetadataRegistry.clearAll()
     }
 
     // ---- Internal: Search Query Building ----
@@ -178,7 +187,7 @@ object SpotifyYouTubeMapper {
     private fun buildSearchQuery(track: TrackItem): String {
         val title = track.name
         val artists = track.artists.joinToString(", ")
-        return "$title $artists".trim()
+        return if (artists.isEmpty()) title else "$title $artists".trim()
     }
 
     // ---- Internal: Precomputation ----
@@ -189,7 +198,6 @@ object SpotifyYouTubeMapper {
 
         val titleNorm = normalizeTitle(track.name)
         val artistNorm = normalizeTitle(track.artists.joinToString(" "))
-
         val titleBigrams = getBigrams(titleNorm)
         val artistBigrams = getBigrams(artistNorm)
 
@@ -217,7 +225,7 @@ object SpotifyYouTubeMapper {
             .replace(BRACKET_PATTERN, "")
             .replace(REMASTER_PATTERN, "")
             .replace(REMIX_PATTERN, "")
-            .replace(NON_ALNUM_PATTERN, " ")
+            .replace(NON_ALNUM_PATTERN, "")
             .replace(MULTI_SPACE_PATTERN, " ")
             .trim()
 
@@ -227,11 +235,11 @@ object SpotifyYouTubeMapper {
 
     // ---- Internal: Bigrams ----
 
-    private fun getBigrams(text: String): Set<String> {
+    private fun getBigrams(text: String): Set<List<String>> {
         bigramCache[text]?.let { return it }
-        val bigrams = mutableSetOf<String>()
+        val bigrams = mutableSetOf<List<String>>()
         for (i in 0 until text.length - 1) {
-            bigrams.add(text.substring(i, i + 2))
+            bigrams.add(text.substring(i, i + 2).toList())
         }
         val result = bigrams.toSet()
         bigramCache[text] = result
@@ -257,15 +265,24 @@ object SpotifyYouTubeMapper {
     }
 
     private fun durationScore(expectedSec: Double, actualSec: Double): Double {
-        if (expectedSec <= 0.0 || actualSec <= 0.0) return 0.5
+        if (actualSec <= 0.0 || expectedSec <= 0.0) return 0.5
         val diff = abs(expectedSec - actualSec)
-        return 1.0 - (diff / expectedSec).coerceAtMost(1.0)
+        return when {
+            diff <= 2.0 -> 1.0
+            diff <= 5.0 -> 0.8
+            diff <= 10.0 -> 0.5
+            diff <= 30.0 -> 0.2
+            else -> 0.0
+        }
     }
 
-    private fun bigramSimilarity(setA: Set<String>, setB: Set<String>): Double {
-        if (setA.isEmpty() || setB.isEmpty()) return 0.0
-        val intersection = setA.intersect(setB).size
-        val union = setA.size + setB.size - intersection
+    private fun bigramSimilarity(
+        a: Set<List<String>>,
+        b: Set<List<String>>
+): Double {
+        if (a.isEmpty() || b.isEmpty()) return 0.0
+        val intersection = a.intersect(b).size
+        val union = a.size + b.size - intersection
         return if (union == 0) 0.0 else (2.0 * intersection) / union.toDouble()
     }
 
@@ -279,7 +296,7 @@ object SpotifyYouTubeMapper {
             for (item in summary.items) {
                 if (item !is SongItem) continue
                 val score = matchScorePrecomputed(pre, item)
-                if (score > bestScore) {
+                if (bestSong == null || score > bestScore) {
                     bestScore = score
                     bestSong = item
                     if (score >= EARLY_EXIT_THRESHOLD) return item
@@ -289,4 +306,5 @@ object SpotifyYouTubeMapper {
 
         return if (bestScore >= MIN_MATCH_THRESHOLD) bestSong else null
     }
+
 }

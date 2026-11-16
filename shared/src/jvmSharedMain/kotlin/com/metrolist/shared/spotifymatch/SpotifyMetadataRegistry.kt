@@ -1,10 +1,10 @@
 package com.metrolist.shared.spotifymatch
 
-import com.metrolist.spotify.TrackItem
+import meow.nyx.spotlib.TrackItem
 import java.util.concurrent.ConcurrentHashMap
 
 object SpotifyMetadataRegistry {
-    private val byYoutubeId = ConcurrentHashMap<TrackItem>()
+    private val byYoutubeId = ConcurrentHashMap<String, TrackItem>()
 
     fun register(youtubeId: String, track: TrackItem) {
         byYoutubeId[youtubeId] = track
