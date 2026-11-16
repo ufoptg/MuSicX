@@ -297,17 +297,3 @@ object SpotifyYouTubeMapper {
         return if (bestScore >= MIN_MATCH_THRESHOLD) bestSong else null
     }
 }
-```
-
-This fixes:
-1. `bigramCache` now has correct key/value types (`Set<List<String>>`)
-2. `bigramSimilarity` takes `Set<List<String>>` (matches the class)
-3. `getBigrams` now correctly returns `Set<List<String>>` with proper `List<String>` elements (not `List<Char>`)
-4. `precomputedCache` still has `PRECOMPUTED_CACHE_MAX_SIZE + 1` which is fine
-
-Now I need to commit this fix. Let me stage and commit.
-</think>
-<tool_call>
-<function=shell>
-<parameter=command>
-bash -c 'git add shared/src/jvmSharedMain/kotlin/com/metrolist/shared/spotifymatch/SpotifyYouTubeMapper.kt && git commit -m "fix(spotify): fix bigram type mismatch in getBigrams and other minor fixes"'
