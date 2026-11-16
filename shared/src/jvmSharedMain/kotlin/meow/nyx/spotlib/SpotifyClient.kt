@@ -269,6 +269,55 @@ class SpotifyClient internal constructor(
         return reindex(output.take(maxTracks))
     }
 
+    suspend fun artistTopTracks(
+        artistId: String,
+        limit: Int = 50,
+    ): List<TrackItem> {
+        require(limit >= 0) { "limit must not be negative" }
+        if (limit == 0) return emptyList()
+        val page =
+            query(
+                "getArtistOverview",
+                Queries.ARTIST_OVERVIEW_HASH,
+                buildJsonObject {
+                    put("uri", artistId)
+                    put("limit", limit)
+                },
+            )
+        val artistNode = page.obj("data")?.obj("artist") ?: return emptyList()
+        val tracksNode = artistNode.obj("topTracks")?.array("items") ?: return emptyList()
+        val output = ArrayList<TrackItem>()
+        tracksNode.forEachIndexed { index, item ->
+            val itemObj = item as? JsonObject ?: return@forEachIndexed
+            val track = parseTrackItem(itemObj, index + 1)
+            output.add(track)
+        }
+        return reindex(output.take(limit))
+    }
+
+    suspend fun album(
+        albumUri: String,
+    ): List<TrackItem> {
+        val page =
+            query(
+                "getAlbum",
+                Queries.GET_ALBUM_HASH,
+                buildJsonObject {
+                    put("uri", albumUri)
+                    put("limit", PAGE_SIZE)
+                },
+            )
+        val albumNode = page.obj("data")?.obj("album") ?: return emptyList()
+        val tracksNode = albumNode.obj("tracks")?.array("items") ?: return emptyList()
+        val output = ArrayList<TrackItem>()
+        tracksNode.forEachIndexed { index, item ->
+            val itemObj = item as? JsonObject ?: return@forEachIndexed
+            val track = parseTrackItem(itemObj, index + 1)
+            output.add(track)
+        }
+        return reindex(output)
+    }
+
     suspend fun profile(): AccountProfile = parseProfile(query("profileAttributes", Queries.PROFILE_ATTRIBUTES_HASH, buildJsonObject {}))
 
     suspend fun home(
