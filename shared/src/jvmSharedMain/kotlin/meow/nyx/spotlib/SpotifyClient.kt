@@ -270,6 +270,38 @@ class SpotifyClient internal constructor(
 
     suspend fun profile(): AccountProfile = parseProfile(query("profileAttributes", Queries.PROFILE_ATTRIBUTES_HASH, buildJsonObject {}))
 
+    suspend fun home(
+        sectionItemsLimit: Int = 10,
+        timeZone: String = java.util.TimeZone.getDefault().id,
+    ): SpotifyHomeFeed {
+        val vars =
+            buildJsonObject {
+                put("homeEndUserIntegration", "INTEGRATION_WEB_PLAYER")
+                put("timeZone", timeZone)
+                put("sp_t", "")
+                put("facet", "")
+                put("sectionItemsLimit", sectionItemsLimit)
+                put("includeEpisodeContentRatingsV2", false)
+            }
+
+        val response = query("home", SpotifyHashProvider.getHash("home"), vars)
+        val homeData = response.obj("data")?.obj("home") ?: throw SpotifyException("home: missing data.home")
+
+        val greeting = homeData.obj("greeting")?.string("transformedLabel")
+        Log.info("Loaded Spotify home feed (greeting='$greeting')")
+
+        return SpotifyHomeFeed(
+            greeting = greeting,
+            sections =
+                homeData
+                    .obj("sectionContainer")
+                    ?.obj("sections")
+                    ?.array("items")
+                    ?.mapNotNull { elem -> (elem as? JsonObject)?.let(::parseHomeSection) }
+                    ?: emptyList(),
+        )
+    }
+
     suspend fun export(includeLikedSongs: Boolean = true): LibraryExport {
         ensureAuth()
         val exported =

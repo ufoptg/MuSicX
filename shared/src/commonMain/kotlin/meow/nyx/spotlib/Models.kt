@@ -104,3 +104,47 @@ class SpotifySessionExpiredException(
     cause: Throwable? = null,
     httpFailureLogged: Boolean = false,
 ) : SpotifyAuthException(message, cause, httpFailureLogged)
+
+data class SpotifyHomeFeed(
+    val greeting: String?,
+    val sections: List<SpotifyHomeFeedSection>,
+)
+
+data class SpotifyHomeFeedSection(
+    val sectionUri: String,
+    val title: String?,
+    val typename: String,
+    val totalCount: Int,
+    val items: List<SpotifyHomeFeedItem>,
+)
+
+sealed class SpotifyHomeFeedItem {
+    data class Playlist(
+        val uri: String,
+        val id: String,
+        val name: String,
+        val description: String?,
+        val format: String?,
+        val totalCount: Int,
+        val imageUrl: String?,
+        val extractedColorHex: String?,
+        val ownerName: String?,
+        val madeForUsername: String?,
+    ) : SpotifyHomeFeedItem()
+
+    data class Album(
+        val uri: String,
+        val id: String,
+        val name: String,
+        val albumType: String?,
+        val artists: List<String> = emptyList(),
+        val imageUrl: String?,
+    ) : SpotifyHomeFeedItem()
+
+    data class Artist(
+        val uri: String,
+        val id: String,
+        val name: String,
+        val imageUrl: String?,
+    ) : SpotifyHomeFeedItem()
+}
