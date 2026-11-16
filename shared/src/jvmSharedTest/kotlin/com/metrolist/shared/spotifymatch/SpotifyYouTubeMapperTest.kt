@@ -62,7 +62,7 @@ class SpotifyYouTubeMapperTest {
     fun bigramSimilarity_partialOverlap() {
         val a = setOf(listOf("a", "b"), listOf("b", "c"))
         val b = setOf(listOf("b", "c"), listOf("c", "d"))
-        assertEquals(2.0 / 3.0, SpotifyYouTubeMapper.bigramSimilarity(a, b), 0.001)
+        assertEquals(0.5, SpotifyYouTubeMapper.bigramSimilarity(a, b))
     }
 
     @Test

@@ -37,7 +37,7 @@ object SpotifyYouTubeMapper {
     private val FT_PATTERN = Regex("\\(ft\\..*?\\)")
     private val BRACKET_PATTERN = Regex("\\[.*?]")
     private val REMASTER_PATTERN = Regex("\\(.*?remaster.*?\\)", RegexOption.IGNORE_CASE)
-    private val REMIX_PATTERN = Regex("\\(.*?remix.*?\\)", RegexOption.IGNORE_CASE)
+    private val REMIX_PATTERN = Regex("\\(.*?(remix|mix).*?\\)", RegexOption.IGNORE_CASE)
     private val NON_ALNUM_PATTERN = Regex("[^a-z0-9\\s]")
     private val MULTI_SPACE_PATTERN = Regex("\\s+")
 
@@ -181,7 +181,7 @@ object SpotifyYouTubeMapper {
     internal fun buildSearchQuery(track: TrackItem): String {
         val title = track.name
         val artists = track.artists.joinToString(", ")
-        return if (artists.isEmpty()) title else "$title $artists".trim()
+        return if (artists.isEmpty()) title else "$title $artists".replace(MULTI_SPACE_PATTERN, " ").trim()
     }
 
     // ---- Internal: Precomputation ----
@@ -272,8 +272,7 @@ object SpotifyYouTubeMapper {
     internal fun bigramSimilarity(a: Set<List<String>>, b: Set<List<String>>): Double {
         if (a.isEmpty() || b.isEmpty()) return 0.0
         val intersection = a.intersect(b).size
-        val union = a.size + b.size - intersection
-        return if (union == 0) 0.0 else (2.0 * intersection) / union.toDouble()
+        return if (a.size + b.size == 0) 0.0 else (2.0 * intersection) / (a.size + b.size).toDouble()
     }
 
     // ---- Internal: Best Match Search ----
