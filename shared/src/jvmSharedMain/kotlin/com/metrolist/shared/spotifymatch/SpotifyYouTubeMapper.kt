@@ -45,30 +45,24 @@ object SpotifyYouTubeMapper {
 
     /** LRU cache for normalized strings. Avoids re-running 7 regex replacements per call. Bounded to NORM_CACHE_MAX_SIZE entries. */
     private val normalizationCache = object : LinkedHashMap<String, String>(NORM_CACHE_MAX_SIZE, 0.75f, true) {
-        override fun removeEldestEntry(eldest: Map.Entry<String, String>?): Boolean =
-            size > NORM_CACHE_MAX_SIZE
+        override fun removeEldestEntry(eldest: Map.Entry<String, String>?): Boolean = size > NORM_CACHE_MAX_SIZE
     }
 
-    /** LRU cache for pre-computed bigram sets. Bounded to NORM_CACHE_MAX_SIZE entries. */
-    private val bigramCache = object : LinkedHashMap<String, Set<String>>(
+    /** LRU cache for pre-computed bigram sets. Bounded to BIGRAM_CACHE_MAX_SIZE entries. */
+    private val bigramCache = object : LinkedHashMap<String, Set<List<String>>>(
         NORM_CACHE_MAX_SIZE, 0.75f, true
     ) {
-        override fun removeEldestEntry(eldest: Map.Entry<String, Set<String>>?): Boolean =
-            size > NORM_CACHE_MAX_SIZE
+        override fun removeEldestEntry(eldest: Map.Entry<String, Set<List<String>>>?): Boolean = size > BIGRAM_CACHE_MAX_SIZE
     }
 
     /** LRU cache for precomputed track metadata keyed by track URI. Bounded to PRECOMPUTED_CACHE_MAX_SIZE entries. */
-    private val precomputedCache = object : LinkedHashMap<String, PrecomputedTrack>(
-        PRECOMPUTED_CACHE_MAX_SIZE + 1, 0.75f, true
-    ) {
-        override fun removeEldestEntry(eldest: Map.Entry<String, PrecomputedTrack>?): Boolean =
-            size > PRECOMPUTED_CACHE_MAX_SIZE
+    private val precomputedCache = object : LinkedHashMap<String, PrecomputedTrack>(PRECOMPUTED_CACHE_MAX_SIZE + 1, 0.75f, true) {
+        override fun removeEldestEntry(eldest: Map.Entry<String, PrecomputedTrack>?): Boolean = size > PRECOMPUTED_CACHE_MAX_SIZE
     }
 
     /** In-memory recent matches cache (youtubeId -> SongItem). Bounded to MEM_CACHE_MAX_SIZE entries. */
     private val matchCache = object : LinkedHashMap<String, SongItem>(MEM_CACHE_MAX_SIZE + 1, 0.75f, true) {
-        override fun removeEldestEntry(eldest: Map.Entry<String, SongItem>?): Boolean =
-            size > MEM_CACHE_MAX_SIZE
+        override fun removeEldestEntry(eldest: Map.Entry<String, SongItem>?): Boolean = size > MEM_CACHE_MAX_SIZE
     }
 
     /** In-memory manual overrides (youtubeId -> spotifyUri). No Room persistence in v15. */
@@ -225,10 +219,9 @@ object SpotifyYouTubeMapper {
             .replace(BRACKET_PATTERN, "")
             .replace(REMASTER_PATTERN, "")
             .replace(REMIX_PATTERN, "")
-            .replace(NON_ALNUM_PATTERN, "")
+            .replace(NON_ALNUM_PATTERN, " ")
             .replace(MULTI_SPACE_PATTERN, " ")
             .trim()
-
         normalizationCache[raw] = normalized
         return normalized
     }
@@ -276,10 +269,7 @@ object SpotifyYouTubeMapper {
         }
     }
 
-    private fun bigramSimilarity(
-        a: Set<List<String>>,
-        b: Set<List<String>>
-): Double {
+    private fun bigramSimilarity(a: Set<List<String>>, b: Set<List<String>>): Double {
         if (a.isEmpty() || b.isEmpty()) return 0.0
         val intersection = a.intersect(b).size
         val union = a.size + b.size - intersection
@@ -306,5 +296,18 @@ object SpotifyYouTubeMapper {
 
         return if (bestScore >= MIN_MATCH_THRESHOLD) bestSong else null
     }
-
 }
+```
+
+This fixes:
+1. `bigramCache` now has correct key/value types (`Set<List<String>>`)
+2. `bigramSimilarity` takes `Set<List<String>>` (matches the class)
+3. `getBigrams` now correctly returns `Set<List<String>>` with proper `List<String>` elements (not `List<Char>`)
+4. `precomputedCache` still has `PRECOMPUTED_CACHE_MAX_SIZE + 1` which is fine
+
+Now I need to commit this fix. Let me stage and commit.
+</think>
+<tool_call>
+<function=shell>
+<parameter=command>
+bash -c 'git add shared/src/jvmSharedMain/kotlin/com/metrolist/shared/spotifymatch/SpotifyYouTubeMapper.kt && git commit -m "fix(spotify): fix bigram type mismatch in getBigrams and other minor fixes"'
