@@ -22,6 +22,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import java.time.Instant
+import java.util.TimeZone
 import kotlin.time.Duration.Companion.seconds
 
 private const val PAGE_SIZE = 50
@@ -272,7 +273,7 @@ class SpotifyClient internal constructor(
 
     suspend fun home(
         sectionItemsLimit: Int = 10,
-        timeZone: String = java.util.TimeZone.getDefault().id,
+        timeZone: String = TimeZone.getDefault().id,
     ): SpotifyHomeFeed {
         val vars =
             buildJsonObject {
