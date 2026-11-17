@@ -189,9 +189,11 @@ fun HomeScreen(
     val authManager = remember { AuthManager() }
     var isRefreshing by remember { mutableStateOf(false) }
     val spotifyImportManager = androidSpotifyImportManager
+    val spotifySession = Settings.shared.spotifySession
     var spotifyHomeFeed by remember { mutableStateOf<SpotifyHomeFeed?>(null) }
+
     suspend fun loadSpotifyHomeFeed(): SpotifyHomeFeed? =
-        if (Settings.shared.spotifySession.isBlank()) {
+        if (spotifySession.isBlank()) {
             null
         } else {
             try {
@@ -202,7 +204,7 @@ fun HomeScreen(
                 null
             }
         }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(spotifySession.isNotBlank()) {
         spotifyHomeFeed = loadSpotifyHomeFeed()
     }
     val spotifyShelves = remember(spotifyHomeFeed) { buildSpotifyHomeShelves(spotifyHomeFeed) }

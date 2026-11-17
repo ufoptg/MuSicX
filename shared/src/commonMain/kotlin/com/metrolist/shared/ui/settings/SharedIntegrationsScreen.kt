@@ -112,10 +112,18 @@ data class SharedIntegrationsHost(
     val deviceConnect: DeviceConnectSettingsHost? = null,
     val listenTogetherManager: ListenTogetherManager? = null,
     val onOpenListenTogether: (() -> Unit)? = null,
+    val spotify: SpotifyIntegrationHost? = null,
     val onOpenUrl: (String) -> Unit = {},
     val onCopyText: (String, String) -> Unit = { _, _ -> },
     val onShareText: ((String) -> Unit)? = null,
     val onMessage: (String) -> Unit = {},
+)
+
+data class SpotifyIntegrationHost(
+    val signedIn: Boolean,
+    val loginInProgress: Boolean = false,
+    val onLogin: () -> Unit,
+    val onLogout: () -> Unit,
 )
 
 data class IntegrationPlaybackState(
@@ -715,6 +723,41 @@ private fun buildIntegrationsRegistry(
             ) { settings.uiDiscover = it }
         }
     }
+    host.spotify?.let { spotify ->
+        builder.page(
+            id = SettingsPageId.SPOTIFY,
+            title = stringResource(Res.string.brand_spotify),
+            subtitle =
+                settingsPageSubtitle(
+                    stringResource(Res.string.settings_spotify_overview),
+                    stringResource(
+                        if (spotify.signedIn) Res.string.spotify_status_signed_in else Res.string.spotify_status_signed_out,
+                    ),
+                ),
+            icon = MetrolistIcons.Outlined.MusicNote,
+            tone = SettingsTone.GREEN,
+        ) {
+            group("spotifyAccount", stringResource(Res.string.account)) {
+                if (spotify.signedIn) {
+                    action(
+                        id = "spotifyLogout",
+                        title = stringResource(Res.string.spotify_status_signed_in),
+                        description = stringResource(Res.string.settings_spotify_account_description),
+                        valueLabel = stringResource(Res.string.logout),
+                        confirmationMessage = stringResource(Res.string.account_logout_confirm),
+                    ) { spotify.onLogout() }
+                } else {
+                    action(
+                        id = "spotifyLogin",
+                        title = stringResource(Res.string.spotify_sign_in),
+                        description = stringResource(Res.string.settings_spotify_sign_in_description),
+                        enabled = !spotify.loginInProgress,
+                    ) { spotify.onLogin() }
+                }
+            }
+        }
+    }
+
     builder.rootGroup(
         stringResource(Res.string.integrations),
         *listOfNotNull(
@@ -722,6 +765,7 @@ private fun buildIntegrationsRegistry(
             SettingsPageId.DISCORD,
             SettingsPageId.LAST_FM,
             SettingsPageId.LISTEN_BRAINZ,
+            SettingsPageId.SPOTIFY.takeIf { host.spotify != null },
             SettingsPageId.DEVICE_CONNECT.takeIf { host.deviceConnect != null },
             SettingsPageId.LISTEN_TOGETHER.takeIf { host.listenTogetherManager != null || host.onOpenListenTogether != null },
         ).toTypedArray(),

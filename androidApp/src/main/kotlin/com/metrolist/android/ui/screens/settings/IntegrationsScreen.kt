@@ -20,16 +20,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.metrolist.android.LocalMiniPlayerBottomInset
 import com.metrolist.android.playback.LocalPlayerConnection
+import com.metrolist.android.spotifyimport.SpotifyLoginScreen
+import com.metrolist.android.spotifyimport.androidSpotifyImportManager
 import com.metrolist.android.ui.screens.rememberDeviceConnectSettingsHost
 import com.metrolist.shared.discord.DiscordRpcManager
 import com.metrolist.shared.discord.openDiscordUrl
 import com.metrolist.shared.generated.resources.Res
 import com.metrolist.shared.generated.resources.copied
+import com.metrolist.shared.generated.resources.spotify_import_error_sign_in_failed
+import com.metrolist.shared.settings.Settings
 import com.metrolist.shared.ui.settings.IntegrationPlaybackState
 import com.metrolist.shared.ui.settings.SettingsPageId
 import com.metrolist.shared.ui.settings.SettingsPlatform
 import com.metrolist.shared.ui.settings.SharedIntegrationsHost
 import com.metrolist.shared.ui.settings.SharedIntegrationsScreen
+import com.metrolist.shared.ui.settings.SpotifyIntegrationHost
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 
@@ -40,6 +46,7 @@ fun IntegrationsScreen(
     initialPage: SettingsPageId? = null,
 ) {
     val copiedMessage = stringResource(Res.string.copied)
+    val spotifySignInFailed = stringResource(Res.string.spotify_import_error_sign_in_failed)
     val context = LocalContext.current
     val playerConnection = LocalPlayerConnection.current
     val currentSong by playerConnection?.currentSong?.collectAsState(initial = null) ?: remember { mutableStateOf(null) }
@@ -47,6 +54,25 @@ fun IntegrationsScreen(
     val playbackSpeed by playerConnection?.playbackSpeedFlow?.collectAsState() ?: remember { mutableFloatStateOf(1f) }
     val isPlaying by playerConnection?.isPlaying?.collectAsState(initial = false) ?: remember { mutableStateOf(false) }
     val discordLoginInProgress = DiscordLoginFlow.isActive
+    val spotifyImportManager = remember { androidSpotifyImportManager }
+    val spotifySignedIn = Settings.shared.spotifySession.isNotBlank()
+    var showSpotifyLogin by remember { mutableStateOf(false) }
+    var spotifyCookie by remember { mutableStateOf<String?>(null) }
+    var spotifySignInError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(spotifyCookie) {
+        val cookie = spotifyCookie ?: return@LaunchedEffect
+        try {
+            spotifyImportManager.authenticate(cookie)
+            showSpotifyLogin = false
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            spotifySignInError = spotifySignInFailed
+        } finally {
+            spotifyCookie = null
+        }
+    }
 
     LaunchedEffect(discordLoginInProgress) {
         if (discordLoginInProgress) {
@@ -89,11 +115,33 @@ fun IntegrationsScreen(
                 },
                 deviceConnect = rememberDeviceConnectSettingsHost(),
                 onOpenListenTogether = onNavigateToListenTogether,
+                spotify =
+                    SpotifyIntegrationHost(
+                        signedIn = spotifySignedIn,
+                        loginInProgress = spotifyCookie != null,
+                        onLogin = { showSpotifyLogin = true },
+                        onLogout = {
+                            spotifyImportManager.logout()
+                        },
+                    ),
                 onOpenUrl = { url -> runCatching { context.openDiscordUrl(url) } },
                 onCopyText = { label, text -> context.copyToClipboard(label, text, copiedMessage) },
                 onMessage = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() },
             ),
     )
+    if (showSpotifyLogin) {
+        SpotifyLoginScreen(
+            isAuthenticating = spotifyCookie != null,
+            authenticationError = spotifySignInError,
+            onClearAuthenticationError = { spotifySignInError = null },
+            onSessionCookie = { spotifyCookie = it },
+            onNavigateBack = {
+                showSpotifyLogin = false
+                spotifyCookie = null
+                spotifySignInError = null
+            },
+        )
+    }
 }
 
 private fun Context.copyToClipboard(
