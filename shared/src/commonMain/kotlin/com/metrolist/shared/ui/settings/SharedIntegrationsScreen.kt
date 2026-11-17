@@ -755,6 +755,24 @@ private fun buildIntegrationsRegistry(
                     ) { spotify.onLogin() }
                 }
             }
+            if (spotify.signedIn) {
+                group("spotifyHome", stringResource(Res.string.home)) {
+                    switch(
+                        id = "spotifyUseHome",
+                        title = stringResource(Res.string.settings_spotify_home_title),
+                        description = stringResource(Res.string.settings_spotify_home_description),
+                        checked = settings.useSpotifyHome,
+                    ) { settings.useSpotifyHome = it }
+                    if (settings.useSpotifyHome) {
+                        switch(
+                            id = "spotifyHomeOnly",
+                            title = stringResource(Res.string.settings_spotify_home_only_title),
+                            description = stringResource(Res.string.settings_spotify_home_only_description),
+                            checked = settings.spotifyHomeOnly,
+                        ) { settings.spotifyHomeOnly = it }
+                    }
+                }
+            }
         }
     }
 

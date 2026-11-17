@@ -190,10 +190,12 @@ fun HomeScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     val spotifyImportManager = androidSpotifyImportManager
     val spotifySession = Settings.shared.spotifySession
+    val useSpotifyHome = Settings.shared.useSpotifyHome
+    val spotifyHomeOnly = Settings.shared.spotifyHomeOnly
     var spotifyHomeFeed by remember { mutableStateOf<SpotifyHomeFeed?>(null) }
 
     suspend fun loadSpotifyHomeFeed(): SpotifyHomeFeed? =
-        if (spotifySession.isBlank()) {
+        if (spotifySession.isBlank() || !useSpotifyHome) {
             null
         } else {
             try {
@@ -204,10 +206,13 @@ fun HomeScreen(
                 null
             }
         }
-    LaunchedEffect(spotifySession.isNotBlank()) {
+    LaunchedEffect(spotifySession.isNotBlank(), useSpotifyHome) {
         spotifyHomeFeed = loadSpotifyHomeFeed()
     }
-    val spotifyShelves = remember(spotifyHomeFeed) { buildSpotifyHomeShelves(spotifyHomeFeed) }
+    val spotifyShelves =
+        remember(spotifyHomeFeed, useSpotifyHome) {
+            if (useSpotifyHome) buildSpotifyHomeShelves(spotifyHomeFeed) else emptyList()
+        }
 
     fun refreshSpotifyHome() {
         scope.launch {
@@ -267,7 +272,8 @@ fun HomeScreen(
             uiState = uiState,
             shelfCache = viewModel.shared.shelfCache,
             spotifyShelves = spotifyShelves,
-            onLoadMore = viewModel.shared::loadMoreSections,
+            shelves = if (spotifyHomeOnly && spotifyShelves.isNotEmpty()) emptyList() else null,
+            onLoadMore = if (spotifyHomeOnly && spotifyShelves.isNotEmpty()) null else viewModel.shared::loadMoreSections,
             text = sharedText,
             onVideoItemClick = { item ->
                 when (item) {

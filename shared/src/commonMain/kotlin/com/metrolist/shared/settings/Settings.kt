@@ -173,11 +173,13 @@ import com.metrolist.shared.constants.SlimNavBarKey
 import com.metrolist.shared.constants.SpeedDialArtworkRefreshTimesKey
 import com.metrolist.shared.constants.SpeedDialSurprisePinnedKey
 import com.metrolist.shared.constants.SponsorBlockEnabledKey
+import com.metrolist.shared.constants.SpotifyHomeOnlyKey
 import com.metrolist.shared.constants.SwipeToRemoveSongKey
 import com.metrolist.shared.constants.SwipeToSongKey
 import com.metrolist.shared.constants.TempoPitchPresetsJsonKey
 import com.metrolist.shared.constants.TokenLoginWarningDismissedKey
 import com.metrolist.shared.constants.UseLegacyShuffleKey
+import com.metrolist.shared.constants.UseSpotifyHomeKey
 import com.metrolist.shared.constants.VarispeedKey
 import com.metrolist.shared.constants.VideoViewerVisibleKey
 import com.metrolist.shared.constants.VoiceSearchEnabledKey
@@ -279,6 +281,8 @@ class Settings(
     var accountChannelHandle by preference("")
     var accountThumbnail by preference("")
     var spotifySession by preference("")
+    var useSpotifyHome by preference(UseSpotifyHomeKey, true)
+    var spotifyHomeOnly by preference(SpotifyHomeOnlyKey, false)
 
     private var storedAppLanguage by preference(AppLanguageKey, "SYSTEM")
     var appLanguage: String

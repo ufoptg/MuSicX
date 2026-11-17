@@ -843,6 +843,14 @@
     <string name="settings_spotify_sign_in_description">Sign in to load Spotify home shelves and import playlists.</string>
     <!-- Translators: Supporting text beneath the signed-in Spotify account option in the settings. -->
     <string name="settings_spotify_account_description">Signing out removes the stored Spotify session.</string>
+    <!-- Translators: Title for the switch that shows Spotify content on the home tab. -->
+    <string name="settings_spotify_home_title">Spotify on Home</string>
+    <!-- Translators: Supporting text beneath the Spotify home switch in the settings. -->
+    <string name="settings_spotify_home_description">Show Spotify playlists, albums and artists on the Home tab.</string>
+    <!-- Translators: Title for the switch that replaces YouTube home sections with Spotify content. -->
+    <string name="settings_spotify_home_only_title">Spotify only on Home</string>
+    <!-- Translators: Supporting text beneath the Spotify-only home switch in the settings. -->
+    <string name="settings_spotify_home_only_description">Hide YouTube Music sections on the Home tab while Spotify content is available.</string>
     <string name="discord_integration_description">Show the music you play on your Discord profile</string>
     <string name="device_connect_peer_details">%1$s\n%2$s</string>
     <string name="listen_together_server_label">%1$s · %2$s</string>

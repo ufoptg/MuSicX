@@ -220,6 +220,9 @@ val GridItemSizeKey = "grid_item_size"
 
 val PersistentPlaybackPositionKey = "persistentPlaybackPosition"
 
+val UseSpotifyHomeKey = "useSpotifyHome"
+val SpotifyHomeOnlyKey = "spotifyHomeOnly"
+
 val AndroidLastStorageAuditKey = "androidLastStorageAudit"
 val AndroidStorageAuditLocationKey = "androidStorageAuditLocation"
 val AndroidLastTrackedPlaylistSyncKey = "androidLastTrackedPlaylistSync"
