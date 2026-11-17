@@ -74,6 +74,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.metrolist.android.LocalMiniPlayerBottomInset
 import com.metrolist.android.extensions.isInternetConnected
 import com.metrolist.android.playback.LocalPlayerConnection
+import com.metrolist.android.spotifyimport.SpotifyPlayback
 import com.metrolist.android.spotifyimport.androidSpotifyImportManager
 import com.metrolist.android.ui.component.AdaptiveModalBottomSheet
 import com.metrolist.android.ui.component.SwipeGestureHandler
@@ -105,6 +106,7 @@ import com.metrolist.shared.generated.resources.import_playlist
 import com.metrolist.shared.generated.resources.more_options
 import com.metrolist.shared.generated.resources.new_playlist
 import com.metrolist.shared.generated.resources.open_in_spotify
+import com.metrolist.shared.generated.resources.play_in_musicx
 import com.metrolist.shared.generated.resources.playlist_name
 import com.metrolist.shared.generated.resources.remove_from_library
 import com.metrolist.shared.generated.resources.rename
@@ -329,11 +331,13 @@ fun LibraryScreen(
     }
 
     fun queue(
-        item: YTItem,
+        item: YTItem?,
         playNext: Boolean,
     ) {
-        withSongs(item) { songs ->
-            playerConnection?.addToQueue(songs, playNext)
+        item?.let {
+            withSongs(it) { songs ->
+                playerConnection?.addToQueue(songs, playNext)
+            }
         }
     }
 
@@ -611,6 +615,26 @@ fun LibraryScreen(
                                     }.padding(horizontal = 4.dp),
                             elevation = ListItemDefaults.elevation(elevation = 0.dp),
                         ) { Text(stringResource(Res.string.open_in_spotify)) }
+                        ListItem(
+                            leadingContent = {
+                                Icon(MetrolistIcons.Filled.PlayArrow, contentDescription = null)
+                            },
+                            modifier =
+                                Modifier
+                                    .tvFocusHighlight(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        val spotifyUri = item.id
+                                        scope.launch {
+                                            SpotifyPlayback.playPlaylist(
+                                                spotifyUri,
+                                                item.title,
+                                                playerConnection,
+                                            )
+                                        }
+                                        menuItem = null
+                                    }.padding(horizontal = 4.dp),
+                            elevation = ListItemDefaults.elevation(elevation = 0.dp),
+                        ) { Text(stringResource(Res.string.play_in_musicx)) }
                         ListItem(
                             leadingContent = { Icon(MetrolistIcons.Filled.VisibilityOff, contentDescription = null) },
                             modifier =

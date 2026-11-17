@@ -211,6 +211,9 @@ class SpotifyImportManager(
     private suspend fun authenticatedClient(): SpotifyClient =
         client ?: restorePersistedSession().let { client } ?: error("Sign in to Spotify first")
 
+    /** Public accessor for the authenticated Spotify client used for playback operations. */
+    suspend fun playbackClient(): SpotifyClient = authenticatedClient()
+
     private fun invalidateExpiredSession(error: Throwable) {
         if (error is SpotifySessionExpiredException) {
             val expiredClient = synchronized(this) { client.also { client = null } }
