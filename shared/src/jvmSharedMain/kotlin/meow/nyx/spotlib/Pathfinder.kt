@@ -311,3 +311,43 @@ internal fun parseHomeArtist(data: JsonObject): SpotifyHomeFeedItem.Artist? {
         imageUrl = imageUrl,
     )
 }
+
+// ===== Spotify Search =====
+
+/**
+ * Parsed result from a Spotify search query.
+ * Contains tracks, albums, artists, and playlists matching the search term.
+ */
+data class SpotifySearchResult(
+    val tracks: List<TrackItem> = emptyList(),
+    val albums: List<SpotifyHomeFeedItem.Album> = emptyList(),
+    val artists: List<SpotifyHomeFeedItem.Artist> = emptyList(),
+    val playlists: List<SpotifyHomeFeedItem.Playlist> = emptyList(),
+)
+
+internal fun parseSearchResult(page: JsonObject): SpotifySearchResult {
+    val searchV2 = page.obj("data")?.obj("searchV2")
+    val topResults = searchV2?.obj("topResultsV2")
+    val items = topResults?.array("itemsV2")?.filterIsInstance<JsonObject>() ?: emptyList()
+
+    val tracks = mutableListOf<TrackItem>()
+    val albums = mutableListOf<SpotifyHomeFeedItem.Album>()
+    val artists = mutableListOf<SpotifyHomeFeedItem.Artist>()
+    val playlists = mutableListOf<SpotifyHomeFeedItem.Playlist>()
+
+    for (itemWrapper in items) {
+        val item = itemWrapper.obj("item")?.obj("data") ?: continue
+        val typename = item.string("__typename") ?: continue
+        when (typename) {
+            "Track" -> {
+                val track = parseTrackItem(item, tracks.size + 1)
+                tracks.add(track)
+            }
+            "Album" -> parseHomeAlbum(item)?.let { albums.add(it) }
+            "Artist" -> parseHomeArtist(item)?.let { artists.add(it) }
+            "Playlist" -> parseHomePlaylist(item)?.let { playlists.add(it) }
+        }
+    }
+
+    return SpotifySearchResult(tracks, albums, artists, playlists)
+}

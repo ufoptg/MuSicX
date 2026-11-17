@@ -180,6 +180,7 @@ import com.metrolist.shared.constants.TempoPitchPresetsJsonKey
 import com.metrolist.shared.constants.TokenLoginWarningDismissedKey
 import com.metrolist.shared.constants.UseLegacyShuffleKey
 import com.metrolist.shared.constants.UseSpotifyHomeKey
+import com.metrolist.shared.constants.UseSpotifySearchKey
 import com.metrolist.shared.constants.VarispeedKey
 import com.metrolist.shared.constants.VideoViewerVisibleKey
 import com.metrolist.shared.constants.VoiceSearchEnabledKey
@@ -283,6 +284,7 @@ class Settings(
     var spotifySession by preference("")
     var useSpotifyHome by preference(UseSpotifyHomeKey, true)
     var spotifyHomeOnly by preference(SpotifyHomeOnlyKey, false)
+    var useSpotifySearch by preference(UseSpotifySearchKey, true)
 
     private var storedAppLanguage by preference(AppLanguageKey, "SYSTEM")
     var appLanguage: String

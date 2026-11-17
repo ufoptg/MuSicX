@@ -847,6 +847,10 @@
     <string name="settings_spotify_home_title">Spotify on Home</string>
     <!-- Translators: Supporting text beneath the Spotify home switch in the settings. -->
     <string name="settings_spotify_home_description">Show Spotify playlists, albums and artists on the Home tab.</string>
+    <!-- Translators: Title for the switch that shows Spotify search results in search results. -->
+    <string name="settings_spotify_search_title">Spotify Search</string>
+    <!-- Translators: Supporting text beneath the Spotify search switch in the settings. -->
+    <string name="settings_spotify_search_description">Show Spotify search results alongside YouTube Music results.</string>
     <!-- Translators: Title for the switch that replaces YouTube home sections with Spotify content. -->
     <string name="settings_spotify_home_only_title">Spotify only on Home</string>
     <!-- Translators: Supporting text beneath the Spotify-only home switch in the settings. -->

@@ -982,8 +982,9 @@ private fun SearchResultsList(
 
     val summaries = searchSummary?.summaries.orEmpty()
     val filteredItems = filteredResults?.items.orEmpty()
+    val spotifySearchResult = uiState.spotifySearchResult
     val showingFilteredResults = selectedFilter != null && filteredResults != null
-    val allResultsEmpty = summaries.all { it.items.isEmpty() }
+    val allResultsEmpty = summaries.all { it.items.isEmpty() } && spotifySearchResult == null
     val showNoResults =
         hasSearched && !isSearching && !uiState.searchFailed &&
             if (showingFilteredResults) filteredItems.isEmpty() && filteredResults.continuation == null else allResultsEmpty
@@ -1133,6 +1134,45 @@ private fun SearchResultsList(
                 }
             }
         } else {
+            spotifySearchResult?.let { spotify ->
+                listOf(
+                    "tracks" to (text.filterSongs to spotify.tracks),
+                    "albums" to (text.filterAlbums to spotify.albums),
+                    "artists" to (text.filterArtists to spotify.artists),
+                    "playlists" to (text.filterPlaylists to spotify.playlists),
+                ).forEach { (key, titleItems) ->
+                    val (title, items) = titleItems
+                    if (items.isNotEmpty()) {
+                        item(key = "spotify_$key") {
+                            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                                Box(Modifier.widthIn(max = 1400.dp).fillMaxWidth()) {
+                                    SearchEnterMotion {
+                                        SearchResultGroup(
+                                            title = title,
+                                            items = items,
+                                            onItemClick = onItemClick,
+                                            onVideoItemClick = onVideoItemClick,
+                                            onItemLongClick = onItemLongClick,
+                                            onSongSave = onSongSave,
+                                            currentSongId = currentSongId,
+                                            isPlaying = isPlaying,
+                                            text = text,
+                                            onArtistClick = onArtistClick,
+                                            onAlbumClick = onAlbumClick,
+                                            onShuffleClick = onShuffleClick,
+                                            onMixClick = onMixClick,
+                                            itemContainer = itemContainer,
+                                            onAlbumPlay = onAlbumPlay,
+                                            isWide = isWide,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        item(key = "spotify_gap_$key") { Spacer(Modifier.height(24.dp)) }
+                    }
+                }
+            }
             summaries.forEachIndexed { index, summary ->
                 if (summary.items.isNotEmpty()) {
                     val sectionTitle = searchSectionTitle(summary, text)

@@ -222,6 +222,7 @@ val PersistentPlaybackPositionKey = "persistentPlaybackPosition"
 
 val UseSpotifyHomeKey = "useSpotifyHome"
 val SpotifyHomeOnlyKey = "spotifyHomeOnly"
+val UseSpotifySearchKey = "useSpotifySearch"
 
 val AndroidLastStorageAuditKey = "androidLastStorageAudit"
 val AndroidStorageAuditLocationKey = "androidStorageAuditLocation"

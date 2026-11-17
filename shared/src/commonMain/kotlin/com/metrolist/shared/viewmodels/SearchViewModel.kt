@@ -11,6 +11,8 @@ import com.metrolist.shared.model.YTItem
 import com.metrolist.shared.model.filterAvailableSearchFilters
 import com.metrolist.shared.settings.BlockedContent
 import com.metrolist.shared.settings.Settings
+import com.metrolist.shared.spotify.SpotifySearchProvider
+import com.metrolist.shared.spotify.SpotifySearchResult
 import com.metrolist.shared.state.GlobalYouTubeRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -31,6 +33,7 @@ import kotlin.time.Duration.Companion.milliseconds
 class SearchViewModel(
     private val scope: CoroutineScope,
     private val repository: YouTubeRepository = GlobalYouTubeRepository.instance,
+    private val spotifySearchProvider: SpotifySearchProvider? = null,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
     private val _uiState = MutableStateFlow(SearchUiState())
@@ -162,6 +165,7 @@ class SearchViewModel(
                             currentQuery,
                             recordSearchHistory = recordSearchHistory,
                         )
+                    val spotifyResult = fetchSpotifyResults(currentQuery)
                     if (isCurrentSearchRequest(_uiState.value, currentQuery, filter = null)) {
                         _uiState.update { state ->
                             state.copy(
@@ -169,6 +173,7 @@ class SearchViewModel(
                                 searchSummary = summary.withoutBlockedSongs(),
                                 searchFailed = summary.onlineSearchFailed,
                                 isSearching = false,
+                                spotifySearchResult = spotifyResult,
                             )
                         }
                     }
@@ -568,7 +573,20 @@ class SearchViewModel(
                 filteredResults = null,
                 unfilteredResults = null,
                 selectedFilter = null,
+                spotifySearchResult = null,
             )
+        }
+    }
+
+    /** Fetch Spotify search results if the provider is available and enabled. */
+    private suspend fun fetchSpotifyResults(term: String): SpotifySearchResult? {
+        if (!Settings.shared.useSpotifySearch || spotifySearchProvider?.hasSession() != true) return null
+        return try {
+            spotifySearchProvider.search(term)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
         }
     }
 
@@ -600,6 +618,7 @@ class SearchViewModel(
         val isLoadingMore: Boolean = false,
         val searchFailed: Boolean = false,
         val loadMoreFailed: Boolean = false,
+        val spotifySearchResult: SpotifySearchResult? = null,
     )
 }
 
