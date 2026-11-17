@@ -81,14 +81,14 @@ class SpotifyAlbumQueue(
             }
 
             if (resolvedItems.isEmpty()) {
-                return
+                // Nothing resolved — leave the queue empty and stop early.
+            } else {
+                resolveOffset = windowEnd
+                val mediaItemIndex = (targetIndex - windowStart)
+                    .coerceIn(0, (resolvedItems.size - 1).coerceAtLeast(0))
+
+                queue.setQueue(resolvedItems, mediaItemIndex)
             }
-
-            resolveOffset = windowEnd
-            val mediaItemIndex = (targetIndex - windowStart)
-                .coerceIn(0, (resolvedItems.size - 1).coerceAtLeast(0))
-
-            queue.setQueue(resolvedItems, mediaItemIndex)
         }
     }
 
@@ -106,19 +106,18 @@ class SpotifyAlbumQueue(
 
                 if (resolveOffset >= allTracks.size) {
                     queue.appendPage(emptyList())
-                    return
-                }
+                } else {
+                    val end = (resolveOffset + RESOLVE_BATCH_SIZE).coerceAtMost(allTracks.size)
+                    val batch = allTracks.subList(resolveOffset, end)
+                    resolveOffset = end
 
-                val end = (resolveOffset + RESOLVE_BATCH_SIZE).coerceAtMost(allTracks.size)
-                val batch = allTracks.subList(resolveOffset, end)
-                resolveOffset = end
-
-                coroutineScope {
-                    batch.map { track -> async { mapper.mapToYouTube(track) } }
-                        .awaitAll()
-                        .filterNotNull()
-                }.also { resolved ->
-                    queue.appendPage(resolved)
+                    coroutineScope {
+                        batch.map { track -> async { mapper.mapToYouTube(track) } }
+                            .awaitAll()
+                            .filterNotNull()
+                    }.also { resolved ->
+                        queue.appendPage(resolved)
+                    }
                 }
             }
         }

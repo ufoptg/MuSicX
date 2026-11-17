@@ -84,12 +84,12 @@ class SpotifyRadioQueue(
             val resolvedSeed = mapper.mapToYouTube(seedTrack)
 
             if (resolvedSeed == null) {
-                return
+                // Seed track couldn't be resolved — leave the queue empty.
+            } else {
+                val mediaItemIndex = startIndex.coerceIn(0, 0)
+                queue.setQueue(listOf(resolvedSeed), mediaItemIndex)
+                resolveOffset = 1 // seed already resolved
             }
-
-            val mediaItemIndex = startIndex.coerceIn(0, 0)
-            queue.setQueue(listOf(resolvedSeed), mediaItemIndex)
-            resolveOffset = 1 // seed already resolved
         }
     }
 
@@ -114,19 +114,18 @@ class SpotifyRadioQueue(
 
                 if (resolveOffset >= allTracks.size) {
                     queue.appendPage(emptyList())
-                    return
-                }
+                } else {
+                    val end = (resolveOffset + RESOLVE_BATCH_SIZE).coerceAtMost(allTracks.size)
+                    val batch = allTracks.subList(resolveOffset, end)
+                    resolveOffset = end
 
-                val end = (resolveOffset + RESOLVE_BATCH_SIZE).coerceAtMost(allTracks.size)
-                val batch = allTracks.subList(resolveOffset, end)
-                resolveOffset = end
-
-                coroutineScope {
-                    batch.map { track -> async { mapper.mapToYouTube(track) } }
-                        .awaitAll()
-                        .filterNotNull()
-                }.also { resolved ->
-                    queue.appendPage(resolved)
+                    coroutineScope {
+                        batch.map { track -> async { mapper.mapToYouTube(track) } }
+                            .awaitAll()
+                            .filterNotNull()
+                    }.also { resolved ->
+                        queue.appendPage(resolved)
+                    }
                 }
             }
         }
