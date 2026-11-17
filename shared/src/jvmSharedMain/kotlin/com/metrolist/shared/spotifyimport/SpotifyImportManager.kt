@@ -15,6 +15,7 @@ import meow.nyx.spotlib.PlaylistSource
 import meow.nyx.spotlib.SpotifyAuthException
 import meow.nyx.spotlib.SpotifyClient
 import meow.nyx.spotlib.SpotifyException
+import meow.nyx.spotlib.SpotifyHomeFeed
 import meow.nyx.spotlib.SpotifySession
 import meow.nyx.spotlib.SpotifySessionExpiredException
 import meow.nyx.spotlib.TrackItem
@@ -64,6 +65,18 @@ class SpotifyImportManager(
             throw error
         } catch (error: Exception) {
             logFailure("Loading playlists failed", error)
+            invalidateExpiredSession(error)
+            throw error
+        }
+
+    suspend fun loadHome(): SpotifyHomeFeed =
+        try {
+            val active = authenticatedClient()
+            active.home().also { persistSession(active.session) }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            logFailure("Loading home feed failed", error)
             invalidateExpiredSession(error)
             throw error
         }

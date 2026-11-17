@@ -204,6 +204,7 @@ fun HomeContent(
     listState: LazyListState = rememberLazyListState(),
     contentPadding: PaddingValues = PaddingValues(0.dp),
     shelves: List<HomeShelf>? = null,
+    spotifyShelves: List<HomeShelf> = emptyList(),
     onShowSurpriseMenu: (() -> Unit)? = null,
     onShowSurpriseSecondaryMenu: (() -> Unit)? = null,
     onLoadMore: (() -> Unit)? = null,
@@ -222,7 +223,7 @@ fun HomeContent(
     BoxWithConstraints(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         val isWide = maxWidth > 840.dp
         val effectiveShelves =
-            shelves ?: (shelfCache ?: localShelfCache).build(uiState, text, maxWidth)
+            spotifyShelves + (shelves ?: (shelfCache ?: localShelfCache).build(uiState, text, maxWidth))
 
         DragScrollableColumn(
             state = listState,

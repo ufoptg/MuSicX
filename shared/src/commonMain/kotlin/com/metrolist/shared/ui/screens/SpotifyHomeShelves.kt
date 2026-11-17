@@ -5,12 +5,6 @@
 
 package com.metrolist.shared.ui.screens
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import com.metrolist.shared.model.AlbumItem
 import com.metrolist.shared.model.ArtistItem
 import com.metrolist.shared.model.ArtistTiny
@@ -22,66 +16,57 @@ import meow.nyx.spotlib.SpotifyHomeFeedItem
 /**
  * Builds [HomeShelf] objects from Spotify's home feed.
  *
- * This composable maps Spotify's home feed items to YTItem equivalents
- * ([PlaylistItem], [AlbumItem], [ArtistItem]). Returns an empty list
- * when no sections are found or feed is null.
+ * Maps Spotify playlists, albums and artists to their YTItem equivalents.
+ * Sections with no mappable items are dropped.
  */
-@Composable
-fun SpotifyHomeShelves(
-    spotifyFeed: SpotifyHomeFeed?,
-    onItemClick: (YTItem) -> Unit,
-    onVideoItemClick: (YTItem) -> Unit = onItemClick,
-): List<HomeShelf> {
-    var shelves by remember { mutableStateOf<List<HomeShelf>>(emptyList()) }
+fun buildSpotifyHomeShelves(spotifyFeed: SpotifyHomeFeed?): List<HomeShelf> =
+    spotifyFeed?.sections.orEmpty().mapIndexedNotNull { index, section ->
+        val resolvedItems = section.items.mapNotNull { item ->
+            when (item) {
+                is SpotifyHomeFeedItem.Playlist -> PlaylistItem(
+                    id = item.uri,
+                    title = item.name,
+                    thumbnail = item.imageUrl,
+                    author = item.ownerName,
+                    songCount = item.totalCount.takeIf { it > 0 }?.toString(),
+                    description = item.description,
+                    isEditable = false,
+                )
 
-    LaunchedEffect(spotifyFeed) {
-        if (spotifyFeed == null) {
-            shelves = emptyList()
-            return@LaunchedEffect
+                is SpotifyHomeFeedItem.Album -> AlbumItem(
+                    id = item.uri,
+                    title = item.name,
+                    thumbnail = item.imageUrl,
+                    artists = item.artists.map { ArtistTiny(id = null, name = it) },
+                    type = item.albumType,
+                )
+
+                is SpotifyHomeFeedItem.Artist -> ArtistItem(
+                    id = item.uri,
+                    title = item.name,
+                    thumbnail = item.imageUrl,
+                )
+            }
         }
 
-        shelves = spotifyFeed.sections.mapNotNull { section ->
-            val resolvedItems = section.items.mapNotNull { item ->
-                when (item) {
-                    is SpotifyHomeFeedItem.Playlist -> PlaylistItem(
-                        id = item.uri,
-                        title = item.name,
-                        thumbnail = item.imageUrl,
-                        author = item.ownerName,
-                        songCount = item.totalCount.takeIf { it > 0 }?.toString(),
-                        description = item.description,
-                        isEditable = false,
-                    )
-
-                    is SpotifyHomeFeedItem.Album -> AlbumItem(
-                        id = item.uri,
-                        title = item.name,
-                        thumbnail = item.imageUrl,
-                        artists = item.artists.map { ArtistTiny(id = null, name = it) },
-                        type = item.albumType,
-                    )
-
-                    is SpotifyHomeFeedItem.Artist -> ArtistItem(
-                        id = item.uri,
-                        title = item.name,
-                        thumbnail = item.imageUrl,
-                    )
-                }
-            }
-
-            if (resolvedItems.isNotEmpty()) {
-                HomeShelf(
-                    key = "spotify_${section.sectionUri}",
-                    title = section.title ?: "",
-                    items = resolvedItems,
-                    style = HomeShelfStyle.CAROUSEL,
-                    headerAction = HomeShelfHeaderAction.BROWSE,
-                    browseId = section.sectionUri,
-                    params = null,
-                )
-            } else null
+        if (resolvedItems.isEmpty()) {
+            null
+        } else {
+            HomeShelf(
+                key = "spotify_${index}_${section.sectionUri}",
+                title = section.title ?: "",
+                items = resolvedItems,
+                style = HomeShelfStyle.CAROUSEL,
+                headerAction = HomeShelfHeaderAction.NONE,
+                params = null,
+            )
         }
     }
 
-    return shelves
+/** Spotify items keep their Spotify URI as the item id. */
+fun YTItem.spotifyWebUrl(): String? {
+    if (!id.startsWith("spotify:")) return null
+    val parts = id.split(":")
+    if (parts.size != 3) return null
+    return "https://open.spotify.com/${parts[1]}/${parts[2]}"
 }

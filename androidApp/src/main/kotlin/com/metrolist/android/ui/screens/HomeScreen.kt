@@ -70,6 +70,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.metrolist.android.LocalMiniPlayerBottomInset
 import com.metrolist.android.LocalStartupPresentation
 import com.metrolist.android.playback.LocalPlayerConnection
+import com.metrolist.android.spotifyimport.androidSpotifyImportManager
 import com.metrolist.android.ui.component.AdaptiveModalBottomSheet
 import com.metrolist.android.ui.component.tabContentTopPadding
 import com.metrolist.android.ui.components.ErrorBox
@@ -96,6 +97,7 @@ import com.metrolist.shared.model.SongItem
 import com.metrolist.shared.model.YTItem
 import com.metrolist.shared.model.isAvailableOffline
 import com.metrolist.shared.settings.LibraryFilterType
+import com.metrolist.shared.settings.Settings
 import com.metrolist.shared.ui.LocalIsTv
 import com.metrolist.shared.ui.components.ChipShelf
 import com.metrolist.shared.ui.components.HomeLoadingPlaceholder
@@ -105,14 +107,20 @@ import com.metrolist.shared.ui.icons.MetrolistIcons
 import com.metrolist.shared.ui.navigation.LocalRootContentActive
 import com.metrolist.shared.ui.screens.HomeContent
 import com.metrolist.shared.ui.screens.HomeShelf
+import com.metrolist.shared.ui.screens.buildSpotifyHomeShelves
 import com.metrolist.shared.ui.screens.homeContentText
+import com.metrolist.shared.ui.screens.spotifyWebUrl
 import com.metrolist.shared.ui.tv.RequestTvFocus
 import com.metrolist.shared.ui.tv.tvFocusHighlight
+import com.metrolist.shared.utils.openUrl
 import com.metrolist.shared.youtube.playback.PlaybackNetworkStateStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import meow.nyx.spotlib.SpotifyHomeFeed
 import org.jetbrains.compose.resources.stringResource
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -180,6 +188,30 @@ fun HomeScreen(
     var showSpeedDialSurpriseMenu by remember { mutableStateOf(false) }
     val authManager = remember { AuthManager() }
     var isRefreshing by remember { mutableStateOf(false) }
+    val spotifyImportManager = androidSpotifyImportManager
+    var spotifyHomeFeed by remember { mutableStateOf<SpotifyHomeFeed?>(null) }
+    suspend fun loadSpotifyHomeFeed(): SpotifyHomeFeed? =
+        if (Settings.shared.spotifySession.isBlank()) {
+            null
+        } else {
+            try {
+                spotifyImportManager.loadHome()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                null
+            }
+        }
+    LaunchedEffect(Unit) {
+        spotifyHomeFeed = loadSpotifyHomeFeed()
+    }
+    val spotifyShelves = remember(spotifyHomeFeed) { buildSpotifyHomeShelves(spotifyHomeFeed) }
+
+    fun refreshSpotifyHome() {
+        scope.launch {
+            loadSpotifyHomeFeed()?.let { spotifyHomeFeed = it }
+        }
+    }
     val showTopRefreshIndicator = isRefreshing || uiState.isRefreshing
     val isTv = LocalIsTv.current
     var showFloatingActions by remember { mutableStateOf(true) }
@@ -232,6 +264,7 @@ fun HomeScreen(
         HomeContent(
             uiState = uiState,
             shelfCache = viewModel.shared.shelfCache,
+            spotifyShelves = spotifyShelves,
             onLoadMore = viewModel.shared::loadMoreSections,
             text = sharedText,
             onVideoItemClick = { item ->
@@ -242,26 +275,42 @@ fun HomeScreen(
                 }
             },
             onItemClick = { item ->
-                handleItemClick(
-                    item,
-                    onNavigateToAlbum,
-                    onNavigateToArtist,
-                    onNavigateToPlaylist,
-                    onNavigateToPodcast,
-                    playerConnection,
-                    scope,
-                    onNavigateToBrowse,
-                    startVideo = false,
-                )
+                val spotifyUrl = item.spotifyWebUrl()
+                if (spotifyUrl != null) {
+                    openUrl(spotifyUrl)
+                } else {
+                    handleItemClick(
+                        item,
+                        onNavigateToAlbum,
+                        onNavigateToArtist,
+                        onNavigateToPlaylist,
+                        onNavigateToPodcast,
+                        playerConnection,
+                        scope,
+                        onNavigateToBrowse,
+                        startVideo = false,
+                    )
+                }
             },
             onItemLongClick = { selectedMenuItem = it },
             onShuffleSongs = { songs -> playerConnection?.shuffleQueue(songs, queueTitle = sharedText.shuffle) },
             onPlaySongs = { songs -> playerConnection?.playQueue(songs, queueTitle = sharedText.quickPicks) },
             onLibraryClick = onNavigateToLibrary,
             onLocalShelfClick = onNavigateToHomeSection,
-            onArtistClick = { artistId -> onNavigateToArtist(artistId) },
+            onArtistClick = { artistId ->
+                if (artistId.startsWith("spotify:")) {
+                    openUrl("https://open.spotify.com/artist/${artistId.substringAfterLast(":")}")
+                } else {
+                    onNavigateToArtist(artistId)
+                }
+            },
             onPlayAlbum = { album ->
-                playerConnection?.playAlbum(album.id, album.title)
+                val spotifyUrl = album.spotifyWebUrl()
+                if (spotifyUrl != null) {
+                    openUrl(spotifyUrl)
+                } else {
+                    playerConnection?.playAlbum(album.id, album.title)
+                }
             },
             isItemEnabled = isHomeItemEnabled,
             onShowSurpriseMenu = { showSpeedDialSurpriseMenu = true },
@@ -288,6 +337,7 @@ fun HomeScreen(
                         Button(
                             onClick = {
                                 isRefreshing = true
+                                refreshSpotifyHome()
                                 viewModel.shared.refresh { isRefreshing = false }
                             },
                             enabled = rootActive && !showTopRefreshIndicator,
@@ -354,6 +404,7 @@ fun HomeScreen(
                 isRefreshing = isRefreshing,
                 onRefresh = {
                     isRefreshing = true
+                    refreshSpotifyHome()
                     viewModel.shared.refresh { isRefreshing = false }
                 },
                 state = pullToRefreshState,
