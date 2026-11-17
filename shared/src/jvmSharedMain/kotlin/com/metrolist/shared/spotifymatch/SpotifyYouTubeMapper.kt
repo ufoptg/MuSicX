@@ -1,8 +1,14 @@
 package com.metrolist.shared.spotifymatch
 
+import com.metrolist.shared.model.AlbumItem
+import com.metrolist.shared.model.ArtistItem
+import com.metrolist.shared.model.ArtistTiny
+import com.metrolist.shared.model.PlaylistItem
 import com.metrolist.shared.model.SearchSummaryPage
 import com.metrolist.shared.model.SongItem
+import com.metrolist.shared.model.YTItem
 import com.metrolist.shared.state.GlobalYouTubeRepository
+import meow.nyx.spotlib.SpotifyHomeFeedItem
 import meow.nyx.spotlib.SpotifyPriorityGate
 import meow.nyx.spotlib.TrackItem
 import kotlin.math.abs
@@ -80,6 +86,43 @@ object SpotifyYouTubeMapper {
     )
 
     // ---- Public API ----
+
+    /**
+     * Map a Spotify [SpotifyHomeFeedItem] to a YouTube Music [YTItem].
+     *
+     * Playlists, albums and artists are mapped directly to their v14 equivalents
+     * (no fuzzy matching — the Spotify browse ID/URI is preserved as the item ID).
+     * Returns null if the item type is unrecognized.
+     */
+    fun mapToYouTube(item: SpotifyHomeFeedItem): YTItem? =
+        when (item) {
+            is SpotifyHomeFeedItem.Playlist ->
+                PlaylistItem(
+                    id = item.uri,
+                    title = item.name,
+                    thumbnail = item.imageUrl,
+                    author = item.ownerName,
+                    songCount = item.totalCount.takeIf { it > 0 }?.toString(),
+                    description = item.description,
+                    isEditable = false,
+                )
+
+            is SpotifyHomeFeedItem.Album ->
+                AlbumItem(
+                    id = item.uri,
+                    title = item.name,
+                    thumbnail = item.imageUrl,
+                    artists = item.artists.map { ArtistTiny(id = null, name = it) },
+                    type = item.albumType,
+                )
+
+            is SpotifyHomeFeedItem.Artist ->
+                ArtistItem(
+                    id = item.uri,
+                    title = item.name,
+                    thumbnail = item.imageUrl,
+                )
+        }
 
     /**
      * Map a Spotify [TrackItem] to a YouTube Music [SongItem] via fuzzy search.
