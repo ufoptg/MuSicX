@@ -74,6 +74,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.metrolist.android.LocalMiniPlayerBottomInset
 import com.metrolist.android.extensions.isInternetConnected
 import com.metrolist.android.playback.LocalPlayerConnection
+import com.metrolist.android.spotifyimport.androidSpotifyImportManager
 import com.metrolist.android.ui.component.AdaptiveModalBottomSheet
 import com.metrolist.android.ui.component.SwipeGestureHandler
 import com.metrolist.android.ui.component.tabContentTopPadding
@@ -103,6 +104,7 @@ import com.metrolist.shared.generated.resources.hide_from_library
 import com.metrolist.shared.generated.resources.import_playlist
 import com.metrolist.shared.generated.resources.more_options
 import com.metrolist.shared.generated.resources.new_playlist
+import com.metrolist.shared.generated.resources.open_in_spotify
 import com.metrolist.shared.generated.resources.playlist_name
 import com.metrolist.shared.generated.resources.remove_from_library
 import com.metrolist.shared.generated.resources.rename
@@ -148,8 +150,12 @@ import com.metrolist.shared.ui.screens.LibraryFilter
 import com.metrolist.shared.ui.screens.libraryAutoPlaylists
 import com.metrolist.shared.ui.screens.libraryContentText
 import com.metrolist.shared.ui.screens.rememberLibrarySearchScrollState
+import com.metrolist.shared.ui.screens.spotifyWebUrl
+import com.metrolist.shared.ui.screens.toPlaylistItem
 import com.metrolist.shared.ui.tv.tvFocusHighlight
 import com.metrolist.shared.utils.ShareUrls
+import com.metrolist.shared.utils.openUrl
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
@@ -199,6 +205,24 @@ fun LibraryScreen(
     val contentMatchedSongs by viewModel.contentMatchedSongs.collectAsStateWithLifecycle()
     val contentSearchHasMore by viewModel.contentSearchHasMore.collectAsStateWithLifecycle()
     val contentFilterVersion by BlockedContent.version.collectAsStateWithLifecycle()
+    val spotifySession = Settings.shared.spotifySession
+    var spotifyLibraryItems by remember { mutableStateOf<List<PlaylistItem>>(emptyList()) }
+
+    suspend fun loadSpotifyLibraryItems(): List<PlaylistItem>? =
+        if (Settings.shared.spotifySession.isBlank()) {
+            emptyList()
+        } else {
+            try {
+                androidSpotifyImportManager.loadPlaylists().map { it.toPlaylistItem() }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                null
+            }
+        }
+    LaunchedEffect(spotifySession.isNotBlank()) {
+        loadSpotifyLibraryItems()?.let { spotifyLibraryItems = it }
+    }
 
     var lastScrollToTopEvent by rememberSaveable { mutableLongStateOf(-1L) }
     LaunchedEffect(scrollToTopEvents) {
@@ -444,6 +468,8 @@ fun LibraryScreen(
             }
     }
 
+    val libraryItems = remember(uiState.items, spotifyLibraryItems) { spotifyLibraryItems + uiState.items }
+
     val content: @Composable () -> Unit = {
         if (selectedFilter == LibraryFilter.PODCASTS && !Settings.shared.hidePodcasts) {
             Column(
@@ -470,7 +496,7 @@ fun LibraryScreen(
             LibraryContent(
                 presentation = viewModel.presentation,
                 text = libraryContentText(),
-                items = uiState.items,
+                items = libraryItems,
                 autoPlaylists = autoPlaylists,
                 hiddenItemKeys = hiddenItemKeys,
                 isLoading = uiState.isLoading,
@@ -491,15 +517,20 @@ fun LibraryScreen(
                     Settings.shared.libraryManualOrder = it
                 },
                 onItemClick = { item ->
-                    handleItemClick(
-                        item,
-                        onNavigateToAlbum,
-                        onNavigateToArtist,
-                        onNavigateToPlaylist,
-                        onNavigateToPodcast,
-                        playerConnection,
-                        scope,
-                    )
+                    val spotifyUrl = item.spotifyWebUrl()
+                    if (spotifyUrl != null) {
+                        openUrl(spotifyUrl)
+                    } else {
+                        handleItemClick(
+                            item,
+                            onNavigateToAlbum,
+                            onNavigateToArtist,
+                            onNavigateToPlaylist,
+                            onNavigateToPodcast,
+                            playerConnection,
+                            scope,
+                        )
+                    }
                 },
                 onPlaySongs = { songs, index -> playerConnection?.playQueue(songs, index) },
                 currentSongId = currentSong?.id,
@@ -538,7 +569,7 @@ fun LibraryScreen(
                             content = itemContent,
                         )
                     }
-                    if (item is SongItem || item is AlbumItem || item is ArtistItem || item is PlaylistItem) {
+                    if (item.isSwipeableLibraryItem()) {
                         SwipeGestureHandler(
                             onSwipeLeft = { queue(item, playNext = false) },
                             onSwipeRight = { queue(item, playNext = true) },
@@ -562,7 +593,39 @@ fun LibraryScreen(
             Unit
         }
         val autoPlaylist = autoPlaylists.firstOrNull { item == null && it.type == hiddenItem.id }
+        val spotifyUrl = item?.spotifyWebUrl()
         when {
+            spotifyUrl != null -> {
+                AdaptiveModalBottomSheet(onDismissRequest = { menuItem = null }) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 24.dp)) {
+                        ListItem(
+                            leadingContent = {
+                                Icon(MetrolistIcons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
+                            },
+                            modifier =
+                                Modifier
+                                    .tvFocusHighlight(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        openUrl(spotifyUrl)
+                                        menuItem = null
+                                    }.padding(horizontal = 4.dp),
+                            elevation = ListItemDefaults.elevation(elevation = 0.dp),
+                        ) { Text(stringResource(Res.string.open_in_spotify)) }
+                        ListItem(
+                            leadingContent = { Icon(MetrolistIcons.Filled.VisibilityOff, contentDescription = null) },
+                            modifier =
+                                Modifier
+                                    .tvFocusHighlight(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        hideFromLibrary()
+                                        menuItem = null
+                                    }.padding(horizontal = 4.dp),
+                            elevation = ListItemDefaults.elevation(elevation = 0.dp),
+                        ) { Text(stringResource(Res.string.hide_from_library)) }
+                    }
+                }
+            }
+
             autoPlaylist != null -> {
                 val playlistItem =
                     PlaylistItem(
@@ -757,6 +820,9 @@ fun LibraryScreen(
                 isRefreshing = userRefreshing,
                 onRefresh = {
                     userRefreshing = true
+                    scope.launch {
+                        loadSpotifyLibraryItems()?.let { spotifyLibraryItems = it }
+                    }
                     if (networkAvailable && !isLoadingNow) viewModel.refresh()
                 },
                 state = refreshState,
@@ -950,3 +1016,8 @@ private fun PlaylistNameDialog(
         },
     )
 }
+
+private fun YTItem?.isSwipeableLibraryItem(): Boolean =
+    this != null &&
+        spotifyWebUrl() == null &&
+        (this is SongItem || this is AlbumItem || this is ArtistItem || this is PlaylistItem)

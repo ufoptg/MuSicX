@@ -1342,6 +1342,8 @@
     <string name="spotify_sign_in">Sign in to Spotify</string>
     <!-- Translators: Imperative action label for sign in again in the Spotify playlist import. -->
     <string name="spotify_sign_in_again">Sign in again</string>
+    <!-- Translators: Action that opens the selected Spotify item in the Spotify app or website. -->
+    <string name="open_in_spotify">Open in Spotify</string>
     <!-- Translators: Imperative action label for choose playlists supporting in the Spotify playlist import. -->
     <string name="spotify_choose_playlists_supporting">Select the playlists you want to import into Metrolist.</string>
     <!-- Translators: Pluralized count or status for selected playlist count in the Spotify playlist import. %1$d is the playlist count. -->
