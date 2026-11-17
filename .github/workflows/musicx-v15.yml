@@ -17,6 +17,3 @@ jobs:
       artifact-name: nightly-v15
     permissions:
       contents: read
-    secrets:
-      # Only include if needed for local debug builds
-      # GRADLE_ENCRYPTION_KEY: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
