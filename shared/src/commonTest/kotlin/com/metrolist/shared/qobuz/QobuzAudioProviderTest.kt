@@ -72,7 +72,7 @@ class QobuzAudioProviderTest {
                         val quality = request.url.parameters["quality"]?.toInt()
                         requestedQualities += quality ?: -1
                         if (quality == 5) {
-                            respond("""{"success":true,"data":{"url":"https://stream.example/file.flac","average_bitrate":987}}""")
+                            respond("""{"success":true,"data":{"url":"https://stream.example/file.flac","bitrate":320}}""")
                         } else {
                             respond("""{"success":false,"error":"rejected"}""")
                         }
@@ -85,8 +85,9 @@ class QobuzAudioProviderTest {
             // Ladder is exactly 27 -> 7 -> 6 -> 5 on the preferred backend.
             assertEquals(listOf(27, 7, 6, 5), requestedQualities)
             assertEquals("https://stream.example/file.flac", resolved.mediaUri)
-            assertEquals("audio/flac", resolved.mimeType)
-            assertEquals(987_000, resolved.bitrate)
+            // Quality 5 maps to the MP3 branch of the format resolver.
+            assertEquals("audio/mpeg", resolved.mimeType)
+            assertEquals(320_000, resolved.bitrate)
             assertEquals("12345678", resolved.trackId)
 
             // Second resolve hits the 5-minute stream cache: no new requests.

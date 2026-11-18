@@ -38,7 +38,7 @@ class QobuzMatchOverrideTest {
             )
         assertEquals(setOf("a", "c"), decoded.keys)
         assertEquals("L", decoded["a"]?.label)
-        assertFalse(decoded["a"]?.hires)
+        assertFalse(decoded["a"]?.hires == true)
         assertEquals("2", decoded["c"]?.qobuzTrackId)
         assertNull(decoded["c"]?.bitDepth)
     }
