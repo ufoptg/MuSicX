@@ -63,6 +63,7 @@ import com.metrolist.shared.model.playlistLazyItemKeys
 import com.metrolist.shared.model.playlistSearchIndices
 import com.metrolist.shared.model.playlistTotalDuration
 import com.metrolist.shared.model.withLocalArtwork
+import com.metrolist.shared.settings.Settings
 import com.metrolist.shared.ui.LocalIsTv
 import com.metrolist.shared.ui.components.CollectionHeaderHorizontalPadding
 import com.metrolist.shared.ui.components.CollectionHeaderNavigation
@@ -72,9 +73,11 @@ import com.metrolist.shared.ui.components.InlineSearchRow
 import com.metrolist.shared.ui.components.LazyListScrollbar
 import com.metrolist.shared.ui.components.PlaylistHeader
 import com.metrolist.shared.ui.components.PlaylistHeaderActions
+import com.metrolist.shared.ui.components.PlaylistRow
 import com.metrolist.shared.ui.components.ReorderMenu
 import com.metrolist.shared.ui.components.ScrollingAddButton
 import com.metrolist.shared.ui.components.SongListItem
+import com.metrolist.shared.ui.components.buildEnhancedPlaylistRows
 import com.metrolist.shared.ui.components.mediumCollectionArtworkSize
 import com.metrolist.shared.ui.components.rememberItemPlayback
 import com.metrolist.shared.ui.components.rememberScrollingFabState
@@ -132,6 +135,7 @@ fun PlaylistContent(
     currentSongId: String? = null,
     isPlaying: Boolean = false,
     suggestions: List<SongItem> = emptyList(),
+    enableEnhancement: Boolean = Settings.shared.enableEnhancements,
     downloadedSongIds: Set<String> = emptySet(),
     onArtistClick: ((String) -> Unit)? = null,
     header: @Composable (() -> Unit)? = null,
@@ -230,6 +234,15 @@ fun PlaylistContent(
     val displayedSongs = remember(songs, displayedIndices) { displayedIndices?.map(songs::get) ?: songs }
     val songKeys = preparedSongKeys ?: remember(displayedSongs) { displayedSongs.playlistLazyItemKeys() }
     val effectiveSuggestions = suggestions.takeIf { effectiveQuery.isBlank() }.orEmpty()
+    val enhancementActive = enableEnhancement && effectiveSuggestions.isNotEmpty()
+    val enhancedRows =
+        remember(displayedSongs, effectiveSuggestions, enhancementActive) {
+            if (enhancementActive) {
+                buildEnhancedPlaylistRows(displayedSongs, effectiveSuggestions, enableEnhancement = true)
+            } else {
+                emptyList()
+            }
+        }
 
     val isTv = LocalIsTv.current
     var tvScrollTarget by remember(playlist?.id) { mutableStateOf<TvReorderScrollTarget?>(null) }
@@ -341,7 +354,7 @@ fun PlaylistContent(
                     }
                 val haptics = rememberMetrolistHaptics()
                 val reorderableState =
-                    if (reorderMode) {
+                    if (reorderMode && !enhancementActive) {
                         rememberReorderableLazyListState(activeListState) { from, to ->
                             val fromIndex = songIndexByKey[from.key]
                             val toIndex = songIndexByKey[to.key]
@@ -469,64 +482,94 @@ fun PlaylistContent(
                                                         enabled = reorderableState?.isAnyItemDragging != true,
                                                     ),
                                         ) {
-                                            itemsIndexed(displayedSongs, key = {
-                                                index,
-                                                _,
-                                                ->
-                                                songKeys[index]
-                                            }, contentType = { _, _ -> "song" }) { index, song ->
-                                                PlaylistSongItemRow(
-                                                    song = song,
-                                                    index = index,
-                                                    count = displayedSongs.size,
-                                                    sourceIndex = displayedIndices?.get(index) ?: index,
-                                                    itemKey = songKeys[index],
-                                                    currentSongId = currentSongIdState,
-                                                    isPlaying = isPlayingState,
-                                                    isDownloaded = song.id in downloadedSongIds,
-                                                    onTrackClick = onTrackClick,
-                                                    onTrackMenuClick = onTrackMenuClick,
-                                                    onTrackLongClick = onTrackLongClick,
-                                                    onArtistClick = onArtistClick,
-                                                    trackContainer = trackContainer,
-                                                    trackTrailingContent = trackTrailingContent,
-                                                    reorderableState = reorderableState.takeIf { reorderMode },
-                                                    onReorderDragStarted = onReorderDragStarted,
-                                                    onMove = moveAndCommit,
-                                                    isSelected = isTrackSelected(song),
-                                                )
-                                            }
-
-                                            if (paginationContent != null) {
-                                                item(key = "pagination") { paginationContent() }
-                                            }
-                                            if (effectiveSuggestions.isNotEmpty()) {
-                                                item(key = "suggestions_title") {
-                                                    Text(
-                                                        text = text.suggestions,
-                                                        style = MaterialTheme.typography.titleLargeEmphasized,
-                                                        modifier = Modifier.padding(16.dp),
+                                            if (enhancementActive) {
+                                                itemsIndexed(
+                                                    enhancedRows,
+                                                    key = { _, row -> enhancedPlaylistRowKey(row, songKeys) },
+                                                    contentType = { _, row -> enhancedPlaylistRowContentType(row) },
+                                                ) { rowIndex, row ->
+                                                    PlaylistEnhancementRow(
+                                                        row = row,
+                                                        rowIndex = rowIndex,
+                                                        rowCount = enhancedRows.size,
+                                                        suggestionOffset = displayedSongs.size,
+                                                        displayedIndices = displayedIndices,
+                                                        songKeys = songKeys,
+                                                        currentSongId = currentSongIdState,
+                                                        isPlaying = isPlayingState,
+                                                        downloadedSongIds = downloadedSongIds,
+                                                        onTrackClick = onTrackClick,
+                                                        onTrackMenuClick = onTrackMenuClick,
+                                                        onTrackLongClick = onTrackLongClick,
+                                                        onArtistClick = onArtistClick,
+                                                        trackContainer = trackContainer,
+                                                        trackTrailingContent = trackTrailingContent,
+                                                        isTrackSelected = isTrackSelected,
                                                     )
                                                 }
-
-                                                itemsIndexed(
-                                                    effectiveSuggestions,
-                                                    key = { index, song -> "suggestion_${song.id}_$index" },
-                                                    contentType = { _, _ -> "suggestion" },
-                                                ) { index, song ->
-                                                    PlaylistSuggestionItemRow(
+                                                if (paginationContent != null) {
+                                                    item(key = "pagination") { paginationContent() }
+                                                }
+                                            } else {
+                                                itemsIndexed(displayedSongs, key = {
+                                                    index,
+                                                    _,
+                                                    ->
+                                                    songKeys[index]
+                                                }, contentType = { _, _ -> "song" }) { index, song ->
+                                                    PlaylistSongItemRow(
                                                         song = song,
                                                         index = index,
-                                                        count = effectiveSuggestions.size,
-                                                        offset = displayedSongs.size,
+                                                        count = displayedSongs.size,
+                                                        sourceIndex = displayedIndices?.get(index) ?: index,
+                                                        itemKey = songKeys[index],
                                                         currentSongId = currentSongIdState,
                                                         isPlaying = isPlayingState,
                                                         isDownloaded = song.id in downloadedSongIds,
                                                         onTrackClick = onTrackClick,
                                                         onTrackMenuClick = onTrackMenuClick,
+                                                        onTrackLongClick = onTrackLongClick,
                                                         onArtistClick = onArtistClick,
                                                         trackContainer = trackContainer,
+                                                        trackTrailingContent = trackTrailingContent,
+                                                        reorderableState = reorderableState.takeIf { reorderMode },
+                                                        onReorderDragStarted = onReorderDragStarted,
+                                                        onMove = moveAndCommit,
+                                                        isSelected = isTrackSelected(song),
                                                     )
+                                                }
+
+                                                if (paginationContent != null) {
+                                                    item(key = "pagination") { paginationContent() }
+                                                }
+                                                if (effectiveSuggestions.isNotEmpty()) {
+                                                    item(key = "suggestions_title") {
+                                                        Text(
+                                                            text = text.suggestions,
+                                                            style = MaterialTheme.typography.titleLargeEmphasized,
+                                                            modifier = Modifier.padding(16.dp),
+                                                        )
+                                                    }
+
+                                                    itemsIndexed(
+                                                        effectiveSuggestions,
+                                                        key = { index, song -> "suggestion_${song.id}_$index" },
+                                                        contentType = { _, _ -> "suggestion" },
+                                                    ) { index, song ->
+                                                        PlaylistSuggestionItemRow(
+                                                            song = song,
+                                                            index = index,
+                                                            count = effectiveSuggestions.size,
+                                                            offset = displayedSongs.size,
+                                                            currentSongId = currentSongIdState,
+                                                            isPlaying = isPlayingState,
+                                                            isDownloaded = song.id in downloadedSongIds,
+                                                            onTrackClick = onTrackClick,
+                                                            onTrackMenuClick = onTrackMenuClick,
+                                                            onArtistClick = onArtistClick,
+                                                            trackContainer = trackContainer,
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -654,70 +697,101 @@ fun PlaylistContent(
                                 }
                             }
 
-                            if (displayedSongs.isNotEmpty()) {
-                                itemsIndexed(displayedSongs, key = {
-                                    index,
-                                    _,
-                                    ->
-                                    songKeys[index]
-                                }, contentType = { _, _ -> "song" }) { index, song ->
-                                    PlaylistSongItemRow(
-                                        song = song,
-                                        index = index,
-                                        count = displayedSongs.size,
-                                        sourceIndex = displayedIndices?.get(index) ?: index,
-                                        itemKey = songKeys[index],
+                            if (enhancementActive) {
+                                itemsIndexed(
+                                    enhancedRows,
+                                    key = { _, row -> enhancedPlaylistRowKey(row, songKeys) },
+                                    contentType = { _, row -> enhancedPlaylistRowContentType(row) },
+                                ) { rowIndex, row ->
+                                    PlaylistEnhancementRow(
+                                        row = row,
+                                        rowIndex = rowIndex,
+                                        rowCount = enhancedRows.size,
+                                        suggestionOffset = displayedSongs.size,
                                         modifier = itemModifier.padding(horizontal = CollectionHeaderHorizontalPadding),
+                                        displayedIndices = displayedIndices,
+                                        songKeys = songKeys,
                                         currentSongId = currentSongIdState,
                                         isPlaying = isPlayingState,
-                                        isDownloaded = song.id in downloadedSongIds,
+                                        downloadedSongIds = downloadedSongIds,
                                         onTrackClick = onTrackClick,
                                         onTrackMenuClick = onTrackMenuClick,
                                         onTrackLongClick = onTrackLongClick,
                                         onArtistClick = onArtistClick,
                                         trackContainer = trackContainer,
                                         trackTrailingContent = trackTrailingContent,
-                                        reorderableState = reorderableState.takeIf { reorderMode },
-                                        onReorderDragStarted = onReorderDragStarted,
-                                        onMove = moveAndCommit,
-                                        isSelected = isTrackSelected(song),
+                                        isTrackSelected = isTrackSelected,
                                     )
                                 }
-                            }
-
-                            if (paginationContent != null) {
-                                item(key = "pagination") { paginationContent() }
-                            }
-                            if (effectiveSuggestions.isNotEmpty()) {
-                                item(key = "suggestions_title") {
-                                    Box(itemModifier) {
-                                        Text(
-                                            text = text.suggestions,
-                                            style = MaterialTheme.typography.titleLargeEmphasized,
-                                            modifier = Modifier.padding(16.dp),
+                                if (paginationContent != null) {
+                                    item(key = "pagination") { paginationContent() }
+                                }
+                            } else {
+                                if (displayedSongs.isNotEmpty()) {
+                                    itemsIndexed(displayedSongs, key = {
+                                        index,
+                                        _,
+                                        ->
+                                        songKeys[index]
+                                    }, contentType = { _, _ -> "song" }) { index, song ->
+                                        PlaylistSongItemRow(
+                                            song = song,
+                                            index = index,
+                                            count = displayedSongs.size,
+                                            sourceIndex = displayedIndices?.get(index) ?: index,
+                                            itemKey = songKeys[index],
+                                            modifier = itemModifier.padding(horizontal = CollectionHeaderHorizontalPadding),
+                                            currentSongId = currentSongIdState,
+                                            isPlaying = isPlayingState,
+                                            isDownloaded = song.id in downloadedSongIds,
+                                            onTrackClick = onTrackClick,
+                                            onTrackMenuClick = onTrackMenuClick,
+                                            onTrackLongClick = onTrackLongClick,
+                                            onArtistClick = onArtistClick,
+                                            trackContainer = trackContainer,
+                                            trackTrailingContent = trackTrailingContent,
+                                            reorderableState = reorderableState.takeIf { reorderMode },
+                                            onReorderDragStarted = onReorderDragStarted,
+                                            onMove = moveAndCommit,
+                                            isSelected = isTrackSelected(song),
                                         )
                                     }
                                 }
 
-                                itemsIndexed(
-                                    effectiveSuggestions,
-                                    key = { index, song -> "suggestion_${song.id}_$index" },
-                                    contentType = { _, _ -> "suggestion" },
-                                ) { index, song ->
-                                    PlaylistSuggestionItemRow(
-                                        song = song,
-                                        index = index,
-                                        count = effectiveSuggestions.size,
-                                        offset = displayedSongs.size,
-                                        modifier = itemModifier.padding(horizontal = CollectionHeaderHorizontalPadding),
-                                        currentSongId = currentSongIdState,
-                                        isPlaying = isPlayingState,
-                                        isDownloaded = song.id in downloadedSongIds,
-                                        onTrackClick = onTrackClick,
-                                        onTrackMenuClick = onTrackMenuClick,
-                                        onArtistClick = onArtistClick,
-                                        trackContainer = trackContainer,
-                                    )
+                                if (paginationContent != null) {
+                                    item(key = "pagination") { paginationContent() }
+                                }
+                                if (effectiveSuggestions.isNotEmpty()) {
+                                    item(key = "suggestions_title") {
+                                        Box(itemModifier) {
+                                            Text(
+                                                text = text.suggestions,
+                                                style = MaterialTheme.typography.titleLargeEmphasized,
+                                                modifier = Modifier.padding(16.dp),
+                                            )
+                                        }
+                                    }
+
+                                    itemsIndexed(
+                                        effectiveSuggestions,
+                                        key = { index, song -> "suggestion_${song.id}_$index" },
+                                        contentType = { _, _ -> "suggestion" },
+                                    ) { index, song ->
+                                        PlaylistSuggestionItemRow(
+                                            song = song,
+                                            index = index,
+                                            count = effectiveSuggestions.size,
+                                            offset = displayedSongs.size,
+                                            modifier = itemModifier.padding(horizontal = CollectionHeaderHorizontalPadding),
+                                            currentSongId = currentSongIdState,
+                                            isPlaying = isPlayingState,
+                                            isDownloaded = song.id in downloadedSongIds,
+                                            onTrackClick = onTrackClick,
+                                            onTrackMenuClick = onTrackMenuClick,
+                                            onArtistClick = onArtistClick,
+                                            trackContainer = trackContainer,
+                                        )
+                                    }
                                 }
                             }
 
@@ -853,6 +927,73 @@ private fun LazyItemScope.PlaylistSongItem(
 }
 
 @Composable
+private fun LazyItemScope.PlaylistEnhancementRow(
+    row: PlaylistRow,
+    rowIndex: Int,
+    rowCount: Int,
+    suggestionOffset: Int,
+    modifier: Modifier = Modifier,
+    displayedIndices: List<Int>?,
+    songKeys: List<String>,
+    currentSongId: State<String?>,
+    isPlaying: State<Boolean>,
+    downloadedSongIds: Set<String>,
+    onTrackClick: (SongItem, Int) -> Unit,
+    onTrackMenuClick: (SongItem, Int) -> Unit,
+    onTrackLongClick: ((SongItem) -> Unit)?,
+    onArtistClick: ((String) -> Unit)?,
+    trackContainer: @Composable (SongItem, Boolean, @Composable () -> Unit) -> Unit,
+    trackTrailingContent: (@Composable (SongItem, Int) -> Unit)?,
+    isTrackSelected: (SongItem) -> Boolean,
+) {
+    when (row) {
+        is PlaylistRow.SongEntry -> {
+            val sourceIndex = displayedIndices?.get(row.queueIndex) ?: row.queueIndex
+            PlaylistSongItemRow(
+                song = row.song,
+                index = rowIndex,
+                count = rowCount,
+                sourceIndex = sourceIndex,
+                itemKey = songKeys[row.queueIndex],
+                modifier = modifier,
+                currentSongId = currentSongId,
+                isPlaying = isPlaying,
+                isDownloaded = row.song.id in downloadedSongIds,
+                onTrackClick = onTrackClick,
+                onTrackMenuClick = onTrackMenuClick,
+                onTrackLongClick = onTrackLongClick,
+                onArtistClick = onArtistClick,
+                trackContainer = trackContainer,
+                trackTrailingContent = trackTrailingContent,
+                reorderableState = null,
+                onReorderDragStarted = {},
+                onMove = { _, _ -> },
+                isSelected = isTrackSelected(row.song),
+            )
+        }
+
+        is PlaylistRow.Recommendation -> {
+            PlaylistSuggestionItemRow(
+                song = row.song,
+                index = row.index,
+                count = rowCount,
+                offset = suggestionOffset,
+                groupIndex = rowIndex,
+                groupCount = rowCount,
+                modifier = modifier,
+                currentSongId = currentSongId,
+                isPlaying = isPlaying,
+                isDownloaded = row.song.id in downloadedSongIds,
+                onTrackClick = onTrackClick,
+                onTrackMenuClick = onTrackMenuClick,
+                onArtistClick = onArtistClick,
+                trackContainer = trackContainer,
+            )
+        }
+    }
+}
+
+@Composable
 private fun LazyItemScope.PlaylistSongItemRow(
     song: SongItem,
     index: Int,
@@ -915,6 +1056,8 @@ private fun PlaylistSuggestionItemRow(
     count: Int,
     offset: Int,
     modifier: Modifier = Modifier,
+    groupIndex: Int = index,
+    groupCount: Int = count,
     currentSongId: State<String?>,
     isPlaying: State<Boolean>,
     isDownloaded: Boolean,
@@ -925,7 +1068,7 @@ private fun PlaylistSuggestionItemRow(
 ) {
     val playback by rememberItemPlayback(song.id, currentSongId, isPlaying)
     trackContainer(song, true) {
-        GroupedListItem(index = index, count = count, modifier = modifier, isCurrent = playback.isCurrent) {
+        GroupedListItem(index = groupIndex, count = groupCount, modifier = modifier, isCurrent = playback.isCurrent) {
             SongListItem(
                 song = song,
                 index = null,
@@ -941,3 +1084,18 @@ private fun PlaylistSuggestionItemRow(
         }
     }
 }
+
+private fun enhancedPlaylistRowKey(
+    row: PlaylistRow,
+    songKeys: List<String>,
+): String =
+    when (row) {
+        is PlaylistRow.SongEntry -> songKeys[row.queueIndex]
+        is PlaylistRow.Recommendation -> "suggestion_${row.song.id}_${row.index}"
+    }
+
+private fun enhancedPlaylistRowContentType(row: PlaylistRow): String =
+    when (row) {
+        is PlaylistRow.SongEntry -> "song"
+        is PlaylistRow.Recommendation -> "suggestion"
+    }
