@@ -1077,6 +1077,9 @@ private fun PlaylistSuggestionItemRow(
                 isDownloaded = isDownloaded,
                 onClick = { onTrackClick(song, offset + index) },
                 onShowMenu = { onTrackMenuClick(song, offset + index) },
+                // Recommendations are not in the playlist, so long-press opens the song menu
+                // (add to playlist, etc.) instead of the selection flow used by playlist rows.
+                onLongClick = { onTrackMenuClick(song, offset + index) },
                 onArtistClick = onArtistClick,
                 showThumbnail = true,
                 clickableMetadata = isDesktop,
