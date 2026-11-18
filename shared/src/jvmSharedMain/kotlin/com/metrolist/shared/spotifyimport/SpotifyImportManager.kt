@@ -16,6 +16,7 @@ import meow.nyx.spotlib.SpotifyAuthException
 import meow.nyx.spotlib.SpotifyClient
 import meow.nyx.spotlib.SpotifyException
 import meow.nyx.spotlib.SpotifyHomeFeed
+import meow.nyx.spotlib.SpotifyPriorityGate
 import meow.nyx.spotlib.SpotifySession
 import meow.nyx.spotlib.SpotifySessionExpiredException
 import meow.nyx.spotlib.TrackItem
@@ -60,7 +61,10 @@ class SpotifyImportManager(
     suspend fun loadPlaylists(): List<PlaylistMeta> =
         try {
             val active = authenticatedClient()
-            playlistsForImport(active.listPlaylists()).also { persistSession(active.session) }
+            val result = SpotifyPriorityGate.withPlaybackPriority {
+                playlistsForImport(active.listPlaylists())
+            }
+            result.also { persistSession(active.session) }
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
@@ -72,7 +76,9 @@ class SpotifyImportManager(
     suspend fun loadHome(): SpotifyHomeFeed =
         try {
             val active = authenticatedClient()
-            active.home().also { persistSession(active.session) }
+            SpotifyPriorityGate.withPlaybackPriority {
+                active.home().also { persistSession(active.session) }
+            }
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
@@ -88,17 +94,19 @@ class SpotifyImportManager(
         try {
             val active = authenticatedClient()
             val tracks =
-                when (playlist.source) {
-                    PlaylistSource.LIKED_SONGS -> {
-                        active.likedSongs(MAX_IMPORT_TRACKS + 1, onProgress = onTrackProgress)
-                    }
+                SpotifyPriorityGate.withPlaybackPriority {
+                    when (playlist.source) {
+                        PlaylistSource.LIKED_SONGS -> {
+                            active.likedSongs(MAX_IMPORT_TRACKS + 1, onProgress = onTrackProgress)
+                        }
 
-                    PlaylistSource.PLAYLIST -> {
-                        active.playlistTracks(
-                            playlist.uri,
-                            MAX_IMPORT_TRACKS + 1,
-                            onProgress = onTrackProgress,
-                        )
+                        PlaylistSource.PLAYLIST -> {
+                            active.playlistTracks(
+                                playlist.uri,
+                                MAX_IMPORT_TRACKS + 1,
+                                onProgress = onTrackProgress,
+                            )
+                        }
                     }
                 }
             persistSession(active.session)
