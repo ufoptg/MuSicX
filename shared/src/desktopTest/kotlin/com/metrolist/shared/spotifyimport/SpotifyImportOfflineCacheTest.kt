@@ -1,6 +1,6 @@
 package com.metrolist.shared.spotifyimport
 
-import com.metrolist.shared.playlistimport.PlaylistSource
+import meow.nyx.spotlib.PlaylistSource
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
@@ -59,7 +59,7 @@ class SpotifyImportOfflineCacheTest {
     }
 
     @Test
-    fun `loadHome returns cached feed when api fails`() = runBlocking {
+    fun `loadHome returns cached feed when api fails`(): Unit = runBlocking {
         val cachedHomeFeed = SpotifyHomeFeed(greeting = "Hello", sections = emptyList())
         SpotifyOfflineCache.cacheHomeFeed(cachedHomeFeed)
 
@@ -72,7 +72,7 @@ class SpotifyImportOfflineCacheTest {
     }
 
     @Test
-    fun `loadHome fails when no cache exists`() = runBlocking {
+    fun `loadHome fails when no cache exists`(): Unit = runBlocking {
         val manager = newManager()
         manager.authenticate("cookie")
 
@@ -80,7 +80,7 @@ class SpotifyImportOfflineCacheTest {
     }
 
     @Test
-    fun `loadPlaylists returns cached playlists when api fails`() = runBlocking {
+    fun `loadPlaylists returns cached playlists when api fails`(): Unit = runBlocking {
         val cachedPlaylists =
             listOf(
                 PlaylistMeta(uri = "uri-1", name = "Playlist 1", source = PlaylistSource.PLAYLIST, trackCount = 10),
@@ -97,7 +97,7 @@ class SpotifyImportOfflineCacheTest {
     }
 
     @Test
-    fun `loadPlaylist returns cached tracks when api fails`() = runBlocking {
+    fun `loadPlaylist returns cached tracks when api fails`(): Unit = runBlocking {
         val cachedTracks =
             listOf(
                 TrackItem(uri = "spotify:track:one", name = "Track One", artists = listOf("Artist One")),
@@ -116,7 +116,7 @@ class SpotifyImportOfflineCacheTest {
     }
 
     @Test
-    fun `offline cache stores and retrieves home feed`() = runBlocking {
+    fun `offline cache stores and retrieves home feed`(): Unit = runBlocking {
         val feed = SpotifyHomeFeed(greeting = "Hi", sections = emptyList())
         SpotifyOfflineCache.cacheHomeFeed(feed)
 
@@ -125,7 +125,7 @@ class SpotifyImportOfflineCacheTest {
     }
 
     @Test
-    fun `offline cache stores and retrieves playlists`() = runBlocking {
+    fun `offline cache stores and retrieves playlists`(): Unit = runBlocking {
         val playlists =
             listOf(
                 PlaylistMeta(uri = "uri-1", name = "Playlist 1", source = PlaylistSource.PLAYLIST),
@@ -143,7 +143,7 @@ class SpotifyImportOfflineCacheTest {
     }
 
     @Test
-    fun `offline cache stores and retrieves playlist tracks`() = runBlocking {
+    fun `offline cache stores and retrieves playlist tracks`(): Unit = runBlocking {
         val uri = "spotify:playlist:cache-test"
         val tracks =
             listOf(
@@ -156,7 +156,7 @@ class SpotifyImportOfflineCacheTest {
     }
 
     @Test
-    fun `offline cache clears all entries`() = runBlocking {
+    fun `offline cache clears all entries`(): Unit = runBlocking {
         SpotifyOfflineCache.cacheHomeFeed(SpotifyHomeFeed(greeting = "Hello", sections = emptyList()))
         SpotifyOfflineCache.cachePlaylists(
             listOf(
@@ -171,7 +171,7 @@ class SpotifyImportOfflineCacheTest {
     }
 
     @Test
-    fun `offline cache persists home feed between instances`() = runBlocking {
+    fun `offline cache persists home feed between instances`(): Unit = runBlocking {
         SpotifyOfflineCache.cacheHomeFeed(SpotifyHomeFeed(greeting = "Hello", sections = emptyList()))
 
         val manager = newManager()
