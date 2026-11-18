@@ -4,7 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -36,7 +36,7 @@ class QobuzAudioProviderTest {
 
     @Test
     fun resolveReturnsNullInsteadOfThrowingWhenEveryBackendFails() =
-        runTest {
+        runBlocking {
             var calls = 0
             val client =
                 HttpClient(
@@ -62,7 +62,7 @@ class QobuzAudioProviderTest {
 
     @Test
     fun resolveWalksTheQualityLadderDownAndCachesTheStreamForFiveMinutes() =
-        runTest {
+        runBlocking {
             val requestedQualities = mutableListOf<Int>()
             var calls = 0
             val client =
@@ -101,7 +101,7 @@ class QobuzAudioProviderTest {
 
     @Test
     fun captchaResponseCoolsTheBackendDownUntilExpiry() =
-        runTest {
+        runBlocking {
             var fakeNow = 0L
             var captcha = true
             var calls = 0
@@ -140,7 +140,7 @@ class QobuzAudioProviderTest {
 
     @Test
     fun refreshBypassesTheStreamCache() =
-        runTest {
+        runBlocking {
             var calls = 0
             val client =
                 HttpClient(
@@ -167,7 +167,7 @@ class QobuzAudioProviderTest {
 
     @Test
     fun searchCandidatesReturnsDeduplicatedMetadata() =
-        runTest {
+        runBlocking {
             val body =
                 """
                 {"success":true,"data":{"tracks":{"items":[
