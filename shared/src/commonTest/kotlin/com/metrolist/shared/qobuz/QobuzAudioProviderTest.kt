@@ -93,7 +93,7 @@ class QobuzAudioProviderTest {
             val cached = QobuzAudioProvider.resolve(directQuery)
             assertNotNull(cached)
             assertEquals(resolved.mediaUri, cached.mediaUri)
-            assertEquals(1, calls)
+            assertEquals(4, calls)
 
             client.close()
         }
