@@ -26,9 +26,9 @@ class QobuzStreamResolver(
 
     override suspend fun resolve(
         videoId: String,
-        hints: ContentHints = ContentHints(),
-        audioQuality: AudioQuality = AudioQuality.AUTO,
-        sourceSong: SongItem? = null,
+        hints: ContentHints,
+        audioQuality: AudioQuality,
+        sourceSong: SongItem?,
     ): PlaybackResource {
         val qobuzResource = resolveOrNull(videoId, audioQuality, sourceSong, refresh = false)
         return qobuzResource ?: defaultStreamResolver.resolve(videoId, hints, audioQuality, sourceSong)
@@ -36,9 +36,9 @@ class QobuzStreamResolver(
 
     override suspend fun refresh(
         videoId: String,
-        hints: ContentHints = ContentHints(),
-        audioQuality: AudioQuality = AudioQuality.AUTO,
-        sourceSong: SongItem? = null,
+        hints: ContentHints,
+        audioQuality: AudioQuality,
+        sourceSong: SongItem?,
     ): PlaybackResource {
         val qobuzResource = resolveOrNull(videoId, audioQuality, sourceSong, refresh = true)
         return qobuzResource ?: defaultStreamResolver.refresh(videoId, hints, audioQuality, sourceSong)
@@ -48,9 +48,9 @@ class QobuzStreamResolver(
         videoId: String,
         hints: ContentHints,
         audioQuality: AudioQuality,
-        sourceSong: SongItem? = null,
-        refresh: Boolean = false,
-        excludedProfiles: Set<String> = emptySet(),
+        sourceSong: SongItem?,
+        refresh: Boolean,
+        excludedProfiles: Set<String>,
     ): PlaybackResource =
         if (refresh) refresh(videoId, hints, audioQuality, sourceSong)
         else resolve(videoId, hints, audioQuality, sourceSong)
@@ -86,9 +86,9 @@ class QobuzStreamResolver(
         videoId: String,
         clientName: String?,
         responseCode: Int?,
-        profileId: String? = null,
-        hints: ContentHints = ContentHints(),
-        category: PlaybackFailureCategory = PlaybackFailureCategory.UNKNOWN,
+        profileId: String?,
+        hints: ContentHints,
+        category: PlaybackFailureCategory,
     ) {
         defaultStreamResolver.reportPlaybackFailure(
             videoId = videoId,
@@ -102,7 +102,7 @@ class QobuzStreamResolver(
 
     override suspend fun reportPlaybackSuccess(
         profileId: String?,
-        hints: ContentHints = ContentHints(),
+        hints: ContentHints,
     ) {
         defaultStreamResolver.reportPlaybackSuccess(profileId = profileId, hints = hints)
     }
