@@ -19,3 +19,11 @@
 
 # ScrobbleManager uses coroutine lambdas that R8 may strip as unreachable.
 -keep class com.metrolist.shared.scrobble.ScrobbleManager$** { *; }
+
+# Qobuz is only exercised when the runtime preference enables it and its models
+# are stored as JSON, so keep the package and generated serializers intact.
+-keep class com.metrolist.shared.qobuz.** { *; }
+-keepclassmembers class com.metrolist.shared.qobuz.** {
+    *** Companion;
+    kotlinx.serialization.KSerializer serializer(...);
+}
