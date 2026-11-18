@@ -16,7 +16,7 @@ class SearchViewModel : ViewModel() {
         scope = viewModelScope,
         spotifySearchProvider = SpotifySearchProviderImpl {
             androidSpotifyImportManager.playbackClient()
-        },
+        }
     )
     var hasRequestedInitialFocus = false
 }
