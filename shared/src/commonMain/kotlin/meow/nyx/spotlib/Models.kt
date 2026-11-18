@@ -105,11 +105,13 @@ class SpotifySessionExpiredException(
     httpFailureLogged: Boolean = false,
 ) : SpotifyAuthException(message, cause, httpFailureLogged)
 
+@Serializable
 data class SpotifyHomeFeed(
     val greeting: String?,
     val sections: List<SpotifyHomeFeedSection>,
 )
 
+@Serializable
 data class SpotifyHomeFeedSection(
     val sectionUri: String,
     val title: String?,
@@ -118,7 +120,9 @@ data class SpotifyHomeFeedSection(
     val items: List<SpotifyHomeFeedItem>,
 )
 
+@Serializable
 sealed class SpotifyHomeFeedItem {
+    @Serializable
     data class Playlist(
         val uri: String,
         val id: String,
@@ -132,6 +136,7 @@ sealed class SpotifyHomeFeedItem {
         val madeForUsername: String?,
     ) : SpotifyHomeFeedItem()
 
+    @Serializable
     data class Album(
         val uri: String,
         val id: String,
@@ -141,6 +146,7 @@ sealed class SpotifyHomeFeedItem {
         val imageUrl: String?,
     ) : SpotifyHomeFeedItem()
 
+    @Serializable
     data class Artist(
         val uri: String,
         val id: String,

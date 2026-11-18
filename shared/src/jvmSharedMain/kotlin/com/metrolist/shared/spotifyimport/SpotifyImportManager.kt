@@ -16,6 +16,7 @@ import meow.nyx.spotlib.SpotifyAuthException
 import meow.nyx.spotlib.SpotifyClient
 import meow.nyx.spotlib.SpotifyException
 import meow.nyx.spotlib.SpotifyHomeFeed
+import meow.nyx.spotlib.SpotifyOfflineCache
 import meow.nyx.spotlib.SpotifyPriorityGate
 import meow.nyx.spotlib.SpotifySession
 import meow.nyx.spotlib.SpotifySessionExpiredException
@@ -64,12 +65,16 @@ class SpotifyImportManager(
             val result = SpotifyPriorityGate.withPlaybackPriority {
                 playlistsForImport(active.listPlaylists())
             }
-            result.also { persistSession(active.session) }
+            result.also { persistSession(active.session) }.also { SpotifyOfflineCache.cachePlaylists(it) }
         } catch (error: CancellationException) {
             throw error
-        } catch (error: Exception) {
+        } catch (error: SpotifyAuthException) {
             logFailure("Loading playlists failed", error)
             invalidateExpiredSession(error)
+            throw error
+        } catch (error: Exception) {
+            SpotifyOfflineCache.getCachedPlaylists()?.let { return it }
+            logFailure("Loading playlists failed", error)
             throw error
         }
 
@@ -78,12 +83,16 @@ class SpotifyImportManager(
             val active = authenticatedClient()
             SpotifyPriorityGate.withPlaybackPriority {
                 active.home().also { persistSession(active.session) }
-            }
+            }.also { SpotifyOfflineCache.cacheHomeFeed(it) }
         } catch (error: CancellationException) {
             throw error
-        } catch (error: Exception) {
+        } catch (error: SpotifyAuthException) {
             logFailure("Loading home feed failed", error)
             invalidateExpiredSession(error)
+            throw error
+        } catch (error: Exception) {
+            SpotifyOfflineCache.getCachedHomeFeed()?.let { return it }
+            logFailure("Loading home feed failed", error)
             throw error
         }
 
@@ -110,6 +119,9 @@ class SpotifyImportManager(
                     }
                 }
             persistSession(active.session)
+            if (playlist.source == PlaylistSource.PLAYLIST) {
+                SpotifyOfflineCache.cachePlaylistTracks(playlist.uri, tracks)
+            }
             val importTracks = tracksForImport(tracks.take(MAX_IMPORT_TRACKS))
             check(importTracks.isNotEmpty()) { "The Spotify playlist has no importable tracks" }
             LoadedPlaylist(
@@ -121,9 +133,24 @@ class SpotifyImportManager(
             )
         } catch (error: CancellationException) {
             throw error
-        } catch (error: Exception) {
+        } catch (error: SpotifyAuthException) {
             logFailure("Loading playlist failed", error)
             invalidateExpiredSession(error)
+            throw error
+        } catch (error: Exception) {
+            SpotifyOfflineCache.getCachedPlaylistTracks(playlist.uri)?.let { cached ->
+                val importTracks = tracksForImport(cached.take(MAX_IMPORT_TRACKS))
+                if (importTracks.isNotEmpty()) {
+                    return LoadedPlaylist(
+                        uri = playlist.uri,
+                        name = playlist.name,
+                        image = playlist.image,
+                        tracks = importTracks,
+                        reachedTrackLimit = cached.size > MAX_IMPORT_TRACKS,
+                    )
+                }
+            }
+            logFailure("Loading playlist failed", error)
             throw error
         }
 
