@@ -226,17 +226,6 @@ jobs:
           fi
           ./gradlew "${tasks[@]}" --no-daemon "${extra_args[@]}"
 
-      - name: Show ktlint violations on failure
-        if: failure()
-        shell: bash
-        run: |
-          set +e
-          for f in $(find androidApp/build/reports/ktlint -type f -name '*.txt' 2>/dev/null); do
-            while IFS= read -r line; do
-              [ -n "$line" ] && echo "::error::$line"
-            done < "$f"
-          done
-
       - name: Upload lint report
         if: failure() && inputs.variant == 'debug'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
