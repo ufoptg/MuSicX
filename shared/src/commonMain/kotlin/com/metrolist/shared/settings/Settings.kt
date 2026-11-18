@@ -145,6 +145,7 @@ import com.metrolist.shared.constants.PlaylistPickerSortKey
 import com.metrolist.shared.constants.PlaylistSongSortingsKey
 import com.metrolist.shared.constants.PreferWordSyncedLyricsKey
 import com.metrolist.shared.constants.PromptContinuePlaybackKey
+import com.metrolist.shared.constants.QobuzMatchOverridesJsonKey
 import com.metrolist.shared.constants.QueuedYouTubeHistoryJsonKey
 import com.metrolist.shared.constants.RecentPlayedSearchSongsJsonKey
 import com.metrolist.shared.constants.SeekDurationSecondsKey
@@ -778,6 +779,7 @@ class Settings(
     var lastLibraryRefreshAccount by preference(LastLibraryRefreshAccountKey, "")
     var lastRemoteLibraryItemKeysJson by preference(LastRemoteLibraryItemKeysJsonKey, "[]")
     var pendingRemoteLibraryRemovalKeysJson by preference(PendingRemoteLibraryRemovalKeysJsonKey, "[]")
+    var qobuzMatchOverridesJson by preference(QobuzMatchOverridesJsonKey, "{}")
     var deletedPlaylistIdsJson by preference(DeletedPlaylistIdsJsonKey, "[]")
     var libraryGridView by preference(true)
     var gridItemSize by preference(GridItemSizeKey, GridItemSize.BIG)
