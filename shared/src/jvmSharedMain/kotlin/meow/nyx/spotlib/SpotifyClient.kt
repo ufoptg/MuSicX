@@ -320,6 +320,21 @@ class SpotifyClient internal constructor(
 
     suspend fun profile(): AccountProfile = parseProfile(query("profileAttributes", Queries.PROFILE_ATTRIBUTES_HASH, buildJsonObject {}))
 
+    /**
+     * Search for tracks, albums, artists, and playlists on Spotify.
+     */
+    suspend fun search(
+        term: String,
+        limit: Int = 20,
+    ): SpotifySearchResult {
+        val variables =
+            buildJsonObject {
+                put("query", term)
+                put("limit", limit)
+            }
+        return parseSearchResult(query("searchDesktop", SpotifyHashProvider.getHash("searchDesktop"), variables))
+    }
+
     suspend fun home(
         sectionItemsLimit: Int = 10,
         timeZone: String = TimeZone.getDefault().id,
