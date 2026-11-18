@@ -119,20 +119,20 @@ class QobuzAudioProviderTest {
             QobuzAudioProvider.nowMs = { fakeNow }
 
             assertNull(QobuzAudioProvider.resolve(directQuery))
-            assertEquals(16, calls)
+            assertEquals(4, calls)
 
             // Backends recover, but the captcha cooldown still skips them all.
             captcha = false
             fakeNow += 60_000L
             assertNull(QobuzAudioProvider.resolve(directQuery))
-            assertEquals(16, calls)
+            assertEquals(4, calls)
 
             // After the 5-minute cooldown expires the preferred backend resolves again.
             fakeNow += 5 * 60 * 1000L + 1_000L
             val resolved = QobuzAudioProvider.resolve(directQuery)
             assertNotNull(resolved)
             assertEquals("https://stream.example/file.flac", resolved.mediaUri)
-            assertEquals(17, calls)
+            assertEquals(5, calls)
 
             client.close()
         }

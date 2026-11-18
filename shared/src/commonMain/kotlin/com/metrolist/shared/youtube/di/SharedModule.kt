@@ -19,6 +19,8 @@ import com.metrolist.shared.api.lyrics.LyricsFetcher
 import com.metrolist.shared.api.lyrics.LyricsTranslationClient
 import com.metrolist.shared.api.lyrics.YouTubeLyricsApi
 import com.metrolist.shared.api.musicvideo.MusicVideoResolver
+import com.metrolist.shared.qobuz.QobuzAudioProvider
+import com.metrolist.shared.qobuz.QobuzBackendHealthChecker
 import com.metrolist.shared.repository.LyricsRepository
 import com.metrolist.shared.state.GlobalYouTube
 import com.metrolist.shared.youtube.logging.MetrolistInnerTubeLogger
@@ -27,6 +29,7 @@ import com.metrolist.shared.youtube.playback.DefaultStreamResolver
 import com.metrolist.shared.youtube.playback.LocalAudioSource
 import com.metrolist.shared.youtube.playback.MetrolistPlayerConfigRepository
 import com.metrolist.shared.youtube.playback.PlatformTokenProvider
+import com.metrolist.shared.youtube.playback.QobuzStreamResolver
 import com.metrolist.shared.youtube.playback.StreamResolver
 import com.metrolist.shared.youtube.strategy.ClientHealthTracker
 import kotlinx.serialization.json.Json
@@ -59,6 +62,9 @@ val sharedModule =
 
         single<TokenProvider> { PlatformTokenProvider() }
 
+        single<QobuzAudioProvider> { QobuzAudioProvider }
+        single<QobuzBackendHealthChecker> { QobuzBackendHealthChecker }
+
         single<StreamExtractor> {
             InnerTubeExtractor(
                 configParser = get(),
@@ -71,7 +77,7 @@ val sharedModule =
             )
         }
 
-        single<StreamResolver> {
+        single {
             DefaultStreamResolver(
                 extractor = get(),
                 innerTube = get(),
@@ -80,6 +86,14 @@ val sharedModule =
                 playerConfigRefresh = { get<YouTubeCipherService>().refreshAfterStreamRejection() },
                 musicVideoResolver = get(),
                 localAudioSource = getOrNull<LocalAudioSource>(),
+            )
+        }
+
+        single<StreamResolver> {
+            QobuzStreamResolver(
+                defaultStreamResolver = get(),
+                qobuzAudioProvider = get(),
+                isrcResolver = { null },
             )
         }
 
