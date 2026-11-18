@@ -68,6 +68,8 @@ import com.metrolist.shared.constants.DownloadedCollectionSortDirectionKey
 import com.metrolist.shared.constants.DownloadedCollectionSortKey
 import com.metrolist.shared.constants.EnableHapticFeedbackKey
 import com.metrolist.shared.constants.EnableLandscapeScalingKey
+import com.metrolist.shared.constants.EnableQobuzIntegrationKey
+import com.metrolist.shared.constants.EnableSpotifyIntegrationKey
 import com.metrolist.shared.constants.EqualizerActiveProfileIdKey
 import com.metrolist.shared.constants.EqualizerCurrentProfileJsonKey
 import com.metrolist.shared.constants.EqualizerEnabledKey
@@ -145,6 +147,9 @@ import com.metrolist.shared.constants.PlaylistPickerSortKey
 import com.metrolist.shared.constants.PlaylistSongSortingsKey
 import com.metrolist.shared.constants.PreferWordSyncedLyricsKey
 import com.metrolist.shared.constants.PromptContinuePlaybackKey
+import com.metrolist.shared.constants.QobuzAudioQualityKey
+import com.metrolist.shared.constants.QobuzBackendKey
+import com.metrolist.shared.constants.QobuzCountryKey
 import com.metrolist.shared.constants.QobuzMatchOverridesJsonKey
 import com.metrolist.shared.constants.QueuedYouTubeHistoryJsonKey
 import com.metrolist.shared.constants.RecentPlayedSearchSongsJsonKey
@@ -174,7 +179,6 @@ import com.metrolist.shared.constants.SlimNavBarKey
 import com.metrolist.shared.constants.SpeedDialArtworkRefreshTimesKey
 import com.metrolist.shared.constants.SpeedDialSurprisePinnedKey
 import com.metrolist.shared.constants.SponsorBlockEnabledKey
-import com.metrolist.shared.constants.EnableSpotifyIntegrationKey
 import com.metrolist.shared.constants.SpotifyHomeOnlyKey
 import com.metrolist.shared.constants.SpotifySyncLikesKey
 import com.metrolist.shared.constants.SwipeToRemoveSongKey
@@ -195,6 +199,8 @@ import com.metrolist.shared.model.PlaylistPickerSort
 import com.metrolist.shared.model.PlaylistSongSort
 import com.metrolist.shared.model.SortDirection
 import com.metrolist.shared.playback.SleepTimerDefaults
+import com.metrolist.shared.qobuz.QobuzAudioProvider.QobuzAudioQuality
+import com.metrolist.shared.qobuz.QobuzAudioProvider.ResolverBackend
 import com.metrolist.shared.youtube.playback.PlaybackNetworkState
 import com.metrolist.shared.youtube.playback.PlaybackNetworkStateStore
 import com.russhwolf.settings.get
@@ -290,6 +296,11 @@ class Settings(
     var useSpotifySearch by preference(UseSpotifySearchKey, true)
     var enableSpotifyIntegration by preference(EnableSpotifyIntegrationKey, false)
     var spotifySyncLikes by preference(SpotifySyncLikesKey, false)
+
+    var enableQobuzIntegration by preference(EnableQobuzIntegrationKey, false)
+    var qobuzAudioQuality by preference(QobuzAudioQualityKey, QobuzAudioQuality.CD_QUALITY)
+    var qobuzBackend by preference(QobuzBackendKey, ResolverBackend.SQUID)
+    var qobuzCountry by preference(QobuzCountryKey, "")
 
     private var storedAppLanguage by preference(AppLanguageKey, "SYSTEM")
     var appLanguage: String

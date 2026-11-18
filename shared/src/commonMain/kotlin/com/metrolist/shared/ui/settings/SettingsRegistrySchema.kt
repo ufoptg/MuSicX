@@ -62,6 +62,7 @@ enum class SettingsPageId {
     LAST_FM,
     LISTEN_BRAINZ,
     SPOTIFY,
+    QOBUZ,
     DEVICE_CONNECT,
     LISTEN_TOGETHER,
     EQUALIZER,

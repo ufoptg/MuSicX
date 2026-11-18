@@ -879,6 +879,90 @@
     <string name="brand_listenbrainz" translatable="false">ListenBrainz</string>
     <!-- Translators: Option or section label for Spotify in the integration settings. -->
     <string name="brand_spotify" translatable="false">Spotify</string>
+    <!-- Translators: Option or section label for Qobuz in the integration settings. -->
+    <string name="brand_qobuz" translatable="false">Qobuz</string>
+    <!-- Translators: Supporting text beneath the Qobuz integration option in the settings. -->
+    <string name="settings_qobuz_overview">Stream lossless audio from Qobuz when a matching track is available.</string>
+    <!-- Translators: Title for the master switch that enables the Qobuz integration. -->
+    <string name="settings_qobuz_enable_title">Use Qobuz for lossless playback</string>
+    <!-- Translators: Supporting text beneath the Qobuz enable master switch in the settings. -->
+    <string name="settings_qobuz_enable_description">Experimental. Qobuz streams come from third-party resolver services that are not operated by MusicX. When a track cannot be resolved, playback falls back to YouTube. Lossless streams use more data and storage.</string>
+    <!-- Translators: Section title for Qobuz playback options in the settings. -->
+    <string name="settings_qobuz_playback">Playback</string>
+    <!-- Translators: Title for the Qobuz stream quality option in the settings. -->
+    <string name="qobuz_quality">Stream quality</string>
+    <!-- Translators: Qobuz stream quality option. -->
+    <string name="qobuz_quality_aac_320">MP3 320 kbps</string>
+    <!-- Translators: Supporting text for the Qobuz MP3 stream quality option. -->
+    <string name="qobuz_quality_aac_320_desc">Lossy, smallest file size. Good for mobile data.</string>
+    <!-- Translators: Qobuz stream quality option. -->
+    <string name="qobuz_quality_cd">CD quality (FLAC 16-bit / 44.1 kHz)</string>
+    <!-- Translators: Supporting text for the Qobuz CD stream quality option. -->
+    <string name="qobuz_quality_cd_desc">Lossless. Recommended default.</string>
+    <!-- Translators: Qobuz stream quality option. -->
+    <string name="qobuz_quality_hires">Hi-Res (FLAC up to 24-bit / 192 kHz)</string>
+    <!-- Translators: Supporting text for the Qobuz Hi-Res stream quality option. -->
+    <string name="qobuz_quality_hires_desc">Lossless at the highest bit depth and sample rate available.</string>
+    <!-- Translators: Title for the Qobuz resolver backend option in the settings. -->
+    <string name="qobuz_backend">Resolver backend</string>
+    <string name="qobuz_backend_monokenny" translatable="false">Monokenny</string>
+    <string name="qobuz_backend_jumo" translatable="false">Jumo</string>
+    <string name="qobuz_backend_squid" translatable="false">Squid</string>
+    <string name="qobuz_backend_trypt" translatable="false">TrypT HiFi</string>
+    <!-- Translators: Title for the Qobuz catalog country option in the settings. -->
+    <string name="qobuz_country">Country code</string>
+    <!-- Translators: Supporting text for the Qobuz country option. %1$s is an ISO country code. -->
+    <string name="qobuz_country_description">Two-letter ISO code. Leave empty to follow the content country (%1$s).</string>
+    <!-- Translators: Qobuz country value shown when no explicit country is set and the system country is unknown. -->
+    <string name="qobuz_country_system">System</string>
+    <!-- Translators: Section title for Qobuz resolver backend status in the settings. -->
+    <string name="qobuz_provider_health">Backend status</string>
+    <!-- Translators: Supporting text for the Qobuz backend status section in the settings. -->
+    <string name="qobuz_provider_health_description">Check which Qobuz resolver backends respond right now.</string>
+    <!-- Translators: Button that starts the Qobuz backend reachability check. -->
+    <string name="qobuz_provider_health_check">Check backends</string>
+    <!-- Translators: Status shown while the Qobuz backend reachability check is running. -->
+    <string name="qobuz_provider_health_checking">Checking…</string>
+    <!-- Translators: Qobuz backend status. -->
+    <string name="qobuz_provider_health_online">Online</string>
+    <!-- Translators: Qobuz backend status. -->
+    <string name="qobuz_provider_health_reachable">Reachable</string>
+    <!-- Translators: Qobuz backend status. -->
+    <string name="qobuz_provider_health_offline">Offline</string>
+    <!-- Translators: Latency shown for a Qobuz backend. %1$d is milliseconds. -->
+    <string name="qobuz_provider_health_latency">%1$d ms</string>
+    <!-- Translators: Qobuz backend status detail. %1$d is a timeout in seconds. -->
+    <string name="qobuz_provider_health_timeout">No response within %1$d s</string>
+    <!-- Translators: Qobuz backend status detail. %1$d is an HTTP status code. -->
+    <string name="qobuz_provider_health_http">HTTP %1$d</string>
+    <!-- Translators: Qobuz backend status detail. %1$d is an HTTP status code. -->
+    <string name="qobuz_provider_health_auth">HTTP %1$d, sign-in required</string>
+    <!-- Translators: Qobuz backend status detail. %1$d is an HTTP status code. -->
+    <string name="qobuz_provider_health_endpoint">HTTP %1$d, endpoint answered</string>
+    <!-- Translators: Qobuz backend status detail. %1$d is an HTTP status code. -->
+    <string name="qobuz_provider_health_rate_limited">HTTP %1$d, rate limited</string>
+    <!-- Translators: Qobuz backend status detail. %1$d is an HTTP status code. -->
+    <string name="qobuz_provider_health_server_error">HTTP %1$d, server error</string>
+    <!-- Translators: Qobuz backend label marking the backend selected in settings. %1$s is a backend name. -->
+    <string name="qobuz_provider_health_active">%1$s · active</string>
+    <!-- Translators: Menu item to manually override a Qobuz track match. -->
+    <string name="qobuz_match_override">Override Qobuz match</string>
+    <!-- Translators: Supporting text beneath the Qobuz override match menu item. -->
+    <string name="qobuz_match_override_description">Pick the right Qobuz track when the automatic match is wrong.</string>
+    <!-- Translators: Status shown while the Qobuz candidate search is running. -->
+    <string name="qobuz_match_override_searching">Searching Qobuz…</string>
+    <!-- Translators: Status shown when the Qobuz candidate search returns nothing. -->
+    <string name="qobuz_match_override_empty">No Qobuz candidates found</string>
+    <!-- Translators: Current Qobuz override line. %1$s is the pinned track label. -->
+    <string name="qobuz_match_override_current">Current: %1$s</string>
+    <!-- Translators: Button that removes the manual Qobuz override and returns to automatic matching. -->
+    <string name="qobuz_match_override_auto">Auto-match</string>
+    <!-- Translators: Label for a Qobuz candidate with lossless hi-res audio. -->
+    <string name="qobuz_match_override_hires">Hi-Res</string>
+    <!-- Translators: Bit depth of a Qobuz candidate. %1$d is the number of bits. -->
+    <string name="qobuz_match_override_bit_depth">%1$d bit</string>
+    <!-- Translators: Sample rate of a Qobuz candidate. %1$s is the rate in kHz. -->
+    <string name="qobuz_match_override_sampling_rate">%1$s kHz</string>
     <!-- Translators: Supporting text beneath the integration option; retained for translation compatibility but not currently referenced by app code. -->
     <!-- Translators: Supporting text beneath the integration option; retained for translation compatibility but not currently referenced by app code. -->
 

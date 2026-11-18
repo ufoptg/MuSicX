@@ -25,6 +25,8 @@ import com.metrolist.shared.db.MusicDatabase
 import com.metrolist.shared.generated.resources.Res
 import com.metrolist.shared.generated.resources.blocked_artists_count
 import com.metrolist.shared.generated.resources.disliked_song
+import com.metrolist.shared.generated.resources.qobuz_match_override
+import com.metrolist.shared.generated.resources.qobuz_match_override_description
 import com.metrolist.shared.generated.resources.refetch
 import com.metrolist.shared.generated.resources.refetch_desc
 import com.metrolist.shared.generated.resources.removed_dislike
@@ -35,7 +37,9 @@ import com.metrolist.shared.listentogether.ListenTogetherRoomRole
 import com.metrolist.shared.model.SongItem
 import com.metrolist.shared.model.editSongMetadata
 import com.metrolist.shared.model.resetSongMetadata
+import com.metrolist.shared.qobuz.QobuzMatchOverrideDialog
 import com.metrolist.shared.settings.BlockedContent
+import com.metrolist.shared.settings.Settings
 import com.metrolist.shared.state.SongLikeState
 import com.metrolist.shared.state.SongMetadataState
 import com.metrolist.shared.ui.LocalIsTv
@@ -102,6 +106,7 @@ fun SongMenu(
         ?: remember { mutableStateOf(false) }
     val isGuest = isInListenTogetherRoom && listenTogetherRole == ListenTogetherRoomRole.GUEST
     var showEditDialog by remember { mutableStateOf(false) }
+    var showQobuzOverride by remember(song.id) { mutableStateOf(false) }
     var showDetails by remember(song.id) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val menuSheetState = rememberModalSheetState(confirmValueChange = { it != SheetValue.Hidden || !downloadAction.isConfirming() })
@@ -212,6 +217,17 @@ fun SongMenu(
                             onDismiss()
                         }
                     },
+                    if (Settings.shared.enableQobuzIntegration) {
+                        PlayerMenuAction(
+                            MetrolistIcons.Outlined.Headphones,
+                            stringResource(Res.string.qobuz_match_override),
+                            stringResource(Res.string.qobuz_match_override_description),
+                        ) {
+                            showQobuzOverride = true
+                        }
+                    } else {
+                        null
+                    },
                 ),
         )
     if (showDetails) {
@@ -236,8 +252,18 @@ fun SongMenu(
             onDismiss = { showEditDialog = false },
             onReset = { withContext(Dispatchers.IO) { resetSongMetadata(database, song.id) } },
         )
+    } else if (showQobuzOverride) {
+        QobuzMatchOverrideDialog(
+            mediaId = song.id,
+            title = song.title,
+            artists = song.artists.map { it.name },
+            album = song.album?.name,
+            isrc = null,
+            durationMs = song.duration,
+            onDismiss = { showQobuzOverride = false },
+        )
     }
-    if (!showEditDialog) {
+    if (!showEditDialog && !showQobuzOverride) {
         MediaMenuBottomSheet(
             model = model,
             expanded = !showDetails,

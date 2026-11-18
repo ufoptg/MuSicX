@@ -17,21 +17,21 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 
 object QobuzBackendHealthChecker {
-
     enum class Status { ONLINE, REACHABLE, OFFLINE }
 
     data class Target(
         val backend: QobuzAudioProvider.ResolverBackend,
         val name: String,
         val endpoint: String,
-        val tokenCountry: String? = null,
+        val usesTokenCountry: Boolean = false,
     )
 
     data class Result(
         val target: Target,
         val status: Status,
         val latencyMs: Long?,
-        val message: String,
+        val httpStatusCode: Int? = null,
+        val timedOut: Boolean = false,
     )
 
     val targets: List<Target> =
@@ -40,7 +40,7 @@ object QobuzBackendHealthChecker {
                 backend = QobuzAudioProvider.ResolverBackend.TRYPT,
                 name = "TrypT HiFi",
                 endpoint = "${QobuzAudioProvider.TRYPT_BASE_URL}/api/get-music?q=test&offset=0",
-                tokenCountry = "US",
+                usesTokenCountry = true,
             ),
             Target(
                 backend = QobuzAudioProvider.ResolverBackend.JUMO,
@@ -56,21 +56,28 @@ object QobuzBackendHealthChecker {
                 backend = QobuzAudioProvider.ResolverBackend.SQUID,
                 name = "Squid",
                 endpoint = "${QobuzAudioProvider.SQUID_BASE_URL}/api/get-music?q=test&offset=0",
-                tokenCountry = "US",
+                usesTokenCountry = true,
             ),
         )
 
     private const val CHECK_TIMEOUT_MS = 10_000L
 
+    val timeoutSeconds: Int get() = (CHECK_TIMEOUT_MS / 1000L).toInt()
+
     private val httpClient: HttpClient by lazy { createHttpClient() }
 
-    suspend fun checkAll(): List<Result> = coroutineScope {
-        targets.map { target ->
-            async { check(target) }
-        }.awaitAll()
-    }
+    suspend fun checkAll(countryCode: String): List<Result> =
+        coroutineScope {
+            targets
+                .map { target ->
+                    async { check(target, countryCode) }
+                }.awaitAll()
+        }
 
-    suspend fun check(target: Target): Result {
+    suspend fun check(
+        target: Target,
+        countryCode: String,
+    ): Result {
         val startedMs = Clock.System.now().toEpochMilliseconds()
         val response =
             withTimeoutOrNull(CHECK_TIMEOUT_MS) {
@@ -78,7 +85,9 @@ object QobuzBackendHealthChecker {
                     httpClient.get(target.endpoint) {
                         header("Accept", "application/json,text/html,*/*")
                         header("User-Agent", QobuzAudioProvider.BROWSER_USER_AGENT)
-                        target.tokenCountry?.let { header("Token-Country", it) }
+                        if (target.usesTokenCountry && countryCode.isNotBlank()) {
+                            header("Token-Country", countryCode)
+                        }
                     }
                 } catch (error: kotlinx.coroutines.CancellationException) {
                     throw error
@@ -92,14 +101,14 @@ object QobuzBackendHealthChecker {
                 target = target,
                 status = Status.OFFLINE,
                 latencyMs = null,
-                message = "Backend did not answer within ${CHECK_TIMEOUT_MS / 1000}s",
+                timedOut = true,
             )
         }
         return Result(
             target = target,
             status = response.status.value.toHealthStatus(),
             latencyMs = elapsedMs,
-            message = response.status.value.toHealthMessage(),
+            httpStatusCode = response.status.value,
         )
     }
 
@@ -108,16 +117,5 @@ object QobuzBackendHealthChecker {
             in 200..299 -> Status.ONLINE
             in 300..499 -> Status.REACHABLE
             else -> Status.OFFLINE
-        }
-
-    private fun Int.toHealthMessage(): String =
-        when (this) {
-            in 200..299 -> "HTTP $this"
-            401, 403 -> "HTTP $this, auth required"
-            404, 405 -> "HTTP $this, endpoint answered"
-            429 -> "HTTP 429, rate limited"
-            in 300..499 -> "HTTP $this, reachable"
-            in 500..599 -> "HTTP $this, server error"
-            else -> "HTTP $this"
         }
 }

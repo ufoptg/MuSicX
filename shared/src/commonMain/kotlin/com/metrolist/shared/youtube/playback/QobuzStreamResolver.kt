@@ -6,8 +6,8 @@ import com.metrolist.shared.model.SongItem
 import com.metrolist.shared.playback.PlaybackFailureCategory
 import com.metrolist.shared.qobuz.QobuzAudioProvider
 import com.metrolist.shared.qobuz.QobuzMatchOverrides
+import com.metrolist.shared.qobuz.QobuzSettings
 import com.metrolist.shared.settings.Settings
-import com.metrolist.shared.state.GlobalYouTube
 import com.metrolist.shared.utils.Logger
 import com.metrolist.shared.utils.systemCountryCode
 import kotlinx.coroutines.CancellationException
@@ -18,7 +18,6 @@ class QobuzStreamResolver(
     private val qobuzAudioProvider: QobuzAudioProvider = QobuzAudioProvider,
     private val isrcResolver: suspend (String) -> String? = { null },
 ) : StreamResolver {
-
     companion object {
         private const val TAG = "QobuzStreamResolver"
         private const val CLIENT_NAME = "Qobuz"
@@ -30,7 +29,7 @@ class QobuzStreamResolver(
         audioQuality: AudioQuality,
         sourceSong: SongItem?,
     ): PlaybackResource {
-        val qobuzResource = resolveOrNull(videoId, audioQuality, sourceSong, refresh = false)
+        val qobuzResource = resolveOrNull(videoId, sourceSong, refresh = false)
         return qobuzResource ?: defaultStreamResolver.resolve(videoId, hints, audioQuality, sourceSong)
     }
 
@@ -40,7 +39,7 @@ class QobuzStreamResolver(
         audioQuality: AudioQuality,
         sourceSong: SongItem?,
     ): PlaybackResource {
-        val qobuzResource = resolveOrNull(videoId, audioQuality, sourceSong, refresh = true)
+        val qobuzResource = resolveOrNull(videoId, sourceSong, refresh = true)
         return qobuzResource ?: defaultStreamResolver.refresh(videoId, hints, audioQuality, sourceSong)
     }
 
@@ -52,8 +51,11 @@ class QobuzStreamResolver(
         refresh: Boolean,
         excludedProfiles: Set<String>,
     ): PlaybackResource =
-        if (refresh) refresh(videoId, hints, audioQuality, sourceSong)
-        else resolve(videoId, hints, audioQuality, sourceSong)
+        if (refresh) {
+            refresh(videoId, hints, audioQuality, sourceSong)
+        } else {
+            resolve(videoId, hints, audioQuality, sourceSong)
+        }
 
     override suspend fun prewarm() {
         defaultStreamResolver.prewarm()
@@ -113,13 +115,13 @@ class QobuzStreamResolver(
      */
     private suspend fun resolveOrNull(
         videoId: String,
-        audioQuality: AudioQuality,
         sourceSong: SongItem?,
         refresh: Boolean,
     ): PlaybackResource? {
+        if (!Settings.shared.enableQobuzIntegration) return null
         val query =
             try {
-                buildQuery(videoId, audioQuality, sourceSong)
+                buildQuery(videoId, sourceSong)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -129,12 +131,15 @@ class QobuzStreamResolver(
                     error,
                 )
                 return null
-            } ?: return null
+            }
 
         return try {
             val resolved =
-                if (refresh) qobuzAudioProvider.refresh(query)
-                else qobuzAudioProvider.resolve(query)
+                if (refresh) {
+                    qobuzAudioProvider.refresh(query)
+                } else {
+                    qobuzAudioProvider.resolve(query)
+                }
             resolved?.let { it.toPlaybackResource(videoId, sourceSong?.duration) }
         } catch (error: CancellationException) {
             throw error
@@ -150,11 +155,15 @@ class QobuzStreamResolver(
 
     private suspend fun buildQuery(
         videoId: String,
-        audioQuality: AudioQuality,
         sourceSong: SongItem?,
     ): QobuzAudioProvider.Query {
         val title = sourceSong?.title?.ifBlank { videoId } ?: videoId
-        val artists = sourceSong?.artists?.map { it.name }?.filter { it.isNotBlank() }.orEmpty()
+        val artists =
+            sourceSong
+                ?.artists
+                ?.map { it.name }
+                ?.filter { it.isNotBlank() }
+                .orEmpty()
         val album = sourceSong?.album?.name?.takeIf { it.isNotBlank() }
         val durationMs = sourceSong?.duration?.takeIf { it > 0L }
 
@@ -166,23 +175,17 @@ class QobuzStreamResolver(
                 }
         val mediaId = overrideTrackId ?: sourceSong?.id ?: videoId
 
-        // Map AudioQuality → Qobuz quality code (27→7→6→5)
-        val qualityCode = when (audioQuality) {
-            AudioQuality.MP4 -> QobuzAudioProvider.QobuzAudioQuality.AAC_320
-            AudioQuality.LOW -> QobuzAudioProvider.QobuzAudioQuality.CD_QUALITY
-            AudioQuality.HIGH -> QobuzAudioProvider.QobuzAudioQuality.HI_RES_LOSSLESS
-            AudioQuality.AUTO -> QobuzAudioProvider.QobuzAudioQuality.HI_RES_LOSSLESS
-            else -> QobuzAudioProvider.QobuzAudioQuality.HI_RES_LOSSLESS
-        }
-
         // ISRC comes from the injected resolver (Spotify registry on JVM) when available;
         // otherwise the provider falls back to title/artist/album/duration matching.
         val isrc = sourceSong?.id?.let { runCatching { isrcResolver(it) }.getOrNull() }?.takeIf { it.isNotBlank() }
 
+        val settings = Settings.shared
         val countryCode =
-            Settings.shared.contentCountry
-                .takeIf { it != GlobalYouTube.SYSTEM }
-                ?: systemCountryCode()
+            QobuzSettings.effectiveCountry(
+                configuredCountry = settings.qobuzCountry,
+                contentCountry = settings.contentCountry,
+                systemCountry = systemCountryCode(),
+            )
 
         return QobuzAudioProvider.Query(
             mediaId = mediaId,
@@ -192,8 +195,8 @@ class QobuzStreamResolver(
             isrc = isrc,
             durationMs = durationMs,
             countryCode = countryCode,
-            backend = QobuzAudioProvider.ResolverBackend.SQUID,
-            qualityCode = QobuzAudioProvider.qualityCodeFor(qualityCode),
+            backend = settings.qobuzBackend,
+            qualityCode = QobuzAudioProvider.qualityCodeFor(settings.qobuzAudioQuality),
         )
     }
 

@@ -227,6 +227,11 @@ val UseSpotifySearchKey = "useSpotifySearch"
 val EnableSpotifyIntegrationKey = "enableSpotifyIntegration"
 val SpotifySyncLikesKey = "spotifySyncLikes"
 
+val EnableQobuzIntegrationKey = "enableQobuzIntegration"
+val QobuzAudioQualityKey = "qobuzAudioQuality"
+val QobuzBackendKey = "qobuzBackend"
+val QobuzCountryKey = "qobuzCountry"
+
 val AndroidLastStorageAuditKey = "androidLastStorageAudit"
 val AndroidStorageAuditLocationKey = "androidStorageAuditLocation"
 val AndroidLastTrackedPlaylistSyncKey = "androidLastTrackedPlaylistSync"

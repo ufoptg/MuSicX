@@ -8,6 +8,7 @@
 
 package com.metrolist.shared.ui.settings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -78,6 +79,10 @@ import com.metrolist.shared.discord.resolveDiscordButtonLabel
 import com.metrolist.shared.generated.resources.*
 import com.metrolist.shared.listentogether.ListenTogetherManager
 import com.metrolist.shared.model.SongItem
+import com.metrolist.shared.qobuz.QobuzAudioProvider.QobuzAudioQuality
+import com.metrolist.shared.qobuz.QobuzAudioProvider.ResolverBackend
+import com.metrolist.shared.qobuz.QobuzBackendHealthChecker
+import com.metrolist.shared.qobuz.QobuzSettings
 import com.metrolist.shared.scrobble.ScrobbleProvider
 import com.metrolist.shared.scrobble.ScrobbleSessions
 import com.metrolist.shared.settings.Settings
@@ -92,6 +97,7 @@ import com.metrolist.shared.ui.navigation.NavigationBackHandler
 import com.metrolist.shared.ui.playback.wholeSecondPosition
 import com.metrolist.shared.utils.MetrolistClock
 import com.metrolist.shared.utils.formatDuration
+import com.metrolist.shared.utils.systemCountryCode
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.pluralStringResource
@@ -796,6 +802,120 @@ private fun buildIntegrationsRegistry(
         }
     }
 
+    builder.page(
+        id = SettingsPageId.QOBUZ,
+        title = stringResource(Res.string.brand_qobuz),
+        subtitle =
+            settingsPageSubtitle(
+                stringResource(Res.string.settings_qobuz_overview),
+                integrationStatus(settings.enableQobuzIntegration),
+            ),
+        icon = MetrolistIcons.Outlined.Headphones,
+        tone = SettingsTone.BLUE,
+    ) {
+        val systemCountry = systemCountryCode()
+        val effectiveCountry =
+            QobuzSettings.effectiveCountry(
+                configuredCountry = settings.qobuzCountry,
+                contentCountry = settings.contentCountry,
+                systemCountry = systemCountry,
+            )
+        group("qobuzMaster", "") {
+            mainSwitch(
+                id = "qobuzEnabled",
+                title = stringResource(Res.string.settings_qobuz_enable_title),
+                checked = settings.enableQobuzIntegration,
+                description = stringResource(Res.string.settings_qobuz_enable_description),
+            ) { settings.enableQobuzIntegration = it }
+        }
+        group(
+            "qobuzPlayback",
+            stringResource(Res.string.settings_qobuz_playback),
+            enabled = settings.enableQobuzIntegration,
+        ) {
+            val quality = settings.qobuzAudioQuality
+            val qualityLabel =
+                when (quality) {
+                    QobuzAudioQuality.AAC_320 -> stringResource(Res.string.qobuz_quality_aac_320)
+                    QobuzAudioQuality.CD_QUALITY -> stringResource(Res.string.qobuz_quality_cd)
+                    QobuzAudioQuality.HI_RES_LOSSLESS -> stringResource(Res.string.qobuz_quality_hires)
+                }
+            val qualityDescription =
+                when (quality) {
+                    QobuzAudioQuality.AAC_320 -> stringResource(Res.string.qobuz_quality_aac_320_desc)
+                    QobuzAudioQuality.CD_QUALITY -> stringResource(Res.string.qobuz_quality_cd_desc)
+                    QobuzAudioQuality.HI_RES_LOSSLESS -> stringResource(Res.string.qobuz_quality_hires_desc)
+                }
+            choice(
+                id = "qobuzQuality",
+                title = stringResource(Res.string.qobuz_quality),
+                description = qualityDescription,
+                valueLabel = qualityLabel,
+                choices =
+                    listOf(
+                        SettingsChoice(
+                            QobuzAudioQuality.AAC_320.name,
+                            stringResource(Res.string.qobuz_quality_aac_320),
+                        ),
+                        SettingsChoice(
+                            QobuzAudioQuality.CD_QUALITY.name,
+                            stringResource(Res.string.qobuz_quality_cd),
+                        ),
+                        SettingsChoice(
+                            QobuzAudioQuality.HI_RES_LOSSLESS.name,
+                            stringResource(Res.string.qobuz_quality_hires),
+                        ),
+                    ),
+                selectedChoiceId = quality.name,
+            ) { id ->
+                QobuzAudioQuality.entries.firstOrNull { it.name == id }?.let { settings.qobuzAudioQuality = it }
+            }
+
+            val backendLabels =
+                mapOf(
+                    ResolverBackend.MONOKENNY to stringResource(Res.string.qobuz_backend_monokenny),
+                    ResolverBackend.JUMO to stringResource(Res.string.qobuz_backend_jumo),
+                    ResolverBackend.SQUID to stringResource(Res.string.qobuz_backend_squid),
+                    ResolverBackend.TRYPT to stringResource(Res.string.qobuz_backend_trypt),
+                )
+            choice(
+                id = "qobuzBackend",
+                title = stringResource(Res.string.qobuz_backend),
+                description = null,
+                valueLabel = backendLabels[settings.qobuzBackend],
+                choices = backendLabels.map { (backend, label) -> SettingsChoice(backend.name, label) },
+                selectedChoiceId = settings.qobuzBackend.name,
+            ) { id ->
+                ResolverBackend.entries.firstOrNull { it.name == id }?.let { settings.qobuzBackend = it }
+            }
+
+            val effectiveCountryLabel =
+                effectiveCountry.ifBlank { stringResource(Res.string.qobuz_country_system) }
+            text(
+                id = "qobuzCountry",
+                title = stringResource(Res.string.qobuz_country),
+                description = stringResource(Res.string.qobuz_country_description, effectiveCountryLabel),
+                value = settings.qobuzCountry,
+                placeholder = effectiveCountryLabel,
+                enabled = settings.enableQobuzIntegration,
+            ) { raw ->
+                settings.qobuzCountry =
+                    raw
+                        .trim()
+                        .uppercase()
+                        .filter { it.isLetter() }
+                        .take(2)
+            }
+        }
+        if (settings.enableQobuzIntegration) {
+            group("qobuzHealth", "") {
+                custom("qobuzProviderHealth", "") {
+                    QobuzBackendHealthSection(settings.qobuzBackend, effectiveCountry)
+                }
+            }
+        }
+    }
+
     builder.rootGroup(
         stringResource(Res.string.integrations),
         *listOfNotNull(
@@ -804,6 +924,7 @@ private fun buildIntegrationsRegistry(
             SettingsPageId.LAST_FM,
             SettingsPageId.LISTEN_BRAINZ,
             SettingsPageId.SPOTIFY.takeIf { host.spotify != null },
+            SettingsPageId.QOBUZ,
             SettingsPageId.DEVICE_CONNECT.takeIf { host.deviceConnect != null },
             SettingsPageId.LISTEN_TOGETHER.takeIf { host.listenTogetherManager != null || host.onOpenListenTogether != null },
         ).toTypedArray(),
@@ -823,6 +944,122 @@ internal fun integrationStatus(
         requiresAccount -> stringResource(Res.string.integration_on_signed_out)
         else -> stringResource(Res.string.integration_on)
     }
+
+private val qobuzHealthOnlineColor = Color(0xFF2ECC71)
+private val qobuzHealthReachableColor = Color(0xFFF1C40F)
+private val qobuzHealthOfflineColor = Color(0xFFE74C3C)
+
+@Composable
+private fun QobuzBackendHealthSection(
+    currentBackend: ResolverBackend,
+    countryCode: String,
+) {
+    val scope = rememberCoroutineScope()
+    var results by remember { mutableStateOf<List<QobuzBackendHealthChecker.Result>>(emptyList()) }
+    var loading by remember { mutableStateOf(false) }
+
+    fun check() {
+        if (loading) return
+        loading = true
+        scope.launch {
+            results = QobuzBackendHealthChecker.checkAll(countryCode)
+            loading = false
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    stringResource(Res.string.qobuz_provider_health),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Text(
+                    stringResource(Res.string.qobuz_provider_health_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            TextButton(onClick = { check() }, enabled = !loading) {
+                if (loading) {
+                    LoadingIndicator(modifier = Modifier.size(16.dp))
+                } else {
+                    Text(stringResource(Res.string.qobuz_provider_health_check))
+                }
+            }
+        }
+        if (loading && results.isEmpty()) {
+            Text(
+                stringResource(Res.string.qobuz_provider_health_checking),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        results.forEach { result ->
+            val active = result.target.backend == currentBackend
+            val name =
+                if (active) {
+                    stringResource(Res.string.qobuz_provider_health_active, result.target.name)
+                } else {
+                    result.target.name
+                }
+            val statusLabel =
+                when (result.status) {
+                    QobuzBackendHealthChecker.Status.ONLINE -> stringResource(Res.string.qobuz_provider_health_online)
+                    QobuzBackendHealthChecker.Status.REACHABLE -> stringResource(Res.string.qobuz_provider_health_reachable)
+                    QobuzBackendHealthChecker.Status.OFFLINE -> stringResource(Res.string.qobuz_provider_health_offline)
+                }
+            val detail =
+                listOfNotNull(
+                    statusLabel,
+                    result.latencyMs?.let { stringResource(Res.string.qobuz_provider_health_latency, it.toInt()) },
+                    qobuzHealthDetail(result),
+                ).joinToString(" · ")
+            val color =
+                when (result.status) {
+                    QobuzBackendHealthChecker.Status.ONLINE -> qobuzHealthOnlineColor
+                    QobuzBackendHealthChecker.Status.REACHABLE -> qobuzHealthReachableColor
+                    QobuzBackendHealthChecker.Status.OFFLINE -> qobuzHealthOfflineColor
+                }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(10.dp).clip(CircleShape).background(color))
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        detail,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun qobuzHealthDetail(result: QobuzBackendHealthChecker.Result): String? {
+    if (result.timedOut) {
+        return stringResource(Res.string.qobuz_provider_health_timeout, QobuzBackendHealthChecker.timeoutSeconds)
+    }
+    val code = result.httpStatusCode ?: return null
+    return when (code) {
+        in 200..299 -> null
+        401, 403 -> stringResource(Res.string.qobuz_provider_health_auth, code)
+        404, 405 -> stringResource(Res.string.qobuz_provider_health_endpoint, code)
+        429 -> stringResource(Res.string.qobuz_provider_health_rate_limited, code)
+        in 500..599 -> stringResource(Res.string.qobuz_provider_health_server_error, code)
+        else -> stringResource(Res.string.qobuz_provider_health_http, code)
+    }
+}
 
 internal fun buildMobileDiscordPlaybackUpdate(
     playback: IntegrationPlaybackState?,
