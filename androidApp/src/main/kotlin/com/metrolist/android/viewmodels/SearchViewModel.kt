@@ -14,7 +14,9 @@ import com.metrolist.shared.viewmodels.SearchViewModel as SharedSearchViewModel
 class SearchViewModel : ViewModel() {
     val shared = SharedSearchViewModel(
         scope = viewModelScope,
-        spotifySearchProvider = SpotifySearchProviderImpl { androidSpotifyImportManager.playbackClient() }
+        spotifySearchProvider = SpotifySearchProviderImpl {
+            androidSpotifyImportManager.playbackClient()
+        },
     )
     var hasRequestedInitialFocus = false
 }
