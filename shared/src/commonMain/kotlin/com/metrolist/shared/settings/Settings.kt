@@ -173,7 +173,9 @@ import com.metrolist.shared.constants.SlimNavBarKey
 import com.metrolist.shared.constants.SpeedDialArtworkRefreshTimesKey
 import com.metrolist.shared.constants.SpeedDialSurprisePinnedKey
 import com.metrolist.shared.constants.SponsorBlockEnabledKey
+import com.metrolist.shared.constants.EnableSpotifyIntegrationKey
 import com.metrolist.shared.constants.SpotifyHomeOnlyKey
+import com.metrolist.shared.constants.SpotifySyncLikesKey
 import com.metrolist.shared.constants.SwipeToRemoveSongKey
 import com.metrolist.shared.constants.SwipeToSongKey
 import com.metrolist.shared.constants.TempoPitchPresetsJsonKey
@@ -285,6 +287,8 @@ class Settings(
     var useSpotifyHome by preference(UseSpotifyHomeKey, true)
     var spotifyHomeOnly by preference(SpotifyHomeOnlyKey, false)
     var useSpotifySearch by preference(UseSpotifySearchKey, true)
+    var enableSpotifyIntegration by preference(EnableSpotifyIntegrationKey, false)
+    var spotifySyncLikes by preference(SpotifySyncLikesKey, false)
 
     private var storedAppLanguage by preference(AppLanguageKey, "SYSTEM")
     var appLanguage: String

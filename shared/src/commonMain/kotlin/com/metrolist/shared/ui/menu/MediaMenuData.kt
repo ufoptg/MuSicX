@@ -1,6 +1,12 @@
 package com.metrolist.shared.ui.menu
 
+import androidx.compose.runtime.Composable
+import org.jetbrains.compose.resources.stringResource
 import com.metrolist.shared.api.playlistSongs
+import com.metrolist.shared.generated.resources.Res
+import com.metrolist.shared.generated.resources.open_in_spotify
+import com.metrolist.shared.generated.resources.spotify_override_match_description
+import com.metrolist.shared.generated.resources.spotify_override_match_title
 import com.metrolist.shared.model.AlbumItem
 import com.metrolist.shared.model.ArtistItem
 import com.metrolist.shared.model.EpisodeItem
@@ -10,6 +16,9 @@ import com.metrolist.shared.model.SongItem
 import com.metrolist.shared.model.YTItem
 import com.metrolist.shared.model.toSongItem
 import com.metrolist.shared.state.GlobalYouTubeRepository
+import com.metrolist.shared.ui.components.PlayerMenuAction
+import com.metrolist.shared.ui.icons.MetrolistIcons
+import com.metrolist.shared.ui.screens.spotifyWebUrl
 
 suspend fun loadMediaItemSongs(item: YTItem): List<SongItem> {
     val repository = GlobalYouTubeRepository.instance
@@ -45,4 +54,45 @@ suspend fun loadMediaItemSongs(item: YTItem): List<SongItem> {
             emptyList()
         }
     }
+}
+
+/**
+ * Creates a "Open in Spotify" [PlayerMenuAction] for the given [item].
+ * The caller should provide an [onOpenUrl] callback to handle the URL.
+ */
+@Composable
+internal fun spotifyOpenInAction(
+    item: YTItem,
+    onDismiss: () -> Unit,
+    onOpenUrl: (String) -> Unit,
+): PlayerMenuAction? {
+    val spotifyUrl = item.spotifyWebUrl() ?: return null
+    return action(
+        icon = MetrolistIcons.AutoMirrored.Filled.OpenInNew,
+        title = stringResource(Res.string.open_in_spotify),
+        onDismiss = onDismiss,
+        onClick = { onOpenUrl(spotifyUrl) },
+    )
+}
+
+/**
+ * Creates an "Override match" [PlayerMenuAction] for the given Spotify track and YouTube ID.
+ * The caller should provide an [onOverrideMatch] callback to handle the manual override.
+ */
+@Composable
+internal fun spotifyOverrideMatchAction(
+    spotifyUri: String,
+    youtubeId: String,
+    title: String,
+    artist: String,
+    onDismiss: () -> Unit,
+    onOverrideMatch: (String, String, String, String) -> Unit,
+): PlayerMenuAction {
+    return action(
+        icon = MetrolistIcons.Outlined.Edit,
+        title = stringResource(Res.string.spotify_override_match_title),
+        description = stringResource(Res.string.spotify_override_match_description),
+        onDismiss = onDismiss,
+        onClick = { onOverrideMatch(spotifyUri, youtubeId, title, artist) },
+    )
 }

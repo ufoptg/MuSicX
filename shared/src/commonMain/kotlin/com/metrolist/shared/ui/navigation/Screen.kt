@@ -171,6 +171,24 @@ sealed class Screen : NavKey {
     data object PlaybackBenchmark : Screen()
 
     @Serializable
+    data object Spotify : Screen()
+
+    @Serializable
+    data class SpotifyPlaylist(
+        val id: String,
+    ) : Screen()
+
+    @Serializable
+    data class SpotifyAlbum(
+        val id: String,
+    ) : Screen()
+
+    @Serializable
+    data class SpotifyArtist(
+        val id: String,
+    ) : Screen()
+
+    @Serializable
     data class AutoPlaylist(
         val type: String,
     ) : Screen()

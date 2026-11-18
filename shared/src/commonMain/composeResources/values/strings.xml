@@ -855,6 +855,18 @@
     <string name="settings_spotify_home_only_title">Spotify only on Home</string>
     <!-- Translators: Supporting text beneath the Spotify-only home switch in the settings. -->
     <string name="settings_spotify_home_only_description">Hide YouTube Music sections on the Home tab while Spotify content is available.</string>
+    <!-- Translators: Title for the master switch that enables the Spotify integration. -->
+    <string name="settings_spotify_enable_title">Enable Spotify</string>
+    <!-- Translators: Supporting text beneath the Spotify enable master switch in the settings. -->
+    <string name="settings_spotify_enable_description">Enable Spotify home shelves, search results, and playlist import.</string>
+    <!-- Translators: Title for the switch that syncs Spotify Liked Songs into the library. -->
+    <string name="settings_spotify_sync_likes_title">Sync Liked Songs</string>
+    <!-- Translators: Supporting text beneath the Spotify sync likes switch in the settings. -->
+    <string name="settings_spotify_sync_likes_description">Sync your Spotify Liked Songs into the MusicX library.</string>
+    <!-- Translators: Menu item to manually override a Spotify-to-YouTube Music track match. -->
+    <string name="spotify_override_match_title">Override match</string>
+    <!-- Translators: Supporting text beneath the Spotify override match menu item. -->
+    <string name="spotify_override_match_description">Manually match this Spotify track to a YouTube Music track.</string>
     <string name="discord_integration_description">Show the music you play on your Discord profile</string>
     <string name="device_connect_peer_details">%1$s\n%2$s</string>
     <string name="listen_together_server_label">%1$s · %2$s</string>

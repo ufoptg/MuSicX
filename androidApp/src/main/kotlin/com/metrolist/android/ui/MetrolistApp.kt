@@ -2590,6 +2590,14 @@ fun getEntryProvider(
             )
         }
 
+        entry<Screen.Spotify>(metadata = navTabMetadata) {
+            SettingsIntegrationsScreen(
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToListenTogether = { navigator.navigate(Screen.ListenTogetherSettings) },
+                initialPage = SettingsPageId.SPOTIFY,
+            )
+        }
+
         entry<Screen.Playlist>(metadata = navTabMetadata + detailViewModelMetadata) { playlist ->
             val builtin = BuiltinPlaylist.fromId(playlist.id)
             val collectionType = builtin?.collectionType

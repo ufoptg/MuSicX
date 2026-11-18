@@ -737,7 +737,15 @@ private fun buildIntegrationsRegistry(
             icon = MetrolistIcons.Outlined.MusicNote,
             tone = SettingsTone.GREEN,
         ) {
-            group("spotifyAccount", stringResource(Res.string.account)) {
+            group("spotifyMaster", "") {
+                mainSwitch(
+                    id = "spotifyEnabled",
+                    title = stringResource(Res.string.settings_spotify_enable_title),
+                    checked = settings.enableSpotifyIntegration,
+                    description = stringResource(Res.string.settings_spotify_enable_description),
+                ) { settings.enableSpotifyIntegration = it }
+            }
+            group("spotifyAccount", stringResource(Res.string.account), enabled = settings.enableSpotifyIntegration) {
                 if (spotify.signedIn) {
                     action(
                         id = "spotifyLogout",
@@ -756,7 +764,7 @@ private fun buildIntegrationsRegistry(
                 }
             }
             if (spotify.signedIn) {
-                group("spotifyHome", stringResource(Res.string.home)) {
+                group("spotifyHome", stringResource(Res.string.home), enabled = settings.enableSpotifyIntegration) {
                     switch(
                         id = "spotifyUseHome",
                         title = stringResource(Res.string.settings_spotify_home_title),
@@ -771,6 +779,18 @@ private fun buildIntegrationsRegistry(
                             checked = settings.spotifyHomeOnly,
                         ) { settings.spotifyHomeOnly = it }
                     }
+                    switch(
+                        id = "spotifyUseSearch",
+                        title = stringResource(Res.string.settings_spotify_search_title),
+                        description = stringResource(Res.string.settings_spotify_search_description),
+                        checked = settings.useSpotifySearch,
+                    ) { settings.useSpotifySearch = it }
+                    switch(
+                        id = "spotifySyncLikes",
+                        title = stringResource(Res.string.settings_spotify_sync_likes_title),
+                        description = stringResource(Res.string.settings_spotify_sync_likes_description),
+                        checked = settings.spotifySyncLikes,
+                    ) { settings.spotifySyncLikes = it }
                 }
             }
         }
