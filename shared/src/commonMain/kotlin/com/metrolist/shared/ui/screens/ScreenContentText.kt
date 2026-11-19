@@ -8,6 +8,8 @@ import com.metrolist.shared.generated.resources.albums
 import com.metrolist.shared.generated.resources.artist
 import com.metrolist.shared.generated.resources.artist_play_all
 import com.metrolist.shared.generated.resources.artists
+import com.metrolist.shared.generated.resources.discover_library_tile
+import com.metrolist.shared.generated.resources.discover_something_new
 import com.metrolist.shared.generated.resources.back
 import com.metrolist.shared.generated.resources.browse
 import com.metrolist.shared.generated.resources.cached_playlist
@@ -151,6 +153,8 @@ fun homeContentText() =
         loading = stringResource(Res.string.loading),
         tryAgain = stringResource(Res.string.retry),
         homeUnavailable = stringResource(Res.string.home_unavailable),
+        discoverSomethingNew = stringResource(Res.string.discover_something_new),
+        discoverLibraryTile = stringResource(Res.string.discover_library_tile),
     )
 
 @Composable

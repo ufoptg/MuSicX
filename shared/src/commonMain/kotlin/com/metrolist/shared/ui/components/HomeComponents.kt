@@ -83,6 +83,8 @@ fun SectionTitle(
     onClick: (() -> Unit)? = null,
     onPlayAllClick: (() -> Unit)? = null,
     onShuffleClick: (() -> Unit)? = null,
+    onRefreshClick: (() -> Unit)? = null,
+    refreshLabel: String? = null,
     isWide: Boolean = false,
 ) {
     val titleStyle = if (isWide) MaterialTheme.typography.headlineMediumEmphasized else MaterialTheme.typography.headlineSmallEmphasized
@@ -159,6 +161,14 @@ fun SectionTitle(
                     contentDescription = null,
                     isWide = isWide,
                 )
+                if (onRefreshClick != null) {
+                    SectionActionButton(
+                        icon = MetrolistIcons.Outlined.Refresh,
+                        contentDescription = refreshLabel,
+                        onClick = onRefreshClick,
+                        isWide = isWide,
+                    )
+                }
             }
         } else if (onShuffleClick != null) {
             SectionActionButton(
@@ -172,6 +182,13 @@ fun SectionTitle(
                 icon = MetrolistIcons.Default.PlayArrow,
                 contentDescription = playAllLabel,
                 onClick = onPlayAllClick,
+                isWide = isWide,
+            )
+        } else if (onRefreshClick != null) {
+            SectionActionButton(
+                icon = MetrolistIcons.Outlined.Refresh,
+                contentDescription = refreshLabel,
+                onClick = onRefreshClick,
                 isWide = isWide,
             )
         }

@@ -291,6 +291,47 @@ object HomeShelfBuilder {
                 }
             }
 
+            if (Settings.shared.uiDiscover && isVisible("discover_something_new", text.discoverSomethingNew)) {
+                val uniqueDiscover =
+                    state.discoverSomethingNew
+                        .distinctBy(::canonicalHomeItemId)
+                        .filter { seenItemKeys.add(canonicalHomeItemId(it)) }
+                if (uniqueDiscover.isNotEmpty()) {
+                    seenShelfTitles.add(text.discoverSomethingNew.trim().lowercase())
+                    add(
+                        HomeShelf(
+                            key = "discover_something_new",
+                            title = text.discoverSomethingNew,
+                            items = uniqueDiscover,
+                            style = HomeShelfStyle.CAROUSEL,
+                            headerAction = HomeShelfHeaderAction.SHUFFLE,
+                            browseId = null,
+                        ),
+                    )
+                }
+            }
+
+            if (Settings.shared.uiDiscover && isVisible("discover_library_tile", text.discoverLibraryTile)) {
+                val uniqueDiscoverLibrary =
+                    state.discoverSomethingNew
+                        .distinctBy(::canonicalHomeItemId)
+                        .filter { seenItemKeys.add(canonicalHomeItemId(it)) }
+                if (uniqueDiscoverLibrary.isNotEmpty()) {
+                    seenShelfTitles.add(text.discoverLibraryTile.trim().lowercase())
+                    add(
+                        HomeShelf(
+                            key = "discover_library_tile",
+                            title = text.discoverLibraryTile,
+                            items = uniqueDiscoverLibrary,
+                            style = HomeShelfStyle.SONG_GRID,
+                            headerAction = HomeShelfHeaderAction.BROWSE,
+                            rows = 2,
+                            browseId = null,
+                        ),
+                    )
+                }
+            }
+
             state.sections
                 .filter { it.hasTitle && it.browseId?.startsWith("FEmusic_listen_again") != true && isVisible(it.visibilityKey, it.title) }
                 .forEachIndexed { index, section ->

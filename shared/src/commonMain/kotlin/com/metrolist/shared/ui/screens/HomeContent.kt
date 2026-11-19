@@ -85,6 +85,7 @@ import com.metrolist.shared.constants.currentGridThumbnailHeight
 import com.metrolist.shared.constants.gridCaptionHeight
 import com.metrolist.shared.generated.resources.Res
 import com.metrolist.shared.generated.resources.artist_play_all
+import com.metrolist.shared.generated.resources.refresh
 import com.metrolist.shared.generated.resources.refreshing
 import com.metrolist.shared.model.AlbumItem
 import com.metrolist.shared.model.ArtistItem
@@ -180,6 +181,8 @@ data class HomeContentText(
     val loading: String,
     val tryAgain: String,
     val homeUnavailable: String,
+    val discoverSomethingNew: String,
+    val discoverLibraryTile: String,
 )
 
 @Composable
@@ -213,6 +216,7 @@ fun HomeContent(
     header: (LazyListScope.() -> Unit)? = null,
     shelfCache: HomeShelfCache? = null,
     onPlaySongs: ((List<SongItem>) -> Unit)? = null,
+    onRefresh: (() -> Unit)? = null,
 ) {
     val activeSongId =
         remember(currentSongId) {
@@ -256,6 +260,7 @@ fun HomeContent(
                 isLandscape = isLandscape,
                 speedDialSurpriseAtEndOfFirstPage = speedDialSurpriseAtEndOfFirstPage,
                 isWide = isWide,
+                onRefresh = onRefresh,
             )
 
             if (uiState.isContentLoading || uiState.isLoadingMore) {
@@ -408,6 +413,7 @@ fun LazyListScope.renderHomeShelves(
     speedDialSurpriseAtEndOfFirstPage: Boolean = false,
     isWide: Boolean = false,
     onPlaySongs: ((List<SongItem>) -> Unit)? = null,
+    onRefresh: (() -> Unit)? = null,
 ) {
     shelves.forEach { shelf ->
         shelf.chipTitle?.let { title ->
@@ -533,6 +539,7 @@ fun LazyListScope.renderHomeShelves(
                             isLandscape = isLandscape,
                             speedDialSurpriseAtEndOfFirstPage = speedDialSurpriseAtEndOfFirstPage,
                             isWide = isWide,
+                            onRefresh = onRefresh,
                         )
                     }
                 }
@@ -565,6 +572,7 @@ internal fun DefaultHomeShelf(
     speedDialSurpriseAtEndOfFirstPage: Boolean = false,
     isWide: Boolean = false,
     onPlaySongs: ((List<SongItem>) -> Unit)? = null,
+    onRefresh: (() -> Unit)? = null,
 ) {
     val isVideoShelf = shelf.style != HomeShelfStyle.SPEED_DIAL && !shelf.compactRows && shelf.items.isVideoShelf()
     Column(Modifier.fillMaxWidth()) {
@@ -578,6 +586,7 @@ internal fun DefaultHomeShelf(
             isItemEnabled,
             isWide,
             onPlaySongs,
+            onRefresh,
         )
 
         if (isVideoShelf) {
@@ -680,6 +689,7 @@ private fun HomeShelfHeader(
     isItemEnabled: (YTItem) -> Boolean,
     isWide: Boolean,
     onPlaySongs: ((List<SongItem>) -> Unit)?,
+    onRefresh: (() -> Unit)? = null,
 ) {
     val songs = shelf.items.filterIsInstance<SongItem>().filter(isItemEnabled)
     val isLibraryAlbums = shelf.headerAction == HomeShelfHeaderAction.LIBRARY && shelf.browseId?.startsWith("FEmusic_library") == true
@@ -724,6 +734,8 @@ private fun HomeShelfHeader(
             onShuffleSongs?.takeIf { shelf.headerAction == HomeShelfHeaderAction.SHUFFLE && songs.isNotEmpty() }?.let { shuffle ->
                 { shuffle(songs) }
             },
+        onRefreshClick = if (shelf.key == "discover_library_tile") onRefresh else null,
+        refreshLabel = if (shelf.key == "discover_library_tile") stringResource(Res.string.refresh) else null,
         isWide = isWide,
     )
     Spacer(Modifier.height(10.dp))

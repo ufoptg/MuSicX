@@ -200,6 +200,7 @@ import com.metrolist.android.ui.screens.ArtistScreenHost
 import com.metrolist.android.ui.screens.AutoPlaylistScreen
 import com.metrolist.android.ui.screens.BrowseScreen
 import com.metrolist.android.ui.screens.DownloadsScreen
+import com.metrolist.android.ui.screens.DiscoverLibraryHost
 import com.metrolist.android.ui.screens.HistoryScreen
 import com.metrolist.android.ui.screens.HomeScreen
 import com.metrolist.android.ui.screens.HomeSectionScreen
@@ -2413,6 +2414,7 @@ fun getEntryProvider(
                 onNavigateToHomeSection = { shelf ->
                     navigator.navigate(Screen.HomeSection(shelf.pageKey, shelf.title, shelf.toHomeSection()))
                 },
+                onNavigateToDiscoverLibrary = { navigator.navigate(Screen.DiscoverLibrary) },
                 scrollToTopEvents = homeScrollToTopEvents,
             )
         }
@@ -2472,6 +2474,10 @@ fun getEntryProvider(
                     navigator.navigate(Screen.AutoPlaylist(type))
                 },
             )
+        }
+
+        entry<Screen.DiscoverLibrary>(metadata = navTabMetadata) {
+            DiscoverLibraryHost(onNavigateBack = { navigator.goBack() })
         }
 
         entry<Screen.Search>(metadata = navTabMetadata) {

@@ -110,6 +110,7 @@ internal fun HomeViewModel.HomeUiState.startupSnapshot(): HomeViewModel.HomeUiSt
             similarRecommendations.take(HOME_SNAPSHOT_SECTIONS).map {
                 it.copy(items = it.items.take(HOME_SNAPSHOT_ITEMS))
             },
+        discoverSomethingNew = discoverSomethingNew.take(HOME_SNAPSHOT_ITEMS),
     )
 }
 
@@ -621,6 +622,7 @@ class HomeViewModel(
                         val localKeepListening = keepListeningDeferred.await().map { it.toSongItem() }
                         initialSpeedDialPins.await()
                         val localSpeedDial = latestSpeedDialPins
+                        val discoverBatchDeferred = async { generateDiscoverBatch() }
 
                         val rawHomeSections = homePageData.sections.withoutRegionalCharts(signedIn)
                         val rawSpeedDialSections =
@@ -741,6 +743,7 @@ class HomeViewModel(
                                         .flatMap { it.items.filterIsInstance<PlaylistItem>() }
                                         .distinctBy(::canonicalHomeItemId),
                                 userPlaylists = userPlaylists,
+                                discoverSomethingNew = discoverBatchDeferred.await(),
                                 sections = uncategorizedHomeSections(sections),
                                 recentlyPlayed = emptyList(),
                             )
@@ -1061,6 +1064,7 @@ class HomeViewModel(
                 },
             sections = sections.withLocalSongMetadata(localSongs),
             chipFeeds = chipFeeds.map { it.copy(sections = it.sections.withLocalSongMetadata(localSongs)) },
+            discoverSomethingNew = discoverSomethingNew.map { it.withFallbackMetadata(localSongs[it.id]) },
         )
 
     private fun List<HomeSection>.withoutNonMusicalVideos(): List<HomeSection> =
@@ -1126,6 +1130,13 @@ class HomeViewModel(
             isRefresh = true,
             onComplete = onComplete,
         )
+    }
+
+    fun refreshDiscoverBatch() {
+        scope.launch {
+            val batch = generateDiscoverBatch()
+            _uiState.update { it.copy(discoverSomethingNew = batch) }
+        }
     }
 
     fun invalidateCacheForLocaleChange() {
@@ -1445,6 +1456,33 @@ class HomeViewModel(
                 SimilarRecommendation(source, items, section.browseId, section.params, section.subtitle)
             }
 
+    private suspend fun generateDiscoverBatch(): List<SongItem> = withContext(Dispatchers.Default) {
+        val now = getCurrentTimeMillis()
+        val monthAgo = now - 86400000L * 30L  // 30 days in ms
+
+        // 1. Most played songs (5)
+        val mostPlayed = database.dao().mostPlayedSongs(monthAgo, limit = 5).first().map { it.toSongItem() }
+
+        // 2. Liked songs (up to 15 random)
+        val likedSongs = database.dao().likedSongsByCreateDateAsc().first().shuffled().take(15).map { it.toSongItem() }
+
+        // 3. Expand via YouTube related (startRadio)
+        val seeds = (mostPlayed + likedSongs).distinctBy { it.id }.take(20)
+        val related =
+            seeds.flatMap { seed ->
+                runCatching { GlobalYouTubeRepository.instance.startRadio(seed.id) }
+                    .getOrDefault(emptyList())
+            }
+
+        // 4. Combine all, deduplicate, filter out played history
+        val playedIds = database.dao().events().map { events -> events.map { it.event.songId }.toSet() }.first()
+
+        (seeds + related)
+            .distinctBy { it.id }
+            .filterNot { it.id in playedIds }
+            .take(50)
+    }
+
     @Serializable
     data class HomeUiState(
         @Transient val isRestoringCache: Boolean = false,
@@ -1479,6 +1517,7 @@ class HomeViewModel(
         val communityPlaylist: List<PlaylistItem> = emptyList(),
         val moodsAndGenres: List<Genre> = emptyList(),
         val recentlyPlayed: List<SongItem> = emptyList(),
+        val discoverSomethingNew: List<SongItem> = emptyList(),
         val recapPlaylists: List<PlaylistItem> = emptyList(),
         val podcasts: List<PodcastItem> = emptyList(),
         val similarRecommendations: List<SimilarRecommendation> = emptyList(),
@@ -1516,7 +1555,8 @@ class HomeViewModel(
                 keepListening.isNotEmpty() || forgottenFavorites.isNotEmpty() || communityPlaylist.isNotEmpty() ||
                 moodsAndGenres.isNotEmpty() || recapPlaylists.isNotEmpty() || podcasts.isNotEmpty() ||
                 similarRecommendations.any { it.items.isNotEmpty() } || sections.any { it.items.isNotEmpty() } ||
-                chipFeeds.any { feed -> feed.sections.any { it.items.isNotEmpty() } }
+                chipFeeds.any { feed -> feed.sections.any { it.items.isNotEmpty() } } ||
+                discoverSomethingNew.isNotEmpty()
     }
 
     @Serializable
@@ -1601,6 +1641,7 @@ internal fun HomeViewModel.HomeUiState.withoutBlockedContent(): HomeViewModel.Ho
         newReleases = BlockedContent.filterItems(newReleases, snapshot).filterIsInstance<AlbumItem>(),
         keepListening = BlockedContent.filterSongs(keepListening, snapshot),
         forgottenFavorites = BlockedContent.filterSongs(forgottenFavorites, snapshot),
+        discoverSomethingNew = BlockedContent.filterSongs(discoverSomethingNew, snapshot),
         communityPlaylist = BlockedContent.filterItems(communityPlaylist, snapshot).filterIsInstance<PlaylistItem>(),
         recapPlaylists = BlockedContent.filterItems(recapPlaylists, snapshot).filterIsInstance<PlaylistItem>(),
         podcasts = BlockedContent.filterItems(podcasts, snapshot).filterIsInstance<PodcastItem>(),

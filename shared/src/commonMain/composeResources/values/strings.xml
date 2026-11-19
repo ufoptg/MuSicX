@@ -5610,4 +5610,6 @@
     <string name="discover_something_new">Discover Something New</string>
     <!-- Translators: Supporting text for the Discover Something New switch in MuSicX features settings. -->
     <string name="discover_something_new_description">Show a Home row and Library tile of new music you might like</string>
+    <!-- Translators: Label for the Library tile in Discover Something New feature. -->
+    <string name="discover_library_tile">Discover Library</string>
 </resources>

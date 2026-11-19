@@ -141,6 +141,7 @@ fun HomeScreen(
     onNavigateToVideoBrowse: (String, String?, String) -> Unit = onNavigateToBrowse,
     onNavigateToHomeSection: (HomeShelf) -> Unit = {},
     onNavigateToLibrary: (LibraryFilterType?) -> Unit = {},
+    onNavigateToDiscoverLibrary: () -> Unit = {},
     floatingActionsBottomInset: State<Dp>,
     scrollToTopEvents: Flow<Long> = emptyFlow(),
     viewModel: HomeViewModel = koinViewModel<HomeViewModel>(),
@@ -304,7 +305,14 @@ fun HomeScreen(
             onShuffleSongs = { songs -> playerConnection?.shuffleQueue(songs, queueTitle = sharedText.shuffle) },
             onPlaySongs = { songs -> playerConnection?.playQueue(songs, queueTitle = sharedText.quickPicks) },
             onLibraryClick = onNavigateToLibrary,
-            onLocalShelfClick = onNavigateToHomeSection,
+            onLocalShelfClick = { shelf ->
+                if (shelf.key == "discover_library_tile") {
+                    onNavigateToDiscoverLibrary()
+                } else {
+                    onNavigateToHomeSection(shelf)
+                }
+            },
+            onRefresh = viewModel::refreshDiscoverBatch,
             onArtistClick = { artistId ->
                 if (artistId.startsWith("spotify:")) {
                     openUrl("https://open.spotify.com/artist/${artistId.substringAfterLast(":")}")

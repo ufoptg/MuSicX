@@ -171,6 +171,9 @@ sealed class Screen : NavKey {
     data object PlaybackBenchmark : Screen()
 
     @Serializable
+    data object DiscoverLibrary : Screen()
+
+    @Serializable
     data object Spotify : Screen()
 
     @Serializable
