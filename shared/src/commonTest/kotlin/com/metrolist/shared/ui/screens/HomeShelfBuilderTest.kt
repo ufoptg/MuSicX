@@ -439,5 +439,7 @@ class HomeShelfBuilderTest {
             loading = "Loading",
             tryAgain = "Try again",
             homeUnavailable = "Home unavailable",
+            discoverSomethingNew = "Discover Something New",
+            discoverLibraryTile = "Discover Library",
         )
 }

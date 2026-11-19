@@ -41,7 +41,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 internal fun DiscoverLibraryHost(
     onNavigateBack: () -> Unit = {},
-    homeViewModel: HomeViewModel = koinViewModel(),
+    homeViewModel: HomeViewModel = koinViewModel<HomeViewModel>(),
 ) {
     val homeState by homeViewModel.uiState.collectAsState()
     val text = homeContentText()
