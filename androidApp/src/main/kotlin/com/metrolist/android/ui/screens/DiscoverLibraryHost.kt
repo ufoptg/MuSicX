@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.metrolist.android.playback.LocalPlayerConnection
 import com.metrolist.android.ui.components.handleItemClick
+import com.metrolist.android.viewmodels.HomeViewModel
 import com.metrolist.shared.generated.resources.Res
 import com.metrolist.shared.generated.resources.play
 import com.metrolist.shared.generated.resources.shuffle
@@ -33,7 +34,6 @@ import com.metrolist.shared.model.YTItem
 import com.metrolist.shared.ui.icons.MetrolistIcons
 import com.metrolist.shared.ui.screens.DiscoverLibraryScreen
 import com.metrolist.shared.ui.screens.homeContentText
-import com.metrolist.android.viewmodels.HomeViewModel
 import com.metrolist.shared.ui.tv.tvFocusHighlight
 import org.jetbrains.compose.resources.stringResource
 import org.koin.androidx.compose.koinViewModel
