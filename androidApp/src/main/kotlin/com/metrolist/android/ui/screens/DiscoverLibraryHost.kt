@@ -34,6 +34,7 @@ import com.metrolist.shared.ui.icons.MetrolistIcons
 import com.metrolist.shared.ui.screens.DiscoverLibraryScreen
 import com.metrolist.shared.ui.screens.homeContentText
 import com.metrolist.shared.ui.tv.tvFocusHighlight
+import com.metrolist.shared.viewmodels.HomeViewModel
 import org.jetbrains.compose.resources.stringResource
 import org.koin.androidx.compose.koinViewModel
 
@@ -42,7 +43,7 @@ internal fun DiscoverLibraryHost(
     onNavigateBack: () -> Unit = {},
     homeViewModel: HomeViewModel = koinViewModel(),
 ) {
-    val homeState by homeViewModel.shared.uiState.collectAsState()
+    val homeState by homeViewModel.uiState.collectAsState()
     val text = homeContentText()
     val playerConnection = LocalPlayerConnection.current
     val currentSong = playerConnection?.currentSong?.collectAsState() ?: remember { mutableStateOf(null) }
@@ -93,7 +94,7 @@ internal fun DiscoverLibraryHost(
                     playerConnection,
                     scope,
                     onNavigateToBrowse = { _, _, _ -> },
-                    queue = songs.filterIsInstance<YTItem>().filter { it is SongItem },
+                    songs = songs,
                     startVideo = false,
                 )
             },

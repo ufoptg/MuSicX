@@ -199,8 +199,8 @@ import com.metrolist.android.ui.screens.AlbumScreen
 import com.metrolist.android.ui.screens.ArtistScreenHost
 import com.metrolist.android.ui.screens.AutoPlaylistScreen
 import com.metrolist.android.ui.screens.BrowseScreen
-import com.metrolist.android.ui.screens.DownloadsScreen
 import com.metrolist.android.ui.screens.DiscoverLibraryHost
+import com.metrolist.android.ui.screens.DownloadsScreen
 import com.metrolist.android.ui.screens.HistoryScreen
 import com.metrolist.android.ui.screens.HomeScreen
 import com.metrolist.android.ui.screens.HomeSectionScreen

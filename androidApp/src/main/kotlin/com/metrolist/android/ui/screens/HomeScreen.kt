@@ -312,7 +312,7 @@ fun HomeScreen(
                     onNavigateToHomeSection(shelf)
                 }
             },
-            onRefresh = viewModel::refreshDiscoverBatch,
+            onRefresh = { viewModel.shared.refreshDiscoverBatch() },
             onArtistClick = { artistId ->
                 if (artistId.startsWith("spotify:")) {
                     openUrl("https://open.spotify.com/artist/${artistId.substringAfterLast(":")}")
