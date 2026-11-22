@@ -313,7 +313,7 @@ class ReleaseGateTest(unittest.TestCase):
                                                  html_url=f'https://github.com/test/run/{{12 + idx}}'))
                         print(json.dumps([dict(workflow_runs=runs)]))
                     elif '/jobs?' in path:
-                        print(json.dumps([dict(jobs=[dict(name='Android', conclusion='success',
+                        print(json.dumps([dict(jobs=[dict(name='Android / APK', conclusion='success',
                             check_run_url='https://api.github.com/repos/test/repo/check-runs/42',
                             steps=[dict(name='Test Android string generation', conclusion='success')]),
                             dict(name='Select checks and repository checks', conclusion='success',
