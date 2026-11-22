@@ -17,7 +17,7 @@ concurrency:
 jobs:
   changes:
     name: Select checks and repository checks
-    runs-on: blacksmith-2vcpu-ubuntu-2604
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       android: ${{ steps.paths.outputs.android }}
