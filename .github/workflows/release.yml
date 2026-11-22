@@ -19,7 +19,7 @@ jobs:
       actions: read
       checks: read
     name: Validate stable release
-    runs-on: blacksmith-2vcpu-ubuntu-2604
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
       version: ${{ steps.version.outputs.version }}
