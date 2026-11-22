@@ -9,7 +9,7 @@
     <!-- Bottom navigation -->
     <!-- Translators: Label for app name in the multiple app screens. -->
     <string name="app_name" translatable="false">MuSicX</string>
-    <string name="account_menu_license" translatable="false">GPL-3.0 MetrolistGroup</string>
+    <string name="account_menu_license" translatable="false">GPL-3.0 MuSicX</string>
     <!-- Translators: Apple mobile platform name displayed in application information. -->
     <!-- Translators: Navigation label for home in the multiple app screens. -->
     <string name="home">Home</string>
@@ -720,6 +720,8 @@
     <string name="credits_desktop_lead">Lead desktop developer</string>
     <!-- Translators: Label for credits creator in the About screen. -->
     <string name="credits_creator">Creator of MuSicX</string>
+    <!-- Translators: Label for a project lead in the About screen. -->
+    <string name="credits_lead">Lead developer</string>
     <!-- Translators: Heading for Rich Presence in the Discord integration. -->
     <string name="discord_rpc_title" translatable="false">Discord Rich Presence</string>
     <!-- Translators: Label for credits android developer in the About screen. -->

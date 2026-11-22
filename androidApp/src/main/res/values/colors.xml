@@ -3,7 +3,7 @@
     <color name="startup_background">@android:color/background_light</color>
     <color name="teal_200">#FF03DAC5</color>
     <color name="teal_700">#FF018786</color>
-    <color name="ic_launcher_background">#FF000000</color>
+    <color name="ic_launcher_background">#FF0A0A0A</color>
     <color name="ic_launcher_glyph">#FFFFFFFF</color>
 
     <color name="widget_text_primary">@color/widget_on_surface</color>

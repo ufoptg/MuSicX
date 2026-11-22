@@ -46,6 +46,7 @@ import com.metrolist.shared.generated.resources.credits_creator
 import com.metrolist.shared.generated.resources.credits_creator_section
 import com.metrolist.shared.generated.resources.credits_desktop_developer
 import com.metrolist.shared.generated.resources.credits_desktop_lead
+import com.metrolist.shared.generated.resources.credits_lead
 import com.metrolist.shared.generated.resources.credits_leads_section
 import com.metrolist.shared.generated.resources.credits_license_desc
 import com.metrolist.shared.generated.resources.credits_license_name
@@ -74,6 +75,7 @@ fun rememberAboutScreenText(): AboutScreenText =
         leadsSection = sharedStringResource(Res.string.credits_leads_section),
         collaborators = sharedStringResource(Res.string.credits_collaborators_section),
         creatorRole = sharedStringResource(Res.string.credits_creator),
+        leadRole = sharedStringResource(Res.string.credits_lead),
         androidLeadRole = sharedStringResource(Res.string.credits_android_lead),
         desktopLeadRole = sharedStringResource(Res.string.credits_desktop_lead),
         discordRichPresenceRole = sharedStringResource(Res.string.discord_rpc_title),
@@ -94,6 +96,7 @@ fun rememberAboutScreenText(): AboutScreenText =
 
 enum class AboutContributorRole {
     CREATOR,
+    LEAD,
     ANDROID_LEAD,
     DESKTOP_LEAD,
     DISCORD_RICH_PRESENCE,
@@ -137,16 +140,22 @@ data class AboutContributor(
 object AboutContributors {
     val lead: AboutContributor =
         AboutContributor(
-            name = "Mo Agamy",
+            name = "TrueSaiyan",
             role = AboutContributorRole.CREATOR,
-            githubHandle = "mostafaalagamy",
-            sponsorUrl = "https://buymeacoffee.com/mostafaalagamy",
+            githubHandle = "ufoptg",
             avatarShape = AboutAvatarShape.COOKIE_9_SIDED,
-            favoriteSongVideoId = "Mh2JWGWvy_Y",
         )
 
     val leads: List<AboutContributor> =
         listOf(
+            AboutContributor(
+                name = "Mo Agamy",
+                role = AboutContributorRole.LEAD,
+                githubHandle = "mostafaalagamy",
+                sponsorUrl = "https://buymeacoffee.com/mostafaalagamy",
+                avatarShape = AboutAvatarShape.COOKIE_9_SIDED,
+                favoriteSongVideoId = "Mh2JWGWvy_Y",
+            ),
             AboutContributor(
                 name = "Lamp",
                 role = AboutContributorRole.DESKTOP_LEAD,
@@ -245,11 +254,11 @@ val aboutCommunityLinks: List<AboutCommunityLink> =
     listOf(
         AboutCommunityLink(AboutCommunityLinkKind.DISCORD, "https://discord.com/invite/zrdbeRG2Mt"),
         AboutCommunityLink(AboutCommunityLinkKind.TELEGRAM, "https://t.me/metrolistapp"),
-        AboutCommunityLink(AboutCommunityLinkKind.REPOSITORY, "https://github.com/MetrolistGroup/Metrolist"),
+        AboutCommunityLink(AboutCommunityLinkKind.REPOSITORY, "https://github.com/ufoptg/MuSicX"),
     )
 
 val aboutLicenseLink: AboutCommunityLink =
-    AboutCommunityLink(AboutCommunityLinkKind.LICENSE, "https://github.com/MetrolistGroup/Metrolist/blob/main/LICENSE")
+    AboutCommunityLink(AboutCommunityLinkKind.LICENSE, "https://github.com/ufoptg/MuSicX/blob/main/LICENSE")
 
 data class AboutScreenText(
     val title: String,
@@ -257,6 +266,7 @@ data class AboutScreenText(
     val leadsSection: String,
     val collaborators: String,
     val creatorRole: String,
+    val leadRole: String,
     val androidLeadRole: String,
     val desktopLeadRole: String,
     val discordRichPresenceRole: String,
@@ -277,6 +287,7 @@ data class AboutScreenText(
     fun roleLabel(role: AboutContributorRole): String =
         when (role) {
             AboutContributorRole.CREATOR -> creatorRole
+            AboutContributorRole.LEAD -> leadRole
             AboutContributorRole.ANDROID_LEAD -> androidLeadRole
             AboutContributorRole.DESKTOP_LEAD -> desktopLeadRole
             AboutContributorRole.DISCORD_RICH_PRESENCE -> discordRichPresenceRole
@@ -333,6 +344,7 @@ fun AuthorInfoSheet(
     val roleLabel =
         when (contributor.role) {
             AboutContributorRole.CREATOR -> sharedStringResource(Res.string.credits_creator)
+            AboutContributorRole.LEAD -> sharedStringResource(Res.string.credits_lead)
             AboutContributorRole.ANDROID_LEAD -> sharedStringResource(Res.string.credits_android_lead)
             AboutContributorRole.DESKTOP_LEAD -> sharedStringResource(Res.string.credits_desktop_lead)
             AboutContributorRole.DISCORD_RICH_PRESENCE -> sharedStringResource(Res.string.discord_rpc_title)

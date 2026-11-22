@@ -68,6 +68,7 @@
         android:name="com.metrolist.android.App"
         android:banner="@mipmap/tv_banner"
         android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:allowBackup="true"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -232,6 +233,7 @@
             android:enabled="true"
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
             android:label="${appLabel}"
             android:targetActivity="com.metrolist.android.MainActivity">
             <intent-filter>
