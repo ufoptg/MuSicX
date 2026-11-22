@@ -57,9 +57,9 @@ jobs:
       matrix:
         include:
           - arch: x64
-            runner: blacksmith-4vcpu-ubuntu-2404
+            runner: ubuntu-latest
           - arch: arm64
-            runner: blacksmith-8vcpu-ubuntu-2404-arm
+            runner: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

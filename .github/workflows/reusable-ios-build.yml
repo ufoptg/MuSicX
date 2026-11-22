@@ -56,7 +56,7 @@ jobs:
   build-ios:
     name: Validate iOS
     if: inputs.run-verification
-    runs-on: blacksmith-6vcpu-macos-latest
+    runs-on: macos-latest
     timeout-minutes: 45
     env:
       LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
@@ -158,7 +158,7 @@ jobs:
   package-ios:
     name: Package iOS IPA
     if: inputs.build-ipa || inputs.upload-artifact || inputs.staging-release-tag != ''
-    runs-on: blacksmith-6vcpu-macos-latest
+    runs-on: macos-latest
     timeout-minutes: 45
     env:
       LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}

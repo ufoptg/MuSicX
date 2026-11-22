@@ -62,10 +62,10 @@ jobs:
       matrix:
         include:
           - arch: arm64
-            runner: blacksmith-6vcpu-macos-15
+            runner: macos-latest
             native_arch: arm64
           - arch: x64
-            runner: ${{ inputs.x64-use-intel-runner && 'macos-15-intel' || 'blacksmith-6vcpu-macos-15' }}
+            runner: ${{ inputs.x64-use-intel-runner && 'macos-15-intel' || 'macos-latest' }}
             native_arch: x86_64
     steps:
       - name: Check out repository

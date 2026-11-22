@@ -57,7 +57,7 @@ jobs:
       matrix:
         include:
           - arch: x64
-            runner: blacksmith-4vcpu-windows-2025
+            runner: windows-latest
             rid: win-x64
             zip: Metrolist-Desktop-Windows.zip
             machine: '8664'

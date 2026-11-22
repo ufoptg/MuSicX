@@ -32,7 +32,7 @@ jobs:
       (inputs.platform == 'linux-x64' || inputs.platform == 'windows-x64' ||
       inputs.platform == 'macos-arm64' || inputs.platform == 'linux-arm64')
     name: ${{ inputs.platform }} native tester
-    runs-on: ${{ fromJSON('{"linux-x64":"blacksmith-8vcpu-ubuntu-2404","windows-x64":"blacksmith-8vcpu-windows-2025","macos-arm64":"blacksmith-6vcpu-macos-15","linux-arm64":"blacksmith-8vcpu-ubuntu-2404-arm"}')[inputs.platform] }}
+    runs-on: macos-latest
     timeout-minutes: 45
     env:
       NATIVE_PLATFORM: ${{ inputs.platform }}
