@@ -29,7 +29,7 @@ class NightlyWorkflowTest(unittest.TestCase):
         jobs = dict(re.findall(r'(?ms)^  ([\w-]+):\n(.*?)(?=^  [\w-]+:|\Z)', workflow.split('jobs:\n', 1)[1]))
         self.assertEqual({'version', 'android', 'publish'}, jobs.keys())
         self.assertIn('needs: [version, android]', jobs['publish'])
-        self.assertIn("if: github.ref == 'refs/tags/nightly'", jobs['version'])
+        self.assertIn("if: github.ref == 'refs/heads/v15'", jobs['version'])
         self.assertNotIn('    if:', jobs['publish'])
         self.assertIn('contents: write', jobs['publish'])
         self.assertNotIn('secrets.', jobs['publish'])
