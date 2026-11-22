@@ -228,24 +228,24 @@ jobs:
         run: |
           set -euo pipefail
           mv \
-            release-assets/Metrolist-Desktop-Windows.zip \
-            release-assets/Metrolist-Desktop-windows.zip
+            release-assets/MuSicX-Desktop-Windows.zip \
+            release-assets/MuSicX-Desktop-windows.zip
           mv \
-            release-assets/Metrolist-Desktop-Windows-arm64.zip \
+            release-assets/MuSicX-Desktop-Windows-arm64.zip \
             "release-assets/metrolist-desktop-windows-arm64-${APP_VERSION}.zip"
           # Legacy v13 GMS builds only update from this asset name; the app has one variant.
-          cp release-assets/Metrolist.apk release-assets/Metrolist-with-Google-Cast.apk
-          if [[ -f release-assets/Metrolist.ipa ]]; then
+          cp release-assets/MuSicX.apk release-assets/MuSicX-with-Google-Cast.apk
+          if [[ -f release-assets/MuSicX.ipa ]]; then
             python3 scripts/generate_altstore_source.py \
-              "$GITHUB_REPOSITORY" "$APP_VERSION" release-assets/Metrolist.ipa release-assets/metrolist-altstore.json
+              "$GITHUB_REPOSITORY" "$APP_VERSION" release-assets/MuSicX.ipa release-assets/metrolist-altstore.json
           fi
           expected=(
-            "release-assets/Metrolist.apk"
-            "release-assets/Metrolist-with-Google-Cast.apk"
-            "release-assets/Metrolist-KMP-mapping.txt"
-            "release-assets/Metrolist.ipa"
+            "release-assets/MuSicX.apk"
+            "release-assets/MuSicX-with-Google-Cast.apk"
+            "release-assets/MuSicX-KMP-mapping.txt"
+            "release-assets/MuSicX.ipa"
             "release-assets/metrolist-altstore.json"
-            "release-assets/Metrolist-Desktop-windows.zip"
+            "release-assets/MuSicX-Desktop-windows.zip"
             "release-assets/metrolist-installer-windows-x64-${APP_VERSION}.exe"
             "release-assets/metrolist-desktop-windows-arm64-${APP_VERSION}.zip"
             "release-assets/metrolist-desktop-linux-x64-${APP_VERSION}.AppImage"

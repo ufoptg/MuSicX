@@ -23,7 +23,7 @@ def collect(apk_dir: Path, destination: Path, version: str, variant: str) -> Non
     if source.parent != apk_dir.resolve() or source.suffix != ".apk" or not source.is_file():
         raise ValueError("Invalid or missing APK output")
     destination.mkdir(parents=True, exist_ok=True)
-    name = f"metrolist-android-{version}-debug.apk" if variant == "debug" else "Metrolist.apk"
+    name = f"metrolist-android-{version}-debug.apk" if variant == "debug" else "MuSicX.apk"
     shutil.copyfile(source, destination / name)
 
 
