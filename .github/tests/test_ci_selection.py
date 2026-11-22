@@ -310,7 +310,7 @@ class ReleaseGateTest(unittest.TestCase):
                                 runs.append(dict(id=12, head_sha=sha, head_branch='main', event='push',
                                                  path='.github/workflows/ci.yml', run_number=idx + 1,
                                                  status='completed', conclusion='failure' if os.environ.get('CHECK_FAILED') else 'success',
-                                                 html_url=f'https://github.com/test/run/{12 + idx}'))
+                                                 html_url=f'https://github.com/test/run/{{12 + idx}}'))
                         print(json.dumps([dict(workflow_runs=runs)]))
                     elif '/jobs?' in path:
                         print(json.dumps([dict(jobs=[dict(name='Android', conclusion='success',

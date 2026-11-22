@@ -19,7 +19,7 @@ class NightlyWorkflowTest(unittest.TestCase):
         workflow = WORKFLOW.read_text()
         events = workflow.split('on:\n', 1)[1].split('\npermissions:', 1)[0]
         self.assertEqual(['push', 'workflow_dispatch'], re.findall(r'^  (\w+):', events, re.MULTILINE))
-        self.assertIn('branches: [main, v15]', events)
+        self.assertIn('branches: [v15]', events)
         self.assertEqual(
             ['docs/**', '**/*.md', 'fastlane/**', 'assets/**'],
             re.findall(r"^      - '([^']+)'$", events, re.MULTILINE),
@@ -27,13 +27,13 @@ class NightlyWorkflowTest(unittest.TestCase):
         self.assertIn('concurrency:\n  group: nightly\n  cancel-in-progress: true', workflow)
         self.assertIn('permissions:\n  contents: read', workflow)
         jobs = dict(re.findall(r'(?ms)^  ([\w-]+):\n(.*?)(?=^  [\w-]+:|\Z)', workflow.split('jobs:\n', 1)[1]))
-        self.assertEqual({'version', 'android', 'linux', 'windows', 'publish'}, jobs.keys())
-        self.assertIn('needs: [version, android, linux, windows]', jobs['publish'])
-        self.assertIn("if: github.ref == 'refs/heads/main'", jobs['version'])
+        self.assertEqual({'version', 'android', 'publish'}, jobs.keys())
+        self.assertIn('needs: [version, android]', jobs['publish'])
+        self.assertIn("if: github.ref == 'refs/tags/nightly'", jobs['version'])
         self.assertNotIn('    if:', jobs['publish'])
         self.assertIn('contents: write', jobs['publish'])
         self.assertNotIn('secrets.', jobs['publish'])
-        for job in ('android', 'linux', 'windows'):
+        for job in ('android',):
             self.assertIn('needs: version', jobs[job])
             self.assertIn('app-version: ${{ needs.version.outputs.value }}', jobs[job])
             self.assertIn('contents: read', jobs[job])
@@ -44,11 +44,9 @@ class NightlyWorkflowTest(unittest.TestCase):
             self.assertIn(option, android)
         for secret in ('KEYSTORE_PATH', 'KEYSTORE_PASSWORD', 'KEY_ALIAS', 'KEY_PASSWORD'):
             self.assertIn(f'{secret}: ${{{{ secrets.{secret}', android)
-        for job in ('linux', 'windows'):
-            self.assertIn('uses: ./.github/workflows/reusable-desktop-native.yml', jobs[job])
-            self.assertIn(f'platform: {job}-x64', jobs[job])
+
         downloads = re.findall(r'(?ms)uses: actions/download-artifact@[^\n]+\n        with:\n          name: ([^\n]+)', jobs['publish'])
-        self.assertEqual(['nightly-android', 'desktop-native-linux-x64', 'desktop-native-windows-x64'], downloads)
+        self.assertEqual(['nightly-android'], downloads)
         self.assertIn('fetch-depth: 0', jobs['publish'])
         self.assertIn('persist-credentials: false', jobs['publish'])
         for action in re.findall(r'uses: (actions/[^\s]+)', workflow):
@@ -82,16 +80,14 @@ class NightlyWorkflowTest(unittest.TestCase):
                 for name, content in {
                     'android/MuSicX.apk': b'signed apk',
                     'android/MuSicX-KMP-mapping.txt': b'mapping',
-                    'linux/native.AppImage': b'linux',
-                    'windows/native.zip': b'windows',
                 }.items():
                     path = root / 'artifacts' / name
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_bytes(content)
                 if invalid == 'missing':
-                    (root / 'artifacts/linux/native.AppImage').unlink()
+                    (root / 'artifacts/android/MuSicX.apk').unlink()
                 elif invalid == 'extra':
-                    (root / 'artifacts/windows/extra.zip').write_bytes(b'extra')
+                    (root / 'artifacts/android/extra.apk').write_bytes(b'extra')
                 elif invalid == 'empty':
                     (root / 'artifacts/android/MuSicX.apk').write_bytes(b'')
                 result = self.run_step('Prepare nightly assets', root)
@@ -102,8 +98,6 @@ class NightlyWorkflowTest(unittest.TestCase):
                     self.assertEqual(0, result.returncode, result.stderr)
                     self.assertEqual({
                         'MuSicX.apk': b'signed apk',
-                        'MuSicX-Desktop-linux-x64.AppImage': b'linux',
-                        'MuSicX-Desktop-windows.zip': b'windows',
                     }, {p.name: p.read_bytes() for p in (root / 'nightly-assets').iterdir()})
 
     def git(self, directory, *args):
