@@ -11,9 +11,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import meow.nyx.spotlib.SpotifyClient
 import meow.nyx.spotlib.SpotifyPriorityGate
 import meow.nyx.spotlib.TrackItem
@@ -31,7 +31,6 @@ class SpotifyAlbumQueue(
     private val startIndex: Int = 0,
     private val mapper: SpotifyYouTubeMapper,
 ) {
-
     companion object {
         private const val SPOTIFY_PAGE_SIZE = 50
         private const val RESOLVE_BATCH_SIZE = 20
@@ -58,7 +57,10 @@ class SpotifyAlbumQueue(
      * @param queue the [MusicQueue] to populate
      * @param startIndex the index of the target track within the album
      */
-    suspend fun loadInto(queue: MusicQueue, startIndex: Int = 0) {
+    suspend fun loadInto(
+        queue: MusicQueue,
+        startIndex: Int = 0
+    ) {
         withContext(Dispatchers.IO) {
             val fetched = fetchAlbumPage()
             allTracks.addAll(fetched)
