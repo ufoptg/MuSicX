@@ -159,6 +159,7 @@ object QobuzAudioProvider {
     private val cacheMutex = Mutex()
     private val trackCache = mutableMapOf<String, MatchedTrack>()
     private val streamCache = mutableMapOf<String, Resolved>()
+
     // Backend cooldown after captcha/403. Skip the backend until the timestamp.
     private val backendCooldownUntilMs = mutableMapOf<ResolverBackend, Long>()
 
@@ -188,19 +189,17 @@ object QobuzAudioProvider {
      * Resolves a playback resource for [query]. Never throws: on any failure the
      * caller falls back to the YouTube backend and this returns null.
      */
-    suspend fun resolve(query: Query): Resolved? {
-        return try {
-            resolveInternal(query)
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            Logger.w(
-                TAG,
-                "Qobuz resolution failed for ${query.title}, falling back to YouTube: ${error.message ?: error::class.simpleName}",
-                error,
-            )
-            null
-        }
+    suspend fun resolve(query: Query): Resolved? = try {
+        resolveInternal(query)
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        Logger.w(
+            TAG,
+            "Qobuz resolution failed for ${query.title}, falling back to YouTube: ${error.message ?: error::class.simpleName}",
+            error,
+        )
+        null
     }
 
     /**
@@ -208,21 +207,19 @@ object QobuzAudioProvider {
      * previously expired or failed resolution gets a fresh attempt.
      * Never throws (see [resolve]).
      */
-    suspend fun refresh(query: Query): Resolved? {
-        return try {
-            invalidate(query.mediaId)
-            cacheMutex.withLock { trackCache.remove(query.trackCacheKey()) }
-            resolveInternal(query)
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            Logger.w(
-                TAG,
-                "Qobuz refresh failed for ${query.title}, falling back to YouTube: ${error.message ?: error::class.simpleName}",
-                error,
-            )
-            null
-        }
+    suspend fun refresh(query: Query): Resolved? = try {
+        invalidate(query.mediaId)
+        cacheMutex.withLock { trackCache.remove(query.trackCacheKey()) }
+        resolveInternal(query)
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        Logger.w(
+            TAG,
+            "Qobuz refresh failed for ${query.title}, falling back to YouTube: ${error.message ?: error::class.simpleName}",
+            error,
+        )
+        null
     }
 
     suspend fun invalidate(mediaId: String) {
