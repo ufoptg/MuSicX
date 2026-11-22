@@ -225,7 +225,7 @@ jobs:
             fi
           fi
           # Verify Maven Central connectivity before running Gradle tasks
-           curl -s -f https://repo1.maven.org/maven2/org/robolectric/ || (echo "Maven Central connectivity test failed" >&2; exit 1)
+           curl -s -f https://repo1.maven.org/maven2/org/robolectric/robolectric/4.17/robolectric-4.17.pom || (echo "Maven Central connectivity test failed" >&2; exit 1)
            ./gradlew "${tasks[@]}" --no-daemon "${extra_args[@]}"
 
       - name: Upload lint report
