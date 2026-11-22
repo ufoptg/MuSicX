@@ -7,22 +7,22 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class SpotifyMetadataRegistryTest {
-
     @Test
     fun registerAndGet() {
-        val track = TrackItem(
-            uri = "spotify-uri-123",
-            name = "Track Name",
-            artists = listOf("Artist A", "Artist B"),
-            album = "album-uri",
-            durationMs = 12345L,
-            trackNumber = 1,
-            discNumber = 1,
-            explicit = false,
-            isLocal = false,
-            addedAt = "now",
-            addedBy = "user",
-        )
+        val track =
+            TrackItem(
+                uri = "spotify-uri-123",
+                name = "Track Name",
+                artists = listOf("Artist A", "Artist B"),
+                album = "album-uri",
+                durationMs = 12345L,
+                trackNumber = 1,
+                discNumber = 1,
+                explicit = false,
+                isLocal = false,
+                addedAt = "now",
+                addedBy = "user",
+            )
         SpotifyMetadataRegistry.register("youtube-id-123", track)
 
         val result = SpotifyMetadataRegistry.get("youtube-id-123")

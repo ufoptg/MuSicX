@@ -8,7 +8,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class SpotifyYouTubeMapperTest {
-
     @Test
     fun normalizeTitle_removesFeatAndFt() {
         assertEquals("song", SpotifyYouTubeMapper.normalizeTitle("Song (feat. Artist)"))
@@ -115,25 +114,27 @@ class SpotifyYouTubeMapperTest {
 
     @Test
     fun matchScorePrecomputed_basic() {
-        val pre = SpotifyYouTubeMapper.PrecomputedTrack(
-            uri = "spotify:track:123",
-            titleNorm = "song",
-            artistNorm = "artist",
-            durationMs = 200000L,
-            titleBigrams = setOf(listOf("s", "o"), listOf("o", "n"), listOf("n", "g")),
-            artistBigrams = setOf(listOf("a", "r"), listOf("r", "t"), listOf("t", "i"), listOf("i", "s"), listOf("s", "t")),
-        )
+        val pre =
+            SpotifyYouTubeMapper.PrecomputedTrack(
+                uri = "spotify:track:123",
+                titleNorm = "song",
+                artistNorm = "artist",
+                durationMs = 200000L,
+                titleBigrams = setOf(listOf("s", "o"), listOf("o", "n"), listOf("n", "g")),
+                artistBigrams = setOf(listOf("a", "r"), listOf("r", "t"), listOf("t", "i"), listOf("i", "s"), listOf("s", "t")),
+            )
 
-        val candidate = SongItem(
-            id = "youtube-id",
-            title = "Song",
-            thumbnail = null,
-            artists = listOf(ArtistTiny(id = null, name = "Artist")),
-            album = null,
-            duration = 200L,
-            isExplicit = false,
-            endpointParams = null,
-        )
+        val candidate =
+            SongItem(
+                id = "youtube-id",
+                title = "Song",
+                thumbnail = null,
+                artists = listOf(ArtistTiny(id = null, name = "Artist")),
+                album = null,
+                duration = 200L,
+                isExplicit = false,
+                endpointParams = null,
+            )
 
         val score = SpotifyYouTubeMapper.matchScorePrecomputed(pre, candidate)
         assertTrue(score > 0.8)
