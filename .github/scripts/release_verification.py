@@ -55,7 +55,7 @@ def api(path):
 def verify_run(repository, sha, workflow, job_name, get=api, required=True):
     pages = get(f"repos/{repository}/actions/workflows/{workflow}/runs?head_sha={sha}&per_page=100")
     runs = [run for page in pages for run in page["workflow_runs"] if
-            run["head_sha"] == sha and run["head_branch"] == "main" and
+            run["head_sha"] == sha and run["head_branch"] in ("main", "v15") and
             run["event"] in ("push", "workflow_dispatch") and
             run["path"] == f".github/workflows/{workflow}"]
     if not runs:
