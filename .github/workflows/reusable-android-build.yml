@@ -224,7 +224,9 @@ jobs:
               tasks+=(':androidApp:assembleDebug')
             fi
           fi
-          ./gradlew "${tasks[@]}" --no-daemon "${extra_args[@]}"
+          # Verify Maven Central connectivity before running Gradle tasks
+           curl -s -f https://repo1.maven.org/maven2/org/robolectric/android-all-instrumented/4.17/android-all-instrumented-4.17.pom || (echo "Maven Central connectivity test failed" >&2; exit 1)
+           ./gradlew "${tasks[@]}" --no-daemon "${extra_args[@]}"
 
       - name: Upload lint report
         if: failure() && inputs.variant == 'debug'
