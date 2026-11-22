@@ -760,7 +760,7 @@ compose.desktop {
                 }
             description = "Metrolist music player"
             copyright = "© 2026 Metrolist"
-            vendor = "MetrolistGroup"
+            vendor = "ufoptg"
 
             appResourcesRootDir.set(nativeResourcesDir)
 

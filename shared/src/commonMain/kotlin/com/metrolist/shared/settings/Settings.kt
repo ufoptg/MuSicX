@@ -628,7 +628,7 @@ class Settings(
     var discordButton1Url by preference("{song.url}")
     var discordButton2Enabled by preference(true)
     var discordButton2Text by preference("Visit Metrolist")
-    var discordButton2Url by preference("https://github.com/MetrolistGroup/Metrolist")
+    var discordButton2Url by preference("https://github.com/ufoptg/MuSicX")
     var discordUsername by preference("")
     var discordName by preference("")
     var discordAvatar by preference("")
