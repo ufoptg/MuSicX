@@ -19,7 +19,7 @@ class NightlyWorkflowTest(unittest.TestCase):
         workflow = WORKFLOW.read_text()
         events = workflow.split('on:\n', 1)[1].split('\npermissions:', 1)[0]
         self.assertEqual(['push', 'workflow_dispatch'], re.findall(r'^  (\w+):', events, re.MULTILINE))
-        self.assertIn('branches: [main]', events)
+        self.assertIn('branches: [main, v15]', events)
         self.assertEqual(
             ['docs/**', '**/*.md', 'fastlane/**', 'assets/**'],
             re.findall(r"^      - '([^']+)'$", events, re.MULTILINE),
@@ -80,8 +80,8 @@ class NightlyWorkflowTest(unittest.TestCase):
             with self.subTest(invalid=invalid), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 for name, content in {
-                    'android/Metrolist.apk': b'signed apk',
-                    'android/Metrolist-KMP-mapping.txt': b'mapping',
+                    'android/MuSicX.apk': b'signed apk',
+                    'android/MuSicX-KMP-mapping.txt': b'mapping',
                     'linux/native.AppImage': b'linux',
                     'windows/native.zip': b'windows',
                 }.items():
@@ -93,7 +93,7 @@ class NightlyWorkflowTest(unittest.TestCase):
                 elif invalid == 'extra':
                     (root / 'artifacts/windows/extra.zip').write_bytes(b'extra')
                 elif invalid == 'empty':
-                    (root / 'artifacts/android/Metrolist.apk').write_bytes(b'')
+                    (root / 'artifacts/android/MuSicX.apk').write_bytes(b'')
                 result = self.run_step('Prepare nightly assets', root)
                 if invalid:
                     self.assertNotEqual(0, result.returncode)
@@ -101,9 +101,9 @@ class NightlyWorkflowTest(unittest.TestCase):
                 else:
                     self.assertEqual(0, result.returncode, result.stderr)
                     self.assertEqual({
-                        'Metrolist.apk': b'signed apk',
-                        'Metrolist-Desktop-linux-x64.AppImage': b'linux',
-                        'Metrolist-Desktop-windows.zip': b'windows',
+                        'MuSicX.apk': b'signed apk',
+                        'MuSicX-Desktop-linux-x64.AppImage': b'linux',
+                        'MuSicX-Desktop-windows.zip': b'windows',
                     }, {p.name: p.read_bytes() for p in (root / 'nightly-assets').iterdir()})
 
     def git(self, directory, *args):
@@ -149,9 +149,9 @@ class NightlyWorkflowTest(unittest.TestCase):
                 self.git(root, 'commit', '-q', '--allow-empty', '-m', 'source')
                 if existing:
                     self.git(root, 'tag', 'nightly')
-                assets = ['Metrolist.apk',
-                          'Metrolist-Desktop-linux-x64.AppImage',
-                          'Metrolist-Desktop-windows.zip']
+                assets = ['MuSicX.apk',
+                          'MuSicX-Desktop-linux-x64.AppImage',
+                          'MuSicX-Desktop-windows.zip']
                 (root / 'nightly-assets').mkdir()
                 for name in assets:
                     (root / 'nightly-assets' / name).write_bytes(b'package')

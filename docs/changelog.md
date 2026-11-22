@@ -1,10 +1,6 @@
 ---v15.0.0
 # MuSicX 15.0.0
 
----
-v15.0.0
-# MuSicX 15.0.0
-
 ## Highlights
 - Fresh start of MuSicX, rebuilt on the Metrolist v14 KMP codebase, Android-only
 - Full Spotify integration
@@ -20,6 +16,7 @@ v15.0.0
 - Desktop, iOS and Wear are not part of 15.0 (follow-ups)
 - No automatic data migration from MuSicX v13
 
+---v14.0.0
 # First public multiplatform release
 Metrolist 14.0.0 replaces the standalone Android app with Metrolist-KMP.
 

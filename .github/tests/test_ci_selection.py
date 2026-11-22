@@ -147,7 +147,7 @@ class ReleaseGateTest(unittest.TestCase):
         self.sha = "a" * 40
         self.run = dict(id=12, head_sha=self.sha, head_branch="main", event="push", path=".github/workflows/ci.yml",
                         run_number=7, run_attempt=1, status="completed", conclusion="success", html_url="https://github.com/test/run/12")
-        self.job = dict(name="Android / APK", conclusion="success", check_run_url="https://api.github.com/repos/test/repo/check-runs/42",
+        self.job = dict(name="Android", conclusion="success", check_run_url="https://api.github.com/repos/test/repo/check-runs/42",
                         steps=[{"name": "Test Android string generation", "conclusion": "success"}])
         self.check = dict(head_sha=self.sha, status="completed", conclusion="success", app={"slug": "github-actions"})
 
@@ -159,7 +159,7 @@ class ReleaseGateTest(unittest.TestCase):
         return [{"workflow_runs": [self.run]}]
 
     def verify(self):
-        return release.verify_run("test/repo", self.sha, "ci.yml", "Android / APK", self.api)
+        return release.verify_run("test/repo", self.sha, "ci.yml", "Android", self.api)
 
     def test_accepts_a_successful_trusted_check(self):
         self.assertEqual(self.verify(), self.run["html_url"])
@@ -189,24 +189,24 @@ class ReleaseGateTest(unittest.TestCase):
     def test_latest_run_must_pass_across_all_api_pages(self):
         failed = {**self.run, "run_number": 8, "conclusion": "failure"}
         with self.assertRaisesRegex(ValueError, "latest run"):
-            release.verify_run("test/repo", self.sha, "ci.yml", "Android / APK",
+            release.verify_run("test/repo", self.sha, "ci.yml", "Android",
                                lambda _: [{"workflow_runs": [self.run]}, {"workflow_runs": [failed]}])
 
     def test_no_runs_and_api_errors_fail_closed(self):
         with self.assertRaisesRegex(ValueError, "no trusted"):
-            release.verify_run("test/repo", self.sha, "ci.yml", "Android / APK", lambda _: [{"workflow_runs": []}])
+            release.verify_run("test/repo", self.sha, "ci.yml", "Android", lambda _: [{"workflow_runs": []}])
         with patch.object(subprocess, "run", return_value=subprocess.CompletedProcess([], 1, "", "secret")):
             with self.assertRaisesRegex(ValueError, "permissions"):
                 release.api("test/path")
 
     def test_non_applicable_workflow_can_be_absent_but_cannot_fail(self):
-        self.assertIsNone(release.verify_run("test/repo", self.sha, "ci.yml", "Android / APK",
+        self.assertIsNone(release.verify_run("test/repo", self.sha, "ci.yml", "Android",
                                             lambda _: [{"workflow_runs": []}], required=False))
         self.job["conclusion"] = "skipped"
-        self.assertIsNone(release.verify_run("test/repo", self.sha, "ci.yml", "Android / APK", self.api, required=False))
+        self.assertIsNone(release.verify_run("test/repo", self.sha, "ci.yml", "Android", self.api, required=False))
         self.run["conclusion"] = "failure"
         with self.assertRaises(ValueError):
-            release.verify_run("test/repo", self.sha, "ci.yml", "Android / APK", self.api, required=False)
+            release.verify_run("test/repo", self.sha, "ci.yml", "Android", self.api, required=False)
 
     def test_installer_verification_remains_available_without_serializing_releases(self):
         text = (ROOT / ".github/workflows/release.yml").read_text().split("  windows-manager:\n", 1)[1].split("  publish:", 1)[0]
@@ -298,20 +298,22 @@ class ReleaseGateTest(unittest.TestCase):
                 gh = root / "gh"
                 gh.write_text(textwrap.dedent(f'''\
                     #!{sys.executable}
-                    import json, os, sys
+                    import json, os, subprocess, sys
                     path = sys.argv[-1]
                     if os.environ.get('API_ERROR'):
                         sys.exit(1)
                     if '/workflows/' in path:
                         runs = []
                         if 'ci.yml' in path and 'head_sha={source}' in path:
-                            runs = [dict(id=12, head_sha='{source}', head_branch='main', event='push',
-                                         path='.github/workflows/ci.yml', run_number=7,
-                                         status='completed', conclusion='failure' if os.environ.get('CHECK_FAILED') else 'success',
-                                         html_url='https://github.com/test/run/12')]
+                            shas = subprocess.check_output(['git', 'rev-list', '--first-parent', '--all'], text=True).split()
+                            for idx, sha in enumerate(shas):
+                                runs.append(dict(id=12, head_sha=sha, head_branch='main', event='push',
+                                                 path='.github/workflows/ci.yml', run_number=idx + 1,
+                                                 status='completed', conclusion='failure' if os.environ.get('CHECK_FAILED') else 'success',
+                                                 html_url=f'https://github.com/test/run/{12 + idx}'))
                         print(json.dumps([dict(workflow_runs=runs)]))
                     elif '/jobs?' in path:
-                        print(json.dumps([dict(jobs=[dict(name='Android / APK', conclusion='success',
+                        print(json.dumps([dict(jobs=[dict(name='Android', conclusion='success',
                             check_run_url='https://api.github.com/repos/test/repo/check-runs/42',
                             steps=[dict(name='Test Android string generation', conclusion='success')]),
                             dict(name='Select checks and repository checks', conclusion='success',
