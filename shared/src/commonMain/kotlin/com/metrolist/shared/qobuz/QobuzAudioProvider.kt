@@ -107,7 +107,10 @@ object QobuzAudioProvider {
         val isrc: String? = null,
     )
 
-    class QobuzResolutionException(message: String, cause: Throwable? = null) : Exception(message, cause)
+    class QobuzResolutionException(
+        message: String,
+        cause: Throwable? = null,
+    ) : Exception(message, cause)
 
     private data class MatchedTrack(
         val trackId: String,
