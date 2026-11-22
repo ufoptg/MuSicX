@@ -88,7 +88,7 @@ jobs:
       upload-artifact: true
       artifact-name: release-android
       require-signing: true
-      upload-sentry: true
+      upload-sentry: false
     secrets:
       GRADLE_ENCRYPTION_KEY: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
       KEYSTORE_PATH: ${{ secrets.KEYSTORE_PATH || secrets.KEYSTORE }}
@@ -111,7 +111,7 @@ jobs:
       run-verification: false
       upload-artifact: true
       artifact-prefix: release-
-      upload-sentry: true
+      upload-sentry: false
     secrets:
       GRADLE_ENCRYPTION_KEY: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -130,7 +130,7 @@ jobs:
       run-verification: false
       upload-artifact: true
       artifact-prefix: release-
-      upload-sentry: true
+      upload-sentry: false
     secrets:
       GRADLE_ENCRYPTION_KEY: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -150,7 +150,7 @@ jobs:
       x64-use-intel-runner: ${{ vars.MACOS_X64_USE_INTEL_RUNNER == 'true' }}
       upload-artifact: true
       artifact-prefix: release-
-      upload-sentry: true
+      upload-sentry: false
     secrets:
       GRADLE_ENCRYPTION_KEY: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -167,7 +167,7 @@ jobs:
       contents: read
     with:
       run-verification: false
-      upload-sentry: true
+      upload-sentry: false
       build-ipa: true
       upload-artifact: true
       artifact-name: release-ios
