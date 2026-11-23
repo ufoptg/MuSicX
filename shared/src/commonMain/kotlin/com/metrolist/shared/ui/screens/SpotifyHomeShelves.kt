@@ -21,33 +21,40 @@ import meow.nyx.spotlib.SpotifyHomeFeedItem
  */
 fun buildSpotifyHomeShelves(spotifyFeed: SpotifyHomeFeed?): List<HomeShelf> =
     spotifyFeed?.sections.orEmpty().mapIndexedNotNull { index, section ->
-        val resolvedItems = section.items.mapNotNull { item ->
-            when (item) {
-                is SpotifyHomeFeedItem.Playlist -> PlaylistItem(
-                    id = item.uri,
-                    title = item.name,
-                    thumbnail = item.imageUrl,
-                    author = item.ownerName,
-                    songCount = item.totalCount.takeIf { it > 0 }?.toString(),
-                    description = item.description,
-                    isEditable = false,
-                )
+        val resolvedItems =
+            section.items.mapNotNull { item ->
+                when (item) {
+                    is SpotifyHomeFeedItem.Playlist -> {
+                        PlaylistItem(
+                            id = item.uri,
+                            title = item.name,
+                            thumbnail = item.imageUrl,
+                            author = item.ownerName,
+                            songCount = item.totalCount.takeIf { it > 0 }?.toString(),
+                            description = item.description,
+                            isEditable = false,
+                        )
+                    }
 
-                is SpotifyHomeFeedItem.Album -> AlbumItem(
-                    id = item.uri,
-                    title = item.name,
-                    thumbnail = item.imageUrl,
-                    artists = item.artists.map { ArtistTiny(id = null, name = it) },
-                    type = item.albumType,
-                )
+                    is SpotifyHomeFeedItem.Album -> {
+                        AlbumItem(
+                            id = item.uri,
+                            title = item.name,
+                            thumbnail = item.imageUrl,
+                            artists = item.artists.map { ArtistTiny(id = null, name = it) },
+                            type = item.albumType,
+                        )
+                    }
 
-                is SpotifyHomeFeedItem.Artist -> ArtistItem(
-                    id = item.uri,
-                    title = item.name,
-                    thumbnail = item.imageUrl,
-                )
+                    is SpotifyHomeFeedItem.Artist -> {
+                        ArtistItem(
+                            id = item.uri,
+                            title = item.name,
+                            thumbnail = item.imageUrl,
+                        )
+                    }
+                }
             }
-        }
 
         if (resolvedItems.isEmpty()) {
             null

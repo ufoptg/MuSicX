@@ -8,8 +8,6 @@ import com.metrolist.shared.generated.resources.albums
 import com.metrolist.shared.generated.resources.artist
 import com.metrolist.shared.generated.resources.artist_play_all
 import com.metrolist.shared.generated.resources.artists
-import com.metrolist.shared.generated.resources.discover_library_tile
-import com.metrolist.shared.generated.resources.discover_something_new
 import com.metrolist.shared.generated.resources.back
 import com.metrolist.shared.generated.resources.browse
 import com.metrolist.shared.generated.resources.cached_playlist
@@ -25,6 +23,8 @@ import com.metrolist.shared.generated.resources.collection_sort_oldest
 import com.metrolist.shared.generated.resources.delete
 import com.metrolist.shared.generated.resources.delete_all_recent_from_searches_question
 import com.metrolist.shared.generated.resources.delete_all_recent_searches_question
+import com.metrolist.shared.generated.resources.discover_library_tile
+import com.metrolist.shared.generated.resources.discover_something_new
 import com.metrolist.shared.generated.resources.duration
 import com.metrolist.shared.generated.resources.episode
 import com.metrolist.shared.generated.resources.file_size

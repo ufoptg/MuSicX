@@ -19,7 +19,10 @@ interface SpotifySearchProvider {
      * @param limit Maximum number of results to return
      * @return Spotify search results mapped to shared YTItem types, or null if not logged in
      */
-    suspend fun search(term: String, limit: Int = 20): SpotifySearchResult?
+    suspend fun search(
+        term: String,
+        limit: Int = 20,
+    ): SpotifySearchResult?
 
     /** Whether a Spotify session is currently available. */
     fun hasSession(): Boolean
@@ -27,6 +30,10 @@ interface SpotifySearchProvider {
 
 /** No-op provider used when Spotify is not configured. */
 class NullSpotifySearchProvider : SpotifySearchProvider {
-    override suspend fun search(term: String, limit: Int): SpotifySearchResult? = null
+    override suspend fun search(
+        term: String,
+        limit: Int,
+    ): SpotifySearchResult? = null
+
     override fun hasSession(): Boolean = false
 }

@@ -61,9 +61,10 @@ fun DiscoverLibraryScreen(
                     )
                 }
             },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            ),
+            colors =
+                TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                ),
         )
         Box(Modifier.fillMaxSize().padding(PaddingValues(bottom = 72.dp))) {
             LazyColumn(

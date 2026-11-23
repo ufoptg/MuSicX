@@ -189,38 +189,40 @@ object QobuzAudioProvider {
      * Resolves a playback resource for [query]. Never throws: on any failure the
      * caller falls back to the YouTube backend and this returns null.
      */
-    suspend fun resolve(query: Query): Resolved? = try {
-        resolveInternal(query)
-    } catch (error: CancellationException) {
-        throw error
-    } catch (error: Exception) {
-        Logger.w(
-            TAG,
-            "Qobuz resolution failed for ${query.title}, falling back to YouTube: ${error.message ?: error::class.simpleName}",
-            error,
-        )
-        null
-    }
+    suspend fun resolve(query: Query): Resolved? =
+        try {
+            resolveInternal(query)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Logger.w(
+                TAG,
+                "Qobuz resolution failed for ${query.title}, falling back to YouTube: ${error.message ?: error::class.simpleName}",
+                error,
+            )
+            null
+        }
 
     /**
      * Re-resolves [query], bypassing the cached stream and track match so a
      * previously expired or failed resolution gets a fresh attempt.
      * Never throws (see [resolve]).
      */
-    suspend fun refresh(query: Query): Resolved? = try {
-        invalidate(query.mediaId)
-        cacheMutex.withLock { trackCache.remove(query.trackCacheKey()) }
-        resolveInternal(query)
-    } catch (error: CancellationException) {
-        throw error
-    } catch (error: Exception) {
-        Logger.w(
-            TAG,
-            "Qobuz refresh failed for ${query.title}, falling back to YouTube: ${error.message ?: error::class.simpleName}",
-            error,
-        )
-        null
-    }
+    suspend fun refresh(query: Query): Resolved? =
+        try {
+            invalidate(query.mediaId)
+            cacheMutex.withLock { trackCache.remove(query.trackCacheKey()) }
+            resolveInternal(query)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Logger.w(
+                TAG,
+                "Qobuz refresh failed for ${query.title}, falling back to YouTube: ${error.message ?: error::class.simpleName}",
+                error,
+            )
+            null
+        }
 
     suspend fun invalidate(mediaId: String) {
         cacheMutex.withLock {
@@ -341,8 +343,7 @@ object QobuzAudioProvider {
             ResolverBackend.TRYPT -> requestTrypTStream(track, qualityCode, resolverRegion, query.durationMs)
         }
 
-    private suspend fun backendCooldownUntil(backend: ResolverBackend): Long =
-        cacheMutex.withLock { backendCooldownUntilMs[backend] ?: 0L }
+    private suspend fun backendCooldownUntil(backend: ResolverBackend): Long = cacheMutex.withLock { backendCooldownUntilMs[backend] ?: 0L }
 
     private suspend fun setBackendCooldown(
         backend: ResolverBackend,
@@ -364,15 +365,22 @@ object QobuzAudioProvider {
             for (backend in searchBackendOrder(query.backend)) {
                 val search =
                     when (backend) {
-                        SearchBackend.KENNY -> searchTracks(term, query.countryCode, SearchBackend.KENNY)
-                        SearchBackend.SQUID ->
+                        SearchBackend.KENNY -> {
+                            searchTracks(term, query.countryCode, SearchBackend.KENNY)
+                        }
+
+                        SearchBackend.SQUID -> {
                             when (query.backend) {
                                 ResolverBackend.MONOKENNY -> searchTracks(term, searchRegion, SearchBackend.SQUID)
                                 ResolverBackend.JUMO -> searchTracksJumo(term, searchRegion)
                                 ResolverBackend.SQUID -> searchTracks(term, searchRegion, SearchBackend.SQUID)
                                 ResolverBackend.TRYPT -> searchTracks(term, searchRegion, SearchBackend.SQUID)
                             }
-                        SearchBackend.TRYPT -> searchTracks(term, searchRegion, SearchBackend.TRYPT)
+                        }
+
+                        SearchBackend.TRYPT -> {
+                            searchTracks(term, searchRegion, SearchBackend.TRYPT)
+                        }
                     }
                 if (search.error != null) {
                     lastSearchError = search.error
@@ -411,10 +419,11 @@ object QobuzAudioProvider {
                 SearchBackend.TRYPT -> TRYPT_BASE_URL
             }
         val url =
-            URLBuilder("$baseUrl/api/get-music").apply {
-                parameters.append("q", term)
-                parameters.append("offset", "0")
-            }.buildString()
+            URLBuilder("$baseUrl/api/get-music")
+                .apply {
+                    parameters.append("q", term)
+                    parameters.append("offset", "0")
+                }.buildString()
 
         return try {
             val response =
@@ -439,7 +448,9 @@ object QobuzAudioProvider {
                 json.parseToJsonElement(payload).jsonObjectOrNull()
                     ?: return TrackSearchResult(error = "${backend.name} search returned a malformed response")
             if (!root.booleanOrDefault("success")) {
-                return TrackSearchResult(error = "${backend.name} search rejected request: ${root.stringOrNull("error") ?: "unknown error"}")
+                return TrackSearchResult(
+                    error = "${backend.name} search rejected request: ${root.stringOrNull("error") ?: "unknown error"}",
+                )
             }
             TrackSearchResult(items = root.obj("data")?.obj("tracks")?.arr("items"))
         } catch (error: CancellationException) {
@@ -454,12 +465,13 @@ object QobuzAudioProvider {
         region: String,
     ): TrackSearchResult {
         val url =
-            URLBuilder("$JUMO_BASE_URL/search").apply {
-                parameters.append("query", term)
-                parameters.append("offset", "0")
-                parameters.append("limit", "30")
-                parameters.append("region", region)
-            }.buildString()
+            URLBuilder("$JUMO_BASE_URL/search")
+                .apply {
+                    parameters.append("query", term)
+                    parameters.append("offset", "0")
+                    parameters.append("limit", "30")
+                    parameters.append("region", region)
+                }.buildString()
 
         return try {
             val response =
@@ -497,7 +509,11 @@ object QobuzAudioProvider {
         val wantedTitle = query.title.normalized()
         val wantedArtists = query.artists.map { it.normalized() }.filter { it.isNotBlank() }
         val wantedAlbum = query.album.normalized()
-        val wantedIsrc = query.isrc?.trim()?.uppercase().orEmpty()
+        val wantedIsrc =
+            query.isrc
+                ?.trim()
+                ?.uppercase()
+                .orEmpty()
         val wantedDescriptorText = listOf(wantedTitle, wantedAlbum).joinToString(" ")
         val wantedDurationSec = query.durationMs?.let { (it / 1000L).toInt() }
         val wantedTitleTokens = significantTokens(wantedTitle)
@@ -527,11 +543,17 @@ object QobuzAudioProvider {
             val trackId = obj.stringOrNull("id") ?: return@forEach
             val candidateTitle = obj.stringOrNull("title").normalized()
             val candidateVersion = obj.stringOrNull("version").normalized()
-            val candidateCombinedTitle = listOf(candidateTitle, candidateVersion)
-                .filter { it.isNotBlank() }
-                .joinToString(" ")
+            val candidateCombinedTitle =
+                listOf(candidateTitle, candidateVersion)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" ")
             val candidateAlbum = obj.obj("album")?.stringOrNull("title").normalized()
-            val candidateIsrc = obj.stringOrNull("isrc")?.trim()?.uppercase().orEmpty()
+            val candidateIsrc =
+                obj
+                    .stringOrNull("isrc")
+                    ?.trim()
+                    ?.uppercase()
+                    .orEmpty()
             val candidateDuration = obj.intOrNull("duration")
             val candidateArtists = collectArtistNames(obj).map { it.normalized() }.filter { it.isNotBlank() }
             val hires = obj.booleanOrDefault("hires")
@@ -542,9 +564,10 @@ object QobuzAudioProvider {
             val titleRecall = if (wantedTitleTokens.isEmpty()) 1.0 else matchedTitleTokens.toDouble() / wantedTitleTokens.size
             val titlePrecision = if (candidateTitleTokens.isEmpty()) 0.0 else matchedTitleTokens.toDouble() / candidateTitleTokens.size
             val exactArtistMatches = wantedArtists.count { wanted -> candidateArtists.any { it == wanted } }
-            val partialArtistMatches = wantedArtists.count { wanted ->
-                candidateArtists.any { candidate -> artistNamesMatch(wanted, candidate) }
-            }
+            val partialArtistMatches =
+                wantedArtists.count { wanted ->
+                    candidateArtists.any { candidate -> artistNamesMatch(wanted, candidate) }
+                }
 
             val versionPenalty = versionMismatchPenalty(wantedDescriptorText, candidateCombinedTitle)
             if (versionPenalty <= REJECT_SCORE) return@forEach
@@ -570,13 +593,14 @@ object QobuzAudioProvider {
             }
 
             if (wantedTitle.isNotBlank()) {
-                score += when {
-                    candidateTitle == wantedTitle -> 360
-                    candidateCombinedTitle == wantedTitle -> 340
-                    candidateCombinedTitle.contains(wantedTitle) || wantedTitle.contains(candidateTitle) -> 180
-                    wantedTitle.wordsOverlap(candidateCombinedTitle) >= 3 -> 110
-                    else -> -120
-                }
+                score +=
+                    when {
+                        candidateTitle == wantedTitle -> 360
+                        candidateCombinedTitle == wantedTitle -> 340
+                        candidateCombinedTitle.contains(wantedTitle) || wantedTitle.contains(candidateTitle) -> 180
+                        wantedTitle.wordsOverlap(candidateCombinedTitle) >= 3 -> 110
+                        else -> -120
+                    }
             }
 
             if (wantedTitleTokens.isNotEmpty()) {
@@ -589,55 +613,61 @@ object QobuzAudioProvider {
             }
 
             if (wantedAlbum.isNotBlank() && candidateAlbum.isNotBlank()) {
-                score += when {
-                    candidateAlbum == wantedAlbum -> 160
-                    candidateAlbum.contains(wantedAlbum) || wantedAlbum.contains(candidateAlbum) -> 60
-                    wantedAlbum.wordsOverlap(candidateAlbum) >= 2 -> 35
-                    else -> -50
-                }
+                score +=
+                    when {
+                        candidateAlbum == wantedAlbum -> 160
+                        candidateAlbum.contains(wantedAlbum) || wantedAlbum.contains(candidateAlbum) -> 60
+                        wantedAlbum.wordsOverlap(candidateAlbum) >= 2 -> 35
+                        else -> -50
+                    }
             }
 
             if (wantedArtists.isNotEmpty()) {
-                score += when {
-                    exactArtistMatches > 0 -> 260 + ((exactArtistMatches - 1) * 55)
-                    partialArtistMatches > 0 -> 120 + ((partialArtistMatches - 1) * 40)
-                    else -> REJECT_SCORE
-                }
+                score +=
+                    when {
+                        exactArtistMatches > 0 -> 260 + ((exactArtistMatches - 1) * 55)
+                        partialArtistMatches > 0 -> 120 + ((partialArtistMatches - 1) * 40)
+                        else -> REJECT_SCORE
+                    }
             }
 
             if (wantedDurationSec != null && candidateDuration != null) {
                 val diff = abs(wantedDurationSec - candidateDuration)
-                score += when {
-                    diff <= 2 -> 180
-                    diff <= 5 -> 120
-                    diff <= 10 -> 50
-                    diff <= 15 -> 10
-                    else -> -90
-                }
+                score +=
+                    when {
+                        diff <= 2 -> 180
+                        diff <= 5 -> 120
+                        diff <= 10 -> 50
+                        diff <= 15 -> 10
+                        else -> -90
+                    }
             }
 
             if (hires) score += 15
             if (!downloadable && !streamable) score -= 25
 
-            evaluated += EvaluatedCandidate(
-                trackId = trackId,
-                title = candidateCombinedTitle,
-                artists = candidateArtists.joinToString(),
-                score = score,
-                downloadable = downloadable || streamable,
-            )
-
-            if (score > REJECT_SCORE && (score >= minAcceptScore || wantedIsrc.isNotBlank() && candidateIsrc == wantedIsrc)) {
-                candidates += Candidate(
-                    track = MatchedTrack(
-                        trackId = trackId,
-                        hires = hires,
-                        bitDepth = bitDepth,
-                        samplingRateKhz = samplingRate,
-                        isrc = candidateIsrc.takeIf { it.isNotBlank() },
-                    ),
+            evaluated +=
+                EvaluatedCandidate(
+                    trackId = trackId,
+                    title = candidateCombinedTitle,
+                    artists = candidateArtists.joinToString(),
                     score = score,
+                    downloadable = downloadable || streamable,
                 )
+
+            if (score > REJECT_SCORE && (score >= minAcceptScore || (wantedIsrc.isNotBlank() && candidateIsrc == wantedIsrc))) {
+                candidates +=
+                    Candidate(
+                        track =
+                            MatchedTrack(
+                                trackId = trackId,
+                                hires = hires,
+                                bitDepth = bitDepth,
+                                samplingRateKhz = samplingRate,
+                                isrc = candidateIsrc.takeIf { it.isNotBlank() },
+                            ),
+                        score = score,
+                    )
             }
         }
 
@@ -667,10 +697,11 @@ object QobuzAudioProvider {
         durationMs: Long?,
     ): StreamAttempt {
         val url =
-            URLBuilder("$SQUID_BASE_URL/api/download-music").apply {
-                parameters.append("track_id", track.trackId)
-                parameters.append("quality", qualityCode.toString())
-            }.buildString()
+            URLBuilder("$SQUID_BASE_URL/api/download-music")
+                .apply {
+                    parameters.append("track_id", track.trackId)
+                    parameters.append("quality", qualityCode.toString())
+                }.buildString()
 
         return try {
             val response =
@@ -746,11 +777,12 @@ object QobuzAudioProvider {
         durationMs: Long?,
     ): StreamAttempt {
         val url =
-            URLBuilder("$JUMO_BASE_URL/fetch").apply {
-                parameters.append("track_id", track.trackId)
-                parameters.append("format_id", qualityCode.toString())
-                parameters.append("region", region)
-            }.buildString()
+            URLBuilder("$JUMO_BASE_URL/fetch")
+                .apply {
+                    parameters.append("track_id", track.trackId)
+                    parameters.append("format_id", qualityCode.toString())
+                    parameters.append("region", region)
+                }.buildString()
 
         return try {
             val response =
@@ -825,10 +857,11 @@ object QobuzAudioProvider {
         durationMs: Long?,
     ): StreamAttempt {
         val url =
-            URLBuilder("$KENNY_BASE_URL/api/download-music").apply {
-                parameters.append("track_id", track.trackId)
-                parameters.append("quality", qualityCode.toString())
-            }.buildString()
+            URLBuilder("$KENNY_BASE_URL/api/download-music")
+                .apply {
+                    parameters.append("track_id", track.trackId)
+                    parameters.append("quality", qualityCode.toString())
+                }.buildString()
 
         return try {
             val response =
@@ -903,10 +936,11 @@ object QobuzAudioProvider {
         durationMs: Long?,
     ): StreamAttempt {
         val url =
-            URLBuilder("$TRYPT_BASE_URL/api/download-music").apply {
-                parameters.append("track_id", track.trackId)
-                parameters.append("quality", qualityCode.toString())
-            }.buildString()
+            URLBuilder("$TRYPT_BASE_URL/api/download-music")
+                .apply {
+                    parameters.append("track_id", track.trackId)
+                    parameters.append("quality", qualityCode.toString())
+                }.buildString()
 
         return try {
             val response =
@@ -1000,8 +1034,7 @@ object QobuzAudioProvider {
             url: String,
             trackId: String,
             isrc: String? = null,
-        ) =
-            Resolved(
+        ) = Resolved(
             mediaUri = url,
             trackId = trackId,
             label = label,
@@ -1033,27 +1066,31 @@ object QobuzAudioProvider {
         val normalizedBitrate = normalizeBitrate(bitrate)
 
         return when {
-            lowerMime.contains("mpeg") || lowerMime.contains("mp3") -> StreamFormat(
-                label = "Qobuz MP3",
-                mimeType = "audio/mpeg",
-                codecs = "mp3",
-                bitrate = normalizedBitrate.takeIf { it > 0 } ?: 320_000,
-                sampleRate = sampleRate,
-                hires = hires,
-                bitDepth = bitDepth,
-                samplingRateKhz = samplingRateKhz,
-            )
+            lowerMime.contains("mpeg") || lowerMime.contains("mp3") -> {
+                StreamFormat(
+                    label = "Qobuz MP3",
+                    mimeType = "audio/mpeg",
+                    codecs = "mp3",
+                    bitrate = normalizedBitrate.takeIf { it > 0 } ?: 320_000,
+                    sampleRate = sampleRate,
+                    hires = hires,
+                    bitDepth = bitDepth,
+                    samplingRateKhz = samplingRateKhz,
+                )
+            }
 
-            lowerMime.contains("aac") || lowerMime.contains("mp4") -> StreamFormat(
-                label = "Qobuz AAC",
-                mimeType = "audio/mp4",
-                codecs = "mp4a.40.2",
-                bitrate = normalizedBitrate.takeIf { it > 0 } ?: 320_000,
-                sampleRate = sampleRate,
-                hires = hires,
-                bitDepth = bitDepth,
-                samplingRateKhz = samplingRateKhz,
-            )
+            lowerMime.contains("aac") || lowerMime.contains("mp4") -> {
+                StreamFormat(
+                    label = "Qobuz AAC",
+                    mimeType = "audio/mp4",
+                    codecs = "mp4a.40.2",
+                    bitrate = normalizedBitrate.takeIf { it > 0 } ?: 320_000,
+                    sampleRate = sampleRate,
+                    hires = hires,
+                    bitDepth = bitDepth,
+                    samplingRateKhz = samplingRateKhz,
+                )
+            }
 
             else -> {
                 StreamFormat(
@@ -1073,12 +1110,11 @@ object QobuzAudioProvider {
         }
     }
 
-    private fun normalizeBitrate(value: Int?): Int {
-        return value
+    private fun normalizeBitrate(value: Int?): Int =
+        value
             ?.takeIf { it > 0 }
             ?.let { if (it in 1..9999) it * 1000 else it }
             ?: 0
-    }
 
     private suspend fun estimateStreamBitrateFromContentLength(
         url: String,
@@ -1120,7 +1156,10 @@ object QobuzAudioProvider {
                     }
                 }
             if (head != null && head.status.isSuccess()) {
-                head.headers[HttpHeaders.ContentLength]?.toLongOrNull()?.takeIf { it > 0L }?.let { return it }
+                head.headers[HttpHeaders.ContentLength]
+                    ?.toLongOrNull()
+                    ?.takeIf { it > 0L }
+                    ?.let { return it }
             }
 
             val ranged =
@@ -1225,42 +1264,40 @@ object QobuzAudioProvider {
         return if (candidateHasSoft && !queryHasSoft) -45 else 0
     }
 
-    private fun Query.cacheKey(resolverRegion: String): String {
-        return listOf(
+    private fun Query.cacheKey(resolverRegion: String): String =
+        listOf(
             mediaId,
             trackCacheKey(),
             backend.name,
             resolverRegion,
             qualityCode.toString(),
         ).joinToString("::")
-    }
 
-    private fun Query.trackCacheKey(): String {
-        return listOf(
+    private fun Query.trackCacheKey(): String =
+        listOf(
             title.normalized(),
             artists.joinToString("|") { it.normalized() },
             album.normalized(),
             isrc?.trim()?.uppercase().orEmpty(),
             countryCode.uppercase(),
         ).joinToString("|")
-    }
 
     private fun extractExpiryMs(url: String): Long {
         val etsp = runCatching { Url(url).parameters["etsp"] }.getOrNull()?.toLongOrNull()
         return if (etsp != null) (etsp * 1000L) - 15_000L else nowMs() + STREAM_CACHE_MS
     }
 
-    private fun formatSamplingRate(value: Double): String {
-        return if (value % 1.0 == 0.0) {
+    private fun formatSamplingRate(value: Double): String =
+        if (value % 1.0 == 0.0) {
             value.toInt().toString()
         } else {
             value.toString()
         }
-    }
 
     private fun significantTokens(value: String): Set<String> {
         val stopWords = setOf("a", "an", "and", "feat", "ft", "for", "of", "the", "with")
-        return value.split(" ")
+        return value
+            .split(" ")
             .map { it.trim() }
             .filter { it.length > 1 && it !in stopWords }
             .toSet()
@@ -1432,7 +1469,12 @@ object QobuzAudioProvider {
     }
 
     internal fun resetForTests(client: HttpClient? = null) {
-        clientProvider = if (client != null) { { client } } else { { defaultHttpClient } }
+        clientProvider =
+            if (client != null) {
+                { client }
+            } else {
+                { defaultHttpClient }
+            }
         nowMs = { Clock.System.now().toEpochMilliseconds() }
         trackCache.clear()
         streamCache.clear()
@@ -1446,14 +1488,14 @@ object QobuzAudioProvider {
     private fun JsonObject.arr(name: String): JsonArray? = get(name) as? JsonArray
 
     private fun JsonObject.stringOrNull(name: String): String? =
-        (get(name) as? JsonPrimitive)?.content?.trim()
+        (get(name) as? JsonPrimitive)
+            ?.content
+            ?.trim()
             ?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
 
-    private fun JsonObject.intOrNull(name: String): Int? =
-        (get(name) as? JsonPrimitive)?.content?.toIntOrNull()
+    private fun JsonObject.intOrNull(name: String): Int? = (get(name) as? JsonPrimitive)?.content?.toIntOrNull()
 
-    private fun JsonObject.doubleOrNull(name: String): Double? =
-        (get(name) as? JsonPrimitive)?.content?.toDoubleOrNull()
+    private fun JsonObject.doubleOrNull(name: String): Double? = (get(name) as? JsonPrimitive)?.content?.toDoubleOrNull()
 
     private fun JsonObject.booleanOrDefault(
         name: String,

@@ -1456,32 +1456,50 @@ class HomeViewModel(
                 SimilarRecommendation(source, items, section.browseId, section.params, section.subtitle)
             }
 
-    private suspend fun generateDiscoverBatch(): List<SongItem> = withContext(Dispatchers.Default) {
-        val now = getCurrentTimeMillis()
-        val monthAgo = now - 86400000L * 30L  // 30 days in ms
+    private suspend fun generateDiscoverBatch(): List<SongItem> =
+        withContext(Dispatchers.Default) {
+            val now = getCurrentTimeMillis()
+            val monthAgo = now - 86400000L * 30L // 30 days in ms
 
-        // 1. Most played songs (5)
-        val mostPlayed = database.dao().mostPlayedSongs(monthAgo, limit = 5).first().map { it.toSongItem() }
+            // 1. Most played songs (5)
+            val mostPlayed =
+                database
+                    .dao()
+                    .mostPlayedSongs(monthAgo, limit = 5)
+                    .first()
+                    .map { it.toSongItem() }
 
-        // 2. Liked songs (up to 15 random)
-        val likedSongs = database.dao().likedSongsByCreateDateAsc().first().shuffled().take(15).map { it.toSongItem() }
+            // 2. Liked songs (up to 15 random)
+            val likedSongs =
+                database
+                    .dao()
+                    .likedSongsByCreateDateAsc()
+                    .first()
+                    .shuffled()
+                    .take(15)
+                    .map { it.toSongItem() }
 
-        // 3. Expand via YouTube related (startRadio)
-        val seeds = (mostPlayed + likedSongs).distinctBy { it.id }.take(20)
-        val related =
-            seeds.flatMap { seed ->
-                runCatching { GlobalYouTubeRepository.instance.startRadio(seed.id) }
-                    .getOrDefault(emptyList())
-            }
+            // 3. Expand via YouTube related (startRadio)
+            val seeds = (mostPlayed + likedSongs).distinctBy { it.id }.take(20)
+            val related =
+                seeds.flatMap { seed ->
+                    runCatching { GlobalYouTubeRepository.instance.startRadio(seed.id) }
+                        .getOrDefault(emptyList())
+                }
 
-        // 4. Combine all, deduplicate, filter out played history
-        val playedIds = database.dao().events().map { events -> events.map { it.event.songId }.toSet() }.first()
+            // 4. Combine all, deduplicate, filter out played history
+            val playedIds =
+                database
+                    .dao()
+                    .events()
+                    .map { events -> events.map { it.event.songId }.toSet() }
+                    .first()
 
-        (seeds + related)
-            .distinctBy { it.id }
-            .filterNot { it.id in playedIds }
-            .take(50)
-    }
+            (seeds + related)
+                .distinctBy { it.id }
+                .filterNot { it.id in playedIds }
+                .take(50)
+        }
 
     @Serializable
     data class HomeUiState(

@@ -1,7 +1,6 @@
 package com.metrolist.shared.ui.menu
 
 import androidx.compose.runtime.Composable
-import org.jetbrains.compose.resources.stringResource
 import com.metrolist.shared.api.playlistSongs
 import com.metrolist.shared.generated.resources.Res
 import com.metrolist.shared.generated.resources.open_in_spotify
@@ -19,6 +18,7 @@ import com.metrolist.shared.state.GlobalYouTubeRepository
 import com.metrolist.shared.ui.components.PlayerMenuAction
 import com.metrolist.shared.ui.icons.MetrolistIcons
 import com.metrolist.shared.ui.screens.spotifyWebUrl
+import org.jetbrains.compose.resources.stringResource
 
 suspend fun loadMediaItemSongs(item: YTItem): List<SongItem> {
     val repository = GlobalYouTubeRepository.instance
@@ -87,12 +87,11 @@ internal fun spotifyOverrideMatchAction(
     artist: String,
     onDismiss: () -> Unit,
     onOverrideMatch: (String, String, String, String) -> Unit,
-): PlayerMenuAction {
-    return action(
+): PlayerMenuAction =
+    action(
         icon = MetrolistIcons.Outlined.Edit,
         title = stringResource(Res.string.spotify_override_match_title),
         description = stringResource(Res.string.spotify_override_match_description),
         onDismiss = onDismiss,
         onClick = { onOverrideMatch(spotifyUri, youtubeId, title, artist) },
     )
-}
