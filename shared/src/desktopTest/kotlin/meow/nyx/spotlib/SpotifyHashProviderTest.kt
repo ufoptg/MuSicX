@@ -1,10 +1,10 @@
 package meow.nyx.spotlib
 
+import meow.nyx.spotlib.SpotifyHashProvider.HashSource
+import meow.nyx.spotlib.SpotifyHashProvider.RemoteHashEntry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
-import meow.nyx.spotlib.SpotifyHashProvider.HashSource
-import meow.nyx.spotlib.SpotifyHashProvider.RemoteHashEntry
 
 class SpotifyHashProviderTest {
     @Test
