@@ -43,9 +43,9 @@ on:
       LASTFM_SECRET:
         required: true
       LYPRIO_BASE_URL:
-        required: true
+        required: false
       LYPRIO_HMAC_KEY:
-        required: true
+        required: false
 
 jobs:
   package:
@@ -88,8 +88,12 @@ jobs:
           if [[ "$UPLOAD_SENTRY" == "true" ]]; then
             test -n "$SENTRY_AUTH_TOKEN" || { echo "SENTRY_AUTH_TOKEN is required when Sentry upload is enabled" >&2; exit 1; }
           fi
-          test -n "$LYPRIO_BASE_URL" || { echo "LYPRIO_BASE_URL is required" >&2; exit 1; }
-          test -n "$LYPRIO_HMAC_KEY" || { echo "LYPRIO_HMAC_KEY is required" >&2; exit 1; }
+          if [[ -z "$LYPRIO_BASE_URL" ]]; then
+            echo "::warning::LYPRIO_BASE_URL is not set; proceeding without it."
+          fi
+          if [[ -z "$LYPRIO_HMAC_KEY" ]]; then
+            echo "::warning::LYPRIO_HMAC_KEY is not set; proceeding without it."
+          fi
 
       - name: Prepare CI Gradle
         uses: ./.github/actions/prepare-ci-gradle
