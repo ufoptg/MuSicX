@@ -12,8 +12,8 @@ from ci_paths import changed_paths, classify, metadata_only
 
 CHECKS = {
     "android": ("ci.yml", "Android / APK"),
-    "desktop": ("ci.yml", "Desktop"),
-    "ios": ("ci.yml", "iOS"),
+    "desktop": ("ci.yml", "Desktop / Linux x64"),
+    "ios": ("ci.yml", "iOS / Validate iOS"),
     "repository": ("ci.yml", "Select checks and repository checks"),
 }
 
@@ -71,7 +71,7 @@ def verify_run(repository, sha, workflow, job_name, get=api, required=True):
         return None
     if len(matches) != 1 or matches[0]["conclusion"] != "success":
         raise ValueError(f"{workflow}: required job {job_name!r} did not succeed: {run['html_url']}")
-    if workflow == "ci.yml" and job_name == "Android" and not any(step["name"] == "Test Android string generation" and step["conclusion"] == "success" for step in matches[0].get("steps", [])):
+    if workflow == "ci.yml" and job_name == "Android / APK" and not any(step["name"] == "Test Android string generation" and step["conclusion"] == "success" for step in matches[0].get("steps", [])):
         raise ValueError(f"{workflow}: this run lacks Android verification. Dispatch ci.yml to run the checks.")
     check_id = matches[0]["check_run_url"].rsplit("/", 1)[1]
     check = get(f"repos/{repository}/check-runs/{check_id}")[0]

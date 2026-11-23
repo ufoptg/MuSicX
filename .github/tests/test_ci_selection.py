@@ -147,7 +147,7 @@ class ReleaseGateTest(unittest.TestCase):
         self.sha = "a" * 40
         self.run = dict(id=12, head_sha=self.sha, head_branch="main", event="push", path=".github/workflows/ci.yml",
                         run_number=7, run_attempt=1, status="completed", conclusion="success", html_url="https://github.com/test/run/12")
-        self.job = dict(name="Android", conclusion="success", check_run_url="https://api.github.com/repos/test/repo/check-runs/42",
+        self.job = dict(name="Android / APK", conclusion="success", check_run_url="https://api.github.com/repos/test/repo/check-runs/42",
                         steps=[{"name": "Test Android string generation", "conclusion": "success"}])
         self.check = dict(head_sha=self.sha, status="completed", conclusion="success", app={"slug": "github-actions"})
 
@@ -159,7 +159,7 @@ class ReleaseGateTest(unittest.TestCase):
         return [{"workflow_runs": [self.run]}]
 
     def verify(self):
-        return release.verify_run("test/repo", self.sha, "ci.yml", "Android", self.api)
+        return release.verify_run("test/repo", self.sha, "ci.yml", "Android / APK", self.api)
 
     def test_accepts_a_successful_trusted_check(self):
         self.assertEqual(self.verify(), self.run["html_url"])
@@ -189,24 +189,24 @@ class ReleaseGateTest(unittest.TestCase):
     def test_latest_run_must_pass_across_all_api_pages(self):
         failed = {**self.run, "run_number": 8, "conclusion": "failure"}
         with self.assertRaisesRegex(ValueError, "latest run"):
-            release.verify_run("test/repo", self.sha, "ci.yml", "Android",
+            release.verify_run("test/repo", self.sha, "ci.yml", "Android / APK",
                                lambda _: [{"workflow_runs": [self.run]}, {"workflow_runs": [failed]}])
 
     def test_no_runs_and_api_errors_fail_closed(self):
         with self.assertRaisesRegex(ValueError, "no trusted"):
-            release.verify_run("test/repo", self.sha, "ci.yml", "Android", lambda _: [{"workflow_runs": []}])
+            release.verify_run("test/repo", self.sha, "ci.yml", "Android / APK", lambda _: [{"workflow_runs": []}])
         with patch.object(subprocess, "run", return_value=subprocess.CompletedProcess([], 1, "", "secret")):
             with self.assertRaisesRegex(ValueError, "permissions"):
                 release.api("test/path")
 
     def test_non_applicable_workflow_can_be_absent_but_cannot_fail(self):
-        self.assertIsNone(release.verify_run("test/repo", self.sha, "ci.yml", "Android",
+        self.assertIsNone(release.verify_run("test/repo", self.sha, "ci.yml", "Android / APK",
                                             lambda _: [{"workflow_runs": []}], required=False))
         self.job["conclusion"] = "skipped"
-        self.assertIsNone(release.verify_run("test/repo", self.sha, "ci.yml", "Android", self.api, required=False))
+        self.assertIsNone(release.verify_run("test/repo", self.sha, "ci.yml", "Android / APK", self.api, required=False))
         self.run["conclusion"] = "failure"
         with self.assertRaises(ValueError):
-            release.verify_run("test/repo", self.sha, "ci.yml", "Android", self.api, required=False)
+            release.verify_run("test/repo", self.sha, "ci.yml", "Android / APK", self.api, required=False)
 
     def test_installer_verification_remains_available_without_serializing_releases(self):
         text = (ROOT / ".github/workflows/release.yml").read_text().split("  windows-manager:\n", 1)[1].split("  publish:", 1)[0]
@@ -259,6 +259,28 @@ class ReleaseGateTest(unittest.TestCase):
         # Workflow display names do not enter the API path or trust check.
         with patch.dict(self.run, {"name": "Renamed Android verification"}):
             self.assertEqual(self.verify(), self.run["html_url"])
+
+    def test_checks_names_match_workflow_job_display_names(self):
+        # GitHub renders a reusable-workflow job as "<caller> / <called>". The gate
+        # matches job names exactly, so CHECKS must track those rendered names.
+        def called_job_names(workflow):
+            text = (ROOT / ".github/workflows" / workflow).read_text()
+            return re.findall(r"(?m)^ {4}name:\s*(.+?)\s*$", text)
+
+        calls = {
+            "android": ("Android", "reusable-android-build.yml"),
+            "desktop": ("Desktop", "reusable-desktop-verify.yml"),
+            "ios": ("iOS", "reusable-ios-build.yml"),
+        }
+        for platform, (caller, workflow) in calls.items():
+            with self.subTest(platform=platform):
+                rendered = [
+                    f"{caller} / {name.replace('${{ matrix.arch }}', arch)}"
+                    for name in called_job_names(workflow)
+                    for arch in ("x64", "arm64")
+                ]
+                self.assertIn(release.CHECKS[platform][1], rendered, f"{platform} must match a rendered job name: {rendered}")
+        self.assertEqual(release.CHECKS["repository"], ("ci.yml", "Select checks and repository checks"))
 
     def test_bump_chain_requires_the_source_change_checks(self):
         with tempfile.TemporaryDirectory() as directory:
