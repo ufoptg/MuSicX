@@ -12,13 +12,13 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import meow.nyx.spotlib.SpotifyClient
-import meow.nyx.spotlib.SpotifyRecommendationEngine
 import meow.nyx.spotlib.SpotifyPriorityGate
+import meow.nyx.spotlib.SpotifyRecommendationEngine
 import meow.nyx.spotlib.TrackItem
 
 /**
@@ -47,7 +47,6 @@ class SpotifyRadioQueue(
     private val startIndex: Int = 0,
     private val mapper: SpotifyYouTubeMapper,
 ) {
-
     companion object {
         private const val RESOLVE_BATCH_SIZE = 20
         private const val RECOMMENDATION_TIMEOUT_MS = 4000L
@@ -73,7 +72,10 @@ class SpotifyRadioQueue(
      * @param queue the [MusicQueue] to populate
      * @param startIndex the index of the target track (usually 0 for radio)
      */
-    suspend fun loadInto(queue: MusicQueue, startIndex: Int = 0) {
+    suspend fun loadInto(
+        queue: MusicQueue,
+        startIndex: Int = 0,
+    ) {
         withContext(Dispatchers.IO) {
             // Fast start: resolve ONLY the seed track and return.
             // The recommendation engine — which can take 2–4s — is deferred
@@ -120,7 +122,8 @@ class SpotifyRadioQueue(
                     resolveOffset = end
 
                     coroutineScope {
-                        batch.map { track -> async { mapper.mapToYouTube(track) } }
+                        batch
+                            .map { track -> async { mapper.mapToYouTube(track) } }
                             .awaitAll()
                             .filterNotNull()
                     }.also { resolved ->
@@ -133,16 +136,17 @@ class SpotifyRadioQueue(
 
     private suspend fun runRecommendationEngine() {
         try {
-            val recommendations = withContext(Dispatchers.IO) {
-                try {
-                    withTimeout(RECOMMENDATION_TIMEOUT_MS) {
-                        SpotifyRecommendationEngine.getRecommendations(seedTrack)
+            val recommendations =
+                withContext(Dispatchers.IO) {
+                    try {
+                        withTimeout(RECOMMENDATION_TIMEOUT_MS) {
+                            SpotifyRecommendationEngine.getRecommendations(seedTrack)
+                        }
+                    } catch (e: TimeoutCancellationException) {
+                        buildFallbackQueue()
+                        null
                     }
-                } catch (e: TimeoutCancellationException) {
-                    buildFallbackQueue()
-                    null
                 }
-            }
 
             if (recommendations != null && recommendations.isNotEmpty()) {
                 allTracks.addAll(recommendations)
@@ -163,9 +167,10 @@ class SpotifyRadioQueue(
 
         // Use up to 2 seed artists for top tracks
         for (artistId in seedTrack.artists.take(FALLBACK_ARTIST_LIMIT)) {
-            val topTracks = SpotifyPriorityGate.withPlaybackPriority {
-                client.artistTopTracks(artistId, limit = FALLBACK_TOP_TRACKS_LIMIT)
-            }
+            val topTracks =
+                SpotifyPriorityGate.withPlaybackPriority {
+                    client.artistTopTracks(artistId, limit = FALLBACK_TOP_TRACKS_LIMIT)
+                }
             if (topTracks.isNotEmpty()) {
                 val newTracks = topTracks.filter { it.uri.isNotEmpty() && it.uri !in seenIds }
                 allTracks.addAll(newTracks)
@@ -175,9 +180,10 @@ class SpotifyRadioQueue(
 
         // Add tracks from the same album if available
         seedTrack.albumUri?.let { albumUri ->
-            val album = SpotifyPriorityGate.withPlaybackPriority {
-                client.album(albumUri)
-            }
+            val album =
+                SpotifyPriorityGate.withPlaybackPriority {
+                    client.album(albumUri)
+                }
             val albumTracks = album.filter { it.uri.isNotEmpty() && it.uri !in seenIds }
             if (albumTracks.isNotEmpty()) {
                 allTracks.addAll(albumTracks)

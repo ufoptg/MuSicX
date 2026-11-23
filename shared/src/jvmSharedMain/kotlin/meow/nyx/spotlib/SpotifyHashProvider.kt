@@ -28,23 +28,24 @@ object SpotifyHashProvider {
     }
 
     private fun loadHardcodedDefaults() {
-        val defaults = mapOf(
-            "profileAttributes" to "08ffb4730af3746e04a8301396f20875dbbce10c75243803091a9274eacc8ac0",
-            "libraryV3" to "390c78e5b951029bad359785e69b07b536a509c581cbcd0aded5e5067f187455",
-            "fetchPlaylist" to "346811f856fb0b7e4f6c59f8ebea78dd081c6e2fb01b77c954b26259d5fc6763",
-            "fetchLibraryTracks" to "087278b20b743578a6262c2b0b4bcd20d879c503cc359a2285baf083ef944240",
-            "searchDesktop" to "4801118d4a100f756e833d33984436a3899cff359c532f8fd3aaf174b60b3b49",
-            "queryArtistOverview" to "5b9e64f43843fa3a9b6a98543600299b0a2cbbbccfdcdcef2402eb9c1017ca4c",
-            "getAlbum" to "b9bfabef66ed756e5e13f68a942deb60bd4125ec1f1be8cc42769dc0259b4b10",
-            "queryWhatsNewFeed" to "3b53dede3c6054e8b7c962dd280eb6761c5d1c82b06b039f4110d76a62b4966b",
-            "addToPlaylist" to "47b2a1234b17748d332dd0431534f22450e9ecbb3d5ddcdacbd83368636a0990",
-            "removeFromPlaylist" to "47b2a1234b17748d332dd0431534f22450e9ecbb3d5ddcdacbd83368636a0990",
-            "moveItemsInPlaylist" to "47b2a1234b17748d332dd0431534f22450e9ecbb3d5ddcdacbd83368636a0990",
-            "editPlaylistAttributes" to "35a1a9ce3a2f4f8c32ee0e24c63c2069c6613c0a0b7e56d0e40dabe69a0b4f80",
-            "addToLibrary" to "7c5a69420e2bfae3da5cc4e14cbc8bb3f6090f80afc00ffc179177f19be3f33d",
-            "removeFromLibrary" to "7c5a69420e2bfae3da5cc4e14cbc8bb3f6090f80afc00ffc179177f19be3f33d",
-            "home" to "23e37f2e58d82d567f27080101d36609009d8c3676457b1086cb0acc55b72a5d",
-        )
+        val defaults =
+            mapOf(
+                "profileAttributes" to "08ffb4730af3746e04a8301396f20875dbbce10c75243803091a9274eacc8ac0",
+                "libraryV3" to "390c78e5b951029bad359785e69b07b536a509c581cbcd0aded5e5067f187455",
+                "fetchPlaylist" to "346811f856fb0b7e4f6c59f8ebea78dd081c6e2fb01b77c954b26259d5fc6763",
+                "fetchLibraryTracks" to "087278b20b743578a6262c2b0b4bcd20d879c503cc359a2285baf083ef944240",
+                "searchDesktop" to "4801118d4a100f756e833d33984436a3899cff359c532f8fd3aaf174b60b3b49",
+                "queryArtistOverview" to "5b9e64f43843fa3a9b6a98543600299b0a2cbbbccfdcdcef2402eb9c1017ca4c",
+                "getAlbum" to "b9bfabef66ed756e5e13f68a942deb60bd4125ec1f1be8cc42769dc0259b4b10",
+                "queryWhatsNewFeed" to "3b53dede3c6054e8b7c962dd280eb6761c5d1c82b06b039f4110d76a62b4966b",
+                "addToPlaylist" to "47b2a1234b17748d332dd0431534f22450e9ecbb3d5ddcdacbd83368636a0990",
+                "removeFromPlaylist" to "47b2a1234b17748d332dd0431534f22450e9ecbb3d5ddcdacbd83368636a0990",
+                "moveItemsInPlaylist" to "47b2a1234b17748d332dd0431534f22450e9ecbb3d5ddcdacbd83368636a0990",
+                "editPlaylistAttributes" to "35a1a9ce3a2f4f8c32ee0e24c63c2069c6613c0a0b7e56d0e40dabe69a0b4f80",
+                "addToLibrary" to "7c5a69420e2bfae3da5cc4e14cbc8bb3f6090f80afc00ffc179177f19be3f33d",
+                "removeFromLibrary" to "7c5a69420e2bfae3da5cc4e14cbc8bb3f6090f80afc00ffc179177f19be3f33d",
+                "home" to "23e37f2e58d82d567f27080101d36609009d8c3676457b1086cb0acc55b72a5d",
+            )
         defaults.forEach { (op, hash) ->
             hashes[op] = GqlHashEntry(hash = hash, source = HashSource.HARDCODED)
         }
@@ -64,8 +65,7 @@ object SpotifyHashProvider {
      * during a hash rotation. Used as a fallback when the current hash
      * returns a PersistedQueryNotFound error.
      */
-    fun getPreviousHash(operationName: String): String? =
-        hashes[operationName]?.previousHash
+    fun getPreviousHash(operationName: String): String? = hashes[operationName]?.previousHash
 
     /**
      * Bulk-update hashes from a remote or cached source.
@@ -84,17 +84,21 @@ object SpotifyHashProvider {
             if (current != null) {
                 val hashChanged = current.hash != remote.hash
                 if (hashChanged) updated++ else unchanged++
-                hashes[op] = GqlHashEntry(
-                    hash = remote.hash,
-                    previousHash = remote.previousHash,
-                    source = source,
-                )
+                hashes[op] =
+                    GqlHashEntry(
+                        hash = remote.hash,
+                        previousHash = remote.previousHash,
+                        source = source,
+                    )
             }
         }
         return UpdateResult(updated = updated, unchanged = unchanged)
     }
 
-    data class UpdateResult(val updated: Int, val unchanged: Int)
+    data class UpdateResult(
+        val updated: Int,
+        val unchanged: Int,
+    )
 
     fun getAll(): Map<String, GqlHashEntry> = hashes.toMap()
 

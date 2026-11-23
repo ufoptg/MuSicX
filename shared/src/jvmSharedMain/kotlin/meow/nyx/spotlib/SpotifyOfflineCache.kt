@@ -16,7 +16,11 @@ import kotlin.time.Duration.Companion.days
  * Cache is bounded to prevent unbounded growth.
  */
 object SpotifyOfflineCache {
-    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+        }
     private val cacheDir = File(System.getProperty("java.io.tmpdir"), "metrolist/spotify-cache")
     private const val MAX_CACHE_ENTRIES = 20
     private val staleAfterMs = 7.days.inWholeMilliseconds
@@ -72,7 +76,10 @@ object SpotifyOfflineCache {
         }.getOrNull()
     }
 
-    fun cachePlaylistTracks(uri: String, tracks: List<TrackItem>) {
+    fun cachePlaylistTracks(
+        uri: String,
+        tracks: List<TrackItem>,
+    ) {
         runCatching {
             val safeUri = uri.replace(Regex("[^a-zA-Z0-9_-]"), "_")
             File(cacheDir, "playlist_$safeUri.json").writeText(json.encodeToString(CacheEnvelope(tracks)))

@@ -11,9 +11,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import meow.nyx.spotlib.SpotifyClient
 import meow.nyx.spotlib.SpotifyPriorityGate
 import meow.nyx.spotlib.TrackItem
@@ -34,7 +34,6 @@ class SpotifyLikedSongsQueue(
     private val mapper: SpotifyYouTubeMapper,
     private val preloadedTracks: List<TrackItem> = emptyList(),
 ) {
-
     companion object {
         private const val SPOTIFY_PAGE_SIZE = 50
         private const val RESOLVE_BATCH_SIZE = 20
@@ -54,7 +53,10 @@ class SpotifyLikedSongsQueue(
      * @param queue the [MusicQueue] to populate
      * @param startIndex the index of the target track within the full queue
      */
-    suspend fun loadInto(queue: MusicQueue, startIndex: Int = 0) {
+    suspend fun loadInto(
+        queue: MusicQueue,
+        startIndex: Int = 0,
+    ) {
         withContext(Dispatchers.IO) {
             if (preloadedTracks.isNotEmpty()) {
                 allTracks.addAll(preloadedTracks)
@@ -72,18 +74,21 @@ class SpotifyLikedSongsQueue(
             val windowEnd = (targetIndex + FAST_START_AFTER + 1).coerceAtMost(allTracks.size)
             val windowTracks = allTracks.subList(windowStart, windowEnd)
 
-            val resolvedItems = coroutineScope {
-                windowTracks.map { track -> async { mapper.mapToYouTube(track) } }
-                    .awaitAll()
-                    .filterNotNull()
-            }
+            val resolvedItems =
+                coroutineScope {
+                    windowTracks
+                        .map { track -> async { mapper.mapToYouTube(track) } }
+                        .awaitAll()
+                        .filterNotNull()
+                }
 
             if (resolvedItems.isEmpty()) {
                 // Nothing resolved — leave the queue empty and stop early.
             } else {
                 resolveOffset = windowEnd
-                val mediaItemIndex = (targetIndex - windowStart)
-                    .coerceIn(0, (resolvedItems.size - 1).coerceAtLeast(0))
+                val mediaItemIndex =
+                    (targetIndex - windowStart)
+                        .coerceIn(0, (resolvedItems.size - 1).coerceAtLeast(0))
 
                 queue.setQueue(resolvedItems, mediaItemIndex)
             }
@@ -110,7 +115,8 @@ class SpotifyLikedSongsQueue(
                     resolveOffset = end
 
                     coroutineScope {
-                        batch.map { track -> async { mapper.mapToYouTube(track) } }
+                        batch
+                            .map { track -> async { mapper.mapToYouTube(track) } }
                             .awaitAll()
                             .filterNotNull()
                     }.also { resolved ->
@@ -121,20 +127,20 @@ class SpotifyLikedSongsQueue(
         }
     }
 
-    private suspend fun fetchLikedSongsPage(limit: Int): List<TrackItem> {
-        return SpotifyPriorityGate.withPlaybackPriority {
+    private suspend fun fetchLikedSongsPage(limit: Int): List<TrackItem> =
+        SpotifyPriorityGate.withPlaybackPriority {
             val all = client.likedSongs(maxTracks = apiFetchOffset + limit)
             all.subList(apiFetchOffset, all.size)
         }
-    }
 
     private suspend fun fetchNextApiPage() {
         if (!apiHasMore) return
         try {
-            val newTracks = SpotifyPriorityGate.withPlaybackPriority {
-                val all = client.likedSongs(maxTracks = apiFetchOffset + SPOTIFY_PAGE_SIZE)
-                all.subList(apiFetchOffset, all.size)
-            }
+            val newTracks =
+                SpotifyPriorityGate.withPlaybackPriority {
+                    val all = client.likedSongs(maxTracks = apiFetchOffset + SPOTIFY_PAGE_SIZE)
+                    all.subList(apiFetchOffset, all.size)
+                }
             allTracks.addAll(newTracks)
             apiFetchOffset += newTracks.size
             apiHasMore = newTracks.size == SPOTIFY_PAGE_SIZE

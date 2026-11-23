@@ -62,9 +62,10 @@ class SpotifyImportManager(
     suspend fun loadPlaylists(): List<PlaylistMeta> =
         try {
             val active = authenticatedClient()
-            val result = SpotifyPriorityGate.withPlaybackPriority {
-                playlistsForImport(active.listPlaylists())
-            }
+            val result =
+                SpotifyPriorityGate.withPlaybackPriority {
+                    playlistsForImport(active.listPlaylists())
+                }
             result.also { persistSession(active.session) }.also { SpotifyOfflineCache.cachePlaylists(it) }
         } catch (error: CancellationException) {
             throw error
@@ -81,9 +82,10 @@ class SpotifyImportManager(
     suspend fun loadHome(): SpotifyHomeFeed =
         try {
             val active = authenticatedClient()
-            SpotifyPriorityGate.withPlaybackPriority {
-                active.home().also { persistSession(active.session) }
-            }.also { SpotifyOfflineCache.cacheHomeFeed(it) }
+            SpotifyPriorityGate
+                .withPlaybackPriority {
+                    active.home().also { persistSession(active.session) }
+                }.also { SpotifyOfflineCache.cacheHomeFeed(it) }
         } catch (error: CancellationException) {
             throw error
         } catch (error: SpotifyAuthException) {

@@ -216,7 +216,12 @@ internal fun parseHomeSection(sectionObj: JsonObject): SpotifyHomeFeedSection? {
             ?: titleObj?.string("text")
 
     val sectionItems = sectionObj.obj("sectionItems")
-    val totalCount = sectionItems?.get("totalCount")?.jsonPrimitive?.content?.toIntOrNull() ?: 0
+    val totalCount =
+        sectionItems
+            ?.get("totalCount")
+            ?.jsonPrimitive
+            ?.content
+            ?.toIntOrNull() ?: 0
     val itemElements = sectionItems?.array("items") ?: return null
 
     val items =
@@ -250,7 +255,12 @@ internal fun parseHomeItem(itemObj: JsonObject): SpotifyHomeFeedItem? {
 internal fun parseHomePlaylist(data: JsonObject): SpotifyHomeFeedItem.Playlist? {
     val uri = data.string("uri") ?: return null
     val imageItem = data.obj("images")?.array("items")?.firstOrNull() as? JsonObject
-    val imageUrl = imageItem?.array("sources")?.firstOrNull()?.let { it as? JsonObject }?.string("url")
+    val imageUrl =
+        imageItem
+            ?.array("sources")
+            ?.firstOrNull()
+            ?.let { it as? JsonObject }
+            ?.string("url")
     val colorHex = imageItem?.obj("extractedColors")?.obj("colorDark")?.string("hex")
     val madeFor =
         data
@@ -265,7 +275,13 @@ internal fun parseHomePlaylist(data: JsonObject): SpotifyHomeFeedItem.Playlist? 
         name = data.string("name").orEmpty(),
         description = data.string("description"),
         format = data.string("format"),
-        totalCount = data.obj("content")?.get("totalCount")?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+        totalCount =
+            data
+                .obj("content")
+                ?.get("totalCount")
+                ?.jsonPrimitive
+                ?.content
+                ?.toIntOrNull() ?: 0,
         imageUrl = imageUrl,
         extractedColorHex = colorHex,
         ownerName = data.obj("ownerV2")?.obj("data")?.string("name"),
@@ -281,7 +297,13 @@ internal fun parseHomeAlbum(data: JsonObject): SpotifyHomeFeedItem.Album? {
             ?.array("items")
             ?.mapNotNull { elem -> (elem as? JsonObject)?.obj("profile")?.string("name") }
             ?: emptyList()
-    val imageUrl = data.obj("coverArt")?.array("sources")?.firstOrNull()?.let { it as? JsonObject }?.string("url")
+    val imageUrl =
+        data
+            .obj("coverArt")
+            ?.array("sources")
+            ?.firstOrNull()
+            ?.let { it as? JsonObject }
+            ?.string("url")
 
     return SpotifyHomeFeedItem.Album(
         uri = uri,
@@ -343,9 +365,18 @@ internal fun parseSearchResult(page: JsonObject): SpotifySearchResult {
                 val track = parseTrackItem(item, tracks.size + 1)
                 tracks.add(track)
             }
-            "Album" -> parseHomeAlbum(item)?.let { albums.add(it) }
-            "Artist" -> parseHomeArtist(item)?.let { artists.add(it) }
-            "Playlist" -> parseHomePlaylist(item)?.let { playlists.add(it) }
+
+            "Album" -> {
+                parseHomeAlbum(item)?.let { albums.add(it) }
+            }
+
+            "Artist" -> {
+                parseHomeArtist(item)?.let { artists.add(it) }
+            }
+
+            "Playlist" -> {
+                parseHomePlaylist(item)?.let { playlists.add(it) }
+            }
         }
     }
 

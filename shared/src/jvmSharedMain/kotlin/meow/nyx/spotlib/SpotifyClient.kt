@@ -295,9 +295,7 @@ class SpotifyClient internal constructor(
         return reindex(output.take(limit))
     }
 
-    suspend fun album(
-        albumUri: String,
-    ): List<TrackItem> {
+    suspend fun album(albumUri: String): List<TrackItem> {
         val page =
             query(
                 "getAlbum",

@@ -6,7 +6,10 @@ import java.util.concurrent.ConcurrentHashMap
 object SpotifyMetadataRegistry {
     private val byYoutubeId = ConcurrentHashMap<String, TrackItem>()
 
-    fun register(youtubeId: String, track: TrackItem) {
+    fun register(
+        youtubeId: String,
+        track: TrackItem,
+    ) {
         byYoutubeId[youtubeId] = track
     }
 

@@ -23,7 +23,6 @@ import meow.nyx.spotlib.TrackItem
 class SpotifySearchProviderImpl(
     private val clientFactory: suspend () -> SpotifyClient?,
 ) : SpotifySearchProvider {
-
     override suspend fun search(
         term: String,
         limit: Int,

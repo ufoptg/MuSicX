@@ -20,7 +20,6 @@ import kotlinx.coroutines.sync.withLock
  * queue built from seed artist top tracks.
  */
 object SpotifyRecommendationEngine {
-
     private val cache = mutableMapOf<String, List<TrackItem>>()
     private val cacheMutex = Mutex()
 
