@@ -59,7 +59,7 @@ class SpotifyAlbumQueue(
      */
     suspend fun loadInto(
         queue: MusicQueue,
-        startIndex: Int = 0
+        startIndex: Int = 0,
     ) {
         withContext(Dispatchers.IO) {
             val fetched = fetchAlbumPage()
