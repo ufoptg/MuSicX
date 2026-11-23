@@ -90,9 +90,9 @@ internal fun OnboardingContent(
         welcomeContent = { modifier ->
             val iconRes =
                 if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
-                    R.drawable.app_icon_zenith_white_foreground
+                    R.drawable.musicx_logo_white
                 } else {
-                    R.drawable.app_icon_zenith_black_foreground
+                    R.drawable.musicx_logo_black
                 }
             Image(
                 painter = painterResource(iconRes),
