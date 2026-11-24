@@ -28,6 +28,7 @@ object SpotifyPlayback {
             when {
                 playlistUri.startsWith("spotify:playlist:") -> client.playlistTracks(playlistUri, maxTracks = Int.MAX_VALUE)
                 playlistUri.startsWith("spotify:album:") -> client.album(playlistUri)
+                playlistUri.startsWith("spotify:collection:") -> client.likedSongs(maxTracks = Int.MAX_VALUE)
                 playlistUri.contains("liked-songs") -> client.likedSongs(maxTracks = Int.MAX_VALUE)
                 else -> emptyList()
             }

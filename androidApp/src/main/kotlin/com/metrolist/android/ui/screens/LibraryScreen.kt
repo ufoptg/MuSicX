@@ -521,24 +521,19 @@ fun LibraryScreen(
                     Settings.shared.libraryManualOrder = it
                 },
                 onItemClick = { item ->
-                    if (item.id.startsWith("spotify:collection:")) {
-                        // Spotify collections (e.g. spotify:collection:tracks) open the Spotify playlist inside the MusicX UI.
+                    if (item.id.startsWith("spotify:")) {
+                        // Spotify playlists, albums and collections open inside the MusicX UI.
                         scope.launch { SpotifyPlayback.playPlaylist(item.id, item.title, playerConnection) }
                     } else {
-                        val spotifyUrl = item.spotifyWebUrl()
-                        if (spotifyUrl != null) {
-                            openUrl(spotifyUrl)
-                        } else {
-                            handleItemClick(
-                                item,
-                                onNavigateToAlbum,
-                                onNavigateToArtist,
-                                onNavigateToPlaylist,
-                                onNavigateToPodcast,
-                                playerConnection,
-                                scope,
-                            )
-                        }
+                        handleItemClick(
+                            item,
+                            onNavigateToAlbum,
+                            onNavigateToArtist,
+                            onNavigateToPlaylist,
+                            onNavigateToPodcast,
+                            playerConnection,
+                            scope,
+                        )
                     }
                 },
                 onPlaySongs = { songs, index -> playerConnection?.playQueue(songs, index) },
