@@ -168,8 +168,8 @@ jobs:
     with:
       run-verification: false
       upload-sentry: false
-      build-ipa: true
-      upload-artifact: true
+      build-ipa: false
+      upload-artifact: false
       artifact-name: release-ios
     secrets:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
