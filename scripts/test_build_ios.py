@@ -21,7 +21,7 @@ def main():
             for secret in ("LASTFM_API_KEY", "LASTFM_SECRET", "LYPRIO_BASE_URL", "LYPRIO_HMAC_KEY"):
                 assert f"      {secret}: ${{{{ secrets.{secret} }}}}" in job, (workflow.name, secret)
             if workflow.name == "release.yml":
-                assert "      build-ipa: true" in job
+                assert "      build-ipa: false" in job
     assert callers, "No iOS workflow callers checked"
 
     verify = (repository / ".github/workflows/build-ios.yml").read_text()
