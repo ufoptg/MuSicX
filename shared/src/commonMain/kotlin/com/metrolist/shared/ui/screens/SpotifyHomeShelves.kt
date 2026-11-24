@@ -75,7 +75,5 @@ fun YTItem.spotifyWebUrl(): String? {
     if (!id.startsWith("spotify:")) return null
     val parts = id.split(":")
     if (parts.size != 3) return null
-    // A collection (e.g. spotify:collection:tracks) is not a single item; treat as local MuSicX content instead of opening in Spotify.
-    if (parts[1] == "collection") return null
     return "https://open.spotify.com/${parts[1]}/${parts[2]}"
 }

@@ -119,10 +119,7 @@ fun handleItemClick(
         }
 
         is PlaylistItem -> {
-            // Spotify collection URIs (e.g. spotify:collection:tracks) are not single playlists;
-            // treat them as the local MuSicX Liked Songs playlist.
-            val playlistId = if (item.id.startsWith("spotify:collection:")) "liked" else item.id
-            onNavigateToPlaylist(playlistId, item.thumbnail)
+            onNavigateToPlaylist(item.id, item.thumbnail)
         }
 
         is PodcastItem -> {
