@@ -153,7 +153,9 @@ class PlaylistAutoDownloadTest {
                 val viewModelJob = store["playlist"]?.viewModelScope?.coroutineContext?.job
                 store.clear()
                 viewModelJob?.join()
-                backgroundScope.coroutineContext.job.cancelAndJoin()
+                viewModelJob?.join()
+                backgroundScope.coroutineContext.job?.join()
+                backgroundScope.coroutineContext.job?.cancelAndJoin()
                 database.close()
                 Dispatchers.resetMain()
                 Settings.replaceSharedForTest(null)
