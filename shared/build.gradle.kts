@@ -425,6 +425,8 @@ kotlin {
             isStatic = true
             freeCompilerArgs += "-Xadd-light-debug=enable"
             freeCompilerArgs += "-Xdisable-phases=DevirtualizationAnalysis"
+            freeCompilerArgs += "-Xdisable-phases=RemoveRedundantCallsToStaticInitializersPhase"
+            freeCompilerArgs += "-Xdisable-phases=EscapeAnalysis"
         }
     }
 
