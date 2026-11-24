@@ -152,6 +152,7 @@ class PlaylistAutoDownloadTest {
             } finally {
                 val viewModelJob = store["playlist"]?.viewModelScope?.coroutineContext?.job
                 store.clear()
+                testScheduler.advanceUntilIdle()
                 viewModelJob?.join()
                 viewModelJob?.join()
                 backgroundScope.coroutineContext.job?.join()
