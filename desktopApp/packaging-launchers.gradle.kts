@@ -346,7 +346,7 @@ registerWindowsPortableArchive(
     buildType = "Release",
     distributableTask = "createReleaseDistributable",
     appDirectory = "main-release",
-    archiveName = "Metrolist-Desktop-Windows.zip",
+    archiveName = "MuSicX-Desktop-Windows.zip",
 )
 
 registerWindowsPortableArchive(
@@ -354,5 +354,5 @@ registerWindowsPortableArchive(
     buildType = "Debug",
     distributableTask = "createDistributable",
     appDirectory = "main",
-    archiveName = "Metrolist-Desktop-Windows-Debug.zip",
+    archiveName = "MuSicX-Desktop-Windows-Debug.zip",
 )

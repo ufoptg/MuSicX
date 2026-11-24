@@ -125,7 +125,7 @@ object DesktopUpdateManager {
                 val release = getRelease("$API_BASE/releases/tags/v$version")
                 val errorMsg = getString(Res.string.update_not_published_stable)
                 check(release.tagName == "v$version" && release.canInstall(registeredInstallation = true)) { errorMsg }
-                val expectedName = "metrolist-installer-windows-x64-$version.exe"
+                val expectedName = "MuSicX-installer-windows-x64-$version.exe"
                 val asset =
                     checkNotNull(release.installer) {
                         "Release v$version does not contain $expectedName"
@@ -270,7 +270,7 @@ data class GitHubDesktopRelease(
 ) {
     val version: String get() = tagName.removePrefix("v")
     val installer: GitHubDesktopAsset?
-        get() = assets.singleOrNull { it.name == "metrolist-installer-windows-x64-$version.exe" }
+        get() = assets.singleOrNull { it.name == "MuSicX-installer-windows-x64-$version.exe" }
     val url: String get() = "https://github.com/ufoptg/MuSicX/releases/tag/$tagName"
 
     internal fun canInstall(registeredInstallation: Boolean): Boolean =

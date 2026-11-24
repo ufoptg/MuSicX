@@ -61,7 +61,7 @@ The script builds the shared Kotlin framework through the Xcode project and copi
 ./scripts/build_ios.sh --ipa
 ```
 
-This produces an unsigned `dist/Metrolist.ipa`. It needs signing or a sideloading tool before device installation. Linux can compile shared iOS sources but cannot build or run the Xcode app.
+This produces an unsigned `dist/MuSicX.ipa`. It needs signing or a sideloading tool before device installation. Linux can compile shared iOS sources but cannot build or run the Xcode app.
 
 ## Find the code for a change
 

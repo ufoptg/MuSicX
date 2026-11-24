@@ -2,7 +2,7 @@
 
 ## Requirements and download
 
-Use iOS or iPadOS 17 or later. Get `Metrolist.ipa` through [the project channels](README.md#get-the-package) and [verify its checksum](README.md#verify-a-download). The workflow produces an unsigned IPA; sign it for your device before installation.
+Use iOS or iPadOS 17 or later. Get `MuSicX.ipa` through [the project channels](README.md#get-the-package) and [verify its checksum](README.md#verify-a-download). The workflow produces an unsigned IPA; sign it for your device before installation.
 
 ## Sideloading
 
@@ -13,9 +13,9 @@ Follow your tool's setup and refresh instructions. Its OS support and signing li
 - [Sideloadly](https://sideloadly.io/faq.html).
 - [TrollStore](https://github.com/opa334/TrollStore), only where its supported OS versions overlap this app's minimum.
 
-Use the same signing account and resulting bundle ID for updates. Check the expiry shown by the tool and refresh before it expires. Refresh renews signing; download a new IPA separately to update Metrolist. Keep pairing files private.
+Use the same signing account and resulting bundle ID for updates. Check the expiry shown by the tool and refresh before it expires. Refresh renews signing; download a new IPA separately to update MuSicX. Keep pairing files private.
 
-To receive updates in AltStore or SideStore, add the source `https://github.com/MetrolistGroup/Metrolist/releases/latest/download/metrolist-altstore.json`. Each stable release regenerates it. Metrolist also shows a notice once per new stable release and opens its release page; it does not install anything.
+To receive updates in AltStore or SideStore, add the source `https://github.com/ufoptg/MuSicX/releases/latest/download/metrolist-altstore.json`. Each stable release regenerates it. MuSicX also shows a notice once per new stable release and opens its release page; it does not install anything.
 
 ## Signing and entitlements
 

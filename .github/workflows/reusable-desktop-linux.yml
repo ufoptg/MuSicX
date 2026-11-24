@@ -126,7 +126,7 @@ jobs:
             arm64) grep -Eiq 'aarch64|ARM64' <<< "$description" || { echo "Expected aarch64 AppImage, got: $description" >&2; exit 1; } ;;
             *) echo "Unsupported Linux artifact architecture: ${{ matrix.arch }}" >&2; exit 1 ;;
           esac
-          output="dist/metrolist-desktop-linux-${{ matrix.arch }}-${version}.AppImage"
+          output="dist/MuSicX-desktop-linux-${{ matrix.arch }}-${version}.AppImage"
           mv "$source" "$output"
           echo "path=$output" >> "$GITHUB_OUTPUT"
 

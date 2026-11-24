@@ -15,8 +15,8 @@ Use X11 or XWayland. Login needs GTK3/WebKitGTK 4.1. Saved credentials need Secr
 3. Mark it executable and run it:
 
 ```sh
-chmod u+x -- ./Metrolist.AppImage
-./Metrolist.AppImage
+chmod u+x -- ./MuSicX-desktop-linux-x64-VERSION.AppImage
+./MuSicX-desktop-linux-x64-VERSION.AppImage
 ```
 
 Substitute the downloaded filename. Check playback, sign-in and retained credentials after restart.
@@ -28,11 +28,11 @@ On Arch Linux, install the community-maintained [`metrolist-desktop-bin`](https:
 The repository flake wraps the release AppImage for x86_64 and aarch64 Linux. Run it once, or install it into your profile:
 
 ```sh
-nix run github:MetrolistGroup/Metrolist
-nix profile install github:MetrolistGroup/Metrolist
+nix run github:ufoptg/MuSicX
+nix profile install github:ufoptg/MuSicX
 ```
 
-To use it from a NixOS or Home Manager configuration, add `github:MetrolistGroup/Metrolist` as an input and include `inputs.metrolist.packages.${pkgs.stdenv.hostPlatform.system}.default` in your packages. The flake follows the latest stable release; run `nix flake update metrolist` or `nix profile upgrade` to update.
+To use it from a NixOS or Home Manager configuration, add `github:ufoptg/MuSicX` as an input and include `inputs.metrolist.packages.${pkgs.stdenv.hostPlatform.system}.default` in your packages. The flake follows the latest stable release; run `nix flake update metrolist` or `nix profile upgrade` to update.
 
 ## Update and uninstall
 

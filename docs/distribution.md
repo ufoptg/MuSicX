@@ -6,13 +6,13 @@
 
 ```sh
 mkdir -p build
-gh release view "$tag" --repo MetrolistGroup/Metrolist \
+gh release view "$tag" --repo ufoptg/MuSicX \
   --json tagName,isDraft,isPrerelease,url,publishedAt,body,assets > build/release.json
-gh release download "$tag" --repo MetrolistGroup/Metrolist \
+gh release download "$tag" --repo ufoptg/MuSicX \
   --dir build/distribution-assets --pattern SHA256SUMS \
-  --pattern 'metrolist-installer-windows-*.exe' \
-  --pattern 'metrolist-desktop-linux-*.AppImage' \
-  --pattern 'metrolist-desktop-macos-*.dmg'
+  --pattern 'MuSicX-installer-windows-*.exe' \
+  --pattern 'MuSicX-desktop-linux-*.AppImage' \
+  --pattern 'MuSicX-desktop-macos-*.dmg'
 python3 scripts/generate_distribution.py \
   --assets build/distribution-assets --release build/release.json \
   --output build/distribution
@@ -49,7 +49,7 @@ nix build path:./build/distribution/nix
 nix run path:./build/distribution/nix
 ```
 
-The root flake reads the committed `packaging/release.json`, so `nix run github:MetrolistGroup/Metrolist` installs the latest stable release. After each stable release, copy the generated `release.json` to `packaging/release.json` and commit it. Missing metadata fails with generation instructions rather than a fake hash. Verify login, Secret Service, audio and desktop integration on both architectures.
+The root flake reads the committed `packaging/release.json`, so `nix run github:ufoptg/MuSicX` installs the latest stable release. After each stable release, copy the generated `release.json` to `packaging/release.json` and commit it. Missing metadata fails with generation instructions rather than a fake hash. Verify login, Secret Service, audio and desktop integration on both architectures.
 
 ## Flatpak and Flathub
 

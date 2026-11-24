@@ -231,27 +231,29 @@ jobs:
             release-assets/MuSicX-Desktop-windows.zip
           mv \
             release-assets/MuSicX-Desktop-Windows-arm64.zip \
-            "release-assets/metrolist-desktop-windows-arm64-${APP_VERSION}.zip"
-          # Legacy v13 GMS builds only update from this asset name; the app has one variant.
+            "release-assets/MuSicX-desktop-windows-arm64-${APP_VERSION}.zip"
+          # Keep a Cast-suffixed copy for clients that look for that asset name; the app ships one variant.
           cp release-assets/MuSicX.apk release-assets/MuSicX-with-Google-Cast.apk
-          if [[ -f release-assets/MuSicX.ipa ]]; then
-            python3 scripts/generate_altstore_source.py \
-              "$GITHUB_REPOSITORY" "$APP_VERSION" release-assets/MuSicX.ipa release-assets/metrolist-altstore.json
-          fi
           expected=(
             "release-assets/MuSicX.apk"
             "release-assets/MuSicX-with-Google-Cast.apk"
             "release-assets/MuSicX-KMP-mapping.txt"
-            "release-assets/MuSicX.ipa"
-            "release-assets/metrolist-altstore.json"
             "release-assets/MuSicX-Desktop-windows.zip"
-            "release-assets/metrolist-installer-windows-x64-${APP_VERSION}.exe"
-            "release-assets/metrolist-desktop-windows-arm64-${APP_VERSION}.zip"
-            "release-assets/metrolist-desktop-linux-x64-${APP_VERSION}.AppImage"
-            "release-assets/metrolist-desktop-linux-arm64-${APP_VERSION}.AppImage"
-            "release-assets/metrolist-desktop-macos-arm64-${APP_VERSION}.dmg"
-            "release-assets/metrolist-desktop-macos-x64-${APP_VERSION}.dmg"
+            "release-assets/MuSicX-installer-windows-x64-${APP_VERSION}.exe"
+            "release-assets/MuSicX-desktop-windows-arm64-${APP_VERSION}.zip"
+            "release-assets/MuSicX-desktop-linux-x64-${APP_VERSION}.AppImage"
+            "release-assets/MuSicX-desktop-linux-arm64-${APP_VERSION}.AppImage"
+            "release-assets/MuSicX-desktop-macos-arm64-${APP_VERSION}.dmg"
+            "release-assets/MuSicX-desktop-macos-x64-${APP_VERSION}.dmg"
           )
+          if [[ -f release-assets/MuSicX.ipa ]]; then
+            python3 scripts/generate_altstore_source.py \
+              "$GITHUB_REPOSITORY" "$APP_VERSION" release-assets/MuSicX.ipa release-assets/metrolist-altstore.json
+            expected+=(
+              "release-assets/MuSicX.ipa"
+              "release-assets/metrolist-altstore.json"
+            )
+          fi
           for file in "${expected[@]}"; do
             test -f "$file" || { echo "Missing release asset: $file" >&2; exit 1; }
           done
@@ -345,9 +347,9 @@ jobs:
             --json tagName,isDraft,isPrerelease,url,publishedAt,body,assets > release.json
           gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
             --dir distribution-assets --pattern SHA256SUMS \
-            --pattern 'metrolist-installer-windows-*.exe' \
-            --pattern 'metrolist-desktop-linux-*.AppImage' \
-            --pattern 'metrolist-desktop-macos-*.dmg'
+            --pattern 'MuSicX-installer-windows-*.exe' \
+            --pattern 'MuSicX-desktop-linux-*.AppImage' \
+            --pattern 'MuSicX-desktop-macos-*.dmg'
 
       - name: Generate recipes from verified assets
         run: >-

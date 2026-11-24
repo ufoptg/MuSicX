@@ -515,6 +515,7 @@ private const val CHECK_INTERVAL_MILLIS = 60 * 60 * 1_000L
 private const val CACHE_SOURCE = "github-releases-musicy-v1"
 private val PREFERRED_APK_NAMES =
     listOf(
+        "MuSicX.apk",
         "Metrolist.apk",
         "Metrolist-Android-release.apk",
         "androidApp-release.apk",

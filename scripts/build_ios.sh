@@ -38,7 +38,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --clean)
       echo "Cleaning iOS build artifacts..."
-      rm -rf "$build_dir" "$derived_data_dir" "$dist_dir/Metrolist.ipa" "$dist_dir/Metrolist.app"
+      rm -rf "$build_dir" "$derived_data_dir" "$dist_dir/MuSicX.ipa" "$dist_dir/Metrolist.app"
       echo "Clean finished."
       exit 0
       ;;
@@ -104,13 +104,13 @@ if [[ "$mode" == "ipa" ]]; then
 
   echo "Step 2: Creating unsigned IPA package in dist/..."
   payload_dir="$build_dir/Payload"
-  rm -rf "$payload_dir" "$dist_dir/Metrolist.ipa"
+  rm -rf "$payload_dir" "$dist_dir/MuSicX.ipa"
   mkdir -p "$payload_dir"
   cp -R "$app_bundle" "$payload_dir/"
   
-  (cd "$build_dir" && zip -qr "$dist_dir/Metrolist.ipa" Payload)
-  unzip -tq "$dist_dir/Metrolist.ipa"
-  echo "IPA package created: $dist_dir/Metrolist.ipa"
+  (cd "$build_dir" && zip -qr "$dist_dir/MuSicX.ipa" Payload)
+  unzip -tq "$dist_dir/MuSicX.ipa"
+  echo "IPA package created: $dist_dir/MuSicX.ipa"
   echo "You can install this IPA using AltStore, SideStore, TrollStore, or Sideloadly."
 
 elif [[ "$mode" == "sim" ]]; then

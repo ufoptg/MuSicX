@@ -187,7 +187,7 @@ jobs:
           test -f "${files[0]}" || { echo "macOS DMG was not produced" >&2; exit 1; }
           test "${#files[@]}" -eq 1 || { echo "Expected one macOS DMG, found ${#files[@]}" >&2; exit 1; }
           mkdir -p dist
-          output="dist/metrolist-desktop-macos-${ARCH}-${version}.dmg"
+          output="dist/MuSicX-desktop-macos-${ARCH}-${version}.dmg"
           cp "${files[0]}" "$output"
           echo "path=$output" >> "$GITHUB_OUTPUT"
 

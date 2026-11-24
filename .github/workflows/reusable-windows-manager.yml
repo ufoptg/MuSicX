@@ -61,9 +61,9 @@ jobs:
           const (
               TargetVersion = "$env:APP_VERSION"
               ReleaseTag = "v$env:APP_VERSION"
-              DesktopAssetName = "Metrolist-Desktop-windows.zip"
-              RepositoryOwner = "MetrolistGroup"
-              RepositoryName = "Metrolist"
+              DesktopAssetName = "MuSicX-Desktop-windows.zip"
+              RepositoryOwner = "ufoptg"
+              RepositoryName = "MuSicX"
           )
           "@
           Set-Content -Path "manager-source/internal/buildconfig/config.go" -Value $config -Encoding utf8
@@ -82,7 +82,7 @@ jobs:
         shell: pwsh
         env:
           APP_VERSION: ${{ inputs.version }}
-        run: go run ./cmd/validate-payload "../release-input/Metrolist-Desktop-Windows.zip" "$env:APP_VERSION"
+        run: go run ./cmd/validate-payload "../release-input/MuSicX-Desktop-Windows.zip" "$env:APP_VERSION"
 
       - name: Embed Windows resources
         working-directory: manager-source
@@ -101,7 +101,7 @@ jobs:
           APP_VERSION: ${{ inputs.version }}
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          go build -trimpath -ldflags "-s -w -H=windowsgui" -o "dist/metrolist-installer-windows-x64-$env:APP_VERSION.exe" .
+          go build -trimpath -ldflags "-s -w -H=windowsgui" -o "dist/MuSicX-installer-windows-x64-$env:APP_VERSION.exe" .
 
       - name: Install, repair and uninstall end to end
         if: inputs.run-verification
@@ -110,8 +110,8 @@ jobs:
         env:
           APP_VERSION: ${{ inputs.version }}
         run: |
-          $env:METROLIST_MANAGER_E2E_BINARY = (Resolve-Path "dist/metrolist-installer-windows-x64-$env:APP_VERSION.exe").Path
-          $env:METROLIST_MANAGER_E2E_PAYLOAD = (Resolve-Path "../release-input/Metrolist-Desktop-Windows.zip").Path
+          $env:METROLIST_MANAGER_E2E_BINARY = (Resolve-Path "dist/MuSicX-installer-windows-x64-$env:APP_VERSION.exe").Path
+          $env:METROLIST_MANAGER_E2E_PAYLOAD = (Resolve-Path "../release-input/MuSicX-Desktop-Windows.zip").Path
           $env:METROLIST_MANAGER_E2E_VERSION = $env:APP_VERSION
           go test -run TestEndToEndInstallUpdateAndUninstall -count=1 -v .
 
@@ -119,6 +119,6 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: release-windows-manager
-          path: manager-source/dist/metrolist-installer-windows-x64-${{ inputs.version }}.exe
+          path: manager-source/dist/MuSicX-installer-windows-x64-${{ inputs.version }}.exe
           if-no-files-found: error
           retention-days: 4

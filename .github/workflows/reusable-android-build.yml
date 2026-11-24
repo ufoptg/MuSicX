@@ -249,7 +249,7 @@ jobs:
           python3 scripts/collect_android_apks.py \
             "androidApp/build/outputs/apk/$BUILD_VARIANT" dist "$APP_VERSION" "$BUILD_VARIANT"
           if [[ "$BUILD_VARIANT" == release ]]; then
-            cp androidApp/build/outputs/mapping/release/mapping.txt dist/Metrolist-KMP-mapping.txt
+            cp androidApp/build/outputs/mapping/release/mapping.txt dist/MuSicX-KMP-mapping.txt
           fi
 
       - name: Verify APK signature

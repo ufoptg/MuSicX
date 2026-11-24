@@ -89,11 +89,11 @@ class ReleaseWorkflowsTest(unittest.TestCase):
             'MuSicX-KMP-mapping.txt',
             'MuSicX-Desktop-Windows.zip',
             'MuSicX-Desktop-Windows-arm64.zip',
-            'metrolist-installer-windows-x64-14.0.0.exe',
-            'metrolist-desktop-linux-x64-14.0.0.AppImage',
-            'metrolist-desktop-linux-arm64-14.0.0.AppImage',
-            'metrolist-desktop-macos-arm64-14.0.0.dmg',
-            'metrolist-desktop-macos-x64-14.0.0.dmg',
+            'MuSicX-installer-windows-x64-14.0.0.exe',
+            'MuSicX-desktop-linux-x64-14.0.0.AppImage',
+            'MuSicX-desktop-linux-arm64-14.0.0.AppImage',
+            'MuSicX-desktop-macos-arm64-14.0.0.dmg',
+            'MuSicX-desktop-macos-x64-14.0.0.dmg',
         ]
         for include_ipa in (False, True):
             with self.subTest(include_ipa=include_ipa), tempfile.TemporaryDirectory() as directory:
@@ -104,17 +104,18 @@ class ReleaseWorkflowsTest(unittest.TestCase):
                     (output / name).write_bytes(b'package')
                 result = subprocess.run(
                     ['bash', '-c', script], cwd=directory,
-                    env={**os.environ, 'APP_VERSION': '14.0.0', 'GITHUB_REPOSITORY': 'MetrolistGroup/Metrolist'},
+                    env={**os.environ, 'APP_VERSION': '14.0.0', 'GITHUB_REPOSITORY': 'ufoptg/MuSicX'},
                     capture_output=True, text=True,
                 )
-                self.assertEqual(result.returncode == 0, include_ipa, result.stderr)
+                self.assertEqual(0, result.returncode, result.stderr)
+                sums = (output / 'SHA256SUMS').read_text()
+                self.assertIn('MuSicX-with-Google-Cast.apk', sums)
                 if include_ipa:
-                    sums = (output / 'SHA256SUMS').read_text()
                     self.assertIn('MuSicX.ipa', sums)
-                    self.assertIn('MuSicX-with-Google-Cast.apk', sums)
                     self.assertIn('metrolist-altstore.json', sums)
                 else:
-                    self.assertIn('Missing release asset: release-assets/MuSicX.ipa', result.stderr)
+                    self.assertNotIn('MuSicX.ipa', sums)
+                    self.assertNotIn('metrolist-altstore.json', sums)
 
 if __name__ == '__main__':
     unittest.main()

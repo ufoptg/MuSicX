@@ -5,10 +5,10 @@ cask "metrolist" do
   sha256 arm:   "@MACOS_ARM64_SHA256@",
          intel: "@MACOS_X64_SHA256@"
 
-  url "https://github.com/MetrolistGroup/Metrolist/releases/download/v#{version}/metrolist-desktop-macos-#{arch}-#{version}.dmg"
-  name "Metrolist"
+  url "https://github.com/ufoptg/MuSicX/releases/download/v#{version}/MuSicX-desktop-macos-#{arch}-#{version}.dmg"
+  name "MuSicX"
   desc "YouTube Music desktop client"
-  homepage "https://github.com/MetrolistGroup/Metrolist"
+  homepage "https://github.com/ufoptg/MuSicX"
 
   livecheck do
     url :url

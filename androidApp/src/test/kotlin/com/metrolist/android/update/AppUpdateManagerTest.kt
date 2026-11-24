@@ -9,6 +9,8 @@ import org.junit.Test
 class AppUpdateManagerTest {
     @Test
     fun apkSelectionPicksTheUniversalApk() {
+        assertEquals("MuSicX.apk", releaseWithAssets("MuSicX.apk", "metrolist-android-14.0.0-arm64-v8a.apk").apk?.name)
+        assertEquals("MuSicX.apk", releaseWithAssets("Metrolist.apk", "MuSicX.apk").apk?.name)
         assertEquals("Metrolist.apk", releaseWithAssets("Metrolist.apk", "metrolist-android-14.0.0-arm64-v8a.apk").apk?.name)
         assertEquals(
             "Metrolist.apk",

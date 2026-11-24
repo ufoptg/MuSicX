@@ -2,7 +2,7 @@
 """Write an AltStore/SideStore source for a stable release IPA.
 
 The release publishes it as `metrolist-altstore.json`, so the stable source URL is
-https://github.com/MetrolistGroup/Metrolist/releases/latest/download/metrolist-altstore.json.
+https://github.com/<repository>/releases/latest/download/metrolist-altstore.json.
 """
 
 import argparse
@@ -17,14 +17,14 @@ MIN_OS_VERSION = "17.0"
 def source(repository: str, version: str, ipa: Path, date: str) -> dict:
     raw = f"https://raw.githubusercontent.com/{repository}/v{version}"
     return {
-        "name": "Metrolist",
+        "name": "MuSicX",
         "identifier": "com.metrolist.source",
         "website": f"https://github.com/{repository}",
         "apps": [
             {
-                "name": "Metrolist",
+                "name": "MuSicX",
                 "bundleIdentifier": BUNDLE_ID,
-                "developerName": "MetrolistGroup",
+                "developerName": "MuSicX",
                 "localizedDescription": "A Material Design YouTube Music client.",
                 "iconURL": f"{raw}/fastlane/metadata/android/en-US/images/icon.png",
                 "versions": [

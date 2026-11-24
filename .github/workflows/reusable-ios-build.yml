@@ -278,7 +278,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7 / v4
         with:
           name: ${{ inputs.artifact-name }}
-          path: dist/Metrolist.ipa
+          path: dist/MuSicX.ipa
           if-no-files-found: error
           retention-days: 4
 
@@ -287,4 +287,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           STAGING_RELEASE_TAG: ${{ inputs.staging-release-tag }}
-        run: gh release upload "$STAGING_RELEASE_TAG" dist/Metrolist.ipa --clobber --repo "$GITHUB_REPOSITORY"
+        run: gh release upload "$STAGING_RELEASE_TAG" dist/MuSicX.ipa --clobber --repo "$GITHUB_REPOSITORY"

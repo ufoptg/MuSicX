@@ -14,17 +14,17 @@ from urllib.parse import urlsplit
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
-REPOSITORY = "MetrolistGroup/Metrolist"
+REPOSITORY = "ufoptg/MuSicX"
 APP_ID = "com.metrolist.desktop"
 
 
 def release_assets(version):
     return {
-        "WINDOWS": f"metrolist-installer-windows-x64-{version}.exe",
-        "MACOS_ARM64": f"metrolist-desktop-macos-arm64-{version}.dmg",
-        "MACOS_X64": f"metrolist-desktop-macos-x64-{version}.dmg",
-        "LINUX_X64": f"metrolist-desktop-linux-x64-{version}.AppImage",
-        "LINUX_ARM64": f"metrolist-desktop-linux-arm64-{version}.AppImage",
+        "WINDOWS": f"MuSicX-installer-windows-x64-{version}.exe",
+        "MACOS_ARM64": f"MuSicX-desktop-macos-arm64-{version}.dmg",
+        "MACOS_X64": f"MuSicX-desktop-macos-x64-{version}.dmg",
+        "LINUX_X64": f"MuSicX-desktop-linux-x64-{version}.AppImage",
+        "LINUX_ARM64": f"MuSicX-desktop-linux-arm64-{version}.AppImage",
     }
 
 

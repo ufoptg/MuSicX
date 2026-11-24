@@ -64,7 +64,7 @@ def main():
     reusable = (repository / ".github/workflows/reusable-ios-build.yml").read_text()
     reusable_purged = "\n".join(line for line in reusable.splitlines() if not line.lstrip().startswith("#"))
     assert 'if: inputs.staging-release-tag != \'\'' in reusable_purged
-    assert 'gh release upload "$STAGING_RELEASE_TAG" dist/Metrolist.ipa' in reusable_purged
+    assert 'gh release upload "$STAGING_RELEASE_TAG" dist/MuSicX.ipa' in reusable_purged
     assert "if: inputs.build-ipa || inputs.upload-artifact || inputs.staging-release-tag != ''" in reusable_purged
     assert "Build iOS Simulator" not in reusable_purged
     test_job = reusable_purged.split("  build-ios:\n", 1)[1].split("  package-ios:\n", 1)[0]
