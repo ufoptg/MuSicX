@@ -207,7 +207,7 @@ android {
         applicationId = "dev.musicx"
         minSdk = 24
         targetSdk = 37
-        versionCode = 15000
+        versionCode = 15001
         versionName = appVersion
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

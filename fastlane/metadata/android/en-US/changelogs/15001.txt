@@ -1,0 +1,3 @@
+# MuSicX 15.0.1
+
+Fixes Liked Songs opening the Spotify app instead of MuSicX's local Liked Songs when Spotify integration is enabled.
