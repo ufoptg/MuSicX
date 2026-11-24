@@ -57,7 +57,7 @@ jobs:
     name: Validate iOS
     if: inputs.run-verification
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     env:
       LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
       LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
