@@ -154,8 +154,6 @@ class PlaylistAutoDownloadTest {
                 store.clear()
                 testScheduler.advanceUntilIdle()
                 viewModelJob?.join()
-                viewModelJob?.join()
-                backgroundScope.coroutineContext.job?.join()
                 backgroundScope.coroutineContext.job?.cancelAndJoin()
                 database.close()
                 Dispatchers.resetMain()
