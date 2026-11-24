@@ -1,3 +1,9 @@
+---v15.0.1
+# MuSicX 15.0.1
+
+## Fixes
+- Liked Songs now opens MuSicX's local Liked Songs instead of the Spotify app when Spotify integration is enabled. Spotify collection URIs (e.g. `spotify:collection:tracks`) are no longer treated as direct Spotify item links.
+
 ---v15.0.0
 # MuSicX 15.0.0
 
