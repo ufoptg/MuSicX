@@ -424,6 +424,7 @@ kotlin {
             baseName = "Shared"
             isStatic = true
             freeCompilerArgs += "-Xadd-light-debug=enable"
+            freeCompilerArgs += "-Xdisable-phases=DevirtualizationAnalysis"
         }
     }
 
