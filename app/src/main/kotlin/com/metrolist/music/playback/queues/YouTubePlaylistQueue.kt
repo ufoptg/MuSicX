@@ -20,8 +20,10 @@ class YouTubePlaylistQueue(
     private val initialSongs: List<SongItem> = emptyList(),
     private val initialContinuation: String? = null,
     private val startIndex: Int = 0,
+    private val shufflePages: Boolean = false,
     override val preloadItem: MediaMetadata? = null,
 ) : Queue {
+    override val isFinite: Boolean = true
     private var continuation: String? = initialContinuation
     private var retryCount = 0
     private val maxRetries = 3
@@ -58,7 +60,9 @@ class YouTubePlaylistQueue(
                     val continuationPage = YouTube.playlistContinuation(currentContinuation).getOrThrow()
                     continuation = continuationPage.continuation
                     retryCount = 0
-                    return@withContext continuationPage.songs.map { it.toMediaItem() }
+                    val songs =
+                        if (shufflePages) continuationPage.songs.shuffled() else continuationPage.songs
+                    return@withContext songs.map { it.toMediaItem() }
                 } catch (e: Exception) {
                     lastException = e
                     retryCount++

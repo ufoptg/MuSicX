@@ -41,6 +41,7 @@ class SpotifyLikedSongsQueue(
     private val preloadedTracks: List<SpotifyTrack> = emptyList(),
     override val preloadItem: MediaMetadata? = null,
 ) : Queue {
+    override val isFinite: Boolean = true
 
     companion object {
         private const val SPOTIFY_PAGE_SIZE = 50

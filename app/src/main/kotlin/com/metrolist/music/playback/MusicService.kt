@@ -222,6 +222,7 @@ import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.playback.queues.YouTubePlaylistQueue
 import com.metrolist.music.playback.queues.filterExplicit
 import com.metrolist.music.playback.queues.filterVideoSongs
+import com.metrolist.music.playback.queues.shouldFillBeyondInitialWindow
 import com.metrolist.music.constants.LoudnessLevel
 import com.metrolist.music.constants.LoudnessLevelKey
 import com.metrolist.music.utils.CoilBitmapLoader
@@ -1986,8 +1987,9 @@ class MusicService :
             // "empty-looking" for a long time and mid-playback shuffle only
             // randomises 5 items.
             //
-            // Fix: after audio has started, eagerly call queue.nextPage() a few
-            // times to grow the visible queue to a comfortable initial depth.
+            // Fix: after audio has started, eagerly call queue.nextPage() in the
+            // background — finite playlists fill completely, open-ended queues
+            // stop at TARGET_INITIAL_QUEUE_SIZE.
             // This runs on the same MusicService.scope coroutine, sequentially,
             // and never blocks the getInitialStatus fast path — audio is already
             // playing throughout. The mutex inside the queue's nextPage() serializes
@@ -1997,8 +1999,7 @@ class MusicService :
                 val hideVideoSongs = dataStore.get(HideVideoSongsKey, false)
                 while (
                     currentQueue === queue &&
-                    player.mediaItemCount < TARGET_INITIAL_QUEUE_SIZE &&
-                    queue.hasNextPage()
+                    queue.shouldFillBeyondInitialWindow(player.mediaItemCount)
                 ) {
                     val moreItems = withContext(Dispatchers.IO) {
                         try {
@@ -2778,16 +2779,17 @@ class MusicService :
         ) {
             if (currentQueue.hasNextPage()) {
                 scope.launch(SilentHandler) {
+                    val queue = currentQueue
                     // Grow the queue aggressively: keep fetching pages until we have
                     // at least 20 items remaining or the queue is exhausted.
                     while (
-                        currentQueue === currentQueue &&
+                        currentQueue === queue &&
                         player.mediaItemCount - player.currentMediaItemIndex <= 20 &&
-                        currentQueue.hasNextPage()
+                        queue.hasNextPage()
                     ) {
                         val mediaItems =
                             withContext(Dispatchers.IO) {
-                                currentQueue
+                                queue
                                     .nextPage()
                                     .filterExplicit(cachedHideExplicit)
                                     .filterVideoSongs(cachedHideVideoSongs)
@@ -5760,13 +5762,6 @@ class MusicService :
         private const val INITIAL_BUFFER_RECOVERY_DELAY_MS = 15_000L
         private const val INITIAL_BUFFER_RECOVERY_POSITION_MS = 5_000L
         private const val TAG = "MusicService"
-
-        /** Target visible player-queue depth to grow to after [playQueue]
-         *  starts playback. See the "Background initial-queue growth" block
-         *  in [playQueue] for the full rationale. Set high enough that a
-         *  mid-playback shuffle toggle actually feels random, low enough
-         *  that we don't hammer YouTube search on every playQueue call. */
-        private const val TARGET_INITIAL_QUEUE_SIZE = 200
 
         @Volatile
         var isRunning = false

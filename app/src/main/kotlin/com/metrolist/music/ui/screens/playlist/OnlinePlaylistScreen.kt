@@ -876,9 +876,9 @@ private fun OnlinePlaylistHeader(
             // loaded songs as the queue's backing list, so shuffle randomises
             // across everything the ViewModel has paged in — not just the
             // fast-start window MusicService would otherwise randomise mid-
-            // playback. `initialContinuation` is intentionally dropped so
-            // the queue doesn't append the next page in original order after
-            // the shuffled block.
+            // playback. Remaining pages keep their continuation and are
+            // shuffled as they are appended, so the whole playlist is queued
+            // in random order.
             Surface(
                 onClick = {
                     if (!isListenTogetherGuest && songs.isNotEmpty()) {
@@ -887,7 +887,8 @@ private fun OnlinePlaylistHeader(
                                 playlistId = playlist.id,
                                 playlistTitle = playlist.title,
                                 initialSongs = songs.shuffled(),
-                                initialContinuation = null,
+                                initialContinuation = continuation,
+                                shufflePages = true,
                             ),
                         )
                     }

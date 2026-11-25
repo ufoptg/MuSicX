@@ -10,8 +10,13 @@ import androidx.media3.common.MediaItem
 import com.metrolist.music.extensions.metadata
 import com.metrolist.music.models.MediaMetadata
 
+const val TARGET_INITIAL_QUEUE_SIZE = 200
+
 interface Queue {
     val preloadItem: MediaMetadata?
+
+    /** True for queues with a known end, so their remaining pages can all be queued. */
+    val isFinite: Boolean get() = false
 
     suspend fun getInitialStatus(): Status
 
@@ -45,6 +50,9 @@ interface Queue {
         }
     }
 }
+
+fun Queue.shouldFillBeyondInitialWindow(itemCount: Int): Boolean =
+    hasNextPage() && (isFinite || itemCount < TARGET_INITIAL_QUEUE_SIZE)
 
 fun List<MediaItem>.filterExplicit(enabled: Boolean = true) =
     if (enabled) {
