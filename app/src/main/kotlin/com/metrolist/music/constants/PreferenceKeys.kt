@@ -123,6 +123,8 @@ enum class AudioQuality {
 
 val AudioOffload = booleanPreferencesKey("enableOffload")
 val AudioTrackPlaybackParamsKey = booleanPreferencesKey("audioTrackPlaybackParams")
+// Inline now-playing audio/video mode toggle. Persisted user choice only; no always-video preference.
+val VideoModeKey = booleanPreferencesKey("videoMode")
 
 val VarispeedKey = booleanPreferencesKey("varispeed")
 

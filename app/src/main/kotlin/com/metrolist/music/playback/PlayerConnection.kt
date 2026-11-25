@@ -7,6 +7,7 @@
 package com.metrolist.music.playback
 
 import android.content.Context
+import android.widget.Toast
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -24,6 +25,7 @@ import com.metrolist.music.constants.SleepTimerEnabledKey
 import com.metrolist.music.constants.SleepTimerEndTimeKey
 import com.metrolist.music.constants.SleepTimerRepeatKey
 import com.metrolist.music.constants.SleepTimerStartTimeKey
+import com.metrolist.music.constants.VideoModeKey
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.Song
 import com.metrolist.music.extensions.currentMetadata
@@ -42,6 +44,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -159,6 +162,23 @@ class PlayerConnection(
             SharingStarted.Lazily,
             initialState.third,
         )
+
+    val videoModeController =
+        VideoModeController(
+            onVideoUnavailable = { message ->
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            },
+            initialVideoMode = service.applicationContext.dataStore.get(VideoModeKey) ?: false,
+        )
+
+    val isVideoModeActive: StateFlow<Boolean> = videoModeController.isVideoModeActive
+    val isVideoModeResolving: StateFlow<Boolean> = videoModeController.isVideoModeResolving
+
+    fun toggleVideoMode() = videoModeController.toggleVideoMode()
+
+    fun setVideoMode(enabled: Boolean) = videoModeController.setVideoMode(enabled)
+
+    fun onVideoModeMediaItemChanged(mediaId: String?) = videoModeController.onMediaItemChanged(mediaId)
 
     val mediaMetadata = MutableStateFlow(getPlayerOrNull()?.currentMetadata)
     // stateIn so the latest DB result is cached and shared: on resume / re-subscription the value
@@ -619,6 +639,7 @@ class PlayerConnection(
         currentMediaItemIndex.value = player.currentMediaItemIndex
         currentWindowIndex.value = player.getCurrentQueueIndex()
         updateCanSkipPreviousAndNext()
+        onVideoModeMediaItemChanged(mediaItem?.mediaId)
     }
 
     override fun onTimelineChanged(
