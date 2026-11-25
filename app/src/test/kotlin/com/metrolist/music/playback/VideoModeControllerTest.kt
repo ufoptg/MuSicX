@@ -6,14 +6,19 @@
 
 package com.metrolist.music.playback
 
+import com.metrolist.music.models.MediaMetadata
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VideoModeControllerTest {
+    private val videoTarget = VideoPlaybackTarget(videoId = "abc123", mediaUri = null)
+
     @Test
     fun `track change resets video mode to audio`() {
         val controller = VideoModeControllerForTest()
+
         controller.setVideoModeActiveForTest(true)
 
         controller.onMediaItemChanged("new-media-id")
@@ -26,18 +31,52 @@ class VideoModeControllerTest {
     fun `unavailable video reports toast and stays audio`() {
         val toasts = mutableListOf<String>()
         val controller = VideoModeControllerForTest(onToast = { toasts += it })
-        controller.setResolvableVideoForTest(null)
+        controller.canResolveVideo = false
 
         controller.requestVideoMode()
 
         assertFalse(controller.isVideoModeActive.value)
         assertEquals(listOf("Video unavailable for this track"), toasts)
     }
+
+    @Test
+    fun `switchToVideo_preservesPositionAndRequestsPlay`() {
+        val player = FakePlaybackPlayer(positionMs = 42_000, playWhenReady = true)
+        val controller = VideoModeControllerForTest(player = player, resolver = FakeResolver(videoTarget))
+
+        controller.requestVideoMode()
+
+        assertEquals(42_000, player.lastSeekPositionMs)
+        assertTrue(controller.isVideoModeActive.value)
+        assertTrue(player.playWhenReady)
+    }
+}
+
+class FakePlaybackPlayer(
+    positionMs: Long = 0,
+    playWhenReady: Boolean = true,
+) : VideoPlaybackPlayer {
+    override var currentPosition: Long = positionMs
+    override var playWhenReady: Boolean = playWhenReady
+    override var lastSeekPositionMs: Long = positionMs
+
+    override fun seekTo(position: Long) {
+        lastSeekPositionMs = position
+        currentPosition = position
+    }
+
+    override fun prepare() {}
+}
+
+class FakeResolver(val target: VideoPlaybackTarget?): VideoPlaybackResolver() {
+    override fun resolve(mediaMetadata: MediaMetadata?): VideoPlaybackTarget? = target
 }
 
 class VideoModeControllerForTest(
     onToast: (String) -> Unit = {},
-) : VideoModeController(onVideoUnavailable = onToast) {
+    override val player: VideoPlaybackPlayer? = null,
+    resolver: VideoPlaybackResolver = VideoPlaybackResolver(),
+) : VideoModeController(onVideoUnavailable = onToast, resolver = resolver, player = player) {
     var canResolveVideo: Boolean = true
 
     override fun isVideoAvailable(mediaId: String?): Boolean = canResolveVideo
@@ -45,9 +84,5 @@ class VideoModeControllerForTest(
     fun setVideoModeActiveForTest(enabled: Boolean) {
         activeVideoMode.value = enabled
         resolvingVideoMode.value = false
-    }
-
-    fun setResolvableVideoForTest(resolvable: Boolean?) {
-        canResolveVideo = resolvable ?: false
     }
 }

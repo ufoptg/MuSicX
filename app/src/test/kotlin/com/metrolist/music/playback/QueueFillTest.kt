@@ -2,6 +2,7 @@ package com.metrolist.music.playback
 
 import androidx.media3.common.MediaItem
 import com.metrolist.music.playback.queues.Queue
+import com.metrolist.music.playback.queues.Queue.Status
 import com.metrolist.music.playback.queues.shouldFillBeyondInitialWindow
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

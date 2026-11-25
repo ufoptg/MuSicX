@@ -168,6 +168,7 @@ class PlayerConnection(
             onVideoUnavailable = { message ->
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             },
+            player = ExoPlayerVideoPlaybackPlayer(service.player),
         )
 
     val isVideoModeActive: StateFlow<Boolean> = videoModeController.isVideoModeActive
@@ -258,6 +259,25 @@ class PlayerConnection(
         shuffleModeEnabled.value = newPlayer.shuffleModeEnabled
         repeatMode.value = newPlayer.repeatMode
         Timber.tag(TAG).d("Attached to new player instance: $newPlayer")
+    }
+
+    class ExoPlayerVideoPlaybackPlayer(private val exoPlayer: ExoPlayer) : VideoPlaybackPlayer {
+        override val currentPosition: Long
+            get() = exoPlayer.currentPosition
+        override var playWhenReady: Boolean
+            get() = exoPlayer.playWhenReady
+            set(value) { exoPlayer.playWhenReady = value }
+        private var lastSeekPosition: Long = -1L
+        override var lastSeekPositionMs: Long
+            get() = lastSeekPosition
+            set(value) { lastSeekPosition = value }
+        override fun seekTo(position: Long) {
+            exoPlayer.seekTo(position)
+            lastSeekPosition = position
+        }
+        override fun prepare() {
+            exoPlayer.prepare()
+        }
     }
 
     fun playQueue(queue: Queue) {
