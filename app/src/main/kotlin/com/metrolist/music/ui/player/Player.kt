@@ -1303,6 +1303,24 @@ fun BottomSheetPlayer(
                                 }
                             }
                         }
+
+                        // Video toggle: switches inline video mode for tracks that support it.
+                        FilledIconButton(
+                            onClick = { playerConnection.toggleVideoMode() },
+                            colors =
+                                IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = textButtonColor,
+                                    contentColor = iconButtonColor,
+                                ),
+                            modifier = Modifier.size(42.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.slow_motion_video),
+                                contentDescription = "Video",
+                                tint = iconButtonColor,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
                     }
                 } else {
                     AnimatedContent(targetState = showInlineLyrics, label = "ShareButton") { showLyrics ->
