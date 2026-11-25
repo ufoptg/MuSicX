@@ -42,7 +42,10 @@ class VideoModeControllerForTest(
 
     override fun isVideoAvailable(mediaId: String?): Boolean = canResolveVideo
 
-    fun setVideoModeActiveForTest(enabled: Boolean) = setVideoMode(enabled)
+    fun setVideoModeActiveForTest(enabled: Boolean) {
+        activeVideoMode.value = enabled
+        resolvingVideoMode.value = false
+    }
 
     fun setResolvableVideoForTest(resolvable: Boolean?) {
         canResolveVideo = resolvable ?: false

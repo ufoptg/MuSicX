@@ -25,7 +25,6 @@ import com.metrolist.music.constants.SleepTimerEnabledKey
 import com.metrolist.music.constants.SleepTimerEndTimeKey
 import com.metrolist.music.constants.SleepTimerRepeatKey
 import com.metrolist.music.constants.SleepTimerStartTimeKey
-import com.metrolist.music.constants.VideoModeKey
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.Song
 import com.metrolist.music.extensions.currentMetadata
@@ -168,7 +167,6 @@ class PlayerConnection(
             onVideoUnavailable = { message ->
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             },
-            initialVideoMode = service.applicationContext.dataStore.get(VideoModeKey) ?: false,
         )
 
     val isVideoModeActive: StateFlow<Boolean> = videoModeController.isVideoModeActive

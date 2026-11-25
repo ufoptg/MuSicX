@@ -18,15 +18,14 @@ import kotlinx.coroutines.flow.StateFlow
  */
 open class VideoModeController(
     onVideoUnavailable: (String) -> Unit = {},
-    initialVideoMode: Boolean = false,
 ) {
-    private val activeVideoMode = MutableStateFlow(initialVideoMode)
-    private val resolvingVideoMode = MutableStateFlow(false)
+    internal val activeVideoMode = MutableStateFlow(false)
+    internal val resolvingVideoMode = MutableStateFlow(false)
 
     val isVideoModeActive: StateFlow<Boolean> = activeVideoMode
     val isVideoModeResolving: StateFlow<Boolean> = resolvingVideoMode
 
-    private var toast: (String) -> Unit = onVideoUnavailable
+    private val toast: (String) -> Unit = onVideoUnavailable
     private var currentMediaId: String? = null
 
     fun onMediaItemChanged(mediaId: String?) {
