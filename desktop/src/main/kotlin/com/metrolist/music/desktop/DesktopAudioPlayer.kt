@@ -162,12 +162,12 @@ class DesktopAudioPlayer(private val normalizeAudio: Boolean = false) : AutoClos
      * briefly for decoding/output to begin. Returns true only when audio is actually
      * playing.
      */
-    private suspend fun startDirectStream(stream: ExtractedStream): Boolean {
+    private suspend fun startDirectStream(stream: ExtractedStream, useVideo: Boolean = false): Boolean {
         stopInternal()
         lastError.set(null)
 
         val options = buildList {
-            add(":no-video")
+            if (!useVideo) add(":no-video")
             // Smaller cache = faster start. googlevideo throttles to ~real-time, so a big
             // cache just delays the first sample without helping sustained playback.
             add(":network-caching=2000")
@@ -222,13 +222,14 @@ class DesktopAudioPlayer(private val normalizeAudio: Boolean = false) : AutoClos
     suspend fun playUrl(
         url: String,
         referer: String? = null,
+        useVideo: Boolean = false,
     ): Boolean =
         withContext(Dispatchers.IO) {
             stopInternal()
             lastError.set(null)
             val options =
                 buildList {
-                    add(":no-video")
+                    if (!useVideo) add(":no-video")
                     add(":network-caching=2000")
                     add(":http-reconnect")
                     referer?.takeIf { it.isNotBlank() }?.let { add(":http-referrer=$it") }
