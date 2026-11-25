@@ -6,7 +6,6 @@
 
 package com.metrolist.music.desktop
 
-import com.metrolist.music.models.MediaMetadata
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -44,4 +43,8 @@ class DesktopVideoModeControllerForTest(
         activeVideoMode.value = enabled
         resolvingVideoMode.value = false
     }
+}
+
+object FakeResolver : VideoPlaybackResolver() {
+    override fun resolve(mediaMetadata: DesktopMediaMetadata?): VideoPlaybackTarget? = null
 }

@@ -6,11 +6,34 @@
 
 package com.metrolist.music.desktop
 
-import com.metrolist.music.models.MediaMetadata
-import com.metrolist.music.playback.VideoPlaybackResolver
-import com.metrolist.music.playback.VideoPlaybackTarget
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+
+/**
+ * Minimal desktop-local equivalent of the Android VideoPlaybackTarget.
+ * Avoids dependency on com.metrolist.music.playback from the app module.
+ */
+data class VideoPlaybackTarget(
+    val videoId: String,
+    val mediaUri: String? = null,
+    val streamHeaders: Map<String, String> = emptyMap(),
+    val format: Any? = null,
+)
+
+/**
+ * Minimal desktop-local equivalent of the Android MediaMetadata.
+ * Only the fields used for video resolution are included.
+ */
+data class DesktopMediaMetadata(
+    val id: String,
+    val title: String,
+    val setVideoId: String? = null,
+    val musicVideoType: String? = null,
+    val isEpisode: Boolean = false,
+) {
+    val isVideoSong: Boolean
+        get() = musicVideoType != null
+}
 
 /**
  * Desktop video mode controller — mirrors the Android VideoModeController.
@@ -35,12 +58,12 @@ open class DesktopVideoModeController(
     private val toast: (String) -> Unit = onVideoUnavailable
 
     private var currentMediaId: String? = null
-    private var currentMediaMetadata: MediaMetadata? = null
+    private var currentMediaMetadata: DesktopMediaMetadata? = null
 
     private var savedPosition: Long = -1L
     private var savedPlayWhenReady: Boolean = true
 
-    fun onMediaItemChanged(mediaId: String?, mediaMetadata: MediaMetadata? = null) {
+    fun onMediaItemChanged(mediaId: String?, mediaMetadata: DesktopMediaMetadata? = null) {
         currentMediaId = mediaId
         currentMediaMetadata = mediaMetadata
         // Each new track starts in audio mode.
@@ -120,6 +143,45 @@ open class DesktopVideoModeController(
         const val VIDEO_UNAVAILABLE_MESSAGE = "Video unavailable for this track"
     }
 }
+
+/**
+ * Resolver used by DesktopVideoModeController to turn a media metadata into a watchable video target.
+ */
+open class VideoPlaybackResolver(
+    private val lookup: VideoLookup = VideoPlaybackResolver.DefaultLookup,
+) {
+    open fun resolve(mediaMetadata: DesktopMediaMetadata?): VideoPlaybackTarget? {
+        if (mediaMetadata == null) return null
+        val result = lookup.lookup(mediaMetadata) ?: return null
+        val videoId = result.videoId ?: return null
+        return VideoPlaybackTarget(
+            videoId = videoId,
+            mediaUri = result.mediaUri,
+            streamHeaders = emptyMap(),
+            format = null,
+        )
+    }
+
+    companion object {
+        private val DefaultLookup: VideoLookup = VideoLookup { media ->
+            val videoId = if (media.isVideoSong) media.setVideoId ?: media.id else media.setVideoId
+            if (videoId.isNullOrBlank()) {
+                null
+            } else {
+                VideoLookupResult(videoId = videoId, mediaUri = null)
+            }
+        }
+    }
+}
+
+fun interface VideoLookup {
+    fun lookup(metadata: DesktopMediaMetadata): VideoLookupResult?
+}
+
+data class VideoLookupResult(
+    val videoId: String?,
+    val mediaUri: String? = null,
+)
 
 /**
  * Adapts DesktopAudioPlayer into the minimal API used by DesktopVideoModeController so that
