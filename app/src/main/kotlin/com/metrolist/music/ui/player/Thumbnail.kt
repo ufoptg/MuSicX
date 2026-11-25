@@ -510,6 +510,8 @@ private fun ThumbnailItem(
     val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
     var skipMultiplier by remember { mutableIntStateOf(1) }
     var lastTapTime by remember { mutableLongStateOf(0L) }
+    val isVideoModeActive by playerConnection.isVideoModeActive.collectAsState()
+    val currentVideoTarget by playerConnection.currentVideoTarget.collectAsState()
 
     Box(
         modifier = modifier
@@ -571,7 +573,13 @@ private fun ThumbnailItem(
                 .size(dimensions.thumbnailSize)
                 .clip(RoundedCornerShape(dimensions.cornerRadius))
         ) {
-            if (hidePlayerThumbnail) {
+            // Show video surface when video mode is active and we have a valid target for the current item
+            if (isVideoModeActive && currentVideoTarget != null && item.mediaId == currentMediaId) {
+                MusicVideoSurface(
+                    exoPlayer = playerConnection.player,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else if (hidePlayerThumbnail) {
                 HiddenThumbnailPlaceholder(textBackgroundColor = textBackgroundColor)
             } else {
                 val artworkUriToUse = if (item.mediaId == currentMediaId && !currentMediaThumbnail.isNullOrBlank()) {
@@ -651,6 +659,13 @@ private fun ThumbnailImage(
         )
     }
 }
+
+/**
+ * Pure helper deciding whether the inline video surface should replace artwork in now playing.
+ * Video surface is shown only when video mode is active and a playable target is available.
+ */
+fun shouldShowVideoSurface(isVideoModeActive: Boolean, hasVideo: Boolean): Boolean =
+    isVideoModeActive && hasVideo
 
 /**
  * Seek effect overlay showing seek direction.

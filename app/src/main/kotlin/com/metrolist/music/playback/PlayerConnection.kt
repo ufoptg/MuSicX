@@ -173,6 +173,7 @@ class PlayerConnection(
 
     val isVideoModeActive: StateFlow<Boolean> = videoModeController.isVideoModeActive
     val isVideoModeResolving: StateFlow<Boolean> = videoModeController.isVideoModeResolving
+    val currentVideoTarget = videoModeController.currentVideoTargetFlow
 
     fun toggleVideoMode() = videoModeController.toggleVideoMode()
 
