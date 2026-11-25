@@ -13,7 +13,8 @@ import com.metrolist.music.utils.InnerTubeXPlayer
  * A watchable video counterpart for the current media, as required for inline video playback.
  *
  * @param videoId YouTube video id to play (the track itself for video songs, the counterpart for album tracks).
- * @param mediaUri Optional media uri / media item data needed by the player, when a direct uri is known.
+ * @param mediaUri Optional playable media uri / MediaItem data needed by the player; null until a real
+ * playable stream uri is resolved (watch-page urls are references, not ExoPlayer media data).
  * @param streamHeaders Optional playback stream headers (e.g. authorization/cookies) required by the player.
  * @param format Optional extracted playback format data for the resolved stream.
  */
@@ -37,6 +38,7 @@ data class VideoLookupResult(
  * Resolves a watchable video target for the current media before committing to video mode.
  *
  * The lookup is injectable so callers (and tests) can supply their own counterpart resolution.
+ * Resolution is synchronous over the injected lookup; Task 3 consumes the returned target to switch playback.
  */
 open class VideoPlaybackResolver(
     val lookup: VideoLookup = VideoPlaybackResolver.DefaultLookup,
@@ -59,7 +61,7 @@ open class VideoPlaybackResolver(
             if (videoId.isNullOrBlank()) {
                 null
             } else {
-                VideoLookupResult(videoId = videoId, mediaUri = "https://www.youtube.com/watch?v=$videoId")
+                VideoLookupResult(videoId = videoId, mediaUri = null)
             }
         }
     }

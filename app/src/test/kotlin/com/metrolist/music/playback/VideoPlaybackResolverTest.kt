@@ -38,6 +38,7 @@ class VideoPlaybackResolverTest {
 
         val videoSong = videoMetadata(id = "abc123", musicVideoType = "MUSIC_VIDEO_TYPE_OMV")
         assertEquals("abc123", resolver.resolve(videoSong)?.videoId)
+        assertNull(resolver.resolve(videoSong)?.mediaUri)
 
         val audioSongWithoutCounterpart = videoMetadata(id = "audio1", musicVideoType = null)
         assertNull(resolver.resolve(audioSongWithoutCounterpart))
