@@ -50,6 +50,17 @@ class VideoModeControllerTest {
         assertTrue(controller.isVideoModeActive.value)
         assertTrue(player.playWhenReady)
     }
+
+    @Test
+    fun `toggleWhenUnavailable_emitsUnavailableToast`() {
+        val toasts = mutableListOf<String>()
+        val controller = VideoModeControllerForTest(onToast = { toasts += it })
+        controller.canResolveVideo = false
+
+        controller.toggleVideoMode()
+
+        assertEquals(listOf("Video unavailable for this track"), toasts)
+    }
 }
 
 class FakePlaybackPlayer(
