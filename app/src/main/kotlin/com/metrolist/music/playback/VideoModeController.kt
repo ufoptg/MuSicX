@@ -6,6 +6,7 @@
 
 package com.metrolist.music.playback
 
+import com.metrolist.music.models.MediaMetadata
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -18,21 +19,27 @@ import kotlinx.coroutines.flow.StateFlow
  */
 open class VideoModeController(
     onVideoUnavailable: (String) -> Unit = {},
+    private val resolver: VideoPlaybackResolver = VideoPlaybackResolver(),
 ) {
     internal val activeVideoMode = MutableStateFlow(false)
     internal val resolvingVideoMode = MutableStateFlow(false)
+    internal val currentVideoTarget = MutableStateFlow<VideoPlaybackTarget?>(null)
 
     val isVideoModeActive: StateFlow<Boolean> = activeVideoMode
     val isVideoModeResolving: StateFlow<Boolean> = resolvingVideoMode
+    val currentVideoTargetFlow: StateFlow<VideoPlaybackTarget?> = currentVideoTarget
 
     private val toast: (String) -> Unit = onVideoUnavailable
     private var currentMediaId: String? = null
+    private var currentMediaMetadata: MediaMetadata? = null
 
-    fun onMediaItemChanged(mediaId: String?) {
+    fun onMediaItemChanged(mediaId: String?, mediaMetadata: MediaMetadata? = null) {
         currentMediaId = mediaId
+        currentMediaMetadata = mediaMetadata
         // Each new track starts in audio mode.
         activeVideoMode.value = false
         resolvingVideoMode.value = false
+        currentVideoTarget.value = null
     }
 
     fun toggleVideoMode() {
@@ -48,10 +55,13 @@ open class VideoModeController(
         if (!enabled) {
             activeVideoMode.value = false
             resolvingVideoMode.value = false
+            currentVideoTarget.value = null
             return
         }
         resolvingVideoMode.value = true
-        if (isVideoAvailable(currentMediaId)) {
+        val target = if (isVideoAvailable(currentMediaId)) resolver.resolve(currentMediaMetadata) else null
+        if (target != null) {
+            currentVideoTarget.value = target
             activeVideoMode.value = true
             resolvingVideoMode.value = false
         } else {

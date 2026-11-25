@@ -33,6 +33,7 @@ import com.metrolist.music.extensions.getQueueWindows
 import com.metrolist.music.extensions.metadata
 import com.metrolist.music.extensions.togglePlayPause
 import com.metrolist.music.extensions.withUpdatedMetadata
+import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.MusicService.MusicBinder
 import com.metrolist.music.playback.queues.Queue
@@ -176,7 +177,8 @@ class PlayerConnection(
 
     fun setVideoMode(enabled: Boolean) = videoModeController.setVideoMode(enabled)
 
-    fun onVideoModeMediaItemChanged(mediaId: String?) = videoModeController.onMediaItemChanged(mediaId)
+    fun onVideoModeMediaItemChanged(mediaId: String?, mediaMetadata: MediaMetadata? = null) =
+        videoModeController.onMediaItemChanged(mediaId, mediaMetadata)
 
     val mediaMetadata = MutableStateFlow(getPlayerOrNull()?.currentMetadata)
     // stateIn so the latest DB result is cached and shared: on resume / re-subscription the value
@@ -637,7 +639,7 @@ class PlayerConnection(
         currentMediaItemIndex.value = player.currentMediaItemIndex
         currentWindowIndex.value = player.getCurrentQueueIndex()
         updateCanSkipPreviousAndNext()
-        onVideoModeMediaItemChanged(mediaItem?.mediaId)
+        onVideoModeMediaItemChanged(mediaItem?.mediaId, mediaItem?.metadata)
     }
 
     override fun onTimelineChanged(
