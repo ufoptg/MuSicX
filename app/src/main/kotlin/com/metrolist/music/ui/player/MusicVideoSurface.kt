@@ -50,7 +50,6 @@ fun MusicVideoSurface(
         },
         modifier = modifier
             .clip(RoundedCornerShape(cornerRadius))
-            .background(Color.Black),
         update = { view ->
             view.player = exoPlayerRef.value
         },
