@@ -78,7 +78,9 @@ open class VideoModeController(
         }
         resolvingVideoMode.value = true
         val target = if (isVideoAvailable(currentMediaId)) resolver.resolve(currentMediaMetadata) else null
-        if (target != null) {
+        // Only commit to video mode when a real playable stream URI is resolved.
+        // A videoId without a mediaUri cannot be rendered by ExoPlayer (would show black).
+        if (target != null && target.mediaUri != null) {
             // Preserve current playback position and request playback at that point.
             val currentPosition = player?.currentPosition ?: -1L
             val currentPlayWhenReady = player?.playWhenReady ?: true
@@ -103,7 +105,8 @@ open class VideoModeController(
         setVideoMode(true)
         // Re-resolve after setting target so a valid target drives the actual switch.
         val resolvedTarget = if (isVideoAvailable(currentMediaId)) resolver.resolve(currentMediaMetadata) else null
-        if (resolvedTarget != target) {
+        // Only switch when a real playable stream URI is resolved.
+        if (resolvedTarget != null && resolvedTarget.mediaUri != null && resolvedTarget != target) {
             val currentPosition = player?.currentPosition ?: -1L
             val currentPlayWhenReady = player?.playWhenReady ?: true
             savedPosition = currentPosition

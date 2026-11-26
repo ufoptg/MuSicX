@@ -13,7 +13,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VideoModeControllerTest {
-    private val videoTarget = VideoPlaybackTarget(videoId = "abc123", mediaUri = null)
+    private val videoTargetNullUri = VideoPlaybackTarget(videoId = "abc123", mediaUri = null)
+    private val videoTargetWithUri = VideoPlaybackTarget(videoId = "abc123", mediaUri = "https://example.com/video.mp4")
 
     @Test
     fun `track change resets video mode to audio`() {
@@ -42,7 +43,7 @@ class VideoModeControllerTest {
     @Test
     fun `switchToVideo_preservesPositionAndRequestsPlay`() {
         val player = FakePlaybackPlayer(positionMs = 42_000, playWhenReady = true)
-        val controller = VideoModeControllerForTest(player = player, resolver = FakeResolver(videoTarget))
+        val controller = VideoModeControllerForTest(player = player, resolver = FakeResolver(videoTargetNullUri))
 
         controller.requestVideoMode()
 
@@ -61,39 +62,60 @@ class VideoModeControllerTest {
 
         assertEquals(listOf("Video unavailable for this track"), toasts)
     }
-}
 
-class FakePlaybackPlayer(
-    positionMs: Long = 0,
-    playWhenReady: Boolean = true,
-) : VideoPlaybackPlayer {
-    override var currentPosition: Long = positionMs
-    override var playWhenReady: Boolean = playWhenReady
-    override var lastSeekPositionMs: Long = positionMs
+    @Test
+    fun `videoAvailable_activatesVideoMode`() {
+        val controller = VideoModeControllerForTest(resolver = FakeResolver(videoTargetWithUri))
 
-    override fun seekTo(position: Long) {
-        lastSeekPositionMs = position
-        currentPosition = position
+        controller.requestVideoMode()
+
+        assertTrue(controller.isVideoModeActive.value)
+        assertFalse(controller.isVideoModeResolving.value)
     }
 
-    override fun prepare() {}
-}
+    @Test
+    fun `videoNotAvailable_showsToast_andStaysAudio`() {
+        val toasts = mutableListOf<String>()
+        val controller = VideoModeControllerForTest(onToast = { toasts += it }, resolver = FakeResolver(videoTargetNullUri))
 
-class FakeResolver(val target: VideoPlaybackTarget?): VideoPlaybackResolver() {
-    override fun resolve(mediaMetadata: MediaMetadata?): VideoPlaybackTarget? = target
-}
+        controller.requestVideoMode()
 
-class VideoModeControllerForTest(
-    onToast: (String) -> Unit = {},
-    override val player: VideoPlaybackPlayer? = null,
-    resolver: VideoPlaybackResolver = VideoPlaybackResolver(),
-) : VideoModeController(onVideoUnavailable = onToast, resolver = resolver, player = player) {
-    var canResolveVideo: Boolean = true
+        assertFalse(controller.isVideoModeActive.value)
+        assertEquals(listOf("Video unavailable for this track"), toasts)
+    }
 
-    override fun isVideoAvailable(mediaId: String?): Boolean = canResolveVideo
+    class FakePlaybackPlayer(
+        positionMs: Long = 0,
+        playWhenReady: Boolean = true,
+    ) : VideoPlaybackPlayer {
+        override var currentPosition: Long = positionMs
+        override var playWhenReady: Boolean = playWhenReady
+        override var lastSeekPositionMs: Long = positionMs
 
-    fun setVideoModeActiveForTest(enabled: Boolean) {
-        activeVideoMode.value = enabled
-        resolvingVideoMode.value = false
+        override fun seekTo(position: Long) {
+            lastSeekPositionMs = position
+            currentPosition = position
+        }
+
+        override fun prepare() {}
+    }
+
+    class FakeResolver(val target: VideoPlaybackTarget?): VideoPlaybackResolver() {
+        override fun resolve(mediaMetadata: MediaMetadata?): VideoPlaybackTarget? = target
+    }
+
+    class VideoModeControllerForTest(
+        onToast: (String) -> Unit = {},
+        override val player: VideoPlaybackPlayer? = null,
+        resolver: VideoPlaybackResolver = VideoPlaybackResolver(),
+    ) : VideoModeController(onVideoUnavailable = onToast, resolver = resolver, player = player) {
+        var canResolveVideo: Boolean = true
+
+        override fun isVideoAvailable(mediaId: String?): Boolean = canResolveVideo
+
+        fun setVideoModeActiveForTest(enabled: Boolean) {
+            activeVideoMode.value = enabled
+            resolvingVideoMode.value = false
+        }
     }
 }
