@@ -178,7 +178,14 @@ class PlayerConnection(
     val isVideoModeResolving: StateFlow<Boolean> = videoModeController.isVideoModeResolving
     val currentVideoTarget = videoModeController.currentVideoTargetFlow
 
-    fun toggleVideoMode() = videoModeController.toggleVideoMode()
+    fun toggleVideoMode() {
+        // Ensure the controller has the latest media metadata before resolving video mode.
+        val currentMediaMetadata = mediaMetadata.value
+        if (currentMediaMetadata != null) {
+            videoModeController.onMediaItemChanged(currentMediaMetadata.id, currentMediaMetadata)
+        }
+        videoModeController.toggleVideoMode()
+    }
 
     fun setVideoMode(enabled: Boolean) = videoModeController.setVideoMode(enabled)
 
