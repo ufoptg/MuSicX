@@ -6,6 +6,7 @@
 
 package com.metrolist.music.playback
 
+import com.metrolist.innertube.models.SongItem
 import com.metrolist.music.models.MediaMetadata
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -33,25 +34,99 @@ class VideoPlaybackResolverTest {
     }
 
     @Test
-    fun `default lookup resolves video songs to their own video and audio counterparts`() {
+    fun `default lookup resolves video songs to their own video id`() {
         val resolver = VideoPlaybackResolver()
 
         val videoSong = videoMetadata(id = "abc123", musicVideoType = "MUSIC_VIDEO_TYPE_OMV")
         assertEquals("abc123", resolver.resolve(videoSong)?.videoId)
         assertNull(resolver.resolve(videoSong)?.mediaUri)
 
-        val audioSongWithoutCounterpart = videoMetadata(id = "audio1", musicVideoType = null)
-        assertNull(resolver.resolve(audioSongWithoutCounterpart))
+        // Audio tracks need an async counterpart lookup and cannot be resolved synchronously.
+        assertNull(resolver.resolve(videoMetadata(id = "audio1", musicVideoType = null)))
+    }
 
-        val audioSongWithCounterpart =
+    @Test
+    fun `playlist set video id is never treated as a youtube video id`() {
+        val resolver = VideoPlaybackResolver()
+        val audioSongWithPlaylistToken =
             MediaMetadata(
                 id = "audio1",
                 title = "Track",
                 artists = emptyList(),
                 duration = 210,
-                setVideoId = "vid789",
+                setVideoId = "playlist-entry-token",
             )
-        assertEquals("vid789", resolver.resolve(audioSongWithCounterpart)?.videoId)
+
+        assertNull(resolver.resolve(audioSongWithPlaylistToken))
+    }
+
+    @Test
+    fun `counterpart lookup picks matching official music video`() {
+        val metadata =
+            MediaMetadata(
+                id = "audio1",
+                title = "Track Name",
+                artists = listOf(MediaMetadata.Artist(id = null, name = "Artist Name")),
+                duration = 210,
+            )
+
+        val videoId =
+            findCounterpartVideoId(
+                metadata = metadata,
+                items =
+                    listOf(
+                        songItem(
+                            id = "wrong1",
+                            title = "Unrelated Song",
+                            artist = "Other Artist",
+                            duration = 210,
+                        ),
+                        songItem(
+                            id = "audioOnly",
+                            title = "Track Name",
+                            artist = "Artist Name",
+                            duration = 210,
+                            musicVideoType = "MUSIC_VIDEO_TYPE_ATV",
+                        ),
+                        songItem(
+                            id = "mv1",
+                            title = "Track Name (Official Music Video)",
+                            artist = "Artist Name",
+                            duration = 212,
+                            musicVideoType = "MUSIC_VIDEO_TYPE_OMV",
+                        ),
+                    ),
+            )
+
+        assertEquals("mv1", videoId)
+    }
+
+    @Test
+    fun `counterpart lookup rejects mismatched title and artist`() {
+        val metadata =
+            MediaMetadata(
+                id = "audio1",
+                title = "Track Name",
+                artists = listOf(MediaMetadata.Artist(id = null, name = "Artist Name")),
+                duration = 210,
+            )
+
+        val videoId =
+            findCounterpartVideoId(
+                metadata = metadata,
+                items =
+                    listOf(
+                        songItem(
+                            id = "wrong1",
+                            title = "Completely Different",
+                            artist = "Other Artist",
+                            duration = 210,
+                            musicVideoType = "MUSIC_VIDEO_TYPE_OMV",
+                        ),
+                    ),
+            )
+
+        assertNull(videoId)
     }
 
     @Test
@@ -67,6 +142,22 @@ private fun videoMetadata(id: String, musicVideoType: String?): MediaMetadata =
         artists = listOf(MediaMetadata.Artist(id = null, name = "Artist")),
         duration = 210,
         musicVideoType = musicVideoType,
+    )
+
+private fun songItem(
+    id: String,
+    title: String,
+    artist: String,
+    duration: Int?,
+    musicVideoType: String? = "MUSIC_VIDEO_TYPE_OMV",
+): SongItem =
+    SongItem(
+        id = id,
+        title = title,
+        artists = listOf(com.metrolist.innertube.models.Artist(id = null, name = artist)),
+        duration = duration,
+        musicVideoType = musicVideoType,
+        thumbnail = "",
     )
 
 private class FakeLookup(

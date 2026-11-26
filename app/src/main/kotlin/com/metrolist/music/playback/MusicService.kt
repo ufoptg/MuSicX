@@ -80,6 +80,7 @@ import androidx.media3.exoplayer.audio.MediaCodecAudioRenderer
 import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.mkv.MatroskaExtractor
@@ -533,6 +534,14 @@ class MusicService :
 
     // URL cache for stream URLs - class-level so it can be invalidated on errors
     private val songUrlCache = StreamUrlCache()
+
+    // Resolved video streams for inline video mode, keyed by the target YouTube video id.
+    // The inline video media source factory reads these to serve the video stream.
+    private val videoStreamTargets = java.util.concurrent.ConcurrentHashMap<String, VideoPlaybackTarget>()
+
+    fun registerVideoStreamTarget(target: VideoPlaybackTarget) {
+        videoStreamTargets[target.videoId] = target
+    }
 
     // Tracks mediaIds for which a recoverSong() coroutine is currently in flight.
     //
@@ -4571,13 +4580,16 @@ class MusicService :
     private fun createMediaSourceFactory(
         normalizationProcessor: VolumeNormalizationAudioProcessor,
         playerProvider: () -> ExoPlayer?,
-    ) =
-        DefaultMediaSourceFactory(
-            createDataSourceFactory(normalizationProcessor, playerProvider),
-            ExtractorsFactory {
-                arrayOf(MatroskaExtractor(), FragmentedMp4Extractor(), Mp4Extractor())
-            },
-        )
+    ): MediaSource.Factory {
+        val delegate =
+            DefaultMediaSourceFactory(
+                createDataSourceFactory(normalizationProcessor, playerProvider),
+                ExtractorsFactory {
+                    arrayOf(MatroskaExtractor(), FragmentedMp4Extractor(), Mp4Extractor())
+                },
+            )
+        return VideoMediaSourceFactory(delegate, videoStreamTargets, this)
+    }
 
     private fun createRenderersFactory(
         normalizationProcessor: VolumeNormalizationAudioProcessor,
