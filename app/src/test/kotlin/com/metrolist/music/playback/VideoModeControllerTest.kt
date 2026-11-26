@@ -43,7 +43,7 @@ class VideoModeControllerTest {
     @Test
     fun `switchToVideo_preservesPositionAndRequestsPlay`() {
         val player = FakePlaybackPlayer(positionMs = 42_000, playWhenReady = true)
-        val controller = VideoModeControllerForTest(player = player, resolver = FakeResolver(videoTargetNullUri))
+        val controller = VideoModeControllerForTest(player = player, resolver = FakeResolver(videoTargetWithUri))
 
         controller.requestVideoMode()
 
@@ -108,7 +108,12 @@ class VideoModeControllerTest {
         onToast: (String) -> Unit = {},
         override val player: VideoPlaybackPlayer? = null,
         resolver: VideoPlaybackResolver = VideoPlaybackResolver(),
-    ) : VideoModeController(onVideoUnavailable = onToast, resolver = resolver, player = player) {
+    ) : VideoModeController(
+        onVideoUnavailable = onToast,
+        resolver = resolver,
+        player = player,
+        scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Unconfined),
+    ) {
         var canResolveVideo: Boolean = true
 
         override fun isVideoAvailable(mediaId: String?): Boolean = canResolveVideo

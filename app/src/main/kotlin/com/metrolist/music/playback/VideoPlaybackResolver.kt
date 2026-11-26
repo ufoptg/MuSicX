@@ -6,8 +6,13 @@
 
 package com.metrolist.music.playback
 
+import android.net.ConnectivityManager
+import com.metrolist.innertubex.extraction.ContentHints
+import com.metrolist.innertubex.extraction.StreamResolveException
+import com.metrolist.music.constants.AudioQuality
 import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.utils.InnerTubeXPlayer
+import kotlinx.coroutines.CancellationException
 
 /**
  * A watchable video counterpart for the current media, as required for inline video playback.
@@ -16,13 +21,11 @@ import com.metrolist.music.utils.InnerTubeXPlayer
  * @param mediaUri Optional playable media uri / MediaItem data needed by the player; null until a real
  * playable stream uri is resolved (watch-page urls are references, not ExoPlayer media data).
  * @param streamHeaders Optional playback stream headers (e.g. authorization/cookies) required by the player.
- * @param format Optional extracted playback format data for the resolved stream.
  */
 data class VideoPlaybackTarget(
     val videoId: String,
     val mediaUri: String? = null,
     val streamHeaders: Map<String, String> = emptyMap(),
-    val format: InnerTubeXPlayer.PlaybackData? = null,
 )
 
 fun interface VideoLookup {
@@ -38,11 +41,68 @@ data class VideoLookupResult(
  * Resolves a watchable video target for the current media before committing to video mode.
  *
  * The lookup is injectable so callers (and tests) can supply their own counterpart resolution.
- * Resolution is synchronous over the injected lookup; Task 3 consumes the returned target to switch playback.
+ * Resolution is asynchronous over the injected lookup; Task 3 consumes the returned target to switch playback.
  */
 open class VideoPlaybackResolver(
     val lookup: VideoLookup = VideoPlaybackResolver.DefaultLookup,
 ) {
+    /**
+     * Asynchronously resolves a playable video stream URI for the given media metadata.
+     *
+     * Uses InnerTubeXPlayer.playerResponseForPlayback() to extract the stream and returns a
+     * VideoPlaybackTarget populated with the discovered mediaUri (a real playable stream URL).
+     * Returns null when no videoId or no playable stream can be found.
+     *
+     * @param mediaMetadata The media metadata for the current track
+     * @param audioQuality The desired audio quality for extraction
+     * @param connectivityManager The device's connectivity manager
+     */
+    suspend fun resolveVideoStream(
+        mediaMetadata: MediaMetadata?,
+        audioQuality: AudioQuality = AudioQuality.AUTO,
+        connectivityManager: ConnectivityManager,
+    ): VideoPlaybackTarget? {
+        if (mediaMetadata == null) return null
+        val videoId = if (mediaMetadata.isVideoSong) mediaMetadata.setVideoId ?: mediaMetadata.id else mediaMetadata.setVideoId
+        if (videoId.isNullOrBlank()) return null
+
+        return try {
+            val result = InnerTubeXPlayer.playerResponseForPlayback(
+                videoId = videoId,
+                audioQuality = audioQuality,
+                connectivityManager = connectivityManager,
+                contentHints = ContentHints(
+                    isExplicit = mediaMetadata.explicit,
+                    isUploaded = false,
+                    wantVideo = true,
+                ),
+            )
+
+            result.fold(
+                { playbackData ->
+                    VideoPlaybackTarget(
+                        videoId = videoId,
+                        mediaUri = playbackData.streamUrl,
+                        streamHeaders = playbackData.streamHeaders,
+                    )
+                },
+                { _ ->
+                    null
+                }
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: StreamResolveException) {
+            null
+        } catch (error: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Synchronous fallback resolver used by tests and existing callers.
+     * Kept for backward compatibility; production path uses resolveVideoStream().
+     */
     open fun resolve(mediaMetadata: MediaMetadata?): VideoPlaybackTarget? {
         if (mediaMetadata == null) return null
         val result = lookup.lookup(mediaMetadata) ?: return null
@@ -51,7 +111,6 @@ open class VideoPlaybackResolver(
             videoId = videoId,
             mediaUri = result.mediaUri,
             streamHeaders = emptyMap(),
-            format = null,
         )
     }
 

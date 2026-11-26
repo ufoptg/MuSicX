@@ -7,6 +7,7 @@
 package com.metrolist.music.playback
 
 import android.content.Context
+import android.net.ConnectivityManager
 import android.widget.Toast
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -169,6 +170,8 @@ class PlayerConnection(
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             },
             player = ExoPlayerVideoPlaybackPlayer(service.player),
+            scope = scope,
+            connectivityManager = context.getSystemService(ConnectivityManager::class.java) as ConnectivityManager?,
         )
 
     val isVideoModeActive: StateFlow<Boolean> = videoModeController.isVideoModeActive
@@ -277,6 +280,12 @@ class PlayerConnection(
             lastSeekPosition = position
         }
         override fun prepare() {
+            exoPlayer.prepare()
+        }
+        override fun setVideoSource(videoUri: String) {
+            val mediaItem = androidx.media3.common.MediaItem.fromUri(videoUri)
+            exoPlayer.clearMediaItems()
+            exoPlayer.addMediaItem(mediaItem)
             exoPlayer.prepare()
         }
     }

@@ -85,7 +85,7 @@ object InnerTubeXPlayer {
                     ),
                 ) { "InnerTubeX returned no playable stream" }
             check(stream.sabrBootstrap == null) { "SABR is not supported by this playback engine" }
-            Result.success(stream.toPlaybackData())
+            Result.success(stream.toPlaybackData(wantVideo = hints.wantVideo))
         } catch (error: CancellationException) {
             throw error
         } catch (error: StreamResolveException) {
@@ -291,15 +291,24 @@ object InnerTubeXPlayer {
                 }
         }
 
-    private fun ExtractedStream.toPlaybackData(): PlaybackData {
+    private fun ExtractedStream.toPlaybackData(wantVideo: Boolean = false): PlaybackData {
         val metadata = mediaMetadata
         val tracking = playbackTracking
-        val fullMimeType =
-            if (codecs.isNullOrBlank()) {
-                mimeType.orEmpty()
-            } else {
-                "${mimeType.orEmpty()}; codecs=\"$codecs\""
-            }
+        val fullMimeType = if (codecs.isNullOrBlank()) {
+            mimeType.orEmpty()
+        } else {
+            "${mimeType.orEmpty()}; codecs=\"$codecs\""
+        }
+        val formatMimeType = if (wantVideo && videoMimeType != null && videoCodecs != null) {
+            "${videoMimeType.orEmpty()}; codecs=\"${videoCodecs.orEmpty()}\""
+        } else {
+            fullMimeType
+        }
+        val formatUrl = (if (wantVideo) videoUrl else null) ?: audioUrl
+        val formatWidth = if (wantVideo && videoWidth != null) videoWidth else null
+        val formatHeight = if (wantVideo && videoHeight != null) videoHeight else null
+        val formatBitrate = (if (wantVideo && videoBitrate != null) videoBitrate else bitrate) ?: 0
+        val formatItag = (if (wantVideo) videoItag else null) ?: itag
         return PlaybackData(
             audioConfig =
                 if (loudnessDb != null || perceptualLoudnessDb != null) {
@@ -337,17 +346,17 @@ object InnerTubeXPlayer {
                 },
             format =
                 PlayerResponse.StreamingData.Format(
-                    itag = itag,
-                    url = audioUrl,
-                    mimeType = fullMimeType,
-                    bitrate = bitrate ?: 0,
-                    width = null,
-                    height = null,
+                    itag = formatItag,
+                    url = formatUrl,
+                    mimeType = formatMimeType,
+                    bitrate = formatBitrate,
+                    width = formatWidth,
+                    height = formatHeight,
                     contentLength = contentLengthBytes,
                     quality = "",
                     fps = null,
                     qualityLabel = null,
-                    averageBitrate = bitrate,
+                    averageBitrate = formatBitrate,
                     audioQuality = null,
                     approxDurationMs = metadata?.durationSeconds?.times(1000)?.toString(),
                     audioSampleRate = sampleRate,
@@ -358,7 +367,7 @@ object InnerTubeXPlayer {
                     cipher = null,
                     audioTrack = null,
                 ),
-            streamUrl = audioUrl,
+            streamUrl = formatUrl,
             streamExpiresInSeconds =
                 expiresAt
                     ?.let { ((it.toEpochMilliseconds() - Clock.System.now().toEpochMilliseconds()) / 1000L).toInt() }

@@ -6,10 +6,15 @@
 
 package com.metrolist.music.playback
 
+import android.net.ConnectivityManager
+import com.metrolist.music.constants.AudioQuality
 import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.playback.VideoPlaybackPlayer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 /**
  * Minimal abstraction over an Android playback player used by VideoModeController.
@@ -22,6 +27,9 @@ interface VideoPlaybackPlayer {
     var lastSeekPositionMs: Long
     fun seekTo(position: Long)
     fun prepare()
+
+    /** Replace the player's media source with a video stream URI. Default no-op for test doubles. */
+    fun setVideoSource(videoUri: String) {}
 }
 
 /**
@@ -35,6 +43,9 @@ open class VideoModeController(
     onVideoUnavailable: (String) -> Unit = {},
     private val resolver: VideoPlaybackResolver = VideoPlaybackResolver(),
     open val player: VideoPlaybackPlayer? = null,
+    private val scope: CoroutineScope = kotlinx.coroutines.CoroutineScope(Dispatchers.Main),
+    private val connectivityManager: ConnectivityManager? = null,
+    private val audioQuality: AudioQuality = AudioQuality.AUTO,
 ) {
     internal val activeVideoMode = MutableStateFlow(false)
     internal val resolvingVideoMode = MutableStateFlow(false)
@@ -76,18 +87,34 @@ open class VideoModeController(
             currentVideoTarget.value = null
             return
         }
+        // Launch async resolution on the provided scope.
+        scope.launch {
+            resolveAndActivateVideoMode()
+        }
+    }
+
+    private suspend fun resolveAndActivateVideoMode() {
         resolvingVideoMode.value = true
-        val target = if (isVideoAvailable(currentMediaId)) resolver.resolve(currentMediaMetadata) else null
+        // Try the async resolution first (production path).
+        val target = if (connectivityManager != null) {
+            resolver.resolveVideoStream(currentMediaMetadata, audioQuality, connectivityManager!!)
+        } else {
+            resolver.resolve(currentMediaMetadata)
+        }
+
         // Only commit to video mode when a real playable stream URI is resolved.
         // A videoId without a mediaUri cannot be rendered by ExoPlayer (would show black).
         if (target != null && target.mediaUri != null) {
-            // Preserve current playback position and request playback at that point.
+            // Capture position BEFORE switching source (setVideoSource resets the player).
             val currentPosition = player?.currentPosition ?: -1L
             val currentPlayWhenReady = player?.playWhenReady ?: true
             savedPosition = currentPosition
             savedPlayWhenReady = currentPlayWhenReady
+            // Switch the player to the video stream so MusicVideoSurface renders video.
+            player?.setVideoSource(target.mediaUri)
+            // Restore the preserved playback position on the video source.
             player?.seekTo(currentPosition)
-            player?.playWhenReady = true
+            player?.playWhenReady = currentPlayWhenReady
             currentVideoTarget.value = target
             activeVideoMode.value = true
             resolvingVideoMode.value = false
@@ -111,6 +138,7 @@ open class VideoModeController(
             val currentPlayWhenReady = player?.playWhenReady ?: true
             savedPosition = currentPosition
             savedPlayWhenReady = currentPlayWhenReady
+            player?.setVideoSource(resolvedTarget.mediaUri)
             player?.seekTo(currentPosition)
             player?.playWhenReady = true
             currentVideoTarget.value = resolvedTarget
