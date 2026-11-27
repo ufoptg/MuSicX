@@ -228,7 +228,16 @@ object InnerTubeXPlayer {
         val requireBoundedRange: Boolean,
         val rangeChunkSizeBytes: Long,
         val useRangeChunks: Boolean,
-    )
+    ) {
+        /** True only when [streamUrl] points at an actual video track (not an audio-only fallback). */
+        val hasVideo: Boolean
+            get() =
+                !format.width.isNullOrZero() &&
+                    !format.height.isNullOrZero() &&
+                    format.mimeType?.startsWith("video/") == true
+
+        private fun Int?.isNullOrZero(): Boolean = this == null || this <= 0
+    }
 
     private data class ExtractionBundle(
         val transportGeneration: Long,
@@ -299,8 +308,12 @@ object InnerTubeXPlayer {
         } else {
             "${mimeType.orEmpty()}; codecs=\"$codecs\""
         }
-        val formatMimeType = if (wantVideo && videoMimeType != null && videoCodecs != null) {
-            "${videoMimeType.orEmpty()}; codecs=\"${videoCodecs.orEmpty()}\""
+        val formatMimeType = if (wantVideo && !videoMimeType.isNullOrBlank()) {
+            if (videoCodecs.isNullOrBlank()) {
+                videoMimeType.orEmpty()
+            } else {
+                "$videoMimeType; codecs=\"$videoCodecs\""
+            }
         } else {
             fullMimeType
         }
@@ -347,7 +360,7 @@ object InnerTubeXPlayer {
             format =
                 PlayerResponse.StreamingData.Format(
                     itag = formatItag,
-                    url = formatUrl,
+                    url = formatUrl.orEmpty(),
                     mimeType = formatMimeType,
                     bitrate = formatBitrate,
                     width = formatWidth,

@@ -32,7 +32,7 @@ data class DesktopMediaMetadata(
     val isEpisode: Boolean = false,
 ) {
     val isVideoSong: Boolean
-        get() = musicVideoType != null
+        get() = musicVideoType != null && musicVideoType != "MUSIC_VIDEO_TYPE_ATV"
 }
 
 /**
@@ -164,7 +164,9 @@ open class VideoPlaybackResolver(
 
     companion object {
         private val DefaultLookup: VideoLookup = VideoLookup { media ->
-            val videoId = if (media.isVideoSong) media.setVideoId ?: media.id else media.setVideoId
+            // setVideoId is the playlist-entry token, never a YouTube video id. Audio tracks
+            // require an async counterpart lookup, which the desktop path does not perform yet.
+            val videoId = media.id.takeIf { media.isVideoSong && it.isNotBlank() }
             if (videoId.isNullOrBlank()) {
                 null
             } else {

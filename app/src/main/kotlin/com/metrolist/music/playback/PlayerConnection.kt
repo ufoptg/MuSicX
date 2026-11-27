@@ -169,7 +169,11 @@ class PlayerConnection(
             onVideoUnavailable = { message ->
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             },
-            player = ExoPlayerVideoPlaybackPlayer(service.player),
+            player =
+                ExoPlayerVideoPlaybackPlayer(
+                    exoPlayer = service.player,
+                    registerVideoTarget = service::registerVideoStreamTarget,
+                ),
             scope = scope,
             connectivityManager = context.getSystemService(ConnectivityManager::class.java) as ConnectivityManager?,
         )
@@ -272,7 +276,10 @@ class PlayerConnection(
         Timber.tag(TAG).d("Attached to new player instance: $newPlayer")
     }
 
-    class ExoPlayerVideoPlaybackPlayer(private val exoPlayer: ExoPlayer) : VideoPlaybackPlayer {
+    class ExoPlayerVideoPlaybackPlayer(
+        private val exoPlayer: ExoPlayer,
+        private val registerVideoTarget: (VideoPlaybackTarget) -> Unit = {},
+    ) : VideoPlaybackPlayer {
         override val currentPosition: Long
             get() = exoPlayer.currentPosition
         override var playWhenReady: Boolean
@@ -289,11 +296,69 @@ class PlayerConnection(
         override fun prepare() {
             exoPlayer.prepare()
         }
-        override fun setVideoSource(videoUri: String) {
-            val mediaItem = androidx.media3.common.MediaItem.fromUri(videoUri)
-            exoPlayer.clearMediaItems()
-            exoPlayer.addMediaItem(mediaItem)
+
+        private var savedIndex: Int = -1
+        private var savedItem: MediaItem? = null
+        private var savedPlayWhenReady: Boolean = true
+
+        private val transitionListener =
+            object : Player.Listener {
+                override fun onMediaItemTransition(
+                    mediaItem: MediaItem?,
+                    reason: Int,
+                ) {
+                    // The user skipped away while video mode was active. Put the original audio
+                    // item back into the queue so returning to that track does not replay video.
+                    val index = savedIndex
+                    val original = savedItem ?: return
+                    if (index < 0 || exoPlayer.currentMediaItemIndex == index) return
+                    if (index < exoPlayer.mediaItemCount) {
+                        exoPlayer.replaceMediaItem(index, original)
+                    }
+                    clearSavedSource()
+                }
+            }
+
+        override fun setVideoSource(target: VideoPlaybackTarget) {
+            val index = exoPlayer.currentMediaItemIndex
+            val original = exoPlayer.currentMediaItem ?: MediaItem.fromUri(target.videoId)
+            if (savedIndex < 0) {
+                savedIndex = index
+                savedItem = original
+                savedPlayWhenReady = exoPlayer.playWhenReady
+                exoPlayer.addListener(transitionListener)
+            }
+            registerVideoTarget(target)
+            // Keep the original media id, metadata and tag so the now-playing UI (and queue
+            // bookkeeping) still sees the same track. Only the cache key changes, which tells
+            // MusicService's resolving data source to fetch the video stream instead of audio.
+            val videoItem =
+                original
+                    .buildUpon()
+                    .setCustomCacheKey(VideoPlaybackTarget.CACHE_KEY_PREFIX + target.videoId)
+                    .build()
+            // Replace in place instead of collapsing the queue to a single item, so
+            // next/previous and the queue UI keep working while video mode is active.
+            exoPlayer.replaceMediaItem(index, videoItem)
             exoPlayer.prepare()
+        }
+
+        override fun restoreAudioSource(positionMs: Long) {
+            val original = savedItem ?: return
+            val index = savedIndex.coerceAtLeast(0)
+            if (index < exoPlayer.mediaItemCount) {
+                exoPlayer.replaceMediaItem(index, original)
+            }
+            exoPlayer.playWhenReady = savedPlayWhenReady
+            exoPlayer.seekTo(positionMs.coerceAtLeast(0L))
+            exoPlayer.prepare()
+            clearSavedSource()
+        }
+
+        private fun clearSavedSource() {
+            exoPlayer.removeListener(transitionListener)
+            savedIndex = -1
+            savedItem = null
         }
     }
 
