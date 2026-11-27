@@ -9,11 +9,13 @@ package com.metrolist.music.playback
 import android.net.ConnectivityManager
 import com.metrolist.music.constants.AudioQuality
 import com.metrolist.music.models.MediaMetadata
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 
 /**
@@ -117,36 +119,45 @@ open class VideoModeController(
     }
 
     private suspend fun resolveAndActivateVideoMode(generation: Long) {
-        if (!isVideoAvailable(currentMediaId)) {
-            finishUnavailable(generation)
-            return
-        }
-
-        val target =
-            if (connectivityManager != null) {
-                resolver.resolveVideoStream(currentMediaMetadata, audioQuality, connectivityManager)
-            } else {
-                resolver.resolve(currentMediaMetadata)
+        try {
+            if (!isVideoAvailable(currentMediaId)) {
+                finishUnavailable(generation)
+                return
             }
 
-        if (generation != videoModeGeneration) return
+            val target =
+                withTimeoutOrNull(VIDEO_RESOLVE_TIMEOUT_MS) {
+                    if (connectivityManager != null) {
+                        resolver.resolveVideoStream(currentMediaMetadata, audioQuality, connectivityManager)
+                    } else {
+                        resolver.resolve(currentMediaMetadata)
+                    }
+                }
 
-        // Only commit to video mode when a real playable video stream URI is resolved.
-        // A videoId without a mediaUri (or an audio-only stream) cannot be rendered by ExoPlayer.
-        if (target != null && !target.mediaUri.isNullOrBlank()) {
-            // Capture position BEFORE switching source (setVideoSource replaces the media item).
-            val currentPosition = player?.currentPosition ?: -1L
-            val currentPlayWhenReady = player?.playWhenReady ?: true
-            savedPosition = currentPosition
-            savedPlayWhenReady = currentPlayWhenReady
-            player?.setVideoSource(target)
-            player?.seekTo(currentPosition)
-            player?.playWhenReady = currentPlayWhenReady
-            currentVideoTarget.value = target
-            activeVideoMode.value = true
-            resolvingVideoMode.value = false
-            Timber.tag(TAG).d("Video mode active for %s (stream=%s)", target.videoId, target.mediaUri)
-        } else {
+            if (generation != videoModeGeneration) return
+
+            // Only commit to video mode when a real playable video stream URI is resolved.
+            // A videoId without a mediaUri (or an audio-only stream) cannot be rendered by ExoPlayer.
+            if (target != null && !target.mediaUri.isNullOrBlank()) {
+                // Capture position BEFORE switching source (setVideoSource replaces the media item).
+                val currentPosition = player?.currentPosition ?: -1L
+                val currentPlayWhenReady = player?.playWhenReady ?: true
+                savedPosition = currentPosition
+                savedPlayWhenReady = currentPlayWhenReady
+                player?.setVideoSource(target)
+                player?.seekTo(currentPosition)
+                player?.playWhenReady = currentPlayWhenReady
+                currentVideoTarget.value = target
+                activeVideoMode.value = true
+                resolvingVideoMode.value = false
+                Timber.tag(TAG).d("Video mode active for %s (stream=%s)", target.videoId, target.mediaUri)
+            } else {
+                finishUnavailable(generation)
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Timber.tag(TAG).w(error, "Video mode resolution failed")
             finishUnavailable(generation)
         }
     }
@@ -180,6 +191,7 @@ open class VideoModeController(
 
     companion object {
         private const val TAG = "VideoModeController"
+        private const val VIDEO_RESOLVE_TIMEOUT_MS = 20_000L
         const val VIDEO_UNAVAILABLE_MESSAGE = "Video unavailable for this track"
     }
 }

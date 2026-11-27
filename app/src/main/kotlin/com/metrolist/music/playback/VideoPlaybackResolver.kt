@@ -88,18 +88,18 @@ open class VideoPlaybackResolver(
         connectivityManager: ConnectivityManager,
     ): VideoPlaybackTarget? {
         if (mediaMetadata == null) return null
-        val videoId =
-            if (mediaMetadata.isVideoSong) {
-                mediaMetadata.id.takeIf { it.isNotBlank() }
-            } else {
-                counterpartLookup(mediaMetadata)
-            }
-        if (videoId.isNullOrBlank()) {
-            Timber.tag(TAG).d("No video id for track %s (isVideo=%s)", mediaMetadata.id, mediaMetadata.isVideoSong)
-            return null
-        }
-
         return try {
+            val videoId =
+                if (mediaMetadata.isVideoSong) {
+                    mediaMetadata.id.takeIf { it.isNotBlank() }
+                } else {
+                    counterpartLookup(mediaMetadata)
+                }
+            if (videoId.isNullOrBlank()) {
+                Timber.tag(TAG).d("No video id for track %s (isVideo=%s)", mediaMetadata.id, mediaMetadata.isVideoSong)
+                return null
+            }
+
             val result =
                 InnerTubeXPlayer.playerResponseForPlayback(
                     videoId = videoId,
@@ -142,10 +142,10 @@ open class VideoPlaybackResolver(
         } catch (error: CancellationException) {
             throw error
         } catch (error: StreamResolveException) {
-            Timber.tag(TAG).w(error, "Video stream resolution failed for %s", videoId)
+            Timber.tag(TAG).w(error, "Video stream resolution failed")
             null
         } catch (error: Exception) {
-            Timber.tag(TAG).w(error, "Video stream resolution failed for %s", videoId)
+            Timber.tag(TAG).w(error, "Video stream resolution failed")
             null
         }
     }
