@@ -70,7 +70,10 @@ object InnerTubeXPlayer {
                             playlistId?.contains("MLPT") == true,
                 ).withStreamCapabilities(
                     allowHls = false,
-                    allowSabr = false,
+                    // Allow SABR clients when the caller wants video: some music videos
+                    // only serve video via SABR/HLS manifests. Audio-only resolution keeps
+                    // SABR disabled to preserve existing behavior.
+                    allowSabr = contentHints.wantVideo,
                     allowBoundedRange = allowBoundedRange,
                 )
             val excludedClients = failedStreamClients(videoId)
@@ -84,7 +87,11 @@ object InnerTubeXPlayer {
                         clientPlaybackNonce = generateClientPlaybackNonce(),
                     ),
                 ) { "InnerTubeX returned no playable stream" }
-            check(stream.sabrBootstrap == null) { "SABR is not supported by this playback engine" }
+            // SABR streams carry a sabrBootstrap; audio-only mode rejects them, but video
+            // mode lets them through so HLS-backed videos can render inline.
+            if (!hints.wantVideo) {
+                check(stream.sabrBootstrap == null) { "SABR is not supported by this playback engine" }
+            }
             Result.success(stream.toPlaybackData(wantVideo = hints.wantVideo))
         } catch (error: CancellationException) {
             throw error
