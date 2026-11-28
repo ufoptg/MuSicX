@@ -71,6 +71,7 @@ import com.metrolist.innertube.pages.SearchSummaryPage
 import com.metrolist.innertubex.models.YouTubeClient.Companion.WEB
 import com.metrolist.innertubex.models.YouTubeClient.Companion.WEB_REMIX
 import io.ktor.client.call.body
+import io.ktor.client.HttpClient
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -133,6 +134,12 @@ object YouTube {
         }
 
     fun extractionTransport(): InnerTube.ExtractionTransport = innerTube.extractionTransport()
+
+    /**
+     * Exposed so callers (e.g. HLS manifest fetch) can make raw HTTP requests
+     * through the same client used by the InnerTube transport.
+     */
+    internal fun httpClient(): HttpClient = innerTube.extractionTransport().httpClient
 
     suspend fun searchSuggestions(query: String): Result<SearchSuggestions> =
         runCatching {
